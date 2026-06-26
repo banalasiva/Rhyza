@@ -93,3 +93,43 @@ export async function toggleReaction(
   for (const r of rows) counts[r.reactionKey] = r._count.reactionKey;
   return { reacted: !existing, counts };
 }
+
+// Toggle an endorsement on a contribution (recognizing the contributor's role,
+// distinct from a reaction). Notifies the author the first time.
+export async function toggleEndorsement(userId: string, contributionId: string) {
+  const contribution = await db.contribution.findUnique({
+    where: { id: contributionId },
+    include: { seed: true },
+  });
+  if (!contribution || contribution.deletedAt) {
+    throw new ApiError("NOT_FOUND", "Contribution not found");
+  }
+  await requireGardenAccess(userId, contribution.seed.gardenId);
+
+  const existing = await db.contributionEndorsement.findUnique({
+    where: { contributionId_endorserId: { contributionId, endorserId: userId } },
+  });
+  if (existing) {
+    await db.contributionEndorsement.delete({
+      where: { contributionId_endorserId: { contributionId, endorserId: userId } },
+    });
+  } else {
+    await db.contributionEndorsement.create({
+      data: { contributionId, endorserId: userId },
+    });
+    if (contribution.authorId !== userId) {
+      await db.notification.create({
+        data: {
+          recipientId: contribution.authorId,
+          actorId: userId,
+          type: "endorsement",
+          title: "Your contribution was endorsed ✦",
+          entityType: "seed",
+          entityId: contribution.seedId,
+        },
+      });
+    }
+  }
+  const count = await db.contributionEndorsement.count({ where: { contributionId } });
+  return { endorsed: !existing, count };
+}

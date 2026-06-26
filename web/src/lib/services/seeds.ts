@@ -69,6 +69,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
       include: {
         author: { select: { id: true, name: true, image: true } },
         reactions: true,
+        endorsements: true,
       },
     }),
   ]);
@@ -90,6 +91,8 @@ export async function getSeedDetail(userId: string, seedId: string) {
       createdAt: c.createdAt.toISOString(),
       reactionCounts,
       myReactions,
+      endorsementCount: c.endorsements.length,
+      iEndorsed: c.endorsements.some((e) => e.endorserId === userId),
     };
   });
 
