@@ -4,11 +4,46 @@
 
 // The five dimensions of understanding a seed accumulates.
 export const DIMENSIONS = [
-  { key: "foundations", emoji: "🧠", label: "Foundations", blurb: "Why does this exist?" },
-  { key: "understanding", emoji: "💡", label: "Understanding", blurb: "How do I think about it?" },
-  { key: "application", emoji: "🛠", label: "Application", blurb: "How is it used in practice?" },
-  { key: "debate", emoji: "⚖", label: "Debate", blurb: "Where does it break down?" },
-  { key: "bloom", emoji: "🌸", label: "Bloom", blurb: "The distilled answer." },
+  {
+    key: "foundations",
+    emoji: "🧠",
+    label: "Foundations",
+    blurb: "Why does this exist?",
+    color: "#EC407A",
+    description: "Explore the core idea — what it is, why it exists, what assumptions it makes.",
+  },
+  {
+    key: "understanding",
+    emoji: "💡",
+    label: "Understanding",
+    blurb: "How do I think about it?",
+    color: "#FFB300",
+    description: "Share the mental models and analogies that make this click.",
+  },
+  {
+    key: "application",
+    emoji: "🛠",
+    label: "Application",
+    blurb: "How is it used in practice?",
+    color: "#42A5F5",
+    description: "Ground it in practice — real implementations, patterns, war stories.",
+  },
+  {
+    key: "debate",
+    emoji: "⚖",
+    label: "Debate",
+    blurb: "Where does it break down?",
+    color: "#AB47BC",
+    description: "Pressure-test the idea — edge cases, trade-offs, counter-arguments.",
+  },
+  {
+    key: "bloom",
+    emoji: "🌸",
+    label: "Bloom",
+    blurb: "The distilled answer.",
+    color: "#FFB300",
+    description: "Distill what the community has converged on into durable knowledge.",
+  },
 ] as const;
 
 export type DimensionKey = (typeof DIMENSIONS)[number]["key"];
