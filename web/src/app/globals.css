@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #070d07;
+  --ink: #e8e4dc;
+  --ink-mid: #a0a890;
+  --ink-soft: #5a6456;
+  --accent: #4caf50;
+  --bloom: #ffb300;
+}
+
+html,
+body {
+  min-height: 100%;
+  background: var(--bg);
+}
+
+body {
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Dark-forest atmosphere shared across screens */
+.garden-bg {
+  position: fixed;
+  inset: -6%;
+  z-index: 0;
+  background:
+    radial-gradient(1200px 800px at 50% -10%, rgba(76, 175, 80, 0.1), transparent 60%),
+    radial-gradient(900px 600px at 80% 110%, rgba(255, 179, 0, 0.06), transparent 60%),
+    var(--bg);
+}
+
+@layer components {
+  .serif-xl {
+    @apply font-serif font-light leading-tight text-ink;
+    font-size: clamp(24px, 5vw, 34px);
+  }
+  .serif-lg {
+    @apply font-serif font-light text-ink;
+    font-size: clamp(20px, 4vw, 27px);
+    line-height: 1.28;
+  }
+  .eyebrow {
+    @apply text-accent;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+  }
+  .card {
+    @apply rounded-2xl border bg-[rgba(15,22,15,0.6)] backdrop-blur;
+    border-color: rgba(76, 175, 80, 0.18);
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-bg transition;
+    background: var(--accent);
+  }
+  .btn-primary:hover {
+    background: #66bb6a;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm text-ink-mid transition;
+    border-color: rgba(76, 175, 80, 0.2);
+    background: rgba(7, 13, 7, 0.6);
+  }
+  .btn-ghost:hover {
+    border-color: rgba(76, 175, 80, 0.45);
+    color: var(--ink);
+  }
+  .input {
+    @apply w-full rounded-xl border bg-[rgba(7,13,7,0.5)] px-4 py-3 text-ink outline-none transition placeholder:text-ink-soft;
+    border-color: rgba(76, 175, 80, 0.2);
+  }
+  .input:focus {
+    border-color: rgba(76, 175, 80, 0.5);
+  }
+}

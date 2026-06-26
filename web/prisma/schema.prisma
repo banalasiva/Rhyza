@@ -1,0 +1,367 @@
+// Rhyza data model — translated from docs/DATA_MODEL.md.
+// Postgres. UUID primary keys. Soft deletes (deletedAt) where the spec calls for them.
+//
+// v1 scope note: pgvector embeddings, attachments, and search-query logging from the
+// spec are deferred to phase 2 and intentionally not modelled here yet.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Auth.js (NextAuth) adapter models
+// ─────────────────────────────────────────────────────────────
+
+model Account {
+  id                String  @id @default(uuid()) @db.Uuid
+  userId            String  @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Core entities
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  name         String    @default("")
+  avatarUrl    String?   @map("avatar_url")
+  bio          String?
+  emailVerified DateTime? @map("email_verified")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  lastActiveAt DateTime? @map("last_active_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  accounts     Account[]
+  sessions     Session[]
+
+  orgMemberships    OrgMember[]
+  gardenMemberships GardenMember[]
+  createdGardens    Garden[]       @relation("GardenCreatedBy")
+  seeds             Seed[]
+  stageVotes        SeedStageVote[]
+  contributions     Contribution[]
+  reactions         ContributionReaction[]
+  endorsementsGiven ContributionEndorsement[]
+  bloomsTipped      Bloom[]        @relation("BloomCreatedBy")
+  notifications     Notification[] @relation("NotificationRecipient")
+  actedNotifications Notification[] @relation("NotificationActor")
+  recognitionsReceived UserRecognition[] @relation("RecognitionUser")
+  recognitionsAwarded  UserRecognition[] @relation("RecognitionAwardedBy")
+
+  @@map("users")
+}
+
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+  logoUrl   String?  @map("logo_url")
+  plan      String   @default("free") // free | pro | enterprise
+  ssoDomain String?  @map("sso_domain") // auto-join org when email domain matches
+  createdAt DateTime @default(now()) @map("created_at")
+
+  members OrgMember[]
+  gardens Garden[]
+
+  @@map("organizations")
+}
+
+model OrgMember {
+  orgId    String   @map("org_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  role     String   @default("member") // member | admin | owner
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([orgId, userId])
+  @@map("org_members")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Gardens
+// ─────────────────────────────────────────────────────────────
+
+model Garden {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String   @map("org_id") @db.Uuid
+  module      String   @default("learning") // learning | achievement | help | mentorship | network | explore
+  name        String
+  slug        String
+  description String?
+  emoji       String   @default("🌱")
+  stage       String   @default("germinating") // germinating | growing | thriving | dormant
+  createdById String?  @map("created_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  org       Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  createdBy User?          @relation("GardenCreatedBy", fields: [createdById], references: [id])
+  members   GardenMember[]
+  seeds     Seed[]
+  blooms    Bloom[]
+  recognitions UserRecognition[]
+
+  @@unique([orgId, slug])
+  @@map("gardens")
+}
+
+model GardenMember {
+  gardenId String   @map("garden_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  role     String   @default("member") // member | caretaker | steward
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  garden Garden @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([gardenId, userId])
+  @@map("garden_members")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Seeds
+// ─────────────────────────────────────────────────────────────
+
+model Seed {
+  id          String    @id @default(uuid()) @db.Uuid
+  gardenId    String    @map("garden_id") @db.Uuid
+  createdById String    @map("created_by") @db.Uuid
+  title       String
+  content     String
+  stage       String    @default("seed") // seed | germinating | sprouting | growing | bloomed
+  bloomId     String?   @map("bloom_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  garden        Garden          @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  createdBy     User            @relation(fields: [createdById], references: [id])
+  stageVotes    SeedStageVote[]
+  contributions Contribution[]
+  blooms        Bloom[]
+
+  @@index([gardenId, stage])
+  @@map("seeds")
+}
+
+model SeedStageVote {
+  seedId  String   @map("seed_id") @db.Uuid
+  userId  String   @map("user_id") @db.Uuid
+  stage   String // seed | germinating | sprouting | growing | bloomed
+  votedAt DateTime @default(now()) @map("voted_at")
+
+  seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([seedId, userId])
+  @@index([seedId])
+  @@map("seed_stage_votes")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Contributions
+// ─────────────────────────────────────────────────────────────
+
+model Contribution {
+  id          String    @id @default(uuid()) @db.Uuid
+  seedId      String    @map("seed_id") @db.Uuid
+  parentId    String?   @map("parent_id") @db.Uuid
+  authorId    String    @map("author_id") @db.Uuid
+  dimension   String // foundations | understanding | application | debate | bloom
+  contentType String    @default("text") @map("content_type") // text | image | video | link | code | quote
+  content     Json // { text, formatting?, attachments? }
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  seed     Seed           @relation(fields: [seedId], references: [id], onDelete: Cascade)
+  author   User           @relation(fields: [authorId], references: [id])
+  parent   Contribution?  @relation("Replies", fields: [parentId], references: [id])
+  replies  Contribution[] @relation("Replies")
+  reactions    ContributionReaction[]
+  endorsements ContributionEndorsement[]
+
+  @@index([seedId, dimension])
+  @@index([parentId])
+  @@map("contributions")
+}
+
+model ReactionType {
+  key       String  @id
+  emoji     String
+  label     String
+  module    String  @default("learning")
+  sortOrder Int     @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
+
+  reactions ContributionReaction[]
+
+  @@map("reaction_types")
+}
+
+model ContributionReaction {
+  contributionId String   @map("contribution_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  reactionKey    String   @map("reaction_key")
+  reactedAt      DateTime @default(now()) @map("reacted_at")
+
+  contribution Contribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reaction     ReactionType @relation(fields: [reactionKey], references: [key])
+
+  @@id([contributionId, userId, reactionKey])
+  @@map("contribution_reactions")
+}
+
+model ContributionEndorsement {
+  contributionId String   @map("contribution_id") @db.Uuid
+  endorserId     String   @map("endorser_id") @db.Uuid
+  endorsedAt     DateTime @default(now()) @map("endorsed_at")
+
+  contribution Contribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+  endorser     User         @relation(fields: [endorserId], references: [id], onDelete: Cascade)
+
+  @@id([contributionId, endorserId])
+  @@map("contribution_endorsements")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Blooms
+// ─────────────────────────────────────────────────────────────
+
+model Bloom {
+  id            String   @id @default(uuid()) @db.Uuid
+  gardenId      String   @map("garden_id") @db.Uuid
+  seedId        String   @map("seed_id") @db.Uuid
+  version       Int      @default(1)
+  title         String
+  summary       String
+  content       Json
+  aiSynthesized Boolean  @default(false) @map("ai_synthesized")
+  bloomedAt     DateTime @default(now()) @map("bloomed_at")
+  createdById   String?  @map("created_by") @db.Uuid // who cast the tipping vote
+
+  garden       Garden            @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  seed         Seed              @relation(fields: [seedId], references: [id], onDelete: Cascade)
+  createdBy    User?             @relation("BloomCreatedBy", fields: [createdById], references: [id])
+  contributors BloomContributor[]
+
+  @@unique([seedId, version])
+  @@index([gardenId, bloomedAt])
+  @@map("blooms")
+}
+
+model BloomContributor {
+  id               String   @id @default(uuid()) @db.Uuid
+  bloomId          String   @map("bloom_id") @db.Uuid
+  userId           String?  @map("user_id") @db.Uuid
+  email            String?
+  name             String?
+  role             String
+  contributionType String?  @map("contribution_type") // seed_planter | explainer | practitioner | debater | mentor | community
+  sortOrder        Int      @default(0) @map("sort_order")
+  addedById        String?  @map("added_by") @db.Uuid
+  addedAt          DateTime @default(now()) @map("added_at")
+
+  bloom Bloom @relation(fields: [bloomId], references: [id], onDelete: Cascade)
+
+  @@unique([bloomId, userId])
+  @@map("bloom_contributors")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Recognition
+// ─────────────────────────────────────────────────────────────
+
+model RecognitionLabel {
+  key         String  @id
+  emoji       String?
+  label       String?
+  description String?
+  sortOrder   Int     @default(0) @map("sort_order")
+
+  awards UserRecognition[]
+
+  @@map("recognition_labels")
+}
+
+model UserRecognition {
+  userId    String   @map("user_id") @db.Uuid
+  labelKey  String   @map("label_key")
+  gardenId  String   @map("garden_id") @db.Uuid
+  awardedById String @map("awarded_by") @db.Uuid
+  awardedAt DateTime @default(now()) @map("awarded_at")
+
+  user    User             @relation("RecognitionUser", fields: [userId], references: [id], onDelete: Cascade)
+  label   RecognitionLabel @relation(fields: [labelKey], references: [key])
+  garden  Garden           @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  awardedBy User           @relation("RecognitionAwardedBy", fields: [awardedById], references: [id])
+
+  @@id([userId, labelKey, gardenId, awardedById])
+  @@map("user_recognition")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Notifications
+// ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id          String    @id @default(uuid()) @db.Uuid
+  recipientId String    @map("recipient_id") @db.Uuid
+  type        String // stage_change | bloom | contribution | member_joined | endorsement | mention
+  title       String
+  body        String?
+  entityType  String?   @map("entity_type") // seed | bloom | garden | contribution
+  entityId    String?   @map("entity_id") @db.Uuid
+  actorId     String?   @map("actor_id") @db.Uuid
+  readAt      DateTime? @map("read_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  recipient User  @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     User? @relation("NotificationActor", fields: [actorId], references: [id])
+
+  @@index([recipientId, createdAt])
+  @@map("notifications")
+}

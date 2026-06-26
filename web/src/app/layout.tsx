@@ -1,0 +1,37 @@
+import type { Metadata } from "next";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: "Rhyza — The Learning Garden",
+  description:
+    "A Human Intent Network. Plant seeds, grow understanding together, bloom durable knowledge.",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <head>
+        {/*
+          Fonts are loaded at runtime in the browser (not at build time) so the
+          build never depends on outbound network access. System fonts are the
+          fallback if Google Fonts is unreachable.
+        */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Inter:wght@300;400;500;600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="font-sans">{children}</body>
+    </html>
+  );
+}
