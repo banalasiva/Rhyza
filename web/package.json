@@ -4,6 +4,7 @@
   "private": true,
   "description": "Rhyza — the real Learning module. Next.js app built from the design prototype.",
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",

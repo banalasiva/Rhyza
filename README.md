@@ -101,11 +101,19 @@ Full color tokens, the type scale, every screen, and the animation/sound specs l
 
 ## Building the real thing
 
-The prototype is the *what*; [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) is the *how*. The
-recommended stack is a Next.js 14 + Tailwind frontend, a tRPC/Prisma/Postgres backend, Redis +
-an Ably-style pub/sub for the real-time bloom broadcast, and a Turborepo monorepo. The data model
-and API surface are fully specified in [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) and
-[`docs/API.md`](docs/API.md) so the build can start immediately.
+This has now started — the real application lives in [`web/`](web/). It's a fresh **Next.js 14 +
+Tailwind** app with **Google + enterprise-SSO** auth (Auth.js v5), a **Postgres/Prisma** backend
+implementing [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), and REST route handlers mirroring
+[`docs/API.md`](docs/API.md). The v1 vertical slice — sign in → garden → plant a seed →
+contribute → vote → bloom → Sacred Tree — runs entirely on real persisted data, with **no
+hardcoded names or demo content**.
+
+- Run it: [`web/README.md`](web/README.md)
+- Deploy it (Vercel + Neon + OAuth/SSO): [`web/DEPLOY.md`](web/DEPLOY.md)
+
+Deferred to phase 2: real-time bloom broadcast (Ably), AI bloom synthesis, media uploads, and the
+other five modules. The original prototype in [`prototype/`](prototype/) remains as the visual
+reference. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full target architecture.
 
 A key design choice: reactions, contribution dimensions, and recognition labels are **data, not
 code** — you extend the product by inserting rows, not shipping deploys. See the extension points
