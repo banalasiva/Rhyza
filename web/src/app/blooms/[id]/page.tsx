@@ -14,7 +14,7 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
       <main className="relative z-10 mx-auto max-w-2xl px-6 py-8">
         <Link
           href={`/gardens/${bloom.garden.id}/tree`}
-          className="text-xs text-ink-soft hover:text-ink"
+          className="btn-ghost inline-flex px-3 py-1.5 text-xs"
         >
           ← 🌸 Sacred Tree
         </Link>

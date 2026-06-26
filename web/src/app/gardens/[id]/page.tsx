@@ -4,6 +4,7 @@ import { getGardenDetail } from "@/lib/services/gardens";
 import { NavBar } from "@/components/NavBar";
 import { PlantSeedForm } from "@/components/PlantSeedForm";
 import { InviteForm } from "@/components/InviteForm";
+import { GardenSettings } from "@/components/GardenSettings";
 import { STAGES } from "@/lib/constants";
 
 function stageBadge(stage: string) {
@@ -20,7 +21,10 @@ export default async function GardenPage({ params }: { params: { id: string } })
       <div className="garden-bg" />
       <NavBar name={viewer.name} />
       <main className="relative z-10 mx-auto max-w-3xl px-6 py-8">
-        <div className="mb-6 flex items-center justify-between">
+        <Link href="/" className="btn-ghost mb-5 inline-flex px-3 py-1.5 text-xs">
+          ← Your gardens
+        </Link>
+        <div className="mb-6 flex items-start justify-between gap-3">
           <div>
             <p className="eyebrow mb-1">{garden.emoji} Garden</p>
             <h1 className="serif-xl">{garden.name}</h1>
@@ -28,9 +32,12 @@ export default async function GardenPage({ params }: { params: { id: string } })
               <p className="mt-1 text-sm text-ink-mid">{garden.description}</p>
             )}
           </div>
-          <Link href={`/gardens/${garden.id}/tree`} className="btn-ghost shrink-0">
-            🌸 Sacred Tree
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            {garden.canManage && <GardenSettings garden={{ id: garden.id, name: garden.name, description: garden.description, emoji: garden.emoji }} />}
+            <Link href={`/gardens/${garden.id}/tree`} className="btn-ghost">
+              🌸 Sacred Tree
+            </Link>
+          </div>
         </div>
 
         <div className="card mb-4 p-5">

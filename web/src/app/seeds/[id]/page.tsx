@@ -21,7 +21,7 @@ export default async function SeedPage({ params }: { params: { id: string } }) {
       <main className="relative z-10 mx-auto max-w-6xl px-6 py-6">
         <Link
           href={`/gardens/${seed.garden.id}`}
-          className="text-xs text-ink-soft hover:text-ink"
+          className="btn-ghost inline-flex px-3 py-1.5 text-xs"
         >
           ← {seed.garden.emoji} {seed.garden.name}
         </Link>

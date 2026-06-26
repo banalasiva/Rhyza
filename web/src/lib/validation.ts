@@ -35,6 +35,16 @@ export const createBloomSchema = z.object({
   summary: z.string().min(1).max(5000),
 });
 
+export const editContributionSchema = z.object({
+  text: z.string().min(1, "Contribution can't be empty").max(5000),
+});
+
+export const updateGardenSchema = z.object({
+  name: z.string().min(2).max(80).optional(),
+  description: z.string().max(500).optional(),
+  emoji: z.string().max(8).optional(),
+});
+
 export const inviteSchema = z.object({
   // Optional: omit for a shareable link not tied to a specific person.
   email: z.string().email("Enter a valid email").max(200).optional(),

@@ -18,13 +18,21 @@ export default async function NotificationsPage() {
     orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
     take: 50,
   });
+  // Mark everything read on view so the bell badge clears.
+  await db.notification.updateMany({
+    where: { recipientId: viewer.userId, readAt: null },
+    data: { readAt: new Date() },
+  });
 
   return (
     <div className="relative min-h-screen">
       <div className="garden-bg" />
       <NavBar name={viewer.name} />
       <main className="relative z-10 mx-auto max-w-2xl px-6 py-8">
-        <h1 className="serif-xl mb-6">Notifications</h1>
+        <Link href="/" className="btn-ghost mb-5 inline-flex px-3 py-1.5 text-xs">
+          ← Your gardens
+        </Link>
+        <h1 className="serif-xl mb-6">🔔 Notifications</h1>
         {notifications.length === 0 ? (
           <p className="text-sm text-ink-soft">Nothing yet. Go plant something. 🌱</p>
         ) : (

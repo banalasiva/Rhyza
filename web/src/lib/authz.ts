@@ -46,6 +46,21 @@ export async function ensureGardenMember(userId: string, gardenId: string) {
   return garden;
 }
 
+// Throw 403 unless the user is a steward of the garden (or its creator).
+// Stewards can edit/delete the garden and moderate contributions.
+export async function requireGardenSteward(userId: string, gardenId: string) {
+  const garden = await db.garden.findUnique({ where: { id: gardenId } });
+  if (!garden) throw new ApiError("NOT_FOUND", "Garden not found");
+  if (garden.createdById === userId) return garden;
+  const member = await db.gardenMember.findUnique({
+    where: { gardenId_userId: { gardenId, userId } },
+  });
+  if (member?.role !== "steward") {
+    throw new ApiError("FORBIDDEN", "Only a garden steward can do that");
+  }
+  return garden;
+}
+
 // The user's primary org (first joined). v1 assumes one org per user for the
 // happy path; the schema supports many.
 export async function primaryOrgId(userId: string): Promise<string | null> {

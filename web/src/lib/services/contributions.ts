@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
-import { ensureGardenMember, requireGardenAccess } from "@/lib/authz";
+import { ensureGardenMember, requireGardenAccess, requireGardenSteward } from "@/lib/authz";
 
 async function seedOrThrow(seedId: string) {
   const seed = await db.seed.findUnique({ where: { id: seedId } });
@@ -92,6 +92,38 @@ export async function toggleReaction(
   const counts: Record<string, number> = {};
   for (const r of rows) counts[r.reactionKey] = r._count.reactionKey;
   return { reacted: !existing, counts };
+}
+
+// Edit a contribution's text — author only.
+export async function editContribution(userId: string, contributionId: string, text: string) {
+  const c = await db.contribution.findUnique({ where: { id: contributionId } });
+  if (!c || c.deletedAt) throw new ApiError("NOT_FOUND", "Contribution not found");
+  if (c.authorId !== userId) throw new ApiError("FORBIDDEN", "You can only edit your own contributions");
+  await db.contribution.update({
+    where: { id: contributionId },
+    data: { content: { text } },
+  });
+  return { id: contributionId, text };
+}
+
+// Soft-delete a contribution — author or a garden steward.
+export async function deleteContribution(userId: string, contributionId: string) {
+  const c = await db.contribution.findUnique({
+    where: { id: contributionId },
+    include: { seed: true },
+  });
+  if (!c || c.deletedAt) throw new ApiError("NOT_FOUND", "Contribution not found");
+  if (c.authorId !== userId) {
+    // not the author — must be a steward of the garden
+    await requireGardenSteward(userId, c.seed.gardenId);
+  } else {
+    await requireGardenAccess(userId, c.seed.gardenId);
+  }
+  await db.contribution.update({
+    where: { id: contributionId },
+    data: { deletedAt: new Date() },
+  });
+  return { id: contributionId, deleted: true };
 }
 
 // Toggle an endorsement on a contribution (recognizing the contributor's role,

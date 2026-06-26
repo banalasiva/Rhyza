@@ -52,11 +52,18 @@ export async function getSeedDetail(userId: string, seedId: string) {
     where: { id: seedId },
     include: {
       createdBy: { select: { id: true, name: true, image: true } },
-      garden: { select: { id: true, name: true, emoji: true } },
+      garden: { select: { id: true, name: true, emoji: true, createdById: true } },
     },
   });
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
   await requireGardenAccess(userId, seed.gardenId);
+  const member = await db.gardenMember.findUnique({
+    where: { gardenId_userId: { gardenId: seed.gardenId, userId } },
+  });
+  const canBloom =
+    seed.createdById === userId ||
+    seed.garden.createdById === userId ||
+    member?.role === "steward";
 
   const [distribution, myVote, contributions] = await Promise.all([
     stageDistribution(seedId),
@@ -103,7 +110,8 @@ export async function getSeedDetail(userId: string, seedId: string) {
     stage: seed.stage as StageKey,
     bloomId: seed.bloomId,
     author: seed.createdBy,
-    garden: seed.garden,
+    garden: { id: seed.garden.id, name: seed.garden.name, emoji: seed.garden.emoji },
+    canBloom,
     distribution,
     myVote: myVote?.stage ?? null,
     contributions: contribs,

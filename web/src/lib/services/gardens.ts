@@ -1,6 +1,30 @@
 import { db } from "@/lib/db";
-import { requireGardenAccess, requireOrgMember } from "@/lib/authz";
+import { requireGardenAccess, requireOrgMember, requireGardenSteward } from "@/lib/authz";
 import { uniqueSlug } from "@/lib/slug";
+
+// Edit a garden's metadata — steward/creator only.
+export async function updateGarden(
+  userId: string,
+  gardenId: string,
+  input: { name?: string; description?: string; emoji?: string },
+) {
+  await requireGardenSteward(userId, gardenId);
+  return db.garden.update({
+    where: { id: gardenId },
+    data: {
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.emoji !== undefined ? { emoji: input.emoji } : {}),
+    },
+  });
+}
+
+// Delete a garden and everything in it — steward/creator only.
+export async function deleteGarden(userId: string, gardenId: string) {
+  await requireGardenSteward(userId, gardenId);
+  await db.garden.delete({ where: { id: gardenId } });
+  return { deleted: true };
+}
 
 // All gardens in the user's org, with seed/member/bloom counts for the list view.
 export async function listGardens(userId: string, orgId: string) {
@@ -47,6 +71,10 @@ export async function createGarden(
 // Garden detail + its open seeds (not yet bloomed) and recent members.
 export async function getGardenDetail(userId: string, gardenId: string) {
   const garden = await requireGardenAccess(userId, gardenId);
+  const member = await db.gardenMember.findUnique({
+    where: { gardenId_userId: { gardenId, userId } },
+  });
+  const canManage = garden.createdById === userId || member?.role === "steward";
   const seeds = await db.seed.findMany({
     where: { gardenId, deletedAt: null, stage: { not: "bloomed" } },
     orderBy: { createdAt: "desc" },
@@ -62,6 +90,7 @@ export async function getGardenDetail(userId: string, gardenId: string) {
       description: garden.description,
       emoji: garden.emoji,
       stage: garden.stage,
+      canManage,
     },
     seeds: seeds.map((s) => ({
       id: s.id,

@@ -25,12 +25,15 @@ type Contribution = SeedDetail["contributions"][number];
 export function SeedRoom({
   seed,
   reactions,
+  currentUserId,
 }: {
   seed: SeedDetail;
   reactions: ReactionType[];
   currentUserId: string;
 }) {
   const router = useRouter();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
   const [contributions, setContributions] = useState<Contribution[]>(seed.contributions);
   const [distribution, setDistribution] = useState(seed.distribution);
   const [myVote, setMyVote] = useState<string | null>(seed.myVote);
@@ -148,6 +151,50 @@ export function SeedRoom({
     }
   }
 
+  async function saveEdit(id: string) {
+    const text = editDraft.trim();
+    if (!text) return;
+    setContributions((prev) => prev.map((c) => (c.id === id ? { ...c, text } : c)));
+    setEditingId(null);
+    try {
+      const res = await fetch(`/api/contributions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) router.refresh();
+    } catch {
+      router.refresh();
+    }
+  }
+
+  async function removeContribution(id: string) {
+    if (!confirm("Delete this contribution?")) return;
+    setContributions((prev) => prev.filter((c) => c.id !== id));
+    try {
+      await fetch(`/api/contributions/${id}`, { method: "DELETE" });
+    } catch {
+      router.refresh();
+    }
+  }
+
+  async function bloomNow() {
+    if (!confirm("Bloom this seed now? This creates a permanent bloom.")) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/seeds/${seed.id}/bloom`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message ?? "Failed to bloom");
+      playNatureSound("bloom");
+      setStage("bloomed");
+      setBlooming(true);
+      setTimeout(() => router.push(`/gardens/${seed.garden.id}/tree`), 4200);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to bloom");
+      setBusy(false);
+    }
+  }
+
   async function vote(targetStage: string) {
     setBusy(true);
     setError(null);
@@ -255,9 +302,24 @@ export function SeedRoom({
                     {cd.emoji} {cd.label}
                   </span>
                 </div>
-                <div className="mb-3 text-sm leading-relaxed text-ink">
-                  <InlineText text={c.text} />
-                </div>
+                {editingId === c.id ? (
+                  <div className="mb-2">
+                    <textarea
+                      className="input min-h-[80px]"
+                      value={editDraft}
+                      onChange={(e) => setEditDraft(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={() => saveEdit(c.id)} className="btn-primary px-3 py-1 text-xs">Save</button>
+                      <button onClick={() => setEditingId(null)} className="btn-ghost px-3 py-1 text-xs">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-3 text-sm leading-relaxed text-ink">
+                    <InlineText text={c.text} />
+                  </div>
+                )}
                 <div className="mb-2 flex flex-wrap gap-1.5">
                   {reactions.map((r) => {
                     const n = c.reactionCounts[r.key] ?? 0;
@@ -281,6 +343,19 @@ export function SeedRoom({
                     ✦ {c.iEndorsed ? "Endorsed" : "Endorse"}
                     {c.endorsementCount > 0 && ` · ${c.endorsementCount}`}
                   </button>
+                  {c.author?.id === currentUserId && (
+                    <>
+                      <button
+                        onClick={() => { setEditingId(c.id); setEditDraft(c.text); }}
+                        className="transition hover:text-ink"
+                      >
+                        ✎ Edit
+                      </button>
+                      <button onClick={() => removeContribution(c.id)} className="transition hover:text-[#e57373]">
+                        🗑 Delete
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             );
@@ -397,6 +472,16 @@ export function SeedRoom({
               </p>
               <Requirement met={bloomedVotes >= bloomTarget} label={`${bloomedVotes}/${bloomTarget} voted Bloom`} />
               <Requirement met={dimsWithContribs >= 3} label={`${dimsWithContribs}/3 dimensions have contributions`} />
+              {seed.canBloom && !isBloomed && (
+                <button
+                  onClick={bloomNow}
+                  disabled={busy}
+                  className="mt-3 w-full rounded-full px-3 py-2 text-xs font-medium text-bg transition"
+                  style={{ background: "linear-gradient(135deg,#FFB300,#FF8F00)" }}
+                >
+                  🌸 Bloom now
+                </button>
+              )}
             </div>
           </div>
         </div>

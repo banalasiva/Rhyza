@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
-import { requireGardenAccess } from "@/lib/authz";
+import { requireGardenAccess, requireGardenSteward } from "@/lib/authz";
 
 const DIMENSION_ROLE: Record<string, { type: string; role: string }> = {
   foundations: { type: "explainer", role: "Laid the foundations" },
@@ -142,6 +142,25 @@ export async function createBloom(
     return created;
   });
 
+  return bloom;
+}
+
+// Manually bloom a seed now — the seed's author or a garden steward. Bypasses
+// the vote threshold (useful for testing and for stewards curating knowledge).
+export async function forceBloom(userId: string, seedId: string) {
+  const seed = await db.seed.findUnique({ where: { id: seedId } });
+  if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
+  if (seed.createdById !== userId) {
+    await requireGardenSteward(userId, seed.gardenId);
+  } else {
+    await requireGardenAccess(userId, seed.gardenId);
+  }
+  const bloom = await createBloom(userId, seedId, userId);
+  await db.seedStageVote.upsert({
+    where: { seedId_userId: { seedId, userId } },
+    update: { stage: "bloomed" },
+    create: { seedId, userId, stage: "bloomed" },
+  });
   return bloom;
 }
 
