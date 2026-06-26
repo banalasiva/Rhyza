@@ -18,7 +18,7 @@ export default async function SeedPage({ params }: { params: { id: string } }) {
     <div className="relative min-h-screen">
       <div className="garden-bg" />
       <NavBar name={viewer.name} />
-      <main className="relative z-10 mx-auto max-w-3xl px-6 py-6">
+      <main className="relative z-10 mx-auto max-w-6xl px-6 py-6">
         <Link
           href={`/gardens/${seed.garden.id}`}
           className="text-xs text-ink-soft hover:text-ink"

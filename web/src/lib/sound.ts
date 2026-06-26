@@ -5,6 +5,26 @@ export type NatureSound = "drop" | "wind" | "bloom" | "chirp";
 
 let muted = false;
 
+// A single shared AudioContext, created lazily on first use and reused for every
+// sound. Creating one per click is expensive (and browsers cap the count), which
+// was the source of the click-to-reaction lag.
+let sharedCtx: AudioContext | null = null;
+
+function getCtx(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  if (!sharedCtx) {
+    const Ctx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext;
+    if (!Ctx) return null;
+    sharedCtx = new Ctx();
+  }
+  // Browsers start the context suspended until a user gesture; resume on use.
+  if (sharedCtx.state === "suspended") void sharedCtx.resume();
+  return sharedCtx;
+}
+
 export function setMuted(value: boolean) {
   muted = value;
 }
@@ -14,13 +34,10 @@ export function isMuted() {
 }
 
 export function playNatureSound(type: NatureSound) {
-  if (muted || typeof window === "undefined") return;
+  if (muted) return;
   try {
-    const Ctx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext })
-        .webkitAudioContext;
-    const ctx = new Ctx();
+    const ctx = getCtx();
+    if (!ctx) return;
 
     if (type === "drop") {
       // Rain droplet — brief filtered noise click.

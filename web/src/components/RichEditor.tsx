@@ -47,7 +47,7 @@ export function RichEditor({
       </div>
       <textarea
         ref={ref}
-        className="input min-h-[90px]"
+        className="input min-h-[150px] text-[15px] leading-relaxed"
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}

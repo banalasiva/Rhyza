@@ -115,7 +115,7 @@ export function SeedRoom({
   }
 
   async function react(contributionId: string, key: string) {
-    playNatureSound("chirp");
+    // Update the UI first so the click feels instant, then play the sound.
     setContributions((prev) =>
       prev.map((c) => {
         if (c.id !== contributionId) return c;
@@ -126,6 +126,7 @@ export function SeedRoom({
         return { ...c, reactionCounts: counts, myReactions: has ? c.myReactions.filter((k) => k !== key) : [...c.myReactions, key] };
       }),
     );
+    playNatureSound("chirp");
     try {
       await apiPost(`/api/contributions/${contributionId}/reactions`, { reactionKey: key });
     } catch {
@@ -134,12 +135,12 @@ export function SeedRoom({
   }
 
   async function endorse(contributionId: string) {
-    playNatureSound("chirp");
     setGlowing((g) => new Set(g).add(contributionId));
     setTimeout(() => setGlowing((g) => { const n = new Set(g); n.delete(contributionId); return n; }), 900);
     setContributions((prev) =>
       prev.map((c) => (c.id === contributionId ? { ...c, iEndorsed: !c.iEndorsed, endorsementCount: c.endorsementCount + (c.iEndorsed ? -1 : 1) } : c)),
     );
+    playNatureSound("chirp");
     try {
       await apiPost(`/api/contributions/${contributionId}/endorsements`);
     } catch {
@@ -160,8 +161,11 @@ export function SeedRoom({
       setStage(res.stage);
       if (res.bloomed && res.bloomId) {
         playNatureSound("bloom");
+        setStage("bloomed");
         setBlooming(true);
-        setTimeout(() => router.push(`/blooms/${res.bloomId}`), 3200);
+        // The celebration plays, then we glide to the Sacred Tree where the new
+        // bloom now lives.
+        setTimeout(() => router.push(`/gardens/${seed.garden.id}/tree`), 4200);
       } else {
         playNatureSound("wind");
       }
@@ -285,7 +289,10 @@ export function SeedRoom({
 
         {/* Compose */}
         {!isBloomed && (
-          <div className="card mt-5 p-4">
+          <div className="card mt-6 p-5">
+            <p className="eyebrow mb-3" style={{ color: dimMeta.color }}>
+              {dimMeta.emoji} Add to {dimMeta.label}
+            </p>
             <RichEditor
               value={draft}
               onChange={setDraft}
@@ -293,9 +300,12 @@ export function SeedRoom({
               disabled={busy}
             />
             {error && <p className="mb-2 mt-2 text-sm text-[#e57373]">{error}</p>}
-            <button onClick={contribute} className="btn-primary mt-2" disabled={busy || draft.trim().length === 0}>
-              {busy ? "Sending…" : "Contribute"}
-            </button>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-xs text-ink-soft">{draft.length}/5000</span>
+              <button onClick={contribute} className="btn-primary" disabled={busy || draft.trim().length === 0}>
+                {busy ? "Sending…" : "Contribute"}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -433,11 +443,15 @@ function BloomCelebration({ title }: { title: string }) {
           </span>
         ))}
       </div>
-      <div className="relative">
-        <div className="mb-3 text-6xl">🌸</div>
+      <div className="relative animate-[fadeUp_0.8s_ease-out]">
+        <div className="mx-auto mb-2 h-40 w-40">
+          <PlantSvg stage={4} />
+        </div>
         <p className="eyebrow mb-2 text-bloom">This seed has bloomed</p>
-        <h2 className="serif-lg max-w-md">{title}</h2>
-        <p className="mt-3 text-sm text-ink-mid">Taking you to the bloom…</p>
+        <h2 className="serif-lg mx-auto max-w-md">{title}</h2>
+        <p className="mt-3 text-sm text-ink-mid">
+          Collective knowledge, forever remembered — taking you to the Sacred Tree…
+        </p>
       </div>
     </div>
   );
