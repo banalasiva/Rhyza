@@ -185,10 +185,7 @@ export function SeedRoom({
       const res = await fetch(`/api/seeds/${seed.id}/bloom`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message ?? "Failed to bloom");
-      playNatureSound("bloom");
-      setStage("bloomed");
-      setBlooming(true);
-      setTimeout(() => router.push(`/gardens/${seed.garden.id}/tree`), 4200);
+      triggerBloom();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to bloom");
       setBusy(false);
@@ -196,31 +193,46 @@ export function SeedRoom({
   }
 
   async function vote(targetStage: string) {
-    setBusy(true);
+    if (isBloomed) return;
     setError(null);
+
+    // Optimistic: move the bars immediately so the click feels instant.
+    const prevVote = myVote;
+    if (prevVote !== targetStage) {
+      setDistribution((prev) => {
+        const counts: Record<string, number> = {};
+        for (const d of prev) counts[d.stage] = d.votes;
+        if (prevVote) counts[prevVote] = Math.max(0, (counts[prevVote] ?? 0) - 1);
+        counts[targetStage] = (counts[targetStage] ?? 0) + 1;
+        const total = Object.values(counts).reduce((n, v) => n + v, 0) || 1;
+        return prev.map((d) => ({ ...d, votes: counts[d.stage] ?? 0, pct: Math.round(((counts[d.stage] ?? 0) / total) * 100) }));
+      });
+      setMyVote(targetStage);
+    }
+    playNatureSound("wind");
+
     try {
       const res = await apiPost<{ distribution: typeof distribution; stage: string; bloomed: boolean; bloomId: string | null }>(
         `/api/seeds/${seed.id}/stage-votes`,
         { stage: targetStage },
       );
       setDistribution(res.distribution);
-      setMyVote(targetStage);
       setStage(res.stage);
       if (res.bloomed && res.bloomId) {
-        playNatureSound("bloom");
-        setStage("bloomed");
-        setBlooming(true);
-        // The celebration plays, then we glide to the Sacred Tree where the new
-        // bloom now lives.
-        setTimeout(() => router.push(`/gardens/${seed.garden.id}/tree`), 4200);
-      } else {
-        playNatureSound("wind");
+        triggerBloom();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to vote");
-    } finally {
-      setBusy(false);
+      router.refresh();
     }
+  }
+
+  function triggerBloom() {
+    playNatureSound("bloom");
+    setStage("bloomed");
+    setBlooming(true);
+    // Auto-advance to the Sacred Tree; the celebration also has a manual button.
+    setTimeout(() => router.push(`/gardens/${seed.garden.id}/tree`), 4500);
   }
 
   const dimMeta = DIMENSIONS.find((d) => d.key === activeDim)!;
@@ -228,7 +240,12 @@ export function SeedRoom({
 
   return (
     <div className="relative mt-3 grid gap-6 lg:grid-cols-[1fr_360px]">
-      {blooming && <BloomCelebration title={seed.title} />}
+      {blooming && (
+        <BloomCelebration
+          title={seed.title}
+          onEnter={() => router.push(`/gardens/${seed.garden.id}/tree`)}
+        />
+      )}
 
       {/* ── Thread column ── */}
       <div>
@@ -504,7 +521,7 @@ function Requirement({ met, label }: { met: boolean; label: string }) {
   );
 }
 
-function BloomCelebration({ title }: { title: string }) {
+function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => void }) {
   const leaves = useMemo(
     () =>
       Array.from({ length: 16 }).map((_, i) => {
@@ -535,8 +552,11 @@ function BloomCelebration({ title }: { title: string }) {
         <p className="eyebrow mb-2 text-bloom">This seed has bloomed</p>
         <h2 className="serif-lg mx-auto max-w-md">{title}</h2>
         <p className="mt-3 text-sm text-ink-mid">
-          Collective knowledge, forever remembered — taking you to the Sacred Tree…
+          Collective knowledge, forever remembered.
         </p>
+        <button onClick={onEnter} className="btn-primary mt-5">
+          Enter the Sacred Tree →
+        </button>
       </div>
     </div>
   );
