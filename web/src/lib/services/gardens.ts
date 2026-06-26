@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { ApiError } from "@/lib/api";
 import { requireGardenAccess, requireOrgMember, requireGardenSteward } from "@/lib/authz";
 import { uniqueSlug } from "@/lib/slug";
 
@@ -70,19 +71,28 @@ export async function createGarden(
 
 // Garden detail + its open seeds (not yet bloomed) and recent members.
 export async function getGardenDetail(userId: string, gardenId: string) {
-  const garden = await requireGardenAccess(userId, gardenId);
-  const member = await db.gardenMember.findUnique({
-    where: { gardenId_userId: { gardenId, userId } },
-  });
+  const garden = await db.garden.findUnique({ where: { id: gardenId } });
+  if (!garden) throw new ApiError("NOT_FOUND", "Garden not found");
+
+  // Authorization + data in one parallel batch.
+  const [orgMember, member, seeds] = await Promise.all([
+    db.orgMember.findUnique({
+      where: { orgId_userId: { orgId: garden.orgId, userId } },
+    }),
+    db.gardenMember.findUnique({
+      where: { gardenId_userId: { gardenId, userId } },
+    }),
+    db.seed.findMany({
+      where: { gardenId, deletedAt: null, stage: { not: "bloomed" } },
+      orderBy: { createdAt: "desc" },
+      include: {
+        createdBy: { select: { id: true, name: true, image: true } },
+        _count: { select: { contributions: true } },
+      },
+    }),
+  ]);
+  if (!orgMember) throw new ApiError("FORBIDDEN", "Not a member of this organization");
   const canManage = garden.createdById === userId || member?.role === "steward";
-  const seeds = await db.seed.findMany({
-    where: { gardenId, deletedAt: null, stage: { not: "bloomed" } },
-    orderBy: { createdAt: "desc" },
-    include: {
-      createdBy: { select: { id: true, name: true, image: true } },
-      _count: { select: { contributions: true } },
-    },
-  });
   return {
     garden: {
       id: garden.id,

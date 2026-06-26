@@ -52,20 +52,20 @@ export async function getSeedDetail(userId: string, seedId: string) {
     where: { id: seedId },
     include: {
       createdBy: { select: { id: true, name: true, image: true } },
-      garden: { select: { id: true, name: true, emoji: true, createdById: true } },
+      garden: { select: { id: true, name: true, emoji: true, orgId: true, createdById: true } },
     },
   });
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
-  await requireGardenAccess(userId, seed.gardenId);
-  const member = await db.gardenMember.findUnique({
-    where: { gardenId_userId: { gardenId: seed.gardenId, userId } },
-  });
-  const canBloom =
-    seed.createdById === userId ||
-    seed.garden.createdById === userId ||
-    member?.role === "steward";
 
-  const [distribution, myVote, contributions] = await Promise.all([
+  // One parallel batch: authorization + all the data, instead of 5 sequential
+  // round-trips (this dominates latency when the DB is far away).
+  const [orgMember, member, distribution, myVote, contributions] = await Promise.all([
+    db.orgMember.findUnique({
+      where: { orgId_userId: { orgId: seed.garden.orgId, userId } },
+    }),
+    db.gardenMember.findUnique({
+      where: { gardenId_userId: { gardenId: seed.gardenId, userId } },
+    }),
     stageDistribution(seedId),
     db.seedStageVote.findUnique({
       where: { seedId_userId: { seedId, userId } },
@@ -80,6 +80,11 @@ export async function getSeedDetail(userId: string, seedId: string) {
       },
     }),
   ]);
+  if (!orgMember) throw new ApiError("FORBIDDEN", "Not a member of this organization");
+  const canBloom =
+    seed.createdById === userId ||
+    seed.garden.createdById === userId ||
+    member?.role === "steward";
 
   const contribs = contributions.map((c) => {
     const reactionCounts: Record<string, number> = {};
