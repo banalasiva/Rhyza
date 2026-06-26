@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rhyza — The Learning Garden (Prototype)</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #root { width: 100%; min-height: 100%; background: #070D07; }
+    #loading {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      color: #A0A890; font-family: system-ui, sans-serif; font-size: 14px; letter-spacing: 0.06em;
+    }
+  </style>
+
+  <!-- React 18 + Babel standalone are vendored under ./vendor so the prototype runs with
+       no build step and no network. To refresh them, see vendor/README.md. -->
+  <script src="./vendor/react.production.min.js"></script>
+  <script src="./vendor/react-dom.production.min.js"></script>
+  <script src="./vendor/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"><div id="loading">🌱 Growing the garden…</div></div>
+
+  <!-- The prototype was authored as a CommonJS module (`module.exports = { RhyzaV3 }`).
+       We provide a minimal shim so it can run directly in the browser. -->
+  <script>window.module = { exports: {} };</script>
+
+  <!-- Babel transforms these in document order, fetching external sources first. -->
+  <script type="text/babel" data-presets="react" src="./rhyza.jsx"></script>
+  <script type="text/babel" data-presets="react">
+    // Note: the prototype declares a global `function RhyzaV3` (it was authored as a CommonJS
+    // module), so we read it off the module shim under a different name to avoid a redeclaration.
+    const RhyzaApp = window.module.exports.RhyzaV3;
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(RhyzaApp));
+  </script>
+</body>
+</html>
