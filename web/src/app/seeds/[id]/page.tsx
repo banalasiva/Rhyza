@@ -1,18 +1,16 @@
 import Link from "next/link";
 import { requireViewer } from "@/lib/session";
 import { getSeedDetail } from "@/lib/services/seeds";
-import { db } from "@/lib/db";
+import { getReactionTypes } from "@/lib/registry";
 import { NavBar } from "@/components/NavBar";
 import { SeedRoom } from "@/components/SeedRoom";
 
 export default async function SeedPage({ params }: { params: { id: string } }) {
   const viewer = await requireViewer();
-  const seed = await getSeedDetail(viewer.userId, params.id);
-  const reactions = await db.reactionType.findMany({
-    where: { isActive: true },
-    orderBy: { sortOrder: "asc" },
-    select: { key: true, emoji: true, label: true },
-  });
+  const [seed, reactions] = await Promise.all([
+    getSeedDetail(viewer.userId, params.id),
+    getReactionTypes(),
+  ]);
 
   return (
     <div className="relative min-h-screen">

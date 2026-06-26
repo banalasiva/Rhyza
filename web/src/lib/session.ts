@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
@@ -12,7 +13,8 @@ export type Viewer = {
 };
 
 // Resolve the current viewer for server components, or null if signed out.
-export async function getViewer(): Promise<Viewer | null> {
+// Wrapped in React cache() so multiple calls in one request hit the DB once.
+export const getViewer = cache(async (): Promise<Viewer | null> => {
   const session = await auth();
   if (!session?.user?.id) return null;
   const [user, orgId] = await Promise.all([
@@ -30,7 +32,7 @@ export async function getViewer(): Promise<Viewer | null> {
     avatarUrl: user.image,
     orgId,
   };
-}
+});
 
 // Require a signed-in, onboarded viewer. Redirects to /login or /onboarding.
 export async function requireViewer(): Promise<Viewer & { orgId: string }> {
