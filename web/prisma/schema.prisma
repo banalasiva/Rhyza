@@ -88,6 +88,7 @@ model User {
   actedNotifications Notification[] @relation("NotificationActor")
   recognitionsReceived UserRecognition[] @relation("RecognitionUser")
   recognitionsAwarded  UserRecognition[] @relation("RecognitionAwardedBy")
+  invitesSent          Invite[]          @relation("InvitesSent")
 
   @@map("users")
 }
@@ -103,6 +104,7 @@ model Organization {
 
   members OrgMember[]
   gardens Garden[]
+  invites Invite[]
 
   @@map("organizations")
 }
@@ -142,6 +144,7 @@ model Garden {
   seeds     Seed[]
   blooms    Bloom[]
   recognitions UserRecognition[]
+  invites   Invite[]
 
   @@unique([orgId, slug])
   @@map("gardens")
@@ -364,4 +367,31 @@ model Notification {
 
   @@index([recipientId, createdAt])
   @@map("notifications")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Invites — shareable join links, optionally scoped to an email.
+// Accepting joins the org (and the garden, if scoped to one).
+// ─────────────────────────────────────────────────────────────
+
+model Invite {
+  id           String    @id @default(uuid()) @db.Uuid
+  orgId        String    @map("org_id") @db.Uuid
+  gardenId     String?   @map("garden_id") @db.Uuid
+  email        String? // optional: restrict who can accept
+  role         String    @default("member")
+  token        String    @unique
+  invitedById  String    @map("invited_by") @db.Uuid
+  status       String    @default("pending") // pending | accepted | revoked
+  expiresAt    DateTime  @map("expires_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  acceptedAt   DateTime? @map("accepted_at")
+  acceptedById String?   @map("accepted_by") @db.Uuid
+
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  garden    Garden?      @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  invitedBy User         @relation("InvitesSent", fields: [invitedById], references: [id])
+
+  @@index([orgId])
+  @@map("invites")
 }

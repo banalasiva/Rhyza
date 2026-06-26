@@ -34,3 +34,8 @@ export const createBloomSchema = z.object({
   title: z.string().min(4).max(200),
   summary: z.string().min(1).max(5000),
 });
+
+export const inviteSchema = z.object({
+  // Optional: omit for a shareable link not tied to a specific person.
+  email: z.string().email("Enter a valid email").max(200).optional(),
+});

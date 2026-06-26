@@ -25,7 +25,7 @@ if (process.env.AUTH_SSO_ISSUER && process.env.AUTH_SSO_CLIENT_ID) {
 }
 
 // Routes that don't require an authenticated session.
-const PUBLIC_PREFIXES = ["/login", "/api/auth"];
+const PUBLIC_PREFIXES = ["/login", "/api/auth", "/invite"];
 
 export const authConfig = {
   providers,

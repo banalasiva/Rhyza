@@ -3,6 +3,7 @@ import { requireViewer } from "@/lib/session";
 import { getGardenDetail } from "@/lib/services/gardens";
 import { NavBar } from "@/components/NavBar";
 import { PlantSeedForm } from "@/components/PlantSeedForm";
+import { InviteForm } from "@/components/InviteForm";
 import { STAGES } from "@/lib/constants";
 
 function stageBadge(stage: string) {
@@ -32,9 +33,14 @@ export default async function GardenPage({ params }: { params: { id: string } })
           </Link>
         </div>
 
-        <div className="card mb-8 p-5">
+        <div className="card mb-4 p-5">
           <p className="eyebrow mb-3">Plant a seed</p>
           <PlantSeedForm gardenId={garden.id} />
+        </div>
+
+        <div className="card mb-8 p-5">
+          <p className="eyebrow mb-3">Invite people</p>
+          <InviteForm gardenId={garden.id} />
         </div>
 
         <p className="eyebrow mb-3">Growing seeds</p>
