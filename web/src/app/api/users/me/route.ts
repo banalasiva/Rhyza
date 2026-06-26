@@ -8,7 +8,7 @@ export const GET = handle(async () => {
   const [user, orgId] = await Promise.all([
     db.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, avatarUrl: true, bio: true },
+      select: { id: true, name: true, email: true, image: true, bio: true },
     }),
     primaryOrgId(userId),
   ]);

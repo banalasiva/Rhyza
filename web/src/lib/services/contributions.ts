@@ -24,7 +24,7 @@ export async function addContribution(
       parentId: input.parentId ?? null,
       content: { text: input.text },
     },
-    include: { author: { select: { id: true, name: true, avatarUrl: true } } },
+    include: { author: { select: { id: true, name: true, image: true } } },
   });
 
   // Notify the seed's author (unless they're the contributor).

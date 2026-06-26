@@ -65,7 +65,7 @@ model User {
   id           String    @id @default(uuid()) @db.Uuid
   email        String    @unique
   name         String    @default("")
-  avatarUrl    String?   @map("avatar_url")
+  image        String?   @map("avatar_url")
   bio          String?
   emailVerified DateTime? @map("email_verified")
   createdAt    DateTime  @default(now()) @map("created_at")

@@ -9,7 +9,7 @@ export const GET = handle(async () => {
     where: { recipientId: userId },
     orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
     take: 50,
-    include: { actor: { select: { name: true, avatarUrl: true } } },
+    include: { actor: { select: { name: true, image: true } } },
   });
   return ok({
     notifications: notifications.map((n) => ({

@@ -51,7 +51,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
   const seed = await db.seed.findUnique({
     where: { id: seedId },
     include: {
-      createdBy: { select: { id: true, name: true, avatarUrl: true } },
+      createdBy: { select: { id: true, name: true, image: true } },
       garden: { select: { id: true, name: true, emoji: true } },
     },
   });
@@ -67,7 +67,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
       where: { seedId, deletedAt: null },
       orderBy: { createdAt: "asc" },
       include: {
-        author: { select: { id: true, name: true, avatarUrl: true } },
+        author: { select: { id: true, name: true, image: true } },
         reactions: true,
       },
     }),

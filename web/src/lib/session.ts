@@ -18,7 +18,7 @@ export async function getViewer(): Promise<Viewer | null> {
   const [user, orgId] = await Promise.all([
     db.user.findUnique({
       where: { id: session.user.id },
-      select: { name: true, email: true, avatarUrl: true },
+      select: { name: true, email: true, image: true },
     }),
     primaryOrgId(session.user.id),
   ]);
@@ -27,7 +27,7 @@ export async function getViewer(): Promise<Viewer | null> {
     userId: session.user.id,
     name: user.name,
     email: user.email,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: user.image,
     orgId,
   };
 }

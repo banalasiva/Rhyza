@@ -51,7 +51,7 @@ export async function getGardenDetail(userId: string, gardenId: string) {
     where: { gardenId, deletedAt: null, stage: { not: "bloomed" } },
     orderBy: { createdAt: "desc" },
     include: {
-      createdBy: { select: { id: true, name: true, avatarUrl: true } },
+      createdBy: { select: { id: true, name: true, image: true } },
       _count: { select: { contributions: true } },
     },
   });
