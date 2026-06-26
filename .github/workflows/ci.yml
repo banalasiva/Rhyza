@@ -1,0 +1,43 @@
+name: CI
+
+# Quality gates for every PR and pushes to main: generate the Prisma client,
+# typecheck, and build. Deploys themselves are handled by Vercel's native Git
+# integration (see web/DEPLOY.md).
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+        env:
+          # Dummy values so the build can initialize without real secrets.
+          # No database connection is made during the build.
+          DATABASE_URL: postgresql://user:pass@localhost:5432/rhyza
+          DIRECT_URL: postgresql://user:pass@localhost:5432/rhyza
+          AUTH_SECRET: ci-dummy-secret-not-used-at-runtime

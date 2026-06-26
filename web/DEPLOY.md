@@ -74,7 +74,7 @@ infra beyond this repo — the auth layer itself is already SSO-ready.)
 
 ---
 
-## 4. Vercel
+## 4. Vercel (deploys + preview URLs)
 
 1. Import the GitHub repo at <https://vercel.com/new>.
 2. **Root Directory → `web`** (the app is not at the repo root).
@@ -88,11 +88,54 @@ infra beyond this repo — the auth layer itself is already SSO-ready.)
 5. Deploy. After the first deploy, add the production callback URLs to Google
    (and your SSO IdP), then redeploy if you changed env vars.
 
+Once imported, Vercel's **Git integration** is automatic: every push to `main`
+ships to production, and every PR gets a preview URL. No deploy workflow needed
+on the GitHub side.
+
 ---
 
-## 5. Post-deploy checklist
+## 5. CI/CD (GitHub Actions)
 
-- [ ] `db:deploy` and `db:seed` have run against the production database
+Two workflows live in `.github/workflows`:
+
+- **`ci.yml`** — on every PR and push to `main`: installs, generates the Prisma
+  client, typechecks, and builds. This is the quality gate that runs alongside
+  Vercel's preview deploy.
+- **`migrate.yml`** — on push to `main`: runs `prisma migrate deploy` against
+  your production database.
+
+### Repo secrets (Settings → Secrets and variables → Actions)
+
+| Secret         | Value                                  |
+| -------------- | -------------------------------------- |
+| `DATABASE_URL` | Neon **pooled** connection string      |
+| `DIRECT_URL`   | Neon **direct** connection string      |
+
+### One-time: create the initial migration
+
+The repo uses Prisma Migrate in production. Generate the first migration once,
+locally, against a dev database (a Neon branch is ideal), then commit it:
+
+```bash
+cd web
+npm run db:migrate -- --name init     # creates prisma/migrations/…/migration.sql
+git add prisma/migrations && git commit -m "Add initial migration"
+```
+
+After that, `migrate.yml` applies migrations automatically on every merge to
+`main`. (For quick experiments without migration history, `npm run db:push`
+syncs the schema directly — but prefer committed migrations for production.)
+
+> Ordering note: `migrate.yml` and Vercel's deploy both trigger on push to
+> `main` and run concurrently. For v1 with no production data this is fine; if
+> you later need strict "migrate-before-deploy" ordering, gate the Vercel
+> deploy on the Action via a deploy hook.
+
+---
+
+## 6. Post-deploy checklist
+
+- [ ] `migrate.yml` (or a local `db:deploy`) and `db:seed` have run against the production database
 - [ ] Google sign-in works (callback URL matches exactly)
 - [ ] First user can create an org and a garden
 - [ ] Planting a seed, contributing, and stage-voting persist across reloads
