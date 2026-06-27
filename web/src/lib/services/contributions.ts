@@ -121,21 +121,25 @@ export async function mediateSeed(userId: string, seedId: string) {
   return contribution;
 }
 
+type Attachment = { url: string; type: "image" | "video" | "file"; name?: string };
+
 export async function addContribution(
   userId: string,
   seedId: string,
-  input: { dimension: string; text: string; parentId?: string },
+  input: { dimension: string; text: string; parentId?: string; attachments?: Attachment[] },
 ) {
   const seed = await seedOrThrow(seedId);
   await ensureSeedParticipant(userId, seedId);
 
+  const attachments = input.attachments ?? [];
   const contribution = await db.contribution.create({
     data: {
       seedId,
       authorId: userId,
       dimension: input.dimension,
       parentId: input.parentId ?? null,
-      content: { text: input.text },
+      contentType: attachments.length > 0 ? attachments[0].type : "text",
+      content: { text: input.text, attachments },
     },
     include: { author: { select: { id: true, name: true, image: true } } },
   });

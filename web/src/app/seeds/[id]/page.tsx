@@ -35,6 +35,7 @@ export default async function SeedPage({ params }: { params: { id: string } }) {
           seed={seed}
           reactions={reactions}
           currentUserId={viewer.userId}
+          uploadsEnabled={!!process.env.BLOB_READ_WRITE_TOKEN}
         />
       </main>
     </div>

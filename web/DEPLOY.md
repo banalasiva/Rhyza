@@ -169,6 +169,20 @@ app still works either way.
 
 ---
 
+## 5d. File uploads (Vercel Blob) — optional
+
+Lets members attach images, videos, and screenshots to contributions.
+
+1. In Vercel → your project → **Storage** → **Create** a **Blob** store and
+   connect it. Vercel sets `BLOB_READ_WRITE_TOKEN` on the project automatically.
+2. For local dev, copy that token into `.env`.
+
+If `BLOB_READ_WRITE_TOKEN` is unset, the **📎 Attach** button is hidden and
+everything else works normally. Uploads go straight from the browser to Blob
+(so large videos aren't limited by the serverless body size); max 100 MB.
+
+---
+
 ## 6. Post-deploy checklist
 
 - [ ] `migrate.yml` (or a local `db:deploy`) and `db:seed` have run against the production database

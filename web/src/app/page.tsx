@@ -3,6 +3,7 @@ import { requireViewer } from "@/lib/session";
 import { listGardens } from "@/lib/services/gardens";
 import { NavBar } from "@/components/NavBar";
 import { CreateGardenForm } from "@/components/CreateGardenForm";
+import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 
 export default async function GardensHome() {
   const viewer = await requireViewer();
@@ -10,6 +11,7 @@ export default async function GardensHome() {
 
   return (
     <div className="relative min-h-screen">
+      <FirstVisitIntro />
       <div className="garden-bg" />
       <NavBar name={viewer.name} />
       <main className="relative z-10 mx-auto max-w-4xl px-6 py-8">

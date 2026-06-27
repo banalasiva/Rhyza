@@ -199,12 +199,15 @@ export async function getSeedDetail(userId: string, seedId: string) {
       reactionCounts[r.reactionKey] = (reactionCounts[r.reactionKey] ?? 0) + 1;
       if (r.userId === userId) myReactions.push(r.reactionKey);
     }
-    const content = c.content as { text?: string } | null;
+    const content = c.content as
+      | { text?: string; attachments?: { url: string; type: "image" | "video" | "file"; name?: string }[] }
+      | null;
     return {
       id: c.id,
       dimension: c.dimension,
       parentId: c.parentId,
       text: content?.text ?? "",
+      attachments: content?.attachments ?? [],
       author: c.author,
       createdAt: c.createdAt.toISOString(),
       reactionCounts,

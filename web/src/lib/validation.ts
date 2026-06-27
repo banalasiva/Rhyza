@@ -24,11 +24,23 @@ export const setSeedVisibilitySchema = z.object({
   visibility: visibilityEnum,
 });
 
-export const createContributionSchema = z.object({
-  dimension: z.enum(DIMENSION_KEYS as [string, ...string[]]),
-  text: z.string().min(1, "Contribution can't be empty").max(5000),
-  parentId: z.string().uuid().optional(),
+export const attachmentSchema = z.object({
+  url: z.string().url().max(2000),
+  type: z.enum(["image", "video", "file"]),
+  name: z.string().max(200).optional(),
 });
+
+export const createContributionSchema = z
+  .object({
+    dimension: z.enum(DIMENSION_KEYS as [string, ...string[]]),
+    text: z.string().max(5000).optional().default(""),
+    parentId: z.string().uuid().optional(),
+    attachments: z.array(attachmentSchema).max(10).optional().default([]),
+  })
+  .refine((d) => d.text.trim().length > 0 || d.attachments.length > 0, {
+    message: "Add a message or an attachment",
+    path: ["text"],
+  });
 
 export const reactionSchema = z.object({
   reactionKey: z.string().min(1).max(40),

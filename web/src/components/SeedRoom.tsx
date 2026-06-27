@@ -13,11 +13,13 @@ import {
 import { apiPost } from "@/lib/client";
 import { playNatureSound, setMuted } from "@/lib/sound";
 import { timeAgo } from "@/lib/time";
+import { upload } from "@vercel/blob/client";
 import { PlantSvg } from "@/components/PlantSvg";
 import { HowItWorks } from "@/components/HowItWorks";
 import { RichEditor } from "@/components/RichEditor";
 import { InlineText } from "@/components/InlineText";
 import { Avatar } from "@/components/Avatar";
+import { Attachments, type Attachment } from "@/components/Attachments";
 
 type ReactionType = { key: string; emoji: string; label: string };
 type Contribution = SeedDetail["contributions"][number];
@@ -26,6 +28,7 @@ type ContributionResponse = {
   id: string;
   dimension: string;
   text: string;
+  attachments?: Attachment[];
   parentId: string | null;
   author: Contribution["author"];
   createdAt: string;
@@ -40,6 +43,7 @@ function hydrate(c: Omit<ContributionResponse, "aiReply">): Contribution {
     id: c.id,
     dimension: c.dimension,
     text: c.text,
+    attachments: c.attachments ?? [],
     parentId: c.parentId ?? null,
     author: c.author,
     createdAt: c.createdAt,
@@ -50,14 +54,22 @@ function hydrate(c: Omit<ContributionResponse, "aiReply">): Contribution {
   };
 }
 
+function attachmentType(mime: string): Attachment["type"] {
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("video/")) return "video";
+  return "file";
+}
+
 export function SeedRoom({
   seed,
   reactions,
   currentUserId,
+  uploadsEnabled = false,
 }: {
   seed: SeedDetail;
   reactions: ReactionType[];
   currentUserId: string;
+  uploadsEnabled?: boolean;
 }) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -68,6 +80,9 @@ export function SeedRoom({
   const [stage, setStage] = useState<string>(seed.stage);
   const [activeDim, setActiveDim] = useState<DimensionKey>(DIMENSIONS[0].key);
   const [draft, setDraft] = useState("");
+  const [draftAttachments, setDraftAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [blooming, setBlooming] = useState(false);
@@ -154,9 +169,32 @@ export function SeedRoom({
     return { label: "Building", color: "#FFB300", note: "Understanding is taking shape" };
   }, [contributions]);
 
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    setError(null);
+    try {
+      for (const file of Array.from(files)) {
+        const blob = await upload(file.name, file, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+        });
+        setDraftAttachments((prev) => [
+          ...prev,
+          { url: blob.url, type: attachmentType(file.type), name: file.name },
+        ]);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
   async function contribute() {
     const text = draft.trim();
-    if (text.length === 0) return;
+    if (text.length === 0 && draftAttachments.length === 0) return;
     setBusy(true);
     setError(null);
     const tagsClaude = /(^|[^a-zA-Z0-9])@claude\b/i.test(text);
@@ -166,6 +204,7 @@ export function SeedRoom({
       const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/contributions`, {
         dimension: activeDim,
         text,
+        attachments: draftAttachments,
       });
       setContributions((prev) => {
         const next = [...prev, hydrate(c)];
@@ -173,6 +212,7 @@ export function SeedRoom({
         return next;
       });
       setDraft("");
+      setDraftAttachments([]);
       playNatureSound(c.aiReply ? "chirp" : "drop");
       if (tagsClaude && !c.aiReply) {
         setError(
@@ -617,9 +657,14 @@ export function SeedRoom({
                     </div>
                   </div>
                 ) : (
-                  <div className="mb-3 text-sm leading-relaxed text-ink">
-                    <InlineText text={c.text} />
-                  </div>
+                  <>
+                    {c.text && (
+                      <div className="mb-3 text-sm leading-relaxed text-ink">
+                        <InlineText text={c.text} />
+                      </div>
+                    )}
+                    <Attachments items={c.attachments ?? []} />
+                  </>
                 )}
                 <div className="mb-2 flex flex-wrap gap-1.5">
                   {reactions.map((r) => {
@@ -698,12 +743,62 @@ export function SeedRoom({
               disabled={busy}
               people={seed.people}
             />
+
+            {/* Attachment previews */}
+            {draftAttachments.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {draftAttachments.map((a, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 rounded-lg border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.5)] px-2 py-1 text-xs text-ink-mid"
+                  >
+                    <span>{a.type === "image" ? "🖼️" : a.type === "video" ? "🎬" : "📎"}</span>
+                    <span className="max-w-[140px] truncate">{a.name || "file"}</span>
+                    <button
+                      onClick={() => setDraftAttachments((prev) => prev.filter((_, j) => j !== i))}
+                      className="text-ink-soft hover:text-[#e57373]"
+                      title="Remove"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {error && <p className="mb-2 mt-2 text-sm text-[#e57373]">{error}</p>}
-            <div className="mt-3 flex items-center justify-between">
-              <span className="text-xs text-ink-soft">
-                {draft.length}/5000 · <span className="text-accent">@claude</span> to ask Claude
-              </span>
-              <button onClick={contribute} className="btn-primary" disabled={busy || draft.trim().length === 0}>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                {uploadsEnabled && (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*,video/*,.pdf"
+                      className="hidden"
+                      onChange={(e) => handleFiles(e.target.files)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={busy || uploading}
+                      className="text-sm text-ink-soft transition hover:text-ink disabled:opacity-50"
+                      title="Attach image, video, or screenshot"
+                    >
+                      {uploading ? "⏳ Uploading…" : "📎 Attach"}
+                    </button>
+                  </>
+                )}
+                <span className="text-xs text-ink-soft">
+                  <span className="text-accent">@claude</span> to ask
+                </span>
+              </div>
+              <button
+                onClick={contribute}
+                className="btn-primary"
+                disabled={busy || uploading || (draft.trim().length === 0 && draftAttachments.length === 0)}
+              >
                 {busy ? "Sending…" : "Contribute"}
               </button>
             </div>

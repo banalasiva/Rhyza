@@ -1,5 +1,7 @@
 "use client";
 
+import { DIMENSIONS } from "@/lib/constants";
+
 // Rhyza's welcome + how-it-works. Shown on a member's first seed visit and from
 // the "ⓘ How it works" button. Leads with the why (preserving the journey behind
 // a decision), then how a Seed grows into shared wisdom.
@@ -66,11 +68,11 @@ export function HowItWorks({ onClose }: { onClose: () => void }) {
         <Section emoji="🧠" title="Grow the Seed together.">
           <p className="mb-2">Every Seed is explored through five perspectives:</p>
           <ul className="space-y-1">
-            <li>🧠 <strong style={{ color: "#EC407A" }}>Foundations</strong> — Why does it exist?</li>
-            <li>💡 <strong style={{ color: "#FFB300" }}>Understanding</strong> — How should we think about it?</li>
-            <li>🛠 <strong style={{ color: "#42A5F5" }}>Application</strong> — How does it work in practice?</li>
-            <li>⚖ <strong style={{ color: "#AB47BC" }}>Debate</strong> — What are the trade-offs?</li>
-            <li>🌸 <strong style={{ color: "#FFB300" }}>Bloom</strong> — The community&apos;s best understanding.</li>
+            {DIMENSIONS.map((d) => (
+              <li key={d.key}>
+                {d.emoji} <strong style={{ color: d.color }}>{d.label}</strong> — {d.blurb}
+              </li>
+            ))}
           </ul>
         </Section>
 

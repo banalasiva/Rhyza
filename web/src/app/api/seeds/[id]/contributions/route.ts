@@ -12,10 +12,15 @@ function toDTO(c: {
   author: { id: string; name: string; image: string | null };
   createdAt: Date;
 }) {
+  const content = c.content as {
+    text?: string;
+    attachments?: { url: string; type: "image" | "video" | "file"; name?: string }[];
+  };
   return {
     id: c.id,
     dimension: c.dimension,
-    text: (c.content as { text?: string }).text ?? "",
+    text: content.text ?? "",
+    attachments: content.attachments ?? [],
     parentId: c.parentId,
     author: c.author,
     createdAt: c.createdAt.toISOString(),
