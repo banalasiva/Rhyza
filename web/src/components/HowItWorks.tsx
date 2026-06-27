@@ -1,87 +1,119 @@
 "use client";
 
-import { DIMENSIONS } from "@/lib/constants";
-
-// A short explainer for first-time users: why dimensions exist, what the plant
-// means, and how/why a seed blooms. Shown automatically on first visit and from
-// the "How it works" button.
+// Rhyza's welcome + how-it-works. Shown on a member's first seed visit and from
+// the "ⓘ How it works" button. Leads with the why (preserving the journey behind
+// a decision), then how a Seed grows into shared wisdom.
 export function HowItWorks({ onClose }: { onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-[180] flex items-center justify-center bg-[rgba(8,5,0,0.72)] px-4 py-8 backdrop-blur-sm"
+      className="fixed inset-0 z-[180] flex items-center justify-center bg-[rgba(8,5,0,0.74)] px-4 py-8 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="card max-h-full w-full max-w-lg overflow-auto p-6 animate-[fadeUp_0.4s_ease-out]"
+        className="card max-h-full w-full max-w-xl overflow-auto p-7 animate-[fadeUp_0.4s_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-5 text-center">
+        {/* ── Welcome ── */}
+        <div className="text-center">
           <div className="text-3xl">🌱</div>
-          <h2 className="serif-lg mt-1">The best thinking happens together — and then it vanishes.</h2>
-          <p className="mt-2 text-sm leading-relaxed text-ink-mid">
-            The sharp insight scrolls away. The call goes to whoever spoke
-            loudest. By Monday, what the group actually understood is gone.
-            <br />
-            <span className="mt-2 inline-block text-ink">
-              Rhyza is a quiet rebellion against that. Plant a question, let many
-              hands tend it, and when you truly converge it <strong>blooms</strong>{" "}
-              into one answer your people keep — for good.
-            </span>
+          <h2 className="serif-xl mt-1">Welcome to Rhyza</h2>
+        </div>
+
+        <div className="mt-4 space-y-3 text-[15px] leading-relaxed text-ink-mid">
+          <p className="text-ink">Every important decision begins with a conversation.</p>
+          <ul className="space-y-0.5 text-ink-soft">
+            <li>Choosing a school for your child.</li>
+            <li>Designing a product.</li>
+            <li>Making an investment.</li>
+            <li>Planning a family trip.</li>
+          </ul>
+          <p>
+            People ask questions, share perspectives, disagree, and eventually
+            arrive at a decision.
+          </p>
+          <p>But as time passes, the conversation fades.</p>
+          <p>Someone eventually asks,</p>
+          <blockquote className="border-l-2 border-[rgba(255,179,0,0.5)] pl-4 font-serif text-lg text-bloom">
+            “Why did we choose this?”
+          </blockquote>
+          <p>The answer is rarely just the decision.</p>
+          <p>
+            It&apos;s the reasoning, the trade-offs, the people who shaped it, and
+            the journey that led there.
+          </p>
+          <p className="text-base font-medium text-ink">
+            Rhyza exists to preserve that journey.
+          </p>
+          <p>
+            Inspired by nature&apos;s hidden root networks, where countless
+            connections help entire forests thrive, Rhyza helps communities grow
+            conversations into collective intelligence.
           </p>
         </div>
 
-        <Section emoji="🧭" title="No single mind sees the whole">
-          <p className="mb-2">
-            So a question is tended through five lenses — not one loud opinion.
-            Add your part wherever you see clearly:
+        <hr className="my-6 border-[rgba(76,175,80,0.18)]" />
+
+        {/* ── How it works ── */}
+        <p className="eyebrow mb-4 text-center">How it works</p>
+
+        <Section emoji="🌱" title="Every conversation begins as a Seed.">
+          <p>
+            Ask a question, propose an idea, or start a decision. Every Seed
+            belongs to the community — not just the person who created it.
           </p>
+        </Section>
+
+        <Section emoji="🧠" title="Grow the Seed together.">
+          <p className="mb-2">Every Seed is explored through five perspectives:</p>
           <ul className="space-y-1">
-            {DIMENSIONS.map((d) => (
-              <li key={d.key} className="flex gap-2">
-                <span>{d.emoji}</span>
-                <span>
-                  <strong style={{ color: d.color }}>{d.label}</strong> — {d.blurb}
-                </span>
-              </li>
-            ))}
+            <li>🧠 <strong style={{ color: "#EC407A" }}>Foundations</strong> — Why does it exist?</li>
+            <li>💡 <strong style={{ color: "#FFB300" }}>Understanding</strong> — How should we think about it?</li>
+            <li>🛠 <strong style={{ color: "#42A5F5" }}>Application</strong> — How does it work in practice?</li>
+            <li>⚖ <strong style={{ color: "#AB47BC" }}>Debate</strong> — What are the trade-offs?</li>
+            <li>🌸 <strong style={{ color: "#FFB300" }}>Bloom</strong> — The community&apos;s best understanding.</li>
           </ul>
         </Section>
 
-        <Section emoji="🪴" title="Watch the thinking come alive">
+        <Section emoji="🌿" title="Watch knowledge grow.">
           <p>
-            You&apos;re not posting into a void — you&apos;re tending something
-            living. The plant is the conversation&apos;s pulse, growing as people
-            contribute and agree (<em>seed → germinating → sprouting → growing →
-            bloomed</em>). Vote with “Community feels” to move it.
+            As people contribute, question, and build on each other&apos;s ideas,
+            the Seed grows from <em>Seed → Germinating → Sprouting → Growing →
+            Bloomed</em>. The plant reflects the maturity of the conversation — not
+            its popularity.
           </p>
         </Section>
 
-        <Section emoji="🌸" title="Consensus you can hold">
-          <p>
-            When enough of you genuinely feel it&apos;s ready — just 2, or half
-            the group — the seed <strong>blooms</strong>: Claude distills
-            everything said into one clear answer that lives in your{" "}
-            <strong>Sacred Tree</strong>. Knowledge <em>grown, not declared</em> —
-            earned, not imposed. And when minds change, it grows a new version,
-            the old one kept, so you can see how your thinking evolved.
+        <Section emoji="🌳" title="Nothing is forgotten.">
+          <p className="mb-2">
+            When the community feels a Seed is ready, Claude helps distill the
+            discussion into a Bloom. Every Bloom remembers:
+          </p>
+          <ul className="space-y-0.5">
+            <li>• Why the decision was made.</li>
+            <li>• Who contributed to it.</li>
+            <li>• How the thinking evolved.</li>
+          </ul>
+          <p className="mt-2">
+            It becomes part of your <strong>Sacred Tree</strong> — a living memory
+            your community can return to for years.
           </p>
         </Section>
 
-        <Section emoji="🤝" title="A mind always in the room">
+        <Section emoji="🤝" title="Think together.">
           <p>
-            Tag <span className="text-accent">@claude</span> to think with you, or
-            hit <strong>🕊️ Ask Claude to mediate</strong> when you disagree — a
-            fair voice with no side to take.
+            Claude can explain, summarize, and mediate discussions. The community
+            decides what becomes its shared wisdom.
           </p>
         </Section>
 
-        <p className="mb-4 text-center text-sm text-ink">
-          Most tools help you <em>talk</em>. Rhyza helps you{" "}
-          <strong className="text-accent">arrive</strong> — together, and for good.
+        <p className="mb-5 mt-5 text-center font-serif text-lg leading-snug text-ink">
+          Because conversations create decisions.
+          <br />
+          Communities create <span className="text-accent">wisdom</span>.
         </p>
 
         <button onClick={onClose} className="btn-primary w-full">
-          Let&apos;s grow something 🌿
+          Enter Rhyza 🌿
         </button>
       </div>
     </div>
@@ -98,8 +130,8 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mb-4 rounded-xl border border-[rgba(76,175,80,0.15)] bg-[rgba(7,13,7,0.4)] p-3">
-      <p className="mb-1 flex items-center gap-2 text-sm font-medium text-ink">
+    <div className="mb-4 rounded-xl border border-[rgba(76,175,80,0.15)] bg-[rgba(7,13,7,0.4)] p-3.5">
+      <p className="mb-1.5 flex items-center gap-2 font-medium text-ink">
         <span className="text-base">{emoji}</span>
         {title}
       </p>
