@@ -5,7 +5,13 @@ import {
   requireSeedAccess,
   requireGardenSteward,
 } from "@/lib/authz";
-import { claudeReply, mediate, mentionsClaude, type ContribForAI } from "@/lib/ai";
+import {
+  claudeReply,
+  classifyDimension,
+  mediate,
+  mentionsClaude,
+  type ContribForAI,
+} from "@/lib/ai";
 import { extractMentionIds } from "@/lib/mentions";
 import { appUrl, sendEmail, mentionEmailHtml, emailConfigured } from "@/lib/email";
 import { getReactionTypes } from "@/lib/registry";
@@ -254,6 +260,41 @@ async function notifyMentions(
   } catch (err) {
     console.error("notifyMentions failed", err);
   }
+}
+
+// Auto-classify a contribution's dimension with Claude (called right after the
+// message is posted, so the badge fills in). Returns the resolved dimension.
+export async function classifyContribution(userId: string, contributionId: string) {
+  const c = await db.contribution.findUnique({
+    where: { id: contributionId },
+    include: { seed: { select: { title: true, content: true } } },
+  });
+  if (!c || c.deletedAt) throw new ApiError("NOT_FOUND", "Contribution not found");
+  await requireSeedAccess(userId, c.seedId);
+
+  const text = (c.content as { text?: string } | null)?.text ?? "";
+  const dim = await classifyDimension({
+    title: c.seed.title,
+    content: c.seed.content,
+    text,
+  });
+  if (!dim || dim === c.dimension) return { dimension: c.dimension };
+
+  await db.contribution.update({ where: { id: contributionId }, data: { dimension: dim } });
+  return { dimension: dim };
+}
+
+// Manually re-tag a contribution's dimension (when Claude got it wrong).
+export async function retagContribution(
+  userId: string,
+  contributionId: string,
+  dimension: string,
+) {
+  const c = await db.contribution.findUnique({ where: { id: contributionId } });
+  if (!c || c.deletedAt) throw new ApiError("NOT_FOUND", "Contribution not found");
+  await requireSeedAccess(userId, c.seedId);
+  await db.contribution.update({ where: { id: contributionId }, data: { dimension } });
+  return { dimension };
 }
 
 // Toggle a reaction on/off for the current user; returns updated counts.

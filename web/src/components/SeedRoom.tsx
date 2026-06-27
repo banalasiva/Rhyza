@@ -78,7 +78,9 @@ export function SeedRoom({
   const [distribution, setDistribution] = useState(seed.distribution);
   const [myVote, setMyVote] = useState<string | null>(seed.myVote);
   const [stage, setStage] = useState<string>(seed.stage);
-  const [activeDim, setActiveDim] = useState<DimensionKey>(DIMENSIONS[0].key);
+  const [filterDim, setFilterDim] = useState<DimensionKey | null>(null); // null = All
+  const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
+  const [retagId, setRetagId] = useState<string | null>(null); // open re-tag menu
   const [draft, setDraft] = useState("");
   const [draftAttachments, setDraftAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -202,8 +204,8 @@ export function SeedRoom({
     try {
       // If Claude is tagged, show a "thinking" placeholder while it replies.
       if (tagsClaude) setThinking(true);
+      // No dimension sent — people just write; Claude labels it after posting.
       const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/contributions`, {
-        dimension: activeDim,
         text,
         attachments: draftAttachments,
       });
@@ -222,11 +224,50 @@ export function SeedRoom({
             : `Claude couldn't reply: ${c.aiError ?? "unknown error"}`,
         );
       }
+      // Let Claude label the dimension in the background; the badge fills in.
+      classify(c.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to contribute");
     } finally {
       setThinking(false);
       setBusy(false);
+    }
+  }
+
+  async function classify(contributionId: string) {
+    setClassifyingIds((s) => new Set(s).add(contributionId));
+    try {
+      const res = await apiPost<{ dimension: string }>(
+        `/api/contributions/${contributionId}/classify`,
+        {},
+      );
+      setContributions((prev) =>
+        prev.map((c) => (c.id === contributionId ? { ...c, dimension: res.dimension } : c)),
+      );
+    } catch {
+      /* leave the provisional label */
+    } finally {
+      setClassifyingIds((s) => {
+        const n = new Set(s);
+        n.delete(contributionId);
+        return n;
+      });
+    }
+  }
+
+  async function retag(contributionId: string, dimension: DimensionKey) {
+    setRetagId(null);
+    setContributions((prev) =>
+      prev.map((c) => (c.id === contributionId ? { ...c, dimension } : c)),
+    );
+    try {
+      await fetch(`/api/contributions/${contributionId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dimension }),
+      });
+    } catch {
+      router.refresh();
     }
   }
 
@@ -236,7 +277,7 @@ export function SeedRoom({
     try {
       const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/mediate`, {});
       setContributions((prev) => [...prev, hydrate(c)]);
-      setActiveDim("debate");
+      setFilterDim(null); // show the full thread so the mediation is visible
       playNatureSound("chirp");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Mediation failed");
@@ -462,8 +503,10 @@ export function SeedRoom({
     setTimeout(() => router.push(`/gardens/${seed.garden.id}/tree`), 6000);
   }
 
-  const dimMeta = DIMENSIONS.find((d) => d.key === activeDim)!;
-  const dimContributions = contributions.filter((c) => c.dimension === activeDim);
+  // Linear thread: everything chronologically, or filtered to one dimension.
+  const visibleContributions = filterDim
+    ? contributions.filter((c) => c.dimension === filterDim)
+    : contributions;
 
   return (
     <div className="relative mt-3 grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -593,15 +636,25 @@ export function SeedRoom({
         )}
         {seed.content && <p className="card mb-5 p-4 text-sm text-ink-mid">{seed.content}</p>}
 
-        {/* Dimension tabs */}
+        {/* Dimension FILTER chips (optional lens) — default 'All' is linear */}
         <div className="mb-4 flex flex-wrap gap-2 border-b border-[rgba(76,175,80,0.12)] pb-3">
+          <button
+            onClick={() => setFilterDim(null)}
+            className="rounded-full px-3 py-1.5 text-sm transition"
+            style={{
+              color: filterDim === null ? "#E8E4DC" : "#A0A890",
+              background: filterDim === null ? "rgba(255,255,255,0.08)" : "transparent",
+            }}
+          >
+            All {contributions.length > 0 && <span className="opacity-60">{contributions.length}</span>}
+          </button>
           {DIMENSIONS.map((d) => {
             const count = contributions.filter((c) => c.dimension === d.key).length;
-            const active = activeDim === d.key;
+            const active = filterDim === d.key;
             return (
               <button
                 key={d.key}
-                onClick={() => setActiveDim(d.key)}
+                onClick={() => setFilterDim(active ? null : d.key)}
                 className="rounded-full px-3 py-1.5 text-sm transition"
                 style={{
                   color: active ? d.color : "#A0A890",
@@ -615,27 +668,16 @@ export function SeedRoom({
           })}
         </div>
 
-        {/* Dimension explainer */}
-        <div className="mb-4">
-          <div className="mb-1 flex items-center gap-2">
-            <span className="text-base">{dimMeta.emoji}</span>
-            <span className="font-medium" style={{ color: dimMeta.color }}>
-              What is {dimMeta.label}?
-            </span>
-            <span className="rounded-full bg-[rgba(255,255,255,0.05)] px-2 py-0.5 text-xs text-ink-soft">
-              {dimContributions.length} contribution{dimContributions.length === 1 ? "" : "s"}
-            </span>
-          </div>
-          <p className="text-sm text-ink-soft">{dimMeta.description}</p>
-        </div>
-
-        {/* Contributions */}
+        {/* Contributions — one linear conversation */}
         <div className="space-y-3">
-          {dimContributions.length === 0 && (
-            <p className="text-sm text-ink-soft">No contributions here yet. Be the first.</p>
+          {visibleContributions.length === 0 && (
+            <p className="text-sm text-ink-soft">
+              {filterDim ? "Nothing in this lens yet." : "No thoughts yet. Be the first to share."}
+            </p>
           )}
-          {dimContributions.map((c) => {
-            const cd = DIMENSIONS.find((d) => d.key === c.dimension)!;
+          {visibleContributions.map((c) => {
+            const cd = DIMENSIONS.find((d) => d.key === c.dimension) ?? DIMENSIONS[1];
+            const isClaude = c.author?.name === "Claude";
             return (
               <div key={c.id} className={`card p-4 ${glowing.has(c.id) ? "endorsed-glow" : ""}`}>
                 <div className="mb-2 flex items-center justify-between">
@@ -653,9 +695,38 @@ export function SeedRoom({
                       <p className="text-xs text-ink-soft">{timeAgo(c.createdAt)}</p>
                     </div>
                   </div>
-                  <span className="rounded-full px-2 py-0.5 text-xs" style={{ color: cd.color, background: `${cd.color}1A` }}>
-                    {cd.emoji} {cd.label}
-                  </span>
+                  <div className="relative shrink-0">
+                    <button
+                      onClick={() => !isClaude && setRetagId(retagId === c.id ? null : c.id)}
+                      className="rounded-full px-2 py-0.5 text-xs transition"
+                      style={{ color: cd.color, background: `${cd.color}1A` }}
+                      title={isClaude ? cd.label : "Claude's label — tap to change"}
+                    >
+                      {classifyingIds.has(c.id) ? (
+                        <span className="inline-flex items-center gap-1">
+                          <span className="claude-thinking-dot" style={{ width: 7, height: 7 }} />
+                          labeling…
+                        </span>
+                      ) : (
+                        `${cd.emoji} ${cd.label}`
+                      )}
+                    </button>
+                    {retagId === c.id && (
+                      <div className="absolute right-0 z-30 mt-1 w-44 rounded-xl border border-[rgba(76,175,80,0.25)] bg-[rgba(10,16,10,0.98)] p-1 shadow-xl">
+                        <p className="px-2 py-1 text-[10px] uppercase tracking-wide text-ink-soft">Re-label as</p>
+                        {DIMENSIONS.map((d) => (
+                          <button
+                            key={d.key}
+                            onClick={() => retag(c.id, d.key)}
+                            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-ink-mid transition hover:text-ink"
+                          >
+                            <span>{d.emoji}</span>
+                            <span style={{ color: d.color }}>{d.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 {editingId === c.id ? (
                   <div className="mb-2">
@@ -749,13 +820,11 @@ export function SeedRoom({
         )}
         {!isBloomed && !committedToBloom && (
           <div className="card mt-6 p-5">
-            <p className="eyebrow mb-3" style={{ color: dimMeta.color }}>
-              {dimMeta.emoji} Add to {dimMeta.label}
-            </p>
+            <p className="eyebrow mb-3">💬 Share your thought · Claude will label it</p>
             <RichEditor
               value={draft}
               onChange={setDraft}
-              placeholder={`${dimMeta.blurb}  (**bold**, *italic*, \`code\` · @ to tag, @claude to ask)`}
+              placeholder={`What's your take? (**bold**, *italic*, \`code\` · @ to tag, @claude to ask)`}
               disabled={busy}
               people={seed.people}
             />

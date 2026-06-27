@@ -175,6 +175,45 @@ export async function mediate(input: {
   return text || null;
 }
 
+// Classify a posted message into one of the five dimensions, so people can just
+// write and Claude organizes the conversation. Returns null if AI is off or the
+// answer isn't a known dimension (caller keeps the provisional label).
+export async function classifyDimension(input: {
+  title: string;
+  content: string;
+  text: string;
+}): Promise<string | null> {
+  if (!aiConfigured()) return null;
+  try {
+    const prompt = [
+      `SEED (the question): ${input.title}`,
+      input.content.trim() ? `FRAMING: ${input.content.trim()}` : "",
+      `\nMESSAGE:\n"${input.text}"`,
+      `\nWhich single dimension best fits this message?`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const out = await complete(
+      "You classify a message in a Rhyza discussion into exactly one of five dimensions. " +
+        "Definitions — foundations: why the topic exists, core ideas, assumptions, definitions. " +
+        "understanding: mental models, analogies, how to think about it. " +
+        "application: how it's used in practice, real examples, implementation, recommendations. " +
+        "debate: trade-offs, disagreements, counter-arguments, where it breaks down. " +
+        "bloom: a distilled conclusion or the community's settled answer. " +
+        "Reply with ONLY one word: foundations, understanding, application, debate, or bloom.",
+      prompt,
+      12,
+    );
+    const k = out.trim().toLowerCase().replace(/[^a-z]/g, "");
+    return ["foundations", "understanding", "application", "debate", "bloom"].includes(k)
+      ? k
+      : null;
+  } catch (err) {
+    console.error("classifyDimension failed", err);
+    return null;
+  }
+}
+
 // Does this text tag Claude? Matches "@claude" as a whole word, case-insensitive.
 export function mentionsClaude(text: string): boolean {
   return /(^|[^a-zA-Z0-9])@claude\b/i.test(text);

@@ -30,9 +30,17 @@ export const attachmentSchema = z.object({
   name: z.string().max(200).optional(),
 });
 
+export const dimensionEnum = z.enum(DIMENSION_KEYS as [string, ...string[]]);
+
+export const retagContributionSchema = z.object({
+  dimension: dimensionEnum,
+});
+
 export const createContributionSchema = z
   .object({
-    dimension: z.enum(DIMENSION_KEYS as [string, ...string[]]),
+    // Optional now: people just write, and Claude classifies the dimension after
+    // posting. Defaults to a neutral provisional label until then.
+    dimension: dimensionEnum.optional().default("understanding"),
     text: z.string().max(5000).optional().default(""),
     parentId: z.string().uuid().optional(),
     attachments: z.array(attachmentSchema).max(10).optional().default([]),
