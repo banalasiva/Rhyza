@@ -7,8 +7,7 @@ import {
   DIMENSIONS,
   STAGES,
   stageIndex,
-  BLOOM_MIN_VOTERS,
-  BLOOM_VOTE_THRESHOLD_PCT,
+  bloomTargetFor,
   type DimensionKey,
 } from "@/lib/constants";
 import { apiPost } from "@/lib/client";
@@ -103,10 +102,7 @@ export function SeedRoom({
   );
 
   const bloomedVotes = distribution.find((d) => d.stage === "bloomed")?.votes ?? 0;
-  const bloomTarget = Math.max(
-    BLOOM_MIN_VOTERS,
-    Math.ceil((totalVotes || 1) * (BLOOM_VOTE_THRESHOLD_PCT / 100)),
-  );
+  const bloomTarget = bloomTargetFor(participants);
   const bloomNeeded = Math.max(0, bloomTarget - bloomedVotes);
   const bloomReady = bloomedVotes >= bloomTarget && dimsWithContribs >= 3;
 

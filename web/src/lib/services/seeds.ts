@@ -61,6 +61,24 @@ export async function setSeedVisibility(
   return { id: seedId, visibility };
 }
 
+// How many distinct people are participating in a seed: everyone who has
+// authored a (non-deleted) contribution, plus the seed's planter. Used to size
+// the bloom target. Matches the "participants" count shown in the UI.
+export async function countParticipants(seedId: string): Promise<number> {
+  const seed = await db.seed.findUnique({
+    where: { id: seedId },
+    select: { createdById: true },
+  });
+  const authors = await db.contribution.findMany({
+    where: { seedId, deletedAt: null },
+    select: { authorId: true },
+    distinct: ["authorId"],
+  });
+  const ids = new Set(authors.map((a) => a.authorId));
+  if (seed) ids.add(seed.createdById);
+  return Math.max(1, ids.size);
+}
+
 // Vote distribution across stages, with percentages.
 export async function stageDistribution(seedId: string) {
   const rows = await db.seedStageVote.groupBy({

@@ -66,7 +66,16 @@ export function stageIndex(stage: string): number {
   return i === -1 ? 0 : i;
 }
 
-// A seed blooms when at least this share of stage votes land on "bloomed",
-// with a minimum number of voters so a single early vote can't trigger it.
-export const BLOOM_VOTE_THRESHOLD_PCT = 60;
+// A seed blooms when the number of "bloomed" votes reaches the target: at least
+// BLOOM_MIN_VOTERS, or half of the participants — whichever is higher.
+export const BLOOM_VOTE_THRESHOLD_PCT = 50;
 export const BLOOM_MIN_VOTERS = 2;
+
+// How many "bloomed" votes a seed needs given how many people are participating.
+// e.g. 1–4 participants → 2 votes; 5–6 → 3; 7–8 → 4; …
+export function bloomTargetFor(participants: number): number {
+  return Math.max(
+    BLOOM_MIN_VOTERS,
+    Math.ceil(participants * (BLOOM_VOTE_THRESHOLD_PCT / 100)),
+  );
+}

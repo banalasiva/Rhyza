@@ -1,12 +1,8 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { ensureSeedParticipant } from "@/lib/authz";
-import {
-  BLOOM_MIN_VOTERS,
-  BLOOM_VOTE_THRESHOLD_PCT,
-  STAGE_KEYS,
-} from "@/lib/constants";
-import { stageDistribution } from "@/lib/services/seeds";
+import { bloomTargetFor, STAGE_KEYS } from "@/lib/constants";
+import { countParticipants, stageDistribution } from "@/lib/services/seeds";
 import { createBloom } from "@/lib/services/blooms";
 
 // Cast or update the current user's stage vote, recompute the seed's displayed
@@ -29,8 +25,10 @@ export async function castStageVote(
     create: { seedId, userId, stage },
   });
 
-  const distribution = await stageDistribution(seedId);
-  const totalVoters = distribution.reduce((n, d) => n + d.votes, 0);
+  const [distribution, participants] = await Promise.all([
+    stageDistribution(seedId),
+    countParticipants(seedId),
+  ]);
 
   // Displayed stage = the stage with the most votes (ties resolve to the more
   // advanced stage, matching the prototype's "momentum" feel).
@@ -44,10 +42,9 @@ export async function castStageVote(
     }
   }
 
+  // Blooms when bloom votes reach 2, or half the participants — whichever is more.
   const bloomed = distribution.find((d) => d.stage === "bloomed")!;
-  const shouldBloom =
-    totalVoters >= BLOOM_MIN_VOTERS &&
-    bloomed.pct >= BLOOM_VOTE_THRESHOLD_PCT;
+  const shouldBloom = bloomed.votes >= bloomTargetFor(participants);
 
   if (shouldBloom) {
     const bloom = await createBloom(userId, seedId, userId);
