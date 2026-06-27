@@ -1,22 +1,38 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { mentionToken } from "@/lib/mentions";
+import { Avatar } from "@/components/Avatar";
+
+type Person = { id: string; name: string; image: string | null };
 
 // A lightweight "block" editor: a textarea with a formatting toolbar that wraps
-// the current selection in markdown markers (**bold**, *italic*, `code`).
+// the current selection in markdown markers (**bold**, *italic*, `code`), plus
+// an @-mention autocomplete that inserts a structured @[Name](id) token.
 // Output is plain markdown text, rendered safely by <InlineText/>.
 export function RichEditor({
   value,
   onChange,
   placeholder,
   disabled,
+  people = [],
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  people?: Person[];
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  const [menu, setMenu] = useState<{ at: number; query: string } | null>(null);
+  const [active, setActive] = useState(0);
+
+  const matches = menu
+    ? people
+        .filter((p) => p.name.toLowerCase().includes(menu.query.toLowerCase()))
+        .slice(0, 6)
+    : [];
+  const showMenu = menu !== null && matches.length > 0;
 
   function wrap(marker: string) {
     const el = ref.current;
@@ -25,15 +41,63 @@ export function RichEditor({
     const selected = value.slice(s, e) || "text";
     const next = value.slice(0, s) + marker + selected + marker + value.slice(e);
     onChange(next);
-    // restore a sensible selection after React updates
     requestAnimationFrame(() => {
       el.focus();
       el.setSelectionRange(s + marker.length, s + marker.length + selected.length);
     });
   }
 
+  // Detect an in-progress @mention (an "@" at line start or after whitespace,
+  // followed by up to 40 non-space chars) ending at the caret.
+  function syncMenu(text: string, caret: number) {
+    const before = text.slice(0, caret);
+    const m = before.match(/(^|\s)@([^\s@]{0,40})$/);
+    if (m && people.length > 0) {
+      setMenu({ at: caret - m[2].length - 1, query: m[2] });
+      setActive(0);
+    } else {
+      setMenu(null);
+    }
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    onChange(e.target.value);
+    syncMenu(e.target.value, e.target.selectionStart ?? e.target.value.length);
+  }
+
+  function pick(person: Person) {
+    const el = ref.current;
+    if (!el || !menu) return;
+    const caret = el.selectionStart ?? value.length;
+    const token = mentionToken(person.name, person.id);
+    const next = value.slice(0, menu.at) + token + " " + value.slice(caret);
+    const newCaret = menu.at + token.length + 1;
+    onChange(next);
+    setMenu(null);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(newCaret, newCaret);
+    });
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (!showMenu) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((i) => (i + 1) % matches.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((i) => (i - 1 + matches.length) % matches.length);
+    } else if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      pick(matches[active]);
+    } else if (e.key === "Escape") {
+      setMenu(null);
+    }
+  }
+
   return (
-    <div>
+    <div className="relative">
       <div className="mb-2 flex gap-1">
         <ToolbarButton label="Bold" onClick={() => wrap("**")} disabled={disabled}>
           <strong>B</strong>
@@ -50,10 +114,32 @@ export function RichEditor({
         className="input min-h-[150px] text-[15px] leading-relaxed"
         placeholder={placeholder}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        onClick={(e) => syncMenu(value, e.currentTarget.selectionStart ?? 0)}
         maxLength={5000}
         disabled={disabled}
       />
+      {showMenu && (
+        <div className="absolute left-0 right-0 z-30 mt-1 max-h-60 overflow-auto rounded-xl border border-[rgba(76,175,80,0.25)] bg-[rgba(10,16,10,0.98)] p-1 shadow-xl backdrop-blur">
+          {matches.map((p, i) => (
+            <button
+              key={p.id}
+              type="button"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                pick(p);
+              }}
+              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
+                i === active ? "bg-[rgba(76,175,80,0.18)] text-ink" : "text-ink-mid hover:text-ink"
+              }`}
+            >
+              <Avatar name={p.name} image={p.image} size={22} />
+              <span>{p.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

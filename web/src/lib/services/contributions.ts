@@ -6,6 +6,8 @@ import {
   requireGardenSteward,
 } from "@/lib/authz";
 import { claudeReply, mediate, mentionsClaude, type ContribForAI } from "@/lib/ai";
+import { extractMentionIds } from "@/lib/mentions";
+import { appUrl, sendEmail, mentionEmailHtml, emailConfigured } from "@/lib/email";
 
 async function seedOrThrow(seedId: string) {
   const seed = await db.seed.findUnique({ where: { id: seedId } });
@@ -153,7 +155,82 @@ export async function addContribution(
     });
   }
 
+  // Notify anyone @-mentioned (in-app + email), as long as they can see the seed.
+  await notifyMentions(userId, seed, input.text);
+
   return contribution;
+}
+
+// Create "mention" notifications (and emails) for everyone tagged in the text,
+// filtered to users who can actually access the seed. Never notifies the author
+// of their own mention. Failures here never block the contribution.
+async function notifyMentions(
+  actorId: string,
+  seed: { id: string; gardenId: string; title: string; visibility: string },
+  text: string,
+) {
+  try {
+    const ids = extractMentionIds(text).filter((id) => id !== actorId);
+    if (ids.length === 0) return;
+
+    // Keep only ids that can see this seed (seed members for a private seed,
+    // garden members otherwise).
+    const allowed =
+      seed.visibility === "private"
+        ? await db.seedMember.findMany({
+            where: { seedId: seed.id, userId: { in: ids } },
+            select: { userId: true },
+          })
+        : await db.gardenMember.findMany({
+            where: { gardenId: seed.gardenId, userId: { in: ids } },
+            select: { userId: true },
+          });
+    const recipientIds = allowed.map((r) => r.userId);
+    if (recipientIds.length === 0) return;
+
+    const [actor, recipients] = await Promise.all([
+      db.user.findUnique({ where: { id: actorId }, select: { name: true } }),
+      db.user.findMany({
+        where: { id: { in: recipientIds } },
+        select: { id: true, email: true, name: true },
+      }),
+    ]);
+    const actorName = actor?.name || "Someone";
+
+    await db.notification.createMany({
+      data: recipientIds.map((rid) => ({
+        recipientId: rid,
+        actorId,
+        type: "mention",
+        title: `${actorName} mentioned you`,
+        body: seed.title,
+        entityType: "seed",
+        entityId: seed.id,
+      })),
+    });
+
+    if (emailConfigured()) {
+      const link = `${appUrl()}/seeds/${seed.id}`;
+      await Promise.all(
+        recipients
+          .filter((r) => r.email)
+          .map((r) =>
+            sendEmail({
+              to: r.email,
+              subject: `${actorName} mentioned you on Rhyza`,
+              html: mentionEmailHtml({
+                actorName,
+                recipientName: r.name,
+                seedTitle: seed.title,
+                link,
+              }),
+            }),
+          ),
+      );
+    }
+  } catch (err) {
+    console.error("notifyMentions failed", err);
+  }
 }
 
 // Toggle a reaction on/off for the current user; returns updated counts.

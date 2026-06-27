@@ -76,6 +76,29 @@ export function inviteEmailHtml(args: {
   </div>`;
 }
 
+export function mentionEmailHtml(args: {
+  actorName: string;
+  recipientName: string;
+  seedTitle: string;
+  link: string;
+}): string {
+  return `
+  <div style="font-family:Inter,system-ui,sans-serif;background:#070D07;color:#E8E4DC;padding:32px;border-radius:16px;max-width:480px;margin:auto">
+    <div style="font-size:28px">🌱</div>
+    <h1 style="font-weight:300;font-size:22px;margin:8px 0">${escapeHtml(args.actorName)} mentioned you</h1>
+    <p style="color:#A0A890;line-height:1.6;font-size:15px">
+      Hi ${escapeHtml(args.recipientName || "there")} — ${escapeHtml(args.actorName)} tagged you in
+      <strong>${escapeHtml(args.seedTitle)}</strong> on Rhyza.
+    </p>
+    <a href="${args.link}" style="display:inline-block;margin-top:16px;background:#4CAF50;color:#070D07;text-decoration:none;padding:12px 22px;border-radius:100px;font-weight:600">
+      View the conversation
+    </a>
+    <p style="color:#5A6456;font-size:12px;margin-top:20px">
+      Or paste this link into your browser:<br>${args.link}
+    </p>
+  </div>`;
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

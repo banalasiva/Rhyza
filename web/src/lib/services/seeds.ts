@@ -116,32 +116,47 @@ export async function getSeedDetail(userId: string, seedId: string) {
   });
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
 
+  // The pool of people who can be @-tagged: members who can actually see this
+  // seed (garden members for a public seed; seed members for a private one).
+  const peoplePromise =
+    seed.visibility === "private"
+      ? db.seedMember.findMany({
+          where: { seedId },
+          include: { user: { select: { id: true, name: true, image: true } } },
+        })
+      : db.gardenMember.findMany({
+          where: { gardenId: seed.gardenId },
+          include: { user: { select: { id: true, name: true, image: true } } },
+        });
+
   // One parallel batch: authorization + all the data, instead of 5 sequential
   // round-trips (this dominates latency when the DB is far away).
-  const [orgMember, member, seedMember, distribution, myVote, contributions] = await Promise.all([
-    db.orgMember.findUnique({
-      where: { orgId_userId: { orgId: seed.garden.orgId, userId } },
-    }),
-    db.gardenMember.findUnique({
-      where: { gardenId_userId: { gardenId: seed.gardenId, userId } },
-    }),
-    db.seedMember.findUnique({
-      where: { seedId_userId: { seedId, userId } },
-    }),
-    stageDistribution(seedId),
-    db.seedStageVote.findUnique({
-      where: { seedId_userId: { seedId, userId } },
-    }),
-    db.contribution.findMany({
-      where: { seedId, deletedAt: null },
-      orderBy: { createdAt: "asc" },
-      include: {
-        author: { select: { id: true, name: true, image: true } },
-        reactions: true,
-        endorsements: true,
-      },
-    }),
-  ]);
+  const [orgMember, member, seedMember, distribution, myVote, contributions, peopleRows] =
+    await Promise.all([
+      db.orgMember.findUnique({
+        where: { orgId_userId: { orgId: seed.garden.orgId, userId } },
+      }),
+      db.gardenMember.findUnique({
+        where: { gardenId_userId: { gardenId: seed.gardenId, userId } },
+      }),
+      db.seedMember.findUnique({
+        where: { seedId_userId: { seedId, userId } },
+      }),
+      stageDistribution(seedId),
+      db.seedStageVote.findUnique({
+        where: { seedId_userId: { seedId, userId } },
+      }),
+      db.contribution.findMany({
+        where: { seedId, deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        include: {
+          author: { select: { id: true, name: true, image: true } },
+          reactions: true,
+          endorsements: true,
+        },
+      }),
+      peoplePromise,
+    ]);
   if (!orgMember) throw new ApiError("FORBIDDEN", "Not a member of this organization");
 
   const isCreator = seed.createdById === userId;
@@ -161,6 +176,21 @@ export async function getSeedDetail(userId: string, seedId: string) {
     seedMember?.role === "steward";
   // Who can change visibility / invite to a private seed: creator or seed steward.
   const canManage = isCreator || seedMember?.role === "steward";
+
+  // Taggable people = seed-visible members + anyone who's contributed, minus
+  // the viewer and the Claude system user (tagged via @claude, not the picker).
+  const peopleMap = new Map<string, { id: string; name: string; image: string | null }>();
+  for (const r of peopleRows) {
+    const u = r.user;
+    if (u.id === userId || u.name === "Claude") continue;
+    peopleMap.set(u.id, { id: u.id, name: u.name, image: u.image });
+  }
+  for (const c of contributions) {
+    const a = c.author;
+    if (!a || a.id === userId || a.name === "Claude" || peopleMap.has(a.id)) continue;
+    peopleMap.set(a.id, { id: a.id, name: a.name, image: a.image });
+  }
+  const people = [...peopleMap.values()];
 
   const contribs = contributions.map((c) => {
     const reactionCounts: Record<string, number> = {};
@@ -195,6 +225,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
     garden: { id: seed.garden.id, name: seed.garden.name, emoji: seed.garden.emoji },
     canBloom,
     canManage,
+    people,
     distribution,
     myVote: myVote?.stage ?? null,
     contributions: contribs,

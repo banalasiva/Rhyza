@@ -17,11 +17,21 @@ export function InlineText({ text }: { text: string }) {
   );
 }
 
-const TOKEN = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
+// @[Name](uuid) mention, **bold**, *italic*, `code`.
+const TOKEN = /(@\[[^\]]+\]\([0-9a-fA-F-]{36}\)|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
+const MENTION = /^@\[([^\]]+)\]\([0-9a-fA-F-]{36}\)$/;
 
 function parseInline(line: string): React.ReactNode[] {
   const parts = line.split(TOKEN);
   return parts.map((part, i) => {
+    const mention = part.match(MENTION);
+    if (mention) {
+      return (
+        <span key={i} className="mention">
+          @{mention[1]}
+        </span>
+      );
+    }
     if (part.startsWith("**") && part.endsWith("**")) {
       return <strong key={i}>{part.slice(2, -2)}</strong>;
     }

@@ -93,6 +93,14 @@ body {
     color: var(--ink);
     font-weight: 600;
   }
+  .mention {
+    color: #66bb6a;
+    background: rgba(76, 175, 80, 0.12);
+    padding: 0 4px;
+    border-radius: 5px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
 }
 
 @keyframes endorseGlow {

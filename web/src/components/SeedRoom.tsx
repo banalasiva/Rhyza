@@ -579,8 +579,9 @@ export function SeedRoom({
             <RichEditor
               value={draft}
               onChange={setDraft}
-              placeholder={`${dimMeta.blurb}  (**bold**, *italic*, \`code\` · tag @claude to ask)`}
+              placeholder={`${dimMeta.blurb}  (**bold**, *italic*, \`code\` · @ to tag, @claude to ask)`}
               disabled={busy}
+              people={seed.people}
             />
             {error && <p className="mb-2 mt-2 text-sm text-[#e57373]">{error}</p>}
             <div className="mt-3 flex items-center justify-between">
