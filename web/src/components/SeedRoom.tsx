@@ -20,6 +20,7 @@ import { RichEditor } from "@/components/RichEditor";
 import { InlineText } from "@/components/InlineText";
 import { Avatar } from "@/components/Avatar";
 import { Attachments, type Attachment } from "@/components/Attachments";
+import { StakeMap } from "@/components/StakeMap";
 
 type ReactionType = { key: string; emoji: string; label: string };
 type Contribution = SeedDetail["contributions"][number];
@@ -1004,6 +1005,9 @@ export function SeedRoom({
                 </button>
               )}
             </div>
+
+            {/* Stake-weighted quorum — who carries the decision */}
+            <StakeMap seedId={seed.id} bloomed={isBloomed} />
           </div>
         </div>
       </aside>

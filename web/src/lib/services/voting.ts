@@ -4,6 +4,7 @@ import { ensureSeedParticipant } from "@/lib/authz";
 import { bloomTargetFor, STAGE_KEYS } from "@/lib/constants";
 import { countParticipants, stageDistribution } from "@/lib/services/seeds";
 import { createBloom } from "@/lib/services/blooms";
+import { evaluateStakeBloom } from "@/lib/services/stake";
 
 // Cast or update the current user's stage vote, recompute the seed's displayed
 // stage from the dominant vote, and fire a bloom if the threshold is crossed.
@@ -27,9 +28,10 @@ export async function castStageVote(
     create: { seedId, userId, stage },
   });
 
-  const [distribution, participants] = await Promise.all([
+  const [distribution, participants, stakeEval] = await Promise.all([
     stageDistribution(seedId),
     countParticipants(seedId),
+    evaluateStakeBloom(seedId),
   ]);
 
   // Displayed stage = the most-voted stage, ties resolving to the more advanced
@@ -47,9 +49,13 @@ export async function castStageVote(
     }
   }
 
-  // Blooms when bloom votes reach 2, or half the participants — whichever is more.
+  // Bloom decision. When the seed's stake board is in use, the quorum is
+  // stake-weighted: enough of the *stake* (not heads) must have voted bloom.
+  // Otherwise fall back to the headcount target (2, or half the participants).
   const bloomed = distribution.find((d) => d.stage === "bloomed")!;
-  const shouldBloom = bloomed.votes >= bloomTargetFor(participants);
+  const shouldBloom = stakeEval.configured
+    ? stakeEval.reached
+    : bloomed.votes >= bloomTargetFor(participants);
 
   if (shouldBloom) {
     let bloomId: string;

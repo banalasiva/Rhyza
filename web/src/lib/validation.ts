@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DIMENSION_KEYS, STAGE_KEYS } from "@/lib/constants";
+import { DIMENSION_KEYS, STAGE_KEYS, STAKE_DIMENSION_KEYS } from "@/lib/constants";
 
 export const createOrgSchema = z.object({
   name: z.string().min(2, "Organization name is too short").max(80),
@@ -82,4 +82,28 @@ export const updateGardenSchema = z.object({
 export const inviteSchema = z.object({
   // Optional: omit for a shareable link not tied to a specific person.
   email: z.string().email("Enter a valid email").max(200).optional(),
+});
+
+// ── Stake-weighted quorum ──
+const stakeDimEnum = z.enum(STAKE_DIMENSION_KEYS as [string, ...string[]]);
+
+export const submitStakeSchema = z.object({
+  ratings: z
+    .array(
+      z.object({
+        rateeId: z.string().uuid(),
+        scores: z.record(stakeDimEnum, z.number().min(0).max(100)),
+      }),
+    )
+    .max(50),
+  submit: z.boolean().optional().default(false),
+});
+
+export const stakeConfigSchema = z.object({
+  // Consensus action — set the active (non-N/A) dimensions.
+  activeDimensions: z.array(stakeDimEnum).optional(),
+  // Self action — opt in/out of carrying stake ("not required for me").
+  optedOut: z.boolean().optional(),
+  // Manager action — reveal the map early, or lock it for the bloom vote.
+  phase: z.enum(["collecting", "revealed", "locked"]).optional(),
 });

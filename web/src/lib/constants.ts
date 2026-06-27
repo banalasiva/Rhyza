@@ -49,6 +49,32 @@ export const DIMENSIONS = [
 export type DimensionKey = (typeof DIMENSIONS)[number]["key"];
 export const DIMENSION_KEYS = DIMENSIONS.map((d) => d.key) as DimensionKey[];
 
+// ─────────────────────────────────────────────────────────────
+// Stake dimensions — what a person *carries* when a seed is decided.
+// Distinct from the five DIMENSIONS above (which describe the conversation).
+// The group peer-assesses each person across these; the result weights their
+// bloom vote. "kind" is a display hint only — money is fungible (anyone can
+// bring the same), the rest are embodied (can't be transferred). We never bake
+// that into the math; the group's allocation expresses it on its own.
+// ─────────────────────────────────────────────────────────────
+export const STAKE_DIMENSIONS = [
+  { key: "time", emoji: "⏳", label: "Time", blurb: "Hours and presence", color: "#42A5F5", kind: "embodied" },
+  { key: "energy", emoji: "⚡", label: "Energy", blurb: "Effort and drive", color: "#FFA726", kind: "embodied" },
+  { key: "focus", emoji: "🎯", label: "Focus", blurb: "Attention it demands", color: "#AB47BC", kind: "embodied" },
+  { key: "emotions", emoji: "❤️", label: "Emotions", blurb: "Heart on the line", color: "#EC407A", kind: "embodied" },
+  { key: "judgement", emoji: "🧭", label: "Judgement", blurb: "Reading what's right", color: "#26A69A", kind: "embodied" },
+  { key: "capability", emoji: "🛠", label: "Capability", blurb: "Skill to pull it off", color: "#5C6BC0", kind: "embodied" },
+  { key: "money", emoji: "💰", label: "Money", blurb: "Capital at risk", color: "#66BB6A", kind: "fungible" },
+] as const;
+
+export type StakeDimensionKey = (typeof STAKE_DIMENSIONS)[number]["key"];
+export const STAKE_DIMENSION_KEYS = STAKE_DIMENSIONS.map((d) => d.key) as StakeDimensionKey[];
+
+// A seed blooms (when its stake board is in use) once this share of the total
+// *stake* has voted to bloom — not this share of heads. A small headcount floor
+// (BLOOM_MIN_VOTERS) still applies so a single person can't bloom in silence.
+export const STAKE_BLOOM_THRESHOLD_PCT = 50;
+
 // Seed growth stages, in order.
 export const STAGES = [
   { key: "seed", emoji: "🌱", label: "Seed" },

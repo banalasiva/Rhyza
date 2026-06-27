@@ -297,3 +297,45 @@ body {
     transform: translateY(0) scale(1);
   }
 }
+
+/* Stake-allocation sliders — colored per dimension via --dim. */
+.stake-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--dim, #4caf50) 0%,
+    var(--dim, #4caf50) var(--fill, 0%),
+    rgba(255, 255, 255, 0.08) var(--fill, 0%),
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  outline: none;
+  cursor: pointer;
+}
+.stake-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--dim, #4caf50);
+  border: 2px solid rgba(10, 16, 10, 0.9);
+  box-shadow: 0 0 8px var(--dim, #4caf50);
+  transition: transform 0.1s;
+}
+.stake-range::-webkit-slider-thumb:active {
+  transform: scale(1.25);
+}
+.stake-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--dim, #4caf50);
+  border: 2px solid rgba(10, 16, 10, 0.9);
+}
+.weight-bar-fill {
+  transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}

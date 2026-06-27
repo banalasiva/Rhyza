@@ -90,6 +90,8 @@ model User {
   recognitionsReceived UserRecognition[] @relation("RecognitionUser")
   recognitionsAwarded  UserRecognition[] @relation("RecognitionAwardedBy")
   invitesSent          Invite[]          @relation("InvitesSent")
+  stakeRatingsGiven    StakeRating[]     @relation("StakeRater")
+  stakeRatingsReceived StakeRating[]     @relation("StakeRatee")
 
   @@map("users")
 }
@@ -189,6 +191,8 @@ model Seed {
   blooms        Bloom[]
   members       SeedMember[]
   invites       Invite[]
+  stakeRatings  StakeRating[]
+  stakeState    SeedStake?
 
   @@index([gardenId, stage])
   @@map("seeds")
@@ -222,6 +226,46 @@ model SeedStageVote {
   @@id([seedId, userId])
   @@index([seedId])
   @@map("seed_stage_votes")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Stake-weighted quorum
+// ─────────────────────────────────────────────────────────────
+
+// One rater's read of one person's stake in a seed. scores is a JSON map of
+// stake-dimension key -> 0..100 (e.g. { "time": 30, "money": 0 }). A row where
+// raterId === rateeId is the person's view of themselves (shown distinctly).
+// `submitted` powers blind-then-reveal: drafts don't count until committed.
+model StakeRating {
+  seedId    String   @map("seed_id") @db.Uuid
+  raterId   String   @map("rater_id") @db.Uuid
+  rateeId   String   @map("ratee_id") @db.Uuid
+  scores    Json     @default("{}")
+  submitted Boolean  @default(false)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  seed  Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
+  rater User @relation("StakeRater", fields: [raterId], references: [id], onDelete: Cascade)
+  ratee User @relation("StakeRatee", fields: [rateeId], references: [id], onDelete: Cascade)
+
+  @@id([seedId, raterId, rateeId])
+  @@index([seedId])
+  @@map("stake_ratings")
+}
+
+// Per-seed stake configuration: which dimensions are live (the rest ruled
+// not-applicable by consensus), who has opted out ("not required for me"), and
+// the board phase. phase: collecting | revealed | locked.
+model SeedStake {
+  seedId           String   @id @map("seed_id") @db.Uuid
+  activeDimensions Json     @default("[]") @map("active_dimensions")
+  optOuts          Json     @default("[]") @map("opt_outs")
+  phase            String   @default("collecting")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
+
+  @@map("seed_stake")
 }
 
 // ─────────────────────────────────────────────────────────────
