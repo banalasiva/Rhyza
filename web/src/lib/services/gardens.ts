@@ -120,7 +120,9 @@ export async function getGardenDetail(userId: string, gardenId: string) {
       where: {
         gardenId,
         deletedAt: null,
-        stage: { not: "bloomed" },
+        // Active = anything not *truly* bloomed (a "bloomed" stage with no bloom
+        // is a phantom and counts as active).
+        NOT: { stage: "bloomed", bloomId: { not: null } },
         ...visibleSeedFilter(userId),
       },
       orderBy: { createdAt: "desc" },
@@ -129,13 +131,14 @@ export async function getGardenDetail(userId: string, gardenId: string) {
         _count: { select: { contributions: true } },
       },
     }),
-    // Bloomed seeds — so they stay discoverable on the garden page, not just
-    // in the Sacred Tree.
+    // Truly bloomed seeds (have a bloom) — discoverable on the garden page, not
+    // just in the Sacred Tree.
     db.seed.findMany({
       where: {
         gardenId,
         deletedAt: null,
         stage: "bloomed",
+        bloomId: { not: null },
         ...visibleSeedFilter(userId),
       },
       orderBy: { updatedAt: "desc" },

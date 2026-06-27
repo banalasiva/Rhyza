@@ -14,7 +14,9 @@ export async function castStageVote(
 ) {
   const seed = await db.seed.findUnique({ where: { id: seedId } });
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
-  if (seed.stage === "bloomed") {
+  // Only block voting if the seed has *really* bloomed (has a bloom). A phantom
+  // "bloomed" stage with no bloom is allowed through so it can self-heal below.
+  if (seed.stage === "bloomed" && seed.bloomId) {
     throw new ApiError("CONFLICT", "This seed has already bloomed");
   }
   await ensureSeedParticipant(userId, seedId);
@@ -30,11 +32,14 @@ export async function castStageVote(
     countParticipants(seedId),
   ]);
 
-  // Displayed stage = the stage with the most votes (ties resolve to the more
-  // advanced stage, matching the prototype's "momentum" feel).
-  let dominant = seed.stage;
+  // Displayed stage = the most-voted stage, ties resolving to the more advanced
+  // one ("momentum"). CRITICAL: never let votes alone set "bloomed" — a seed
+  // only truly blooms by creating a bloom (the shouldBloom branch below). If
+  // "bloomed" is dominant but the threshold isn't met, it caps at "growing".
+  let dominant = seed.stage === "bloomed" ? "growing" : seed.stage;
   let best = -1;
   for (const key of STAGE_KEYS) {
+    if (key === "bloomed") continue; // bloomed is never a vote-driven display stage
     const d = distribution.find((x) => x.stage === key)!;
     if (d.votes >= best) {
       best = d.votes;

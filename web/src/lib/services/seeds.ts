@@ -218,7 +218,9 @@ export async function getSeedDetail(userId: string, seedId: string) {
     id: seed.id,
     title: seed.title,
     content: seed.content,
-    stage: seed.stage as StageKey,
+    // Defensive: a "bloomed" stage with no actual bloom is a phantom state —
+    // present it as active so the UI doesn't show a bloom that doesn't exist.
+    stage: (seed.stage === "bloomed" && !seed.bloomId ? "growing" : seed.stage) as StageKey,
     visibility: seed.visibility as "public" | "private",
     bloomId: seed.bloomId,
     author: seed.createdBy,
