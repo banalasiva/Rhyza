@@ -30,6 +30,20 @@ function textFromMessage(msg: Anthropic.Message): string {
     .trim();
 }
 
+// One Claude completion. THROWS on API error (bad key, model access, network)
+// so callers can surface the real reason — callers that want a graceful
+// fallback (e.g. bloom synthesis) wrap this in their own try/catch.
+async function complete(system: string, prompt: string, maxTokens = 1024): Promise<string> {
+  const stream = getClient().messages.stream({
+    model: MODEL,
+    max_tokens: maxTokens,
+    system,
+    messages: [{ role: "user", content: prompt }],
+  });
+  const msg = await stream.finalMessage();
+  return textFromMessage(msg);
+}
+
 export type ContribForAI = {
   dimension: string;
   author: string;
@@ -72,23 +86,19 @@ export async function synthesizeBloom(input: {
       .filter(Boolean)
       .join("\n");
 
-    const stream = getClient().messages.stream({
-      model: MODEL,
-      max_tokens: 1024,
-      system:
-        "You are the synthesis engine for Rhyza, a collaborative learning garden. " +
+    const text = await complete(
+      "You are the synthesis engine for Rhyza, a collaborative learning garden. " +
         "A 'seed' is a question the community explores across five dimensions " +
         "(Foundations, Understanding, Application, Debate, Bloom). When a seed blooms, " +
         "you distill the entire thread into one durable summary capturing the collective " +
         "understanding — accurate to what was actually said, weaving the strongest points " +
         "together and noting genuine open debates. Write in clear, warm, encyclopedic prose: " +
         "2–4 short paragraphs. No headings, no preamble, no 'Here is' — output only the summary.",
-      messages: [{ role: "user", content: prompt }],
-    });
-    const msg = await stream.finalMessage();
-    const text = textFromMessage(msg);
+      prompt,
+    );
     return text || null;
   } catch (err) {
+    // Bloom synthesis falls back to the deterministic summary on any failure.
     console.error("synthesizeBloom failed", err);
     return null;
   }
@@ -104,37 +114,28 @@ export async function claudeReply(input: {
   contributions: ContribForAI[];
 }): Promise<string | null> {
   if (!aiConfigured()) return null;
-  try {
-    const dim = DIMENSION_LABEL[input.dimension] ?? input.dimension;
-    const prompt = [
-      `SEED: ${input.title}`,
-      input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
-      `\nCONVERSATION SO FAR:\n${renderThread(input.contributions)}`,
-      `\nYou were tagged in the "${dim}" dimension. The message tagging you:\n"${input.mention}"`,
-      `\nReply as a participant.`,
-    ]
-      .filter(Boolean)
-      .join("\n");
+  const dim = DIMENSION_LABEL[input.dimension] ?? input.dimension;
+  const prompt = [
+    `SEED: ${input.title}`,
+    input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
+    `\nCONVERSATION SO FAR:\n${renderThread(input.contributions)}`,
+    `\nYou were tagged in the "${dim}" dimension. The message tagging you:\n"${input.mention}"`,
+    `\nReply as a participant.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-    const stream = getClient().messages.stream({
-      model: MODEL,
-      max_tokens: 1024,
-      system:
-        "You are Claude, a thoughtful participant in a Rhyza learning conversation — a " +
-        "collaborative knowledge garden where members explore a topic together. Someone " +
-        "tagged you with @claude. Answer their question or add genuinely useful, specific " +
-        "insight grounded in the discussion so far. Don't just repeat what's been said. " +
-        "Be concise (1–3 short paragraphs), warm, and direct. Output only your reply — no " +
-        "greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.",
-      messages: [{ role: "user", content: prompt }],
-    });
-    const msg = await stream.finalMessage();
-    const text = textFromMessage(msg);
-    return text || null;
-  } catch (err) {
-    console.error("claudeReply failed", err);
-    return null;
-  }
+  // Throws on API error so the route can show the real reason.
+  const text = await complete(
+    "You are Claude, a thoughtful participant in a Rhyza learning conversation — a " +
+      "collaborative knowledge garden where members explore a topic together. Someone " +
+      "tagged you with @claude. Answer their question or add genuinely useful, specific " +
+      "insight grounded in the discussion so far. Don't just repeat what's been said. " +
+      "Be concise (1–3 short paragraphs), warm, and direct. Output only your reply — no " +
+      "greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.",
+    prompt,
+  );
+  return text || null;
 }
 
 // Claude as neutral mediator: read the discussion, surface where people
@@ -146,36 +147,27 @@ export async function mediate(input: {
   contributions: ContribForAI[];
 }): Promise<string | null> {
   if (!aiConfigured()) return null;
-  try {
-    const prompt = [
-      `SEED: ${input.title}`,
-      input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
-      `\nTHE DISCUSSION:\n${renderThread(input.contributions)}`,
-      `\nMediate.`,
-    ]
-      .filter(Boolean)
-      .join("\n");
+  const prompt = [
+    `SEED: ${input.title}`,
+    input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
+    `\nTHE DISCUSSION:\n${renderThread(input.contributions)}`,
+    `\nMediate.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
-    const stream = getClient().messages.stream({
-      model: MODEL,
-      max_tokens: 1024,
-      system:
-        "You are Claude, acting as a neutral mediator in a Rhyza discussion where " +
-        "people may disagree. Your job is conflict resolution: (1) briefly and fairly " +
-        "restate the main positions without taking sides, (2) name the genuine points of " +
-        "tension, (3) surface the common ground people actually share, and (4) propose a " +
-        "concrete, even-handed path forward (or a synthesis both sides could accept). Be " +
-        "warm, balanced, and specific. Never declare a winner. Keep it tight — a few short " +
-        "paragraphs or compact bullets. Output only the mediation.",
-      messages: [{ role: "user", content: prompt }],
-    });
-    const msg = await stream.finalMessage();
-    const text = textFromMessage(msg);
-    return text || null;
-  } catch (err) {
-    console.error("mediate failed", err);
-    return null;
-  }
+  // Throws on API error so the route can show the real reason.
+  const text = await complete(
+    "You are Claude, acting as a neutral mediator in a Rhyza discussion where " +
+      "people may disagree. Your job is conflict resolution: (1) briefly and fairly " +
+      "restate the main positions without taking sides, (2) name the genuine points of " +
+      "tension, (3) surface the common ground people actually share, and (4) propose a " +
+      "concrete, even-handed path forward (or a synthesis both sides could accept). Be " +
+      "warm, balanced, and specific. Never declare a winner. Keep it tight — a few short " +
+      "paragraphs or compact bullets. Output only the mediation.",
+    prompt,
+  );
+  return text || null;
 }
 
 // Does this text tag Claude? Matches "@claude" as a whole word, case-insensitive.

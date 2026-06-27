@@ -28,7 +28,8 @@ type ContributionResponse = {
   parentId: string | null;
   author: Contribution["author"];
   createdAt: string;
-  aiReply?: Omit<ContributionResponse, "aiReply"> | null;
+  aiReply?: Omit<ContributionResponse, "aiReply" | "aiError"> | null;
+  aiError?: string | null;
 };
 
 // Turn a bare API contribution into a full client-side Contribution (with the
@@ -137,7 +138,11 @@ export function SeedRoom({
       setDraft("");
       playNatureSound(c.aiReply ? "chirp" : "drop");
       if (tagsClaude && !c.aiReply) {
-        setError("Claude isn't configured yet — set ANTHROPIC_API_KEY to enable @claude replies.");
+        setError(
+          c.aiError === "not_configured"
+            ? "Claude isn't configured — add ANTHROPIC_API_KEY in Vercel and redeploy."
+            : `Claude couldn't reply: ${c.aiError ?? "unknown error"}`,
+        );
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to contribute");
