@@ -69,4 +69,4 @@ export function stageIndex(stage: string): number {
 // A seed blooms when at least this share of stage votes land on "bloomed",
 // with a minimum number of voters so a single early vote can't trigger it.
 export const BLOOM_VOTE_THRESHOLD_PCT = 60;
-export const BLOOM_MIN_VOTERS = 3;
+export const BLOOM_MIN_VOTERS = 2;
