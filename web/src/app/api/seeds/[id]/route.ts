@@ -1,6 +1,6 @@
 import { handle, ok } from "@/lib/api";
 import { requireUserId } from "@/lib/authz";
-import { getSeedDetail, setSeedVisibility } from "@/lib/services/seeds";
+import { getSeedDetail, setSeedVisibility, deleteSeed } from "@/lib/services/seeds";
 import { setSeedVisibilitySchema } from "@/lib/validation";
 
 // GET /api/seeds/:id — seed detail + stage distribution + contributions.
@@ -14,4 +14,10 @@ export const PATCH = handle(async (req, ctx: { params: { id: string } }) => {
   const userId = await requireUserId();
   const body = setSeedVisibilitySchema.parse(await req.json());
   return ok(await setSeedVisibility(userId, ctx.params.id, body.visibility));
+});
+
+// DELETE /api/seeds/:id — soft-delete the seed (creator / steward).
+export const DELETE = handle(async (_req, ctx: { params: { id: string } }) => {
+  const userId = await requireUserId();
+  return ok(await deleteSeed(userId, ctx.params.id));
 });

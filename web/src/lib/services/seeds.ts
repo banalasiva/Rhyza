@@ -28,6 +28,17 @@ export async function plantSeed(
   return seed;
 }
 
+// Soft-delete a seed — creator / seed steward (or garden steward for public
+// seeds). Keeps the row (deletedAt) so contributions/blooms aren't orphaned.
+export async function deleteSeed(userId: string, seedId: string) {
+  const seed = await requireSeedManager(userId, seedId);
+  await db.seed.update({
+    where: { id: seedId },
+    data: { deletedAt: new Date() },
+  });
+  return { deleted: true, gardenId: seed.gardenId };
+}
+
 // Change a seed's visibility — creator / seed steward only.
 export async function setSeedVisibility(
   userId: string,

@@ -76,12 +76,18 @@ export function SeedRoom({
   const [mediating, setMediating] = useState(false);
   const [visibility, setVisibility] = useState<"public" | "private">(seed.visibility);
   const [visBusy, setVisBusy] = useState(false);
+  const [bloomConfirm, setBloomConfirm] = useState(false); // confirm modal open
+  const [previewBloom, setPreviewBloom] = useState(false); // flower the plant as a preview
 
   useEffect(() => setMuted(muted), [muted]);
 
   const isBloomed = stage === "bloomed";
   const stageIdx = stageIndex(stage);
   const stageMeta = STAGES[stageIdx];
+  // The viewer voted to bloom but it hasn't bloomed yet → they're now a viewer.
+  const committedToBloom = myVote === "bloomed" && !isBloomed;
+  // Preview (or a committed vote) flowers the plant; otherwise follow real stage.
+  const plantStage = previewBloom || isBloomed ? 4 : stageIdx;
   const totalVotes = distribution.reduce((n, d) => n + d.votes, 0);
 
   const participants = useMemo(() => {
@@ -259,7 +265,48 @@ export function SeedRoom({
     }
   }
 
-  async function vote(targetStage: string) {
+  async function removeSeed() {
+    if (!confirm("Delete this seed and its discussion? This can't be undone.")) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/seeds/${seed.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error?.message ?? "Failed to delete");
+      }
+      router.push(`/gardens/${seed.garden.id}`);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete");
+      setBusy(false);
+    }
+  }
+
+  // Clicking "Bloomed" is a commitment, so we preview the flowering and ask to
+  // confirm before casting. Other stages vote immediately.
+  function vote(targetStage: string) {
+    if (isBloomed || busy) return;
+    if (targetStage === "bloomed" && myVote !== "bloomed") {
+      setError(null);
+      setPreviewBloom(true); // flower the plant as a preview
+      playNatureSound("bloom");
+      setBloomConfirm(true);
+      return;
+    }
+    castVote(targetStage);
+  }
+
+  function cancelBloom() {
+    setBloomConfirm(false);
+    setPreviewBloom(false); // revert the plant to its real stage
+  }
+
+  function confirmBloom() {
+    setBloomConfirm(false);
+    castVote("bloomed");
+  }
+
+  async function castVote(targetStage: string) {
     if (isBloomed) return;
     setError(null);
 
@@ -287,9 +334,13 @@ export function SeedRoom({
       setStage(res.stage);
       if (res.bloomed && res.bloomId) {
         triggerBloom();
+      } else {
+        // Not enough bloom votes yet — drop the preview back to the real stage.
+        setPreviewBloom(false);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to vote");
+      setPreviewBloom(false);
       router.refresh();
     }
   }
@@ -314,6 +365,15 @@ export function SeedRoom({
         />
       )}
 
+      {bloomConfirm && (
+        <BloomConfirm
+          bloomTarget={bloomTarget}
+          bloomedVotes={bloomedVotes}
+          onYes={confirmBloom}
+          onNo={cancelBloom}
+        />
+      )}
+
       {/* ── Thread column ── */}
       <div>
         <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -334,6 +394,16 @@ export function SeedRoom({
             <span className="rounded-full border border-[rgba(255,255,255,0.08)] px-3 py-1 text-xs text-ink-soft">
               {visibility === "private" ? "🔒 Private" : "🌍 Public"}
             </span>
+          )}
+          {seed.canManage && (
+            <button
+              onClick={removeSeed}
+              disabled={busy}
+              title="Delete this seed"
+              className="rounded-full border border-[rgba(255,255,255,0.1)] px-3 py-1 text-xs text-ink-soft transition hover:text-[#e57373]"
+            >
+              🗑 Delete
+            </button>
           )}
         </div>
         <h1 className="serif-xl mb-4">{seed.title}</h1>
@@ -483,8 +553,24 @@ export function SeedRoom({
           )}
         </div>
 
-        {/* Compose */}
-        {!isBloomed && (
+        {/* Compose — hidden once you've committed your bloom vote */}
+        {!isBloomed && committedToBloom && (
+          <div className="card mt-6 border-[rgba(255,179,0,0.3)] bg-[rgba(255,179,0,0.06)] p-5 text-center">
+            <p className="mb-1 text-sm font-medium text-bloom">🌸 You marked this ready to bloom</p>
+            <p className="mb-3 text-xs text-ink-mid">
+              You&apos;re viewing now — it blooms once {bloomTarget} people agree
+              {bloomNeeded > 0 ? ` (${bloomNeeded} more to go)` : ""}. Changed your mind?
+            </p>
+            <button
+              onClick={() => castVote("growing")}
+              className="btn-ghost px-4 py-1.5 text-xs"
+              disabled={busy}
+            >
+              ↩ Keep contributing
+            </button>
+          </div>
+        )}
+        {!isBloomed && !committedToBloom && (
           <div className="card mt-6 p-5">
             <p className="eyebrow mb-3" style={{ color: dimMeta.color }}>
               {dimMeta.emoji} Add to {dimMeta.label}
@@ -514,7 +600,7 @@ export function SeedRoom({
           {/* Plant */}
           <div className="relative bg-[rgba(7,13,7,0.5)] p-3">
             <div className="mx-auto aspect-square w-full max-w-[230px]">
-              <PlantSvg stage={stageIdx} />
+              <PlantSvg stage={plantStage} />
             </div>
             <button
               onClick={() => setMutedState((m) => !m)}
@@ -605,6 +691,51 @@ export function SeedRoom({
           </div>
         </div>
       </aside>
+    </div>
+  );
+}
+
+function BloomConfirm({
+  bloomTarget,
+  bloomedVotes,
+  onYes,
+  onNo,
+}: {
+  bloomTarget: number;
+  bloomedVotes: number;
+  onYes: () => void;
+  onNo: () => void;
+}) {
+  // votes including this person's pending one
+  const willHave = bloomedVotes + 1;
+  const remaining = Math.max(0, bloomTarget - willHave);
+  return (
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-[rgba(10,6,0,0.7)] px-6 backdrop-blur-sm">
+      <div className="card w-full max-w-sm p-6 text-center animate-[fadeUp_0.4s_ease-out]">
+        <div className="mb-2 text-4xl">🌸</div>
+        <h3 className="serif-lg mb-2">Mark this ready to bloom?</h3>
+        <p className="mb-1 text-sm text-ink-mid">
+          Voting to bloom means you&apos;re done contributing — you&apos;ll become a
+          <strong className="text-ink"> viewer</strong> of this seed.
+        </p>
+        <p className="mb-5 text-sm text-ink-soft">
+          It blooms once <strong className="text-bloom">{bloomTarget} people</strong> agree
+          {remaining > 0 ? ` — ${remaining} more after you` : " — you may be the one to tip it"}.
+          You can change your mind later.
+        </p>
+        <div className="flex gap-2">
+          <button onClick={onNo} className="btn-ghost flex-1">
+            No, keep contributing
+          </button>
+          <button
+            onClick={onYes}
+            className="flex-1 rounded-full px-5 py-2.5 text-sm font-medium text-bg transition"
+            style={{ background: "linear-gradient(135deg,#FFB300,#FF8F00)" }}
+          >
+            Yes, it&apos;s ready
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
