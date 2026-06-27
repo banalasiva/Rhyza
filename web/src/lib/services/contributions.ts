@@ -1,7 +1,11 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
-import { ensureGardenMember, requireGardenAccess, requireGardenSteward } from "@/lib/authz";
-import { claudeReply, mentionsClaude, type ContribForAI } from "@/lib/ai";
+import {
+  ensureSeedParticipant,
+  requireSeedAccess,
+  requireGardenSteward,
+} from "@/lib/authz";
+import { claudeReply, mediate, mentionsClaude, type ContribForAI } from "@/lib/ai";
 
 async function seedOrThrow(seedId: string) {
   const seed = await db.seed.findUnique({ where: { id: seedId } });
@@ -72,13 +76,56 @@ export async function respondAsClaude(
   return contribution;
 }
 
+// Ask Claude to mediate the seed's discussion. Posts the mediation as a
+// contribution by the Claude system user in the Debate dimension. Requires seed
+// access; returns the new contribution, or null if AI is off / failed.
+export async function mediateSeed(userId: string, seedId: string) {
+  await requireSeedAccess(userId, seedId);
+  const seed = await db.seed.findUnique({
+    where: { id: seedId },
+    include: {
+      contributions: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        include: { author: { select: { name: true } } },
+      },
+    },
+  });
+  if (!seed) throw new ApiError("NOT_FOUND", "Seed not found");
+
+  const thread: ContribForAI[] = seed.contributions.map((c) => ({
+    dimension: c.dimension,
+    author: c.author.name || "A member",
+    text: (c.content as { text?: string } | null)?.text ?? "",
+  }));
+
+  const text = await mediate({
+    title: seed.title,
+    content: seed.content,
+    contributions: thread,
+  });
+  if (!text) return null;
+
+  const claude = await getOrCreateClaudeUser();
+  const contribution = await db.contribution.create({
+    data: {
+      seedId,
+      authorId: claude.id,
+      dimension: "debate",
+      content: { text: `🕊️ **Mediation**\n\n${text}` },
+    },
+    include: { author: { select: { id: true, name: true, image: true } } },
+  });
+  return contribution;
+}
+
 export async function addContribution(
   userId: string,
   seedId: string,
   input: { dimension: string; text: string; parentId?: string },
 ) {
   const seed = await seedOrThrow(seedId);
-  await ensureGardenMember(userId, seed.gardenId);
+  await ensureSeedParticipant(userId, seedId);
 
   const contribution = await db.contribution.create({
     data: {
@@ -122,7 +169,7 @@ export async function toggleReaction(
   if (!contribution || contribution.deletedAt) {
     throw new ApiError("NOT_FOUND", "Contribution not found");
   }
-  await requireGardenAccess(userId, contribution.seed.gardenId);
+  await requireSeedAccess(userId, contribution.seedId);
 
   const reactionType = await db.reactionType.findUnique({
     where: { key: reactionKey },
@@ -177,11 +224,18 @@ export async function deleteContribution(userId: string, contributionId: string)
     include: { seed: true },
   });
   if (!c || c.deletedAt) throw new ApiError("NOT_FOUND", "Contribution not found");
+  // The author can always delete their own. For a public seed a garden steward
+  // can moderate; private seeds aren't visible to garden stewards, so there
+  // requireSeedAccess throws unless the steward is actually a seed member.
   if (c.authorId !== userId) {
-    // not the author — must be a steward of the garden
-    await requireGardenSteward(userId, c.seed.gardenId);
+    await requireSeedAccess(userId, c.seedId);
+    if (c.seed.visibility !== "private") {
+      await requireGardenSteward(userId, c.seed.gardenId);
+    } else {
+      throw new ApiError("FORBIDDEN", "Only the author can delete this");
+    }
   } else {
-    await requireGardenAccess(userId, c.seed.gardenId);
+    await requireSeedAccess(userId, c.seedId);
   }
   await db.contribution.update({
     where: { id: contributionId },
@@ -200,7 +254,7 @@ export async function toggleEndorsement(userId: string, contributionId: string) 
   if (!contribution || contribution.deletedAt) {
     throw new ApiError("NOT_FOUND", "Contribution not found");
   }
-  await requireGardenAccess(userId, contribution.seed.gardenId);
+  await requireSeedAccess(userId, contribution.seedId);
 
   const existing = await db.contributionEndorsement.findUnique({
     where: { contributionId_endorserId: { contributionId, endorserId: userId } },

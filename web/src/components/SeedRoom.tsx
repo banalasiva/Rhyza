@@ -73,6 +73,9 @@ export function SeedRoom({
   const [muted, setMutedState] = useState(false);
   const [glowing, setGlowing] = useState<Set<string>>(new Set());
   const [thinking, setThinking] = useState(false);
+  const [mediating, setMediating] = useState(false);
+  const [visibility, setVisibility] = useState<"public" | "private">(seed.visibility);
+  const [visBusy, setVisBusy] = useState(false);
 
   useEffect(() => setMuted(muted), [muted]);
 
@@ -139,6 +142,45 @@ export function SeedRoom({
     } finally {
       setThinking(false);
       setBusy(false);
+    }
+  }
+
+  async function askMediate() {
+    setMediating(true);
+    setError(null);
+    try {
+      const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/mediate`, {});
+      setContributions((prev) => [...prev, hydrate(c)]);
+      setActiveDim("debate");
+      playNatureSound("chirp");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Mediation failed");
+    } finally {
+      setMediating(false);
+    }
+  }
+
+  async function toggleVisibility() {
+    const next = visibility === "private" ? "public" : "private";
+    setVisBusy(true);
+    setError(null);
+    const prev = visibility;
+    setVisibility(next); // optimistic
+    try {
+      const res = await fetch(`/api/seeds/${seed.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visibility: next }),
+      });
+      if (!res.ok) {
+        setVisibility(prev);
+        const data = await res.json().catch(() => null);
+        setError(data?.error?.message ?? "Couldn't change visibility");
+      }
+    } catch {
+      setVisibility(prev);
+    } finally {
+      setVisBusy(false);
     }
   }
 
@@ -278,8 +320,37 @@ export function SeedRoom({
           <p className="eyebrow">
             🌱 Seed · by {seed.author?.name || "someone"} · {participants} participant{participants === 1 ? "" : "s"}
           </p>
+          {/* Visibility — a pill for everyone, a toggle for managers */}
+          {seed.canManage ? (
+            <button
+              onClick={toggleVisibility}
+              disabled={visBusy}
+              title="Toggle who can see this seed"
+              className="rounded-full border border-[rgba(255,255,255,0.12)] px-3 py-1 text-xs text-ink-mid transition hover:text-ink"
+            >
+              {visibility === "private" ? "🔒 Private" : "🌍 Public"} · change
+            </button>
+          ) : (
+            <span className="rounded-full border border-[rgba(255,255,255,0.08)] px-3 py-1 text-xs text-ink-soft">
+              {visibility === "private" ? "🔒 Private" : "🌍 Public"}
+            </span>
+          )}
         </div>
         <h1 className="serif-xl mb-4">{seed.title}</h1>
+
+        {/* Mediation — ask Claude to help resolve disagreement */}
+        {!isBloomed && (
+          <div className="mb-4">
+            <button
+              onClick={askMediate}
+              disabled={mediating}
+              className="btn-ghost px-3 py-1.5 text-xs"
+              title="Claude reads the discussion and proposes a fair path forward"
+            >
+              {mediating ? "🕊️ Mediating…" : "🕊️ Ask Claude to mediate"}
+            </button>
+          </div>
+        )}
         {seed.content && <p className="card mb-5 p-4 text-sm text-ink-mid">{seed.content}</p>}
 
         {/* Dimension tabs */}

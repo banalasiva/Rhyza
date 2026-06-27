@@ -24,14 +24,67 @@ export async function requireOrgMember(userId: string, orgId: string) {
   return m;
 }
 
-// Throw 403 unless the user can access the garden. Garden access is granted to
-// any member of the garden's org (org-wide visibility), and elevated actions
-// check garden membership/role separately.
+// Throw 403 unless the user can access the garden.
+//   public garden  → any member of the org can access (org-wide visibility)
+//   private garden → only garden members (and the creator) can access
 export async function requireGardenAccess(userId: string, gardenId: string) {
   const garden = await db.garden.findUnique({ where: { id: gardenId } });
   if (!garden) throw new ApiError("NOT_FOUND", "Garden not found");
   await requireOrgMember(userId, garden.orgId);
+  if (garden.visibility === "private" && garden.createdById !== userId) {
+    const member = await db.gardenMember.findUnique({
+      where: { gardenId_userId: { gardenId, userId } },
+    });
+    if (!member) throw new ApiError("FORBIDDEN", "This garden is private");
+  }
   return garden;
+}
+
+// Throw 403/404 unless the user can access this seed. Requires garden access
+// first (so private gardens are enforced), then for a PRIVATE seed requires
+// being its creator or an explicit seed member. Private seeds are invisible to
+// everyone else — including garden stewards.
+export async function requireSeedAccess(userId: string, seedId: string) {
+  const seed = await db.seed.findUnique({ where: { id: seedId } });
+  if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
+  await requireGardenAccess(userId, seed.gardenId);
+  if (seed.visibility === "private" && seed.createdById !== userId) {
+    const member = await db.seedMember.findUnique({
+      where: { seedId_userId: { seedId, userId } },
+    });
+    if (!member) throw new ApiError("NOT_FOUND", "Seed not found");
+  }
+  return seed;
+}
+
+// Ensure the user can participate in the seed, auto-joining the garden the way
+// ensureGardenMember does. Throws if they can't access the (private) seed.
+export async function ensureSeedParticipant(userId: string, seedId: string) {
+  const seed = await requireSeedAccess(userId, seedId);
+  await db.gardenMember.upsert({
+    where: { gardenId_userId: { gardenId: seed.gardenId, userId } },
+    update: {},
+    create: { gardenId: seed.gardenId, userId },
+  });
+  return seed;
+}
+
+// Throw 403 unless the user may manage the seed (force/revert bloom, change
+// visibility, invite). The seed's creator always may. For a public seed a
+// garden steward may; for a private seed only a seed steward may (garden
+// stewards can't even see it).
+export async function requireSeedManager(userId: string, seedId: string) {
+  const seed = await requireSeedAccess(userId, seedId);
+  if (seed.createdById === userId) return seed;
+  if (seed.visibility === "private") {
+    const m = await db.seedMember.findUnique({
+      where: { seedId_userId: { seedId, userId } },
+    });
+    if (m?.role === "steward") return seed;
+    throw new ApiError("FORBIDDEN", "Only the seed owner can do that");
+  }
+  await requireGardenSteward(userId, seed.gardenId);
+  return seed;
 }
 
 // Ensure the user is a garden member; auto-join org members on first interaction

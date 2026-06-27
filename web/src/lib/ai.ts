@@ -137,6 +137,47 @@ export async function claudeReply(input: {
   }
 }
 
+// Claude as neutral mediator: read the discussion, surface where people
+// disagree, find common ground, and propose a fair path forward. Returns null
+// if AI isn't configured or the call fails.
+export async function mediate(input: {
+  title: string;
+  content: string;
+  contributions: ContribForAI[];
+}): Promise<string | null> {
+  if (!aiConfigured()) return null;
+  try {
+    const prompt = [
+      `SEED: ${input.title}`,
+      input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
+      `\nTHE DISCUSSION:\n${renderThread(input.contributions)}`,
+      `\nMediate.`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const stream = getClient().messages.stream({
+      model: MODEL,
+      max_tokens: 1024,
+      system:
+        "You are Claude, acting as a neutral mediator in a Rhyza discussion where " +
+        "people may disagree. Your job is conflict resolution: (1) briefly and fairly " +
+        "restate the main positions without taking sides, (2) name the genuine points of " +
+        "tension, (3) surface the common ground people actually share, and (4) propose a " +
+        "concrete, even-handed path forward (or a synthesis both sides could accept). Be " +
+        "warm, balanced, and specific. Never declare a winner. Keep it tight — a few short " +
+        "paragraphs or compact bullets. Output only the mediation.",
+      messages: [{ role: "user", content: prompt }],
+    });
+    const msg = await stream.finalMessage();
+    const text = textFromMessage(msg);
+    return text || null;
+  } catch (err) {
+    console.error("mediate failed", err);
+    return null;
+  }
+}
+
 // Does this text tag Claude? Matches "@claude" as a whole word, case-insensitive.
 export function mentionsClaude(text: string): boolean {
   return /(^|[^a-zA-Z0-9])@claude\b/i.test(text);

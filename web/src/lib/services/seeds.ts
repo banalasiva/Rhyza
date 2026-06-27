@@ -1,25 +1,53 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
-import { ensureGardenMember, requireGardenAccess } from "@/lib/authz";
+import { ensureGardenMember, requireSeedManager } from "@/lib/authz";
 import { STAGE_KEYS, type StageKey } from "@/lib/constants";
 
 export async function plantSeed(
   userId: string,
   gardenId: string,
-  input: { title: string; content?: string },
+  input: { title: string; content?: string; visibility?: "public" | "private" },
 ) {
   await ensureGardenMember(userId, gardenId);
+  const visibility = input.visibility === "private" ? "private" : "public";
   const seed = await db.seed.create({
     data: {
       gardenId,
       createdById: userId,
       title: input.title,
       content: input.content ?? "",
+      visibility,
       // The planter implicitly votes the seed at its first stage.
       stageVotes: { create: { userId, stage: "seed" } },
+      // A private seed starts with its creator as the first (steward) member.
+      ...(visibility === "private"
+        ? { members: { create: { userId, role: "steward" } } }
+        : {}),
     },
   });
   return seed;
+}
+
+// Change a seed's visibility — creator / seed steward only.
+export async function setSeedVisibility(
+  userId: string,
+  seedId: string,
+  visibility: "public" | "private",
+) {
+  const seed = await requireSeedManager(userId, seedId);
+  if (seed.visibility === visibility) return { id: seedId, visibility };
+  await db.$transaction(async (tx) => {
+    await tx.seed.update({ where: { id: seedId }, data: { visibility } });
+    // Going private: make sure the creator is a member so they keep access.
+    if (visibility === "private") {
+      await tx.seedMember.upsert({
+        where: { seedId_userId: { seedId, userId: seed.createdById } },
+        update: {},
+        create: { seedId, userId: seed.createdById, role: "steward" },
+      });
+    }
+  });
+  return { id: seedId, visibility };
 }
 
 // Vote distribution across stages, with percentages.
@@ -52,19 +80,24 @@ export async function getSeedDetail(userId: string, seedId: string) {
     where: { id: seedId },
     include: {
       createdBy: { select: { id: true, name: true, image: true } },
-      garden: { select: { id: true, name: true, emoji: true, orgId: true, createdById: true } },
+      garden: {
+        select: { id: true, name: true, emoji: true, orgId: true, createdById: true, visibility: true },
+      },
     },
   });
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
 
   // One parallel batch: authorization + all the data, instead of 5 sequential
   // round-trips (this dominates latency when the DB is far away).
-  const [orgMember, member, distribution, myVote, contributions] = await Promise.all([
+  const [orgMember, member, seedMember, distribution, myVote, contributions] = await Promise.all([
     db.orgMember.findUnique({
       where: { orgId_userId: { orgId: seed.garden.orgId, userId } },
     }),
     db.gardenMember.findUnique({
       where: { gardenId_userId: { gardenId: seed.gardenId, userId } },
+    }),
+    db.seedMember.findUnique({
+      where: { seedId_userId: { seedId, userId } },
     }),
     stageDistribution(seedId),
     db.seedStageVote.findUnique({
@@ -81,10 +114,24 @@ export async function getSeedDetail(userId: string, seedId: string) {
     }),
   ]);
   if (!orgMember) throw new ApiError("FORBIDDEN", "Not a member of this organization");
+
+  const isCreator = seed.createdById === userId;
+  // Private garden: must be a garden member (or creator).
+  if (seed.garden.visibility === "private" && !isCreator && !member) {
+    throw new ApiError("NOT_FOUND", "Seed not found");
+  }
+  // Private seed: must be its creator or an explicit seed member.
+  if (seed.visibility === "private" && !isCreator && !seedMember) {
+    throw new ApiError("NOT_FOUND", "Seed not found");
+  }
+
   const canBloom =
-    seed.createdById === userId ||
+    isCreator ||
     seed.garden.createdById === userId ||
-    member?.role === "steward";
+    member?.role === "steward" ||
+    seedMember?.role === "steward";
+  // Who can change visibility / invite to a private seed: creator or seed steward.
+  const canManage = isCreator || seedMember?.role === "steward";
 
   const contribs = contributions.map((c) => {
     const reactionCounts: Record<string, number> = {};
@@ -113,10 +160,12 @@ export async function getSeedDetail(userId: string, seedId: string) {
     title: seed.title,
     content: seed.content,
     stage: seed.stage as StageKey,
+    visibility: seed.visibility as "public" | "private",
     bloomId: seed.bloomId,
     author: seed.createdBy,
     garden: { id: seed.garden.id, name: seed.garden.name, emoji: seed.garden.emoji },
     canBloom,
+    canManage,
     distribution,
     myVote: myVote?.stage ?? null,
     contributions: contribs,

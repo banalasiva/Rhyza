@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
-import { ensureGardenMember } from "@/lib/authz";
+import { ensureGardenMember, requireSeedAccess } from "@/lib/authz";
 import { appUrl, sendEmail, inviteEmailHtml, emailConfigured } from "@/lib/email";
 
 const INVITE_TTL_DAYS = 14;
@@ -60,6 +60,57 @@ export async function createGardenInvite(
   return { token, link, emailed };
 }
 
+// Create an invite to a specific seed (used for private seeds). Accepting joins
+// the org, the garden, and the seed. Any seed participant can invite.
+export async function createSeedInvite(
+  userId: string,
+  seedId: string,
+  email: string | undefined,
+) {
+  const seed = await requireSeedAccess(userId, seedId);
+  const [garden, inviter] = await Promise.all([
+    db.garden.findUnique({ where: { id: seed.gardenId }, select: { name: true, orgId: true } }),
+    db.user.findUnique({ where: { id: userId }, select: { name: true } }),
+  ]);
+  if (!garden) throw new ApiError("NOT_FOUND", "Garden not found");
+  const orgRow = await db.organization.findUnique({
+    where: { id: garden.orgId },
+    select: { name: true },
+  });
+
+  const token = randomBytes(24).toString("base64url");
+  const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
+
+  await db.invite.create({
+    data: {
+      orgId: garden.orgId,
+      gardenId: seed.gardenId,
+      seedId: seed.id,
+      email: email?.toLowerCase() || null,
+      token,
+      invitedById: userId,
+      expiresAt,
+    },
+  });
+
+  const link = inviteLink(token);
+  let emailed = false;
+  if (email && emailConfigured()) {
+    emailed = await sendEmail({
+      to: email,
+      subject: `You're invited to a discussion on Rhyza`,
+      html: inviteEmailHtml({
+        orgName: orgRow?.name ?? "an organization",
+        gardenName: `${garden.name} · ${seed.title}`,
+        inviterName: inviter?.name || "A teammate",
+        link,
+      }),
+    });
+  }
+
+  return { token, link, emailed };
+}
+
 // Public-ish lookup for the accept page (no auth required to view).
 export async function getInviteByToken(token: string) {
   const invite = await db.invite.findUnique({
@@ -107,11 +158,18 @@ export async function acceptInvite(userId: string, userEmail: string, token: str
         create: { gardenId: invite.gardenId, userId },
       });
     }
+    if (invite.seedId) {
+      await tx.seedMember.upsert({
+        where: { seedId_userId: { seedId: invite.seedId, userId } },
+        update: {},
+        create: { seedId: invite.seedId, userId },
+      });
+    }
     await tx.invite.update({
       where: { token },
       data: { status: "accepted", acceptedAt: new Date(), acceptedById: userId },
     });
   });
 
-  return { gardenId: invite.gardenId, orgId: invite.orgId };
+  return { gardenId: invite.gardenId, seedId: invite.seedId, orgId: invite.orgId };
 }

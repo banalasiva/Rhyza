@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
-import { requireGardenAccess, requireGardenSteward } from "@/lib/authz";
+import { requireSeedAccess, requireSeedManager } from "@/lib/authz";
 import { synthesizeBloom, type ContribForAI } from "@/lib/ai";
 
 const DIMENSION_ROLE: Record<string, { type: string; role: string }> = {
@@ -47,7 +47,7 @@ export async function createBloom(
     },
   });
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
-  await requireGardenAccess(userId, seed.gardenId);
+  await requireSeedAccess(userId, seed.id);
 
   if (seed.stage === "bloomed" && seed.bloomId) {
     throw new ApiError("CONFLICT", "This seed has already bloomed");
@@ -160,13 +160,8 @@ export async function createBloom(
 // Manually bloom a seed now — the seed's author or a garden steward. Bypasses
 // the vote threshold (useful for testing and for stewards curating knowledge).
 export async function forceBloom(userId: string, seedId: string) {
-  const seed = await db.seed.findUnique({ where: { id: seedId } });
-  if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
-  if (seed.createdById !== userId) {
-    await requireGardenSteward(userId, seed.gardenId);
-  } else {
-    await requireGardenAccess(userId, seed.gardenId);
-  }
+  const seed = await requireSeedManager(userId, seedId);
+  if (seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
   const bloom = await createBloom(userId, seedId, userId);
   await db.seedStageVote.upsert({
     where: { seedId_userId: { seedId, userId } },
@@ -185,7 +180,7 @@ export async function updateBloom(
 ) {
   const bloom = await db.bloom.findUnique({ where: { id: bloomId } });
   if (!bloom) throw new ApiError("NOT_FOUND", "Bloom not found");
-  await requireGardenAccess(userId, bloom.gardenId);
+  await requireSeedAccess(userId, bloom.seedId);
 
   const summary = input.summary?.trim();
   const title = input.title?.trim();
@@ -216,11 +211,7 @@ export async function revertBloom(userId: string, seedId: string) {
   if (seed.stage !== "bloomed" || !seed.bloomId) {
     throw new ApiError("CONFLICT", "This seed hasn't bloomed");
   }
-  if (seed.createdById !== userId) {
-    await requireGardenSteward(userId, seed.gardenId);
-  } else {
-    await requireGardenAccess(userId, seed.gardenId);
-  }
+  await requireSeedManager(userId, seedId);
 
   // Re-open at the stage just before bloom so the plant/vote bars make sense.
   const REVERT_TO = "growing";
@@ -250,17 +241,14 @@ export async function getBloomDetail(userId: string, bloomId: string) {
     },
   });
   if (!bloom) throw new ApiError("NOT_FOUND", "Bloom not found");
-  await requireGardenAccess(userId, bloom.gardenId);
+  // Seed-level access (enforces private gardens AND private seeds).
+  const seedRow = await requireSeedAccess(userId, bloom.seedId);
 
-  const [versions, seedRow, garden, member] = await Promise.all([
+  const [versions, garden, gardenMember, seedMember] = await Promise.all([
     db.bloom.findMany({
       where: { seedId: bloom.seedId },
       select: { id: true, version: true, bloomedAt: true },
       orderBy: { version: "desc" },
-    }),
-    db.seed.findUnique({
-      where: { id: bloom.seedId },
-      select: { createdById: true, stage: true, bloomId: true },
     }),
     db.garden.findUnique({
       where: { id: bloom.gardenId },
@@ -269,16 +257,21 @@ export async function getBloomDetail(userId: string, bloomId: string) {
     db.gardenMember.findUnique({
       where: { gardenId_userId: { gardenId: bloom.gardenId, userId } },
     }),
+    db.seedMember.findUnique({
+      where: { seedId_userId: { seedId: bloom.seedId, userId } },
+    }),
   ]);
 
-  // Only the seed's author or a garden steward can revert — and only while this
-  // bloom is still the seed's current (latest) bloom.
-  const isCurrent = seedRow?.stage === "bloomed" && seedRow?.bloomId === bloom.id;
-  const canRevert =
-    isCurrent &&
-    (seedRow?.createdById === userId ||
-      garden?.createdById === userId ||
-      member?.role === "steward");
+  // Reverting needs seed-manager rights, and only while this bloom is still the
+  // seed's current (latest) bloom. For a private seed, garden stewards don't
+  // count — only the creator or a seed steward.
+  const isCurrent = seedRow.stage === "bloomed" && seedRow.bloomId === bloom.id;
+  const isManager =
+    seedRow.createdById === userId ||
+    (seedRow.visibility === "private"
+      ? seedMember?.role === "steward"
+      : garden?.createdById === userId || gardenMember?.role === "steward");
+  const canRevert = isCurrent && isManager;
 
   return {
     id: bloom.id,

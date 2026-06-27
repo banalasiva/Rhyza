@@ -13,10 +13,17 @@ export function AcceptInviteButton({ token }: { token: string }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await apiPost<{ gardenId: string | null }>(
+      const res = await apiPost<{ gardenId: string | null; seedId: string | null }>(
         `/api/invites/${token}/accept`,
       );
-      router.push(res.gardenId ? `/gardens/${res.gardenId}` : "/");
+      // Seed invite → land on the seed; garden invite → the garden; else home.
+      router.push(
+        res.seedId
+          ? `/seeds/${res.seedId}`
+          : res.gardenId
+            ? `/gardens/${res.gardenId}`
+            : "/",
+      );
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't accept invite");

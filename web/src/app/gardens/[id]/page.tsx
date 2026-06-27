@@ -26,14 +26,19 @@ export default async function GardenPage({ params }: { params: { id: string } })
         </Link>
         <div className="mb-6 flex items-start justify-between gap-3">
           <div>
-            <p className="eyebrow mb-1">{garden.emoji} Garden</p>
+            <p className="eyebrow mb-1 flex items-center gap-2">
+              <span>{garden.emoji} Garden</span>
+              <span className="rounded-full border border-[rgba(255,255,255,0.1)] px-2 py-0.5 text-[10px] font-normal tracking-normal text-ink-soft">
+                {garden.visibility === "private" ? "🔒 Private" : "🌍 Public"}
+              </span>
+            </p>
             <h1 className="serif-xl">{garden.name}</h1>
             {garden.description && (
               <p className="mt-1 text-sm text-ink-mid">{garden.description}</p>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {garden.canManage && <GardenSettings garden={{ id: garden.id, name: garden.name, description: garden.description, emoji: garden.emoji }} />}
+            {garden.canManage && <GardenSettings garden={{ id: garden.id, name: garden.name, description: garden.description, emoji: garden.emoji, visibility: garden.visibility }} />}
             <Link href={`/gardens/${garden.id}/tree`} className="btn-ghost">
               🌸 Sacred Tree
             </Link>
@@ -61,7 +66,12 @@ export default async function GardenPage({ params }: { params: { id: string } })
               <li key={s.id}>
                 <Link href={`/seeds/${s.id}`} className="card block p-4 transition hover:border-accent">
                   <div className="mb-1 flex items-center justify-between gap-3">
-                    <span className="font-serif text-lg text-ink">{s.title}</span>
+                    <span className="flex items-center gap-2 font-serif text-lg text-ink">
+                      {s.visibility === "private" && (
+                        <span title="Private — only invited members" className="text-sm">🔒</span>
+                      )}
+                      {s.title}
+                    </span>
                     <span className="shrink-0 text-xs text-accent">{stageBadge(s.stage)}</span>
                   </div>
                   {s.content && (

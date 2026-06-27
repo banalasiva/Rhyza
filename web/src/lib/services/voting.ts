@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
-import { ensureGardenMember } from "@/lib/authz";
+import { ensureSeedParticipant } from "@/lib/authz";
 import {
   BLOOM_MIN_VOTERS,
   BLOOM_VOTE_THRESHOLD_PCT,
@@ -21,7 +21,7 @@ export async function castStageVote(
   if (seed.stage === "bloomed") {
     throw new ApiError("CONFLICT", "This seed has already bloomed");
   }
-  await ensureGardenMember(userId, seed.gardenId);
+  await ensureSeedParticipant(userId, seedId);
 
   await db.seedStageVote.upsert({
     where: { seedId_userId: { seedId, userId } },

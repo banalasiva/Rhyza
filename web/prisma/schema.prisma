@@ -77,6 +77,7 @@ model User {
 
   orgMemberships    OrgMember[]
   gardenMemberships GardenMember[]
+  seedMemberships   SeedMember[]
   createdGardens    Garden[]       @relation("GardenCreatedBy")
   seeds             Seed[]
   stageVotes        SeedStageVote[]
@@ -135,6 +136,7 @@ model Garden {
   description String?
   emoji       String   @default("🌱")
   stage       String   @default("germinating") // germinating | growing | thriving | dormant
+  visibility  String   @default("public") // public (any org member) | private (garden members only)
   createdById String?  @map("created_by") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at")
 
@@ -174,6 +176,7 @@ model Seed {
   title       String
   content     String
   stage       String    @default("seed") // seed | germinating | sprouting | growing | bloomed
+  visibility  String    @default("public") // public (anyone with garden access) | private (seed members only)
   bloomId     String?   @map("bloom_id") @db.Uuid
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
@@ -184,9 +187,27 @@ model Seed {
   stageVotes    SeedStageVote[]
   contributions Contribution[]
   blooms        Bloom[]
+  members       SeedMember[]
+  invites       Invite[]
 
   @@index([gardenId, stage])
   @@map("seeds")
+}
+
+// Membership for PRIVATE seeds: the explicit set of people who can see and
+// participate in a private seed (creator + invited). Public seeds don't use
+// this — anyone with garden access can join them.
+model SeedMember {
+  seedId   String   @map("seed_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  role     String   @default("member") // member | steward
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([seedId, userId])
+  @@map("seed_members")
 }
 
 model SeedStageVote {
@@ -378,6 +399,7 @@ model Invite {
   id           String    @id @default(uuid()) @db.Uuid
   orgId        String    @map("org_id") @db.Uuid
   gardenId     String?   @map("garden_id") @db.Uuid
+  seedId       String?   @map("seed_id") @db.Uuid // scope to a private seed
   email        String? // optional: restrict who can accept
   role         String    @default("member")
   token        String    @unique
@@ -390,6 +412,7 @@ model Invite {
 
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   garden    Garden?      @relation(fields: [gardenId], references: [id], onDelete: Cascade)
+  seed      Seed?        @relation(fields: [seedId], references: [id], onDelete: Cascade)
   invitedBy User         @relation("InvitesSent", fields: [invitedById], references: [id])
 
   @@index([orgId])

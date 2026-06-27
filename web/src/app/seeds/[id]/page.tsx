@@ -25,7 +25,11 @@ export default async function SeedPage({ params }: { params: { id: string } }) {
           >
             ← {seed.garden.emoji} {seed.garden.name}
           </Link>
-          <SeedInvite gardenId={seed.garden.id} gardenName={seed.garden.name} />
+          <SeedInvite
+            seedId={seed.id}
+            gardenName={seed.garden.name}
+            isPrivate={seed.visibility === "private"}
+          />
         </div>
         <SeedRoom
           seed={seed}

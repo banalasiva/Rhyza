@@ -9,6 +9,7 @@ export function CreateGardenForm() {
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🌱");
   const [description, setDescription] = useState("");
+  const [visibility, setVisibility] = useState<"public" | "private">("public");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,6 +22,7 @@ export function CreateGardenForm() {
         name,
         emoji,
         description: description || undefined,
+        visibility,
       });
       router.push(`/gardens/${id}`);
     } catch (err) {
@@ -54,10 +56,38 @@ export function CreateGardenForm() {
         onChange={(e) => setDescription(e.target.value)}
         maxLength={500}
       />
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setVisibility("public")}
+          title="Anyone in your org can see and join"
+          className="rounded-full border px-3 py-1.5 text-xs transition"
+          style={chip(visibility === "public")}
+        >
+          🌍 Public
+        </button>
+        <button
+          type="button"
+          onClick={() => setVisibility("private")}
+          title="Only members you add can see it"
+          className="rounded-full border px-3 py-1.5 text-xs transition"
+          style={chip(visibility === "private")}
+        >
+          🔒 Private
+        </button>
+      </div>
       {error && <p className="text-sm text-[#e57373]">{error}</p>}
       <button type="submit" className="btn-primary" disabled={busy || name.trim().length < 2}>
         {busy ? "Planting…" : "Create garden"}
       </button>
     </form>
   );
+}
+
+function chip(active: boolean): React.CSSProperties {
+  return {
+    borderColor: active ? "rgba(76,175,80,0.5)" : "rgba(255,255,255,0.1)",
+    color: active ? "#66BB6A" : "#A0A890",
+    background: active ? "rgba(76,175,80,0.1)" : "transparent",
+  };
 }
