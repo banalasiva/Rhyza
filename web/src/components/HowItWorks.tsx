@@ -15,19 +15,25 @@ export function HowItWorks({ onClose }: { onClose: () => void }) {
         className="card max-h-full w-full max-w-lg overflow-auto p-6 animate-[fadeUp_0.4s_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 text-center">
+        <div className="mb-5 text-center">
           <div className="text-3xl">🌱</div>
-          <h2 className="serif-lg mt-1">How a seed grows into knowledge</h2>
-          <p className="mt-1 text-sm text-ink-mid">
-            Rhyza turns a scattered conversation into one durable answer your
-            group keeps forever.
+          <h2 className="serif-lg mt-1">The best thinking happens together — and then it vanishes.</h2>
+          <p className="mt-2 text-sm leading-relaxed text-ink-mid">
+            The sharp insight scrolls away. The call goes to whoever spoke
+            loudest. By Monday, what the group actually understood is gone.
+            <br />
+            <span className="mt-2 inline-block text-ink">
+              Rhyza is a quiet rebellion against that. Plant a question, let many
+              hands tend it, and when you truly converge it <strong>blooms</strong>{" "}
+              into one answer your people keep — for good.
+            </span>
           </p>
         </div>
 
-        <Section emoji="🧭" title="Five dimensions = a well-rounded answer">
+        <Section emoji="🧭" title="No single mind sees the whole">
           <p className="mb-2">
-            A question is explored through five lenses, so the answer isn&apos;t
-            one-sided. Add your thoughts under whichever fits:
+            So a question is tended through five lenses — not one loud opinion.
+            Add your part wherever you see clearly:
           </p>
           <ul className="space-y-1">
             {DIMENSIONS.map((d) => (
@@ -41,35 +47,41 @@ export function HowItWorks({ onClose }: { onClose: () => void }) {
           </ul>
         </Section>
 
-        <Section emoji="🪴" title="The plant shows the seed's life">
+        <Section emoji="🪴" title="Watch the thinking come alive">
           <p>
-            As people contribute and agree, the seed grows: <em>seed →
-            germinating → sprouting → growing → bloomed</em>. The plant on the
-            right is a live picture of where the conversation stands — vote with
-            “Community feels” to move it.
+            You&apos;re not posting into a void — you&apos;re tending something
+            living. The plant is the conversation&apos;s pulse, growing as people
+            contribute and agree (<em>seed → germinating → sprouting → growing →
+            bloomed</em>). Vote with “Community feels” to move it.
           </p>
         </Section>
 
-        <Section emoji="🌸" title="Blooming = the Aha moment">
+        <Section emoji="🌸" title="Consensus you can hold">
           <p>
-            When enough participants feel the answer is ready (just 2 people, or
-            half the group), the seed <strong>blooms</strong>: Claude distills the
-            whole discussion into one clear summary that lives in your{" "}
-            <strong>Sacred Tree</strong> forever. That&apos;s the payoff —
-            scattered chat becomes remembered knowledge.
+            When enough of you genuinely feel it&apos;s ready — just 2, or half
+            the group — the seed <strong>blooms</strong>: Claude distills
+            everything said into one clear answer that lives in your{" "}
+            <strong>Sacred Tree</strong>. Knowledge <em>grown, not declared</em> —
+            earned, not imposed. And when minds change, it grows a new version,
+            the old one kept, so you can see how your thinking evolved.
           </p>
         </Section>
 
-        <Section emoji="🤝" title="Claude is always here">
+        <Section emoji="🤝" title="A mind always in the room">
           <p>
-            Tag <span className="text-accent">@claude</span> anytime to ask a
-            question, or hit <strong>🕊️ Ask Claude to mediate</strong> if people
-            disagree and you want a fair path forward.
+            Tag <span className="text-accent">@claude</span> to think with you, or
+            hit <strong>🕊️ Ask Claude to mediate</strong> when you disagree — a
+            fair voice with no side to take.
           </p>
         </Section>
 
-        <button onClick={onClose} className="btn-primary mt-2 w-full">
-          Got it — let&apos;s grow something 🌿
+        <p className="mb-4 text-center text-sm text-ink">
+          Most tools help you <em>talk</em>. Rhyza helps you{" "}
+          <strong className="text-accent">arrive</strong> — together, and for good.
+        </p>
+
+        <button onClick={onClose} className="btn-primary w-full">
+          Let&apos;s grow something 🌿
         </button>
       </div>
     </div>
