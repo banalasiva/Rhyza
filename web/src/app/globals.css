@@ -138,6 +138,77 @@ body {
   animation: leafBurst 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* Bloom celebration — expanding glow rings, petal rain, shimmering title */
+.bloom-glow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 220px;
+  height: 220px;
+  margin-left: -110px;
+  margin-top: -110px;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 213, 79, 0.5),
+    rgba(255, 143, 0, 0.1) 55%,
+    transparent 70%
+  );
+  animation: bloomGlow 2.4s ease-out infinite;
+}
+
+@keyframes bloomGlow {
+  0% {
+    transform: scale(0.2);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+.petal-fall {
+  position: absolute;
+  top: -8%;
+  animation-name: petalFall;
+  animation-timing-function: ease-in;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes petalFall {
+  0% {
+    transform: translateY(-10vh) translateX(0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(112vh) translateX(var(--sway, 0px)) rotate(340deg);
+    opacity: 0;
+  }
+}
+
+.bloom-shimmer {
+  background: linear-gradient(90deg, #ffe69a, #fffbe9, #ffce5a, #ffe69a);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shimmer 2.6s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: 200% center;
+  }
+}
+
 .reaction-burst {
   position: fixed;
   z-index: 250;

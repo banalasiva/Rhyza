@@ -99,6 +99,25 @@ export function SeedRoom({
     }
   }, []);
 
+  // Live bloom: while the seed is still open, poll its status so that when
+  // *anyone* tips it over, the celebration fires on everyone's screen — not just
+  // the person who cast the deciding vote.
+  useEffect(() => {
+    if (stage === "bloomed" || blooming) return;
+    const t = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/seeds/${seed.id}/status`, { cache: "no-store" });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json?.data?.stage === "bloomed") triggerBloom();
+      } catch {
+        /* transient — keep polling */
+      }
+    }, 5000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, blooming, seed.id]);
+
   const isBloomed = stage === "bloomed";
   const stageIdx = stageIndex(stage);
   const stageMeta = STAGES[stageIdx];
@@ -387,11 +406,12 @@ export function SeedRoom({
   }
 
   function triggerBloom() {
+    if (blooming) return; // guard against double-trigger (vote + poll)
     playNatureSound("bloom");
     setStage("bloomed");
     setBlooming(true);
     // Auto-advance to the Sacred Tree; the celebration also has a manual button.
-    setTimeout(() => router.push(`/gardens/${seed.garden.id}/tree`), 4500);
+    setTimeout(() => router.push(`/gardens/${seed.garden.id}/tree`), 6000);
   }
 
   const dimMeta = DIMENSIONS.find((d) => d.key === activeDim)!;
@@ -838,39 +858,86 @@ function Requirement({ met, label }: { met: boolean; label: string }) {
 }
 
 function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => void }) {
-  const leaves = useMemo(
+  // A radial burst of petals + sparkles fanning out from the centre.
+  const burst = useMemo(
     () =>
-      Array.from({ length: 16 }).map((_, i) => {
-        const angle = (i / 16) * 360;
-        const dist = 120 + Math.random() * 90;
+      Array.from({ length: 30 }).map((_, i) => {
+        const angle = (i / 30) * 360 + Math.random() * 10;
+        const dist = 130 + Math.random() * 160;
         const rad = (angle * Math.PI) / 180;
-        return { emoji: ["🌸", "🌼", "🍃", "✨"][i % 4], bx: `${Math.cos(rad) * dist}%`, by: `${Math.sin(rad) * dist}%`, delay: i * 0.04 };
+        return {
+          emoji: ["🌸", "🌼", "🌺", "🍃", "✨", "💛"][i % 6],
+          bx: `${Math.cos(rad) * dist}%`,
+          by: `${Math.sin(rad) * dist}%`,
+          delay: (i % 10) * 0.05,
+          size: 16 + Math.round(Math.random() * 16),
+        };
       }),
     [],
   );
+  // A gentle rain of petals drifting down across the screen.
+  const petals = useMemo(
+    () =>
+      Array.from({ length: 18 }).map((_, i) => ({
+        emoji: ["🌸", "🌼", "🌺", "🍃"][i % 4],
+        left: Math.round((i / 18) * 100 + Math.random() * 5),
+        delay: Math.random() * 2.2,
+        dur: 4 + Math.random() * 3,
+        size: 14 + Math.round(Math.random() * 16),
+        sway: `${(Math.random() * 60 - 30).toFixed(0)}px`,
+      })),
+    [],
+  );
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[rgba(20,10,0,0.85)] px-6 text-center backdrop-blur">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-[rgba(20,10,0,0.88)] px-6 text-center backdrop-blur">
+      {/* expanding glow rings behind the plant */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <span className="bloom-glow" />
+        <span className="bloom-glow" style={{ animationDelay: "0.5s" }} />
+      </div>
+
+      {/* petal rain */}
       <div className="pointer-events-none absolute inset-0">
-        {leaves.map((l, i) => (
+        {petals.map((p, i) => (
+          <span
+            key={i}
+            className="petal-fall"
+            style={{
+              left: `${p.left}%`,
+              fontSize: p.size,
+              animationDelay: `${p.delay}s`,
+              animationDuration: `${p.dur}s`,
+              ["--sway" as string]: p.sway,
+            } as React.CSSProperties}
+          >
+            {p.emoji}
+          </span>
+        ))}
+      </div>
+
+      {/* radial burst */}
+      <div className="pointer-events-none absolute inset-0">
+        {burst.map((l, i) => (
           <span
             key={i}
             className="leaf-particle"
-            style={{ animationDelay: `${l.delay}s`, ["--bx" as string]: l.bx, ["--by" as string]: l.by, ["--bx2" as string]: l.bx, ["--by2" as string]: l.by } as React.CSSProperties}
+            style={{ fontSize: l.size, animationDelay: `${l.delay}s`, ["--bx" as string]: l.bx, ["--by" as string]: l.by, ["--bx2" as string]: l.bx, ["--by2" as string]: l.by } as React.CSSProperties}
           >
             {l.emoji}
           </span>
         ))}
       </div>
+
       <div className="relative animate-[fadeUp_0.8s_ease-out]">
-        <div className="mx-auto mb-2 h-40 w-40">
+        <div className="mx-auto mb-2 h-44 w-44 drop-shadow-[0_0_40px_rgba(255,179,0,0.55)]">
           <PlantSvg stage={4} />
         </div>
-        <p className="eyebrow mb-2 text-bloom">This seed has bloomed</p>
-        <h2 className="serif-lg mx-auto max-w-md">{title}</h2>
+        <p className="eyebrow mb-2 text-bloom">✨ This seed has bloomed ✨</p>
+        <h2 className="serif-lg mx-auto max-w-md bloom-shimmer">{title}</h2>
         <p className="mt-3 text-sm text-ink-mid">
           Collective knowledge, forever remembered.
         </p>
-        <button onClick={onEnter} className="btn-primary mt-5">
+        <button onClick={onEnter} className="btn-primary mt-5 animate-pulse">
           Enter the Sacred Tree →
         </button>
       </div>
