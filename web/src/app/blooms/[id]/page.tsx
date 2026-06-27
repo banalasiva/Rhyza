@@ -7,7 +7,31 @@ import { RevertBloom } from "@/components/RevertBloom";
 
 export default async function BloomPage({ params }: { params: { id: string } }) {
   const viewer = await requireViewer();
-  const bloom = await getBloomDetail(viewer.userId, params.id);
+
+  // The bloom may have been reverted (deleted) since a notification/link was
+  // created — show a friendly note instead of an error page.
+  let bloom;
+  try {
+    bloom = await getBloomDetail(viewer.userId, params.id);
+  } catch {
+    return (
+      <div className="relative min-h-screen">
+        <div className="garden-bg" />
+        <NavBar name={viewer.name} />
+        <main className="relative z-10 mx-auto max-w-md px-6 py-16 text-center">
+          <div className="mb-2 text-4xl">🍂</div>
+          <h1 className="serif-lg mb-2">This bloom is no longer here</h1>
+          <p className="mb-5 text-sm text-ink-mid">
+            It may have been reopened to evolve, or reverted. The conversation lives
+            on in its garden.
+          </p>
+          <Link href="/" className="btn-primary">
+            Back to your gardens
+          </Link>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen">

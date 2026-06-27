@@ -220,6 +220,11 @@ export async function revertBloom(userId: string, seedId: string) {
   const REVERT_TO = "growing";
   const bloomId = seed.bloomId;
   await db.$transaction(async (tx) => {
+    // Remove the bloom AND its now-orphaned "has bloomed" notifications, so no
+    // phantom notification points at a bloom that no longer exists.
+    await tx.notification.deleteMany({
+      where: { type: "bloom", entityType: "bloom", entityId: bloomId },
+    });
     await tx.bloom.delete({ where: { id: bloomId } }); // contributors cascade
     await tx.seed.update({
       where: { id: seedId },
