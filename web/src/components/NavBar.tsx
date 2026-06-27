@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
+import { NavSidebar } from "@/components/NavSidebar";
 
 export async function NavBar({ name }: { name?: string }) {
   const session = await auth();
@@ -11,15 +12,18 @@ export async function NavBar({ name }: { name?: string }) {
 
   return (
     <header className="relative z-20 flex items-center justify-between px-5 py-3">
-      {/* Logo → gardens home */}
-      <Link
-        href="/"
-        title="Back to your gardens"
-        className="rounded-full border px-3 py-1.5 font-serif text-[15px] text-ink backdrop-blur transition hover:border-accent"
-        style={{ background: "rgba(7,13,7,0.82)" }}
-      >
-        🌱 Rhyza
-      </Link>
+      {/* Logo + side-panel toggle */}
+      <div className="flex items-center gap-2">
+        <NavSidebar />
+        <Link
+          href="/"
+          title="Back to your gardens"
+          className="rounded-full border px-3 py-1.5 font-serif text-[15px] text-ink backdrop-blur transition hover:border-accent"
+          style={{ background: "rgba(7,13,7,0.82)" }}
+        >
+          🌱 Rhyza
+        </Link>
+      </div>
 
       <div className="flex items-center gap-3">
         {/* Notifications bell with unread badge */}

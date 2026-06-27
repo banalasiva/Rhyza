@@ -180,6 +180,46 @@ export async function getGardenDetail(userId: string, gardenId: string) {
   };
 }
 
+// Navigation tree: the viewer's gardens, each with the seeds they can see,
+// sorted alphabetically, for the side panel.
+export async function getNavTree(userId: string, orgId: string) {
+  await requireOrgMember(userId, orgId);
+  const gardens = await db.garden.findMany({
+    where: {
+      orgId,
+      OR: [
+        { visibility: "public" },
+        { createdById: userId },
+        { members: { some: { userId } } },
+      ],
+    },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      emoji: true,
+      visibility: true,
+      seeds: {
+        where: { deletedAt: null, ...visibleSeedFilter(userId) },
+        orderBy: { title: "asc" },
+        select: { id: true, title: true, visibility: true, stage: true, bloomId: true },
+      },
+    },
+  });
+  return gardens.map((g) => ({
+    id: g.id,
+    name: g.name,
+    emoji: g.emoji,
+    visibility: g.visibility as "public" | "private",
+    seeds: g.seeds.map((s) => ({
+      id: s.id,
+      title: s.title,
+      visibility: s.visibility as "public" | "private",
+      bloomed: s.stage === "bloomed" && !!s.bloomId,
+    })),
+  }));
+}
+
 // The Sacred Tree: every bloom in the garden, latest version first.
 export async function getSacredTree(userId: string, gardenId: string) {
   await requireGardenAccess(userId, gardenId);

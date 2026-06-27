@@ -121,19 +121,35 @@ export function playNatureSound(type: NatureSound) {
       sg.connect(ctx.destination);
       shimmer.start(ctx.currentTime + 0.6);
     } else if (type === "chirp") {
-      // Bird chirp — frequency sweep.
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(1200, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(2400, ctx.currentTime + 0.08);
-      osc.frequency.exponentialRampToValueAtTime(1800, ctx.currentTime + 0.18);
-      g.gain.setValueAtTime(0.09, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
-      osc.connect(g);
-      g.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.22);
+      // Reaction — a soft, warm bell (marimba-like): a gentle root + major third,
+      // smooth decay. Pleasant, not the old harsh sweep.
+      const t0 = ctx.currentTime;
+      [880, 1108.73].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = "sine";
+        const t = t0 + i * 0.035;
+        osc.frequency.value = freq;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.06, t + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0006, t + 0.42);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.46);
+      });
+      // a quiet octave-below triangle for warmth
+      const warm = ctx.createOscillator();
+      const wg = ctx.createGain();
+      warm.type = "triangle";
+      warm.frequency.value = 440;
+      wg.gain.setValueAtTime(0, t0);
+      wg.gain.linearRampToValueAtTime(0.025, t0 + 0.015);
+      wg.gain.exponentialRampToValueAtTime(0.0006, t0 + 0.35);
+      warm.connect(wg);
+      wg.connect(ctx.destination);
+      warm.start(t0);
+      warm.stop(t0 + 0.4);
     }
   } catch {
     /* audio not available — silently ignore */

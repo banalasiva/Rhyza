@@ -79,6 +79,7 @@ export function SeedRoom({
   const [myVote, setMyVote] = useState<string | null>(seed.myVote);
   const [stage, setStage] = useState<string>(seed.stage);
   const [filterDim, setFilterDim] = useState<DimensionKey | null>(null); // null = All
+  const [evolveDismissed, setEvolveDismissed] = useState(false);
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
   const [retagId, setRetagId] = useState<string | null>(null); // open re-tag menu
   const [draft, setDraft] = useState("");
@@ -547,16 +548,23 @@ export function SeedRoom({
 
       {/* ── Thread column ── */}
       <div>
-        {/* Reopened to evolve: published before, active again for the next version */}
-        {!isBloomed && seed.bloomId && (
-          <div className="mb-4 rounded-2xl border border-[rgba(76,175,80,0.3)] bg-[rgba(76,175,80,0.07)] p-4 text-center">
-            <p className="mb-1 text-sm font-medium text-accent">🔄 Evolving the next version</p>
-            <p className="mb-2 text-xs text-ink-mid">
-              This was published as a bloom — it&apos;s open again so the community can
-              refine it. Re-bloom to publish the next version (the old one stays as history).
-            </p>
-            <button onClick={() => router.push(`/blooms/${seed.bloomId}`)} className="btn-ghost px-3 py-1.5 text-xs">
-              📖 See the published version
+        {/* Reopened to evolve — compact, dismissible */}
+        {!isBloomed && seed.bloomId && !evolveDismissed && (
+          <div className="mb-3 flex items-center gap-2 rounded-full border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.06)] px-3 py-1.5 text-xs">
+            <span className="text-accent">🔄 Evolving</span>
+            <span className="text-ink-soft">· published before</span>
+            <button
+              onClick={() => router.push(`/blooms/${seed.bloomId}`)}
+              className="text-ink-mid underline hover:text-ink"
+            >
+              view it
+            </button>
+            <button
+              onClick={() => setEvolveDismissed(true)}
+              className="ml-auto text-ink-soft transition hover:text-ink"
+              title="Dismiss"
+            >
+              ✕
             </button>
           </div>
         )}
@@ -825,12 +833,42 @@ export function SeedRoom({
         {!isBloomed && !committedToBloom && (
           <div className="card mt-6 p-5">
             <p className="eyebrow mb-3">💬 Share your thought · Claude will label it</p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,video/*,.pdf"
+              className="hidden"
+              onChange={(e) => handleFiles(e.target.files)}
+            />
             <RichEditor
               value={draft}
               onChange={setDraft}
               placeholder={`What's your take? (**bold**, *italic*, \`code\` · @ to tag, @claude to ask)`}
               disabled={busy}
               people={seed.people}
+              onSubmit={() => {
+                if (!busy && !uploading && (draft.trim().length > 0 || draftAttachments.length > 0))
+                  contribute();
+              }}
+              toolbarExtra={
+                <button
+                  type="button"
+                  onClick={() =>
+                    uploadsEnabled
+                      ? fileInputRef.current?.click()
+                      : setError(
+                          "Attachments aren't enabled yet — connect a Vercel Blob store, then redeploy.",
+                        )
+                  }
+                  disabled={busy || uploading}
+                  title="Attach image, video, or screenshot"
+                  className="h-7 rounded-md border px-2 text-sm text-ink-mid transition hover:text-ink disabled:opacity-40"
+                  style={{ borderColor: "rgba(76,175,80,0.2)" }}
+                >
+                  {uploading ? "⏳" : "📎"}
+                </button>
+              }
             />
 
             {/* Attachment previews */}
@@ -857,34 +895,9 @@ export function SeedRoom({
 
             {error && <p className="mb-2 mt-2 text-sm text-[#e57373]">{error}</p>}
             <div className="mt-3 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept="image/*,video/*,.pdf"
-                  className="hidden"
-                  onChange={(e) => handleFiles(e.target.files)}
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    uploadsEnabled
-                      ? fileInputRef.current?.click()
-                      : setError(
-                          "Attachments aren't enabled yet — connect a Vercel Blob store, then redeploy.",
-                        )
-                  }
-                  disabled={busy || uploading}
-                  className="text-sm text-ink-soft transition hover:text-ink disabled:opacity-50"
-                  title="Attach image, video, or screenshot"
-                >
-                  {uploading ? "⏳ Uploading…" : "📎 Attach"}
-                </button>
-                <span className="text-xs text-ink-soft">
-                  <span className="text-accent">@claude</span> to ask
-                </span>
-              </div>
+              <span className="text-xs text-ink-soft">
+                <span className="text-accent">@claude</span> to ask · <span className="text-accent">@</span> to tag
+              </span>
               <button
                 onClick={contribute}
                 className="btn-primary"

@@ -16,12 +16,16 @@ export function RichEditor({
   placeholder,
   disabled,
   people = [],
+  onSubmit,
+  toolbarExtra,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   disabled?: boolean;
   people?: Person[];
+  onSubmit?: () => void;
+  toolbarExtra?: React.ReactNode;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [menu, setMenu] = useState<{ at: number; query: string } | null>(null);
@@ -81,33 +85,52 @@ export function RichEditor({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (!showMenu) return;
-    if (e.key === "ArrowDown") {
+    // While the @-mention menu is open, the keys drive it.
+    if (showMenu) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setActive((i) => (i + 1) % matches.length);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setActive((i) => (i - 1 + matches.length) % matches.length);
+      } else if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        pick(matches[active]);
+      } else if (e.key === "Escape") {
+        setMenu(null);
+      }
+      return;
+    }
+    // Formatting shortcuts: ⌘/Ctrl + B / I / E.
+    if (e.metaKey || e.ctrlKey) {
+      const k = e.key.toLowerCase();
+      if (k === "b") return (e.preventDefault(), wrap("**"));
+      if (k === "i") return (e.preventDefault(), wrap("*"));
+      if (k === "e") return (e.preventDefault(), wrap("`"));
+    }
+    // Enter sends; Shift+Enter inserts a newline.
+    if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey && onSubmit) {
       e.preventDefault();
-      setActive((i) => (i + 1) % matches.length);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActive((i) => (i - 1 + matches.length) % matches.length);
-    } else if (e.key === "Enter" || e.key === "Tab") {
-      e.preventDefault();
-      pick(matches[active]);
-    } else if (e.key === "Escape") {
-      setMenu(null);
+      onSubmit();
     }
   }
 
   return (
     <div className="relative">
       <div className="mb-2 flex gap-1">
-        <ToolbarButton label="Bold" onClick={() => wrap("**")} disabled={disabled}>
+        <ToolbarButton label="Bold (⌘B)" onClick={() => wrap("**")} disabled={disabled}>
           <strong>B</strong>
         </ToolbarButton>
-        <ToolbarButton label="Italic" onClick={() => wrap("*")} disabled={disabled}>
+        <ToolbarButton label="Italic (⌘I)" onClick={() => wrap("*")} disabled={disabled}>
           <em>I</em>
         </ToolbarButton>
-        <ToolbarButton label="Code" onClick={() => wrap("`")} disabled={disabled}>
+        <ToolbarButton label="Code (⌘E)" onClick={() => wrap("`")} disabled={disabled}>
           <span className="font-mono text-xs">{"</>"}</span>
         </ToolbarButton>
+        {toolbarExtra}
+        <span className="ml-auto self-center pr-1 text-[10px] text-ink-soft">
+          Enter to send · Shift+Enter for a new line
+        </span>
       </div>
       <textarea
         ref={ref}
