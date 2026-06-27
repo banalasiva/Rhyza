@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireViewer } from "@/lib/session";
 import { getBloomDetail } from "@/lib/services/blooms";
 import { NavBar } from "@/components/NavBar";
+import { BloomBody } from "@/components/BloomBody";
 
 export default async function BloomPage({ params }: { params: { id: string } }) {
   const viewer = await requireViewer();
@@ -24,12 +25,14 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
           <p className="eyebrow mb-2" style={{ color: "#FFB300" }}>
             Bloomed knowledge · v{bloom.version}
           </p>
-          <h1 className="serif-xl mb-4">{bloom.title}</h1>
         </div>
 
-        <article className="card whitespace-pre-wrap p-6 text-[15px] leading-relaxed text-ink">
-          {bloom.summary}
-        </article>
+        <BloomBody
+          id={bloom.id}
+          initialTitle={bloom.title}
+          initialSummary={bloom.summary}
+          aiSynthesized={bloom.aiSynthesized}
+        />
 
         <section className="mt-6">
           <p className="eyebrow mb-3">Lineage — who grew this</p>

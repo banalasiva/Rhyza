@@ -1,0 +1,116 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+// The bloom's title + summary, with inline editing. Blooms are AI-synthesized
+// but collaborative — any member can refine the text.
+export function BloomBody({
+  id,
+  initialTitle,
+  initialSummary,
+  aiSynthesized,
+}: {
+  id: string;
+  initialTitle: string;
+  initialSummary: string;
+  aiSynthesized: boolean;
+}) {
+  const router = useRouter();
+  const [title, setTitle] = useState(initialTitle);
+  const [summary, setSummary] = useState(initialSummary);
+  const [editing, setEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(initialTitle);
+  const [draftSummary, setDraftSummary] = useState(initialSummary);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [synth, setSynth] = useState(aiSynthesized);
+
+  async function save() {
+    const t = draftTitle.trim();
+    const s = draftSummary.trim();
+    if (t.length < 4 || s.length < 1) {
+      setError("Title and summary can't be empty.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/blooms/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: t, summary: s }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error?.message ?? "Failed to save");
+      }
+      setTitle(t);
+      setSummary(s);
+      setSynth(false);
+      setEditing(false);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="mt-2">
+        <input
+          className="input mb-3 text-center text-lg"
+          value={draftTitle}
+          onChange={(e) => setDraftTitle(e.target.value)}
+        />
+        <textarea
+          className="input min-h-[260px] leading-relaxed"
+          value={draftSummary}
+          onChange={(e) => setDraftSummary(e.target.value)}
+          autoFocus
+        />
+        {error && <p className="mt-2 text-sm text-[#e57373]">{error}</p>}
+        <div className="mt-3 flex justify-end gap-2">
+          <button
+            onClick={() => {
+              setEditing(false);
+              setError(null);
+              setDraftTitle(title);
+              setDraftSummary(summary);
+            }}
+            className="btn-ghost px-4 py-2 text-sm"
+            disabled={busy}
+          >
+            Cancel
+          </button>
+          <button onClick={save} className="btn-primary text-sm" disabled={busy}>
+            {busy ? "Saving…" : "Save bloom"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="text-center">
+        <h1 className="serif-xl mb-2">{title}</h1>
+        {synth && (
+          <p className="mb-4 text-xs text-ink-soft">✦ Synthesized by Claude — edit anytime</p>
+        )}
+      </div>
+
+      <article className="card whitespace-pre-wrap p-6 text-[15px] leading-relaxed text-ink">
+        {summary}
+      </article>
+
+      <div className="mt-3 text-right">
+        <button onClick={() => setEditing(true)} className="btn-ghost px-4 py-1.5 text-xs">
+          ✎ Edit bloom
+        </button>
+      </div>
+    </div>
+  );
+}

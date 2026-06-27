@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { requireGardenAccess, requireGardenSteward } from "@/lib/authz";
+import { synthesizeBloom, type ContribForAI } from "@/lib/ai";
 
 const DIMENSION_ROLE: Record<string, { type: string; role: string }> = {
   foundations: { type: "explainer", role: "Laid the foundations" },
@@ -102,11 +103,22 @@ export async function createBloom(
     };
   });
 
-  const summary = synthesizeSummary(
-    seed.content,
-    bloomDimensionText,
-    seed.contributions.length,
-  );
+  // AI-synthesize the bloom from the whole thread; fall back to the
+  // deterministic summary if Claude isn't configured or the call fails.
+  const threadForAI: ContribForAI[] = seed.contributions.map((c) => ({
+    dimension: c.dimension,
+    author: c.author.name || "A member",
+    text: (c.content as { text?: string } | null)?.text ?? "",
+  }));
+  const aiSummary = await synthesizeBloom({
+    title: seed.title,
+    content: seed.content,
+    contributions: threadForAI,
+  });
+  const aiSynthesized = aiSummary !== null;
+  const summary =
+    aiSummary ??
+    synthesizeSummary(seed.content, bloomDimensionText, seed.contributions.length);
 
   // Create the bloom, mark the seed, and record contributors atomically.
   const bloom = await db.$transaction(async (tx) => {
@@ -118,7 +130,7 @@ export async function createBloom(
         title: seed.title,
         summary,
         content: { blocks: [{ type: "paragraph", text: summary }] },
-        aiSynthesized: false,
+        aiSynthesized,
         createdById: triggeredById,
         contributors: { create: contributorsData },
       },
@@ -164,6 +176,36 @@ export async function forceBloom(userId: string, seedId: string) {
   return bloom;
 }
 
+// Edit a bloom's title/summary. Blooms are collaborative knowledge, so any
+// member with access to the garden can refine the synthesized text.
+export async function updateBloom(
+  userId: string,
+  bloomId: string,
+  input: { title?: string; summary?: string },
+) {
+  const bloom = await db.bloom.findUnique({ where: { id: bloomId } });
+  if (!bloom) throw new ApiError("NOT_FOUND", "Bloom not found");
+  await requireGardenAccess(userId, bloom.gardenId);
+
+  const summary = input.summary?.trim();
+  const title = input.title?.trim();
+  const updated = await db.bloom.update({
+    where: { id: bloomId },
+    data: {
+      ...(title ? { title } : {}),
+      ...(summary
+        ? {
+            summary,
+            content: { blocks: [{ type: "paragraph", text: summary }] },
+            // A human edited it — it's no longer purely AI-synthesized.
+            aiSynthesized: false,
+          }
+        : {}),
+    },
+  });
+  return { id: updated.id, title: updated.title, summary: updated.summary };
+}
+
 export async function getBloomDetail(userId: string, bloomId: string) {
   const bloom = await db.bloom.findUnique({
     where: { id: bloomId },
@@ -186,6 +228,7 @@ export async function getBloomDetail(userId: string, bloomId: string) {
     id: bloom.id,
     title: bloom.title,
     summary: bloom.summary,
+    aiSynthesized: bloom.aiSynthesized,
     version: bloom.version,
     bloomedAt: bloom.bloomedAt.toISOString(),
     garden: bloom.garden,

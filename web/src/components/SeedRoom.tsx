@@ -22,6 +22,33 @@ import { Avatar } from "@/components/Avatar";
 type ReactionType = { key: string; emoji: string; label: string };
 type Contribution = SeedDetail["contributions"][number];
 
+type ContributionResponse = {
+  id: string;
+  dimension: string;
+  text: string;
+  parentId: string | null;
+  author: Contribution["author"];
+  createdAt: string;
+  aiReply?: Omit<ContributionResponse, "aiReply"> | null;
+};
+
+// Turn a bare API contribution into a full client-side Contribution (with the
+// reaction/endorsement fields the UI tracks locally).
+function hydrate(c: Omit<ContributionResponse, "aiReply">): Contribution {
+  return {
+    id: c.id,
+    dimension: c.dimension,
+    text: c.text,
+    parentId: c.parentId ?? null,
+    author: c.author,
+    createdAt: c.createdAt,
+    reactionCounts: {},
+    myReactions: [],
+    endorsementCount: 0,
+    iEndorsed: false,
+  };
+}
+
 export function SeedRoom({
   seed,
   reactions,
@@ -45,20 +72,9 @@ export function SeedRoom({
   const [blooming, setBlooming] = useState(false);
   const [muted, setMutedState] = useState(false);
   const [glowing, setGlowing] = useState<Set<string>>(new Set());
-  const [watchers, setWatchers] = useState(1);
-  const [reviewing, setReviewing] = useState(false);
+  const [thinking, setThinking] = useState(false);
 
   useEffect(() => setMuted(muted), [muted]);
-
-  // Simulated presence (real-time presence is the phase-2 Ably layer).
-  useEffect(() => {
-    setWatchers(2 + (seed.id.charCodeAt(0) % 6));
-    const t = setInterval(() => {
-      setWatchers((w) => Math.max(1, Math.min(18, w + (Math.random() > 0.5 ? 1 : -1))));
-      setReviewing(Math.random() > 0.6);
-    }, 5000);
-    return () => clearInterval(t);
-  }, [seed.id]);
 
   const isBloomed = stage === "bloomed";
   const stageIdx = stageIndex(stage);
@@ -96,23 +112,32 @@ export function SeedRoom({
   }, [contributions]);
 
   async function contribute() {
-    if (draft.trim().length === 0) return;
+    const text = draft.trim();
+    if (text.length === 0) return;
     setBusy(true);
     setError(null);
+    const tagsClaude = /(^|[^a-zA-Z0-9])@claude\b/i.test(text);
     try {
-      const c = await apiPost<Contribution>(`/api/seeds/${seed.id}/contributions`, {
+      // If Claude is tagged, show a "thinking" placeholder while it replies.
+      if (tagsClaude) setThinking(true);
+      const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/contributions`, {
         dimension: activeDim,
-        text: draft.trim(),
+        text,
       });
-      setContributions((prev) => [
-        ...prev,
-        { ...c, reactionCounts: {}, myReactions: [], parentId: null, endorsementCount: 0, iEndorsed: false },
-      ]);
+      setContributions((prev) => {
+        const next = [...prev, hydrate(c)];
+        if (c.aiReply) next.push(hydrate(c.aiReply));
+        return next;
+      });
       setDraft("");
-      playNatureSound("drop");
+      playNatureSound(c.aiReply ? "chirp" : "drop");
+      if (tagsClaude && !c.aiReply) {
+        setError("Claude isn't configured yet — set ANTHROPIC_API_KEY to enable @claude replies.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to contribute");
     } finally {
+      setThinking(false);
       setBusy(false);
     }
   }
@@ -253,11 +278,6 @@ export function SeedRoom({
           <p className="eyebrow">
             🌱 Seed · by {seed.author?.name || "someone"} · {participants} participant{participants === 1 ? "" : "s"}
           </p>
-          {reviewing && !isBloomed && (
-            <span className="rounded-full border border-[rgba(76,175,80,0.3)] px-3 py-1 text-xs text-accent">
-              🌱 Someone is reviewing this seed…
-            </span>
-          )}
         </div>
         <h1 className="serif-xl mb-4">{seed.title}</h1>
         {seed.content && <p className="card mb-5 p-4 text-sm text-ink-mid">{seed.content}</p>}
@@ -311,7 +331,14 @@ export function SeedRoom({
                   <div className="flex items-center gap-2">
                     <Avatar name={c.author?.name} image={c.author?.image} size={32} />
                     <div>
-                      <p className="text-sm font-medium text-ink">{c.author?.name || "Someone"}</p>
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-ink">
+                        {c.author?.name || "Someone"}
+                        {c.author?.name === "Claude" && (
+                          <span className="rounded-full bg-[rgba(76,175,80,0.15)] px-1.5 py-0.5 text-[10px] font-normal text-accent">
+                            ✦ AI
+                          </span>
+                        )}
+                      </p>
                       <p className="text-xs text-ink-soft">{timeAgo(c.createdAt)}</p>
                     </div>
                   </div>
@@ -377,6 +404,12 @@ export function SeedRoom({
               </div>
             );
           })}
+          {thinking && (
+            <div className="card flex items-center gap-2 p-4 text-sm text-ink-soft">
+              <span className="claude-thinking-dot" />
+              Claude is thinking…
+            </div>
+          )}
         </div>
 
         {/* Compose */}
@@ -388,12 +421,14 @@ export function SeedRoom({
             <RichEditor
               value={draft}
               onChange={setDraft}
-              placeholder={`${dimMeta.blurb}  (**bold**, *italic*, \`code\`)`}
+              placeholder={`${dimMeta.blurb}  (**bold**, *italic*, \`code\` · tag @claude to ask)`}
               disabled={busy}
             />
             {error && <p className="mb-2 mt-2 text-sm text-[#e57373]">{error}</p>}
             <div className="mt-3 flex items-center justify-between">
-              <span className="text-xs text-ink-soft">{draft.length}/5000</span>
+              <span className="text-xs text-ink-soft">
+                {draft.length}/5000 · <span className="text-accent">@claude</span> to ask Claude
+              </span>
               <button onClick={contribute} className="btn-primary" disabled={busy || draft.trim().length === 0}>
                 {busy ? "Sending…" : "Contribute"}
               </button>
@@ -472,10 +507,6 @@ export function SeedRoom({
               className="mt-4 rounded-2xl border p-3"
               style={{ borderColor: bloomReady ? "rgba(255,179,0,0.4)" : "rgba(255,255,255,0.07)", background: bloomReady ? "rgba(255,179,0,0.08)" : "rgba(255,255,255,0.03)" }}
             >
-              <div className="mb-2 flex items-center gap-1.5 text-xs text-ink-soft">
-                👁 {watchers} watching
-                <span className="h-1.5 w-1.5 rounded-full bg-accent" style={{ boxShadow: "0 0 5px #4CAF50" }} />
-              </div>
               <p className="eyebrow mb-2" style={{ color: bloomReady ? "#FFB300" : "#5A6456" }}>🌸 Bloom · High bar</p>
               <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
                 <div className="h-full rounded-full" style={{ width: `${Math.min(100, (bloomedVotes / bloomTarget) * 100)}%`, background: bloomReady ? "linear-gradient(to right,#FFD54F,#FF8F00)" : "rgba(255,179,0,0.4)", transition: "width 0.7s" }} />

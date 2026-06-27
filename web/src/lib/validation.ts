@@ -39,6 +39,11 @@ export const editContributionSchema = z.object({
   text: z.string().min(1, "Contribution can't be empty").max(5000),
 });
 
+export const updateBloomSchema = z.object({
+  title: z.string().min(4).max(200).optional(),
+  summary: z.string().min(1).max(8000).optional(),
+});
+
 export const updateGardenSchema = z.object({
   name: z.string().min(2).max(80).optional(),
   description: z.string().max(500).optional(),

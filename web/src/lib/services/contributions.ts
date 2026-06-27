@@ -1,11 +1,75 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { ensureGardenMember, requireGardenAccess, requireGardenSteward } from "@/lib/authz";
+import { claudeReply, mentionsClaude, type ContribForAI } from "@/lib/ai";
 
 async function seedOrThrow(seedId: string) {
   const seed = await db.seed.findUnique({ where: { id: seedId } });
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
   return seed;
+}
+
+const CLAUDE_EMAIL = "claude@rhyza.ai";
+
+// Claude is a permanent participant: one shared system user that authors its
+// replies. Created lazily the first time someone tags @claude.
+async function getOrCreateClaudeUser() {
+  return db.user.upsert({
+    where: { email: CLAUDE_EMAIL },
+    update: {},
+    create: { email: CLAUDE_EMAIL, name: "Claude" },
+    select: { id: true, name: true, image: true },
+  });
+}
+
+// When a contribution tags @claude, generate Claude's reply and post it as a
+// contribution authored by the Claude system user (threaded under the mention).
+// Returns the new contribution DTO, or null if AI is off / the call failed.
+export async function respondAsClaude(
+  seedId: string,
+  dimension: string,
+  mentionText: string,
+  parentId: string,
+) {
+  const seed = await db.seed.findUnique({
+    where: { id: seedId },
+    include: {
+      contributions: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        include: { author: { select: { name: true } } },
+      },
+    },
+  });
+  if (!seed) return null;
+
+  const thread: ContribForAI[] = seed.contributions.map((c) => ({
+    dimension: c.dimension,
+    author: c.author.name || "A member",
+    text: (c.content as { text?: string } | null)?.text ?? "",
+  }));
+
+  const reply = await claudeReply({
+    title: seed.title,
+    content: seed.content,
+    dimension,
+    mention: mentionText,
+    contributions: thread,
+  });
+  if (!reply) return null;
+
+  const claude = await getOrCreateClaudeUser();
+  const contribution = await db.contribution.create({
+    data: {
+      seedId,
+      authorId: claude.id,
+      dimension,
+      parentId,
+      content: { text: reply },
+    },
+    include: { author: { select: { id: true, name: true, image: true } } },
+  });
+  return contribution;
 }
 
 export async function addContribution(

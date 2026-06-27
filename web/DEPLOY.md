@@ -153,6 +153,22 @@ Add `RESEND_API_KEY`, `RESEND_FROM`, and `APP_URL` to `.env` (local) and Vercel
 
 ---
 
+## 5c. Claude AI (Anthropic) — optional but recommended
+
+Two features are powered by Claude:
+
+- **AI bloom synthesis** — when a seed blooms, Claude distills the whole thread
+  into the durable summary (instead of a deterministic concatenation).
+- **@claude participant** — tagging `@claude` in any contribution gets a reply,
+  posted as a contribution by the "Claude" system user.
+
+Setup: create a key at <https://console.anthropic.com/settings/keys> and set
+`ANTHROPIC_API_KEY` in `.env` (local) and Vercel (prod). If it's unset, blooms
+fall back to a deterministic summary and `@claude` mentions go unanswered — the
+app still works either way.
+
+---
+
 ## 6. Post-deploy checklist
 
 - [ ] `migrate.yml` (or a local `db:deploy`) and `db:seed` have run against the production database
