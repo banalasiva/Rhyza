@@ -109,7 +109,7 @@ export async function getGardenDetail(userId: string, gardenId: string) {
 
   // Authorization + data in one parallel batch. Seeds are pre-filtered to the
   // ones this viewer may see (private seeds they don't belong to are excluded).
-  const [orgMember, member, seeds] = await Promise.all([
+  const [orgMember, member, seeds, bloomed] = await Promise.all([
     db.orgMember.findUnique({
       where: { orgId_userId: { orgId: garden.orgId, userId } },
     }),
@@ -128,6 +128,18 @@ export async function getGardenDetail(userId: string, gardenId: string) {
         createdBy: { select: { id: true, name: true, image: true } },
         _count: { select: { contributions: true } },
       },
+    }),
+    // Bloomed seeds — so they stay discoverable on the garden page, not just
+    // in the Sacred Tree.
+    db.seed.findMany({
+      where: {
+        gardenId,
+        deletedAt: null,
+        stage: "bloomed",
+        ...visibleSeedFilter(userId),
+      },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, title: true, bloomId: true, visibility: true },
     }),
   ]);
   if (!orgMember) throw new ApiError("FORBIDDEN", "Not a member of this organization");
@@ -155,6 +167,12 @@ export async function getGardenDetail(userId: string, gardenId: string) {
       author: s.createdBy,
       contributionCount: s._count.contributions,
       createdAt: s.createdAt.toISOString(),
+    })),
+    bloomed: bloomed.map((s) => ({
+      id: s.id,
+      title: s.title,
+      bloomId: s.bloomId,
+      visibility: s.visibility as "public" | "private",
     })),
   };
 }

@@ -14,7 +14,7 @@ function stageBadge(stage: string) {
 
 export default async function GardenPage({ params }: { params: { id: string } }) {
   const viewer = await requireViewer();
-  const { garden, seeds } = await getGardenDetail(viewer.userId, params.id);
+  const { garden, seeds, bloomed } = await getGardenDetail(viewer.userId, params.id);
 
   return (
     <div className="relative min-h-screen">
@@ -84,6 +84,34 @@ export default async function GardenPage({ params }: { params: { id: string } })
               </li>
             ))}
           </ul>
+        )}
+
+        {bloomed.length > 0 && (
+          <>
+            <div className="mb-3 mt-8 flex items-center justify-between">
+              <p className="eyebrow">🌸 Bloomed</p>
+              <Link href={`/gardens/${garden.id}/tree`} className="text-xs text-ink-soft hover:text-ink">
+                See the Sacred Tree →
+              </Link>
+            </div>
+            <ul className="space-y-2">
+              {bloomed.map((b) => (
+                <li key={b.id}>
+                  <Link
+                    href={b.bloomId ? `/blooms/${b.bloomId}` : `/seeds/${b.id}`}
+                    className="card block p-3 transition hover:border-accent"
+                    style={{ borderColor: "rgba(255,179,0,0.25)" }}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span>🌸</span>
+                      <span className="font-serif text-ink">{b.title}</span>
+                      {b.visibility === "private" && <span title="Private" className="text-xs">🔒</span>}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </main>
     </div>
