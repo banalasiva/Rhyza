@@ -49,8 +49,11 @@ export async function createBloom(
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
   await requireSeedAccess(userId, seed.id);
 
+  // Already bloomed → return the existing bloom (idempotent), so a concurrent
+  // tipping vote celebrates instead of erroring.
   if (seed.stage === "bloomed" && seed.bloomId) {
-    throw new ApiError("CONFLICT", "This seed has already bloomed");
+    const existing = await db.bloom.findUnique({ where: { id: seed.bloomId } });
+    if (existing) return existing;
   }
 
   const lastVersion = await db.bloom.aggregate({

@@ -138,6 +138,31 @@ body {
   animation: leafBurst 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+.reaction-burst {
+  position: fixed;
+  z-index: 250;
+  pointer-events: none;
+  font-size: 22px;
+  transform: translate(-50%, -50%);
+  animation: reactionFloat 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes reactionFloat {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -20%) scale(0.4);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(calc(-50% + var(--dx, 0px) * 0.5), -70%) scale(1.35);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx, 0px)), -200%) scale(0.9);
+  }
+}
+
 .claude-thinking-dot {
   display: inline-block;
   width: 10px;

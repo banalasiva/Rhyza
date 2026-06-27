@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SeedDetail } from "@/lib/services/seeds";
 import {
@@ -14,6 +14,7 @@ import { apiPost } from "@/lib/client";
 import { playNatureSound, setMuted } from "@/lib/sound";
 import { timeAgo } from "@/lib/time";
 import { PlantSvg } from "@/components/PlantSvg";
+import { HowItWorks } from "@/components/HowItWorks";
 import { RichEditor } from "@/components/RichEditor";
 import { InlineText } from "@/components/InlineText";
 import { Avatar } from "@/components/Avatar";
@@ -78,8 +79,25 @@ export function SeedRoom({
   const [visBusy, setVisBusy] = useState(false);
   const [bloomConfirm, setBloomConfirm] = useState(false); // confirm modal open
   const [previewBloom, setPreviewBloom] = useState(false); // flower the plant as a preview
+  const [bursts, setBursts] = useState<
+    { id: number; emoji: string; x: number; y: number; dx: number }[]
+  >([]);
+  const burstId = useRef(0);
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => setMuted(muted), [muted]);
+
+  // Show the walkthrough automatically the first time someone opens a seed.
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem("rhyza_seen_intro")) {
+        setShowHelp(true);
+        localStorage.setItem("rhyza_seen_intro", "1");
+      }
+    } catch {
+      /* localStorage unavailable — skip */
+    }
+  }, []);
 
   const isBloomed = stage === "bloomed";
   const stageIdx = stageIndex(stage);
@@ -191,7 +209,23 @@ export function SeedRoom({
     }
   }
 
-  async function react(contributionId: string, key: string) {
+  function spawnBurst(emoji: string, x: number, y: number) {
+    const id = ++burstId.current;
+    // A few emojis fan out for a little celebratory pop.
+    const particles = Array.from({ length: 5 }).map((_, i) => ({
+      id: id * 100 + i,
+      emoji,
+      x,
+      y,
+      dx: (i - 2) * 16 + (Math.random() * 8 - 4),
+    }));
+    setBursts((b) => [...b, ...particles]);
+    setTimeout(() => setBursts((b) => b.filter((p) => Math.floor(p.id / 100) !== id)), 900);
+  }
+
+  async function react(contributionId: string, key: string, el?: HTMLElement) {
+    const current = contributions.find((c) => c.id === contributionId);
+    const willAdd = current ? !current.myReactions.includes(key) : true;
     // Update the UI first so the click feels instant, then play the sound.
     setContributions((prev) =>
       prev.map((c) => {
@@ -204,6 +238,12 @@ export function SeedRoom({
       }),
     );
     playNatureSound("chirp");
+    // Celebrate the click with a floating-emoji burst (only when adding).
+    if (willAdd && el) {
+      const emoji = reactions.find((r) => r.key === key)?.emoji ?? "✨";
+      const rect = el.getBoundingClientRect();
+      spawnBurst(emoji, rect.left + rect.width / 2, rect.top);
+    }
     try {
       await apiPost(`/api/contributions/${contributionId}/reactions`, { reactionKey: key });
     } catch {
@@ -359,6 +399,19 @@ export function SeedRoom({
 
   return (
     <div className="relative mt-3 grid gap-6 lg:grid-cols-[1fr_360px]">
+      {showHelp && <HowItWorks onClose={() => setShowHelp(false)} />}
+
+      {/* Floating reaction bursts (rendered over everything, position:fixed) */}
+      {bursts.map((b) => (
+        <span
+          key={b.id}
+          className="reaction-burst"
+          style={{ left: b.x, top: b.y, ["--dx" as string]: `${b.dx}px` } as React.CSSProperties}
+        >
+          {b.emoji}
+        </span>
+      ))}
+
       {blooming && (
         <BloomCelebration
           title={seed.title}
@@ -377,6 +430,27 @@ export function SeedRoom({
 
       {/* ── Thread column ── */}
       <div>
+        {/* Bloomed → always offer the payoff, even if the live moment was missed */}
+        {isBloomed && (
+          <div className="mb-4 rounded-2xl border border-[rgba(255,179,0,0.35)] bg-[rgba(255,179,0,0.08)] p-4 text-center">
+            <div className="mb-1 text-3xl">🌸</div>
+            <p className="serif-lg mb-1">This seed has bloomed</p>
+            <p className="mb-3 text-xs text-ink-mid">Collective knowledge, remembered forever.</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {seed.bloomId && (
+                <button onClick={() => router.push(`/blooms/${seed.bloomId}`)} className="btn-primary text-sm">
+                  🌸 See the bloom
+                </button>
+              )}
+              <button
+                onClick={() => router.push(`/gardens/${seed.garden.id}/tree`)}
+                className="btn-ghost text-sm"
+              >
+                🌳 Enter the Sacred Tree
+              </button>
+            </div>
+          </div>
+        )}
         <div className="mb-3 flex flex-wrap items-center gap-3">
           <p className="eyebrow">
             🌱 Seed · by {seed.author?.name || "someone"} · {participants} participant{participants === 1 ? "" : "s"}
@@ -406,6 +480,13 @@ export function SeedRoom({
               🗑 Delete
             </button>
           )}
+          <button
+            onClick={() => setShowHelp(true)}
+            title="How Rhyza works"
+            className="rounded-full border border-[rgba(255,255,255,0.1)] px-3 py-1 text-xs text-ink-soft transition hover:text-ink"
+          >
+            ⓘ How it works
+          </button>
         </div>
         <h1 className="serif-xl mb-4">{seed.title}</h1>
 
@@ -513,9 +594,9 @@ export function SeedRoom({
                     return (
                       <button
                         key={r.key}
-                        onClick={() => react(c.id, r.key)}
+                        onClick={(e) => react(c.id, r.key, e.currentTarget)}
                         title={r.label}
-                        className={`rounded-full border px-2 py-0.5 text-xs transition ${
+                        className={`rounded-full border px-2 py-0.5 text-xs transition active:scale-125 ${
                           mine ? "border-accent text-accent" : "border-[rgba(255,255,255,0.08)] text-ink-soft hover:text-ink"
                         }`}
                       >

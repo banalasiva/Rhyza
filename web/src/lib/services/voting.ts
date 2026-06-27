@@ -47,12 +47,26 @@ export async function castStageVote(
   const shouldBloom = bloomed.votes >= bloomTargetFor(participants);
 
   if (shouldBloom) {
-    const bloom = await createBloom(userId, seedId, userId);
+    let bloomId: string;
+    try {
+      const bloom = await createBloom(userId, seedId, userId);
+      bloomId = bloom.id;
+    } catch (err) {
+      // A concurrent vote may have bloomed it first — recover its id so the
+      // person who tipped it still gets the celebration instead of an error.
+      const existing = await db.bloom.findFirst({
+        where: { seedId },
+        orderBy: { version: "desc" },
+        select: { id: true },
+      });
+      if (!existing) throw err;
+      bloomId = existing.id;
+    }
     return {
       distribution: await stageDistribution(seedId),
       stage: "bloomed",
       bloomed: true,
-      bloomId: bloom.id,
+      bloomId,
     };
   }
 
