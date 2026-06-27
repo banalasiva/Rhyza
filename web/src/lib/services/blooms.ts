@@ -206,6 +206,40 @@ export async function updateBloom(
   return { id: updated.id, title: updated.title, summary: updated.summary };
 }
 
+// Revert a bloom: delete it, re-open the seed, and pull "bloomed" votes back so
+// it doesn't immediately re-bloom. Allowed for the seed's author or a garden
+// steward — the same people who can force a bloom. Returns where to send the
+// user (back to the now-reopened seed).
+export async function revertBloom(userId: string, seedId: string) {
+  const seed = await db.seed.findUnique({ where: { id: seedId } });
+  if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
+  if (seed.stage !== "bloomed" || !seed.bloomId) {
+    throw new ApiError("CONFLICT", "This seed hasn't bloomed");
+  }
+  if (seed.createdById !== userId) {
+    await requireGardenSteward(userId, seed.gardenId);
+  } else {
+    await requireGardenAccess(userId, seed.gardenId);
+  }
+
+  // Re-open at the stage just before bloom so the plant/vote bars make sense.
+  const REVERT_TO = "growing";
+  const bloomId = seed.bloomId;
+  await db.$transaction(async (tx) => {
+    await tx.bloom.delete({ where: { id: bloomId } }); // contributors cascade
+    await tx.seed.update({
+      where: { id: seedId },
+      data: { stage: REVERT_TO, bloomId: null },
+    });
+    await tx.seedStageVote.updateMany({
+      where: { seedId, stage: "bloomed" },
+      data: { stage: REVERT_TO },
+    });
+  });
+
+  return { reverted: true, seedId, gardenId: seed.gardenId, stage: REVERT_TO };
+}
+
 export async function getBloomDetail(userId: string, bloomId: string) {
   const bloom = await db.bloom.findUnique({
     where: { id: bloomId },
@@ -218,11 +252,33 @@ export async function getBloomDetail(userId: string, bloomId: string) {
   if (!bloom) throw new ApiError("NOT_FOUND", "Bloom not found");
   await requireGardenAccess(userId, bloom.gardenId);
 
-  const versions = await db.bloom.findMany({
-    where: { seedId: bloom.seedId },
-    select: { id: true, version: true, bloomedAt: true },
-    orderBy: { version: "desc" },
-  });
+  const [versions, seedRow, garden, member] = await Promise.all([
+    db.bloom.findMany({
+      where: { seedId: bloom.seedId },
+      select: { id: true, version: true, bloomedAt: true },
+      orderBy: { version: "desc" },
+    }),
+    db.seed.findUnique({
+      where: { id: bloom.seedId },
+      select: { createdById: true, stage: true, bloomId: true },
+    }),
+    db.garden.findUnique({
+      where: { id: bloom.gardenId },
+      select: { createdById: true },
+    }),
+    db.gardenMember.findUnique({
+      where: { gardenId_userId: { gardenId: bloom.gardenId, userId } },
+    }),
+  ]);
+
+  // Only the seed's author or a garden steward can revert — and only while this
+  // bloom is still the seed's current (latest) bloom.
+  const isCurrent = seedRow?.stage === "bloomed" && seedRow?.bloomId === bloom.id;
+  const canRevert =
+    isCurrent &&
+    (seedRow?.createdById === userId ||
+      garden?.createdById === userId ||
+      member?.role === "steward");
 
   return {
     id: bloom.id,
@@ -231,6 +287,7 @@ export async function getBloomDetail(userId: string, bloomId: string) {
     aiSynthesized: bloom.aiSynthesized,
     version: bloom.version,
     bloomedAt: bloom.bloomedAt.toISOString(),
+    canRevert,
     garden: bloom.garden,
     seed: bloom.seed,
     contributors: bloom.contributors.map((c) => ({

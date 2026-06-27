@@ -3,6 +3,7 @@ import { requireViewer } from "@/lib/session";
 import { getBloomDetail } from "@/lib/services/blooms";
 import { NavBar } from "@/components/NavBar";
 import { BloomBody } from "@/components/BloomBody";
+import { RevertBloom } from "@/components/RevertBloom";
 
 export default async function BloomPage({ params }: { params: { id: string } }) {
   const viewer = await requireViewer();
@@ -64,6 +65,8 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
             </div>
           </section>
         )}
+
+        {bloom.canRevert && <RevertBloom seedId={bloom.seed.id} />}
       </main>
     </div>
   );
