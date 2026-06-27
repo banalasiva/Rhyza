@@ -33,7 +33,11 @@ function textFromMessage(msg: Anthropic.Message): string {
 // One Claude completion. THROWS on API error (bad key, model access, network)
 // so callers can surface the real reason — callers that want a graceful
 // fallback (e.g. bloom synthesis) wrap this in their own try/catch.
-async function complete(system: string, prompt: string, maxTokens = 1024): Promise<string> {
+async function complete(
+  system: string,
+  prompt: string | Anthropic.ContentBlockParam[],
+  maxTokens = 1024,
+): Promise<string> {
   const stream = getClient().messages.stream({
     model: MODEL,
     max_tokens: maxTokens,
@@ -49,7 +53,30 @@ export type ContribForAI = {
   author: string;
   text: string;
   reactions?: string; // e.g. "🤔 Still confused ×2, 💥 It clicked ×1"
+  images?: string[]; // URLs of image attachments so Claude can actually see them
 };
+
+// Collect image URLs across a thread (most recent first wins), capped so the
+// request stays reasonable.
+function collectImages(contributions: ContribForAI[], cap = 6): string[] {
+  const urls: string[] = [];
+  for (const c of contributions) for (const u of c.images ?? []) urls.push(u);
+  return urls.slice(-cap);
+}
+
+// Build a user message that includes images as vision blocks when present.
+function userMessage(text: string, images: string[]): string | Anthropic.ContentBlockParam[] {
+  if (images.length === 0) return text;
+  return [
+    { type: "text", text },
+    ...images.map(
+      (url): Anthropic.ContentBlockParam => ({
+        type: "image",
+        source: { type: "url", url },
+      }),
+    ),
+  ];
+}
 
 const DIMENSION_LABEL: Record<string, string> = {
   foundations: "Foundations (why it exists, core assumptions)",
@@ -64,7 +91,8 @@ function renderThread(contributions: ContribForAI[]): string {
   return contributions
     .map((c) => {
       const dim = DIMENSION_LABEL[c.dimension] ?? c.dimension;
-      const base = `[${dim}] ${c.author}: ${c.text}`;
+      const img = c.images?.length ? ` [${c.images.length} image(s) attached — shown below]` : "";
+      const base = `[${dim}] ${c.author}: ${c.text}${img}`;
       return c.reactions ? `${base}\n   (community reactions: ${c.reactions})` : base;
     })
     .join("\n\n");
@@ -127,15 +155,17 @@ export async function claudeReply(input: {
     .filter(Boolean)
     .join("\n");
 
-  // Throws on API error so the route can show the real reason.
+  // Throws on API error so the route can show the real reason. Images in the
+  // thread are attached as vision blocks so Claude can actually see them.
   const text = await complete(
     "You are Claude, a thoughtful participant in a Rhyza learning conversation — a " +
       "collaborative knowledge garden where members explore a topic together. Someone " +
       "tagged you with @claude. Answer their question or add genuinely useful, specific " +
-      "insight grounded in the discussion so far. Don't just repeat what's been said. " +
-      "Be concise (1–3 short paragraphs), warm, and direct. Output only your reply — no " +
-      "greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.",
-    prompt,
+      "insight grounded in the discussion so far (including any images shown). Don't just " +
+      "repeat what's been said. Be concise (1–3 short paragraphs), warm, and direct. Output " +
+      "only your reply — no greeting like 'Sure!', no sign-off, and don't refer to yourself " +
+      "in the third person.",
+    userMessage(prompt, collectImages(input.contributions)),
   );
   return text || null;
 }
@@ -170,7 +200,7 @@ export async function mediate(input: {
       "concrete, even-handed path forward (or a synthesis both sides could accept). Be " +
       "warm, balanced, and specific. Never declare a winner. Keep it tight — a few short " +
       "paragraphs or compact bullets. Output only the mediation.",
-    prompt,
+    userMessage(prompt, collectImages(input.contributions)),
   );
   return text || null;
 }

@@ -668,6 +668,10 @@ export function SeedRoom({
           })}
         </div>
 
+        <p className="mb-3 text-[11px] text-ink-soft">
+          ✨ Claude labels each message by dimension (top-right) — tap a label to change it.
+        </p>
+
         {/* Contributions — one linear conversation */}
         <div className="space-y-3">
           {visibleContributions.length === 0 && (

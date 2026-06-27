@@ -56,11 +56,20 @@ export async function respondAsClaude(
   });
   if (!seed) return null;
 
-  const thread: ContribForAI[] = seed.contributions.map((c) => ({
-    dimension: c.dimension,
-    author: c.author.name || "A member",
-    text: (c.content as { text?: string } | null)?.text ?? "",
-  }));
+  const thread: ContribForAI[] = seed.contributions.map((c) => {
+    const content = c.content as
+      | { text?: string; attachments?: { url: string; type: string }[] }
+      | null;
+    const images = (content?.attachments ?? [])
+      .filter((a) => a.type === "image")
+      .map((a) => a.url);
+    return {
+      dimension: c.dimension,
+      author: c.author.name || "A member",
+      text: content?.text ?? "",
+      images: images.length ? images : undefined,
+    };
+  });
 
   const reply = await claudeReply({
     title: seed.title,
@@ -118,11 +127,18 @@ export async function mediateSeed(userId: string, seedId: string) {
         return `${t?.emoji ?? ""} ${t?.label ?? k} ×${n}`;
       })
       .join(", ");
+    const content = c.content as
+      | { text?: string; attachments?: { url: string; type: string }[] }
+      | null;
+    const images = (content?.attachments ?? [])
+      .filter((a) => a.type === "image")
+      .map((a) => a.url);
     return {
       dimension: c.dimension,
       author: c.author.name || "A member",
-      text: (c.content as { text?: string } | null)?.text ?? "",
+      text: content?.text ?? "",
       reactions: reactions || undefined,
+      images: images.length ? images : undefined,
     };
   });
 
