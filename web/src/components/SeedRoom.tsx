@@ -769,27 +769,29 @@ export function SeedRoom({
             {error && <p className="mb-2 mt-2 text-sm text-[#e57373]">{error}</p>}
             <div className="mt-3 flex items-center justify-between gap-2">
               <div className="flex items-center gap-3">
-                {uploadsEnabled && (
-                  <>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      accept="image/*,video/*,.pdf"
-                      className="hidden"
-                      onChange={(e) => handleFiles(e.target.files)}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={busy || uploading}
-                      className="text-sm text-ink-soft transition hover:text-ink disabled:opacity-50"
-                      title="Attach image, video, or screenshot"
-                    >
-                      {uploading ? "⏳ Uploading…" : "📎 Attach"}
-                    </button>
-                  </>
-                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,video/*,.pdf"
+                  className="hidden"
+                  onChange={(e) => handleFiles(e.target.files)}
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    uploadsEnabled
+                      ? fileInputRef.current?.click()
+                      : setError(
+                          "Attachments aren't enabled yet — connect a Vercel Blob store, then redeploy.",
+                        )
+                  }
+                  disabled={busy || uploading}
+                  className="text-sm text-ink-soft transition hover:text-ink disabled:opacity-50"
+                  title="Attach image, video, or screenshot"
+                >
+                  {uploading ? "⏳ Uploading…" : "📎 Attach"}
+                </button>
                 <span className="text-xs text-ink-soft">
                   <span className="text-accent">@claude</span> to ask
                 </span>
