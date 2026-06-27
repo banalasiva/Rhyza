@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { primaryOrgId } from "@/lib/authz";
+import { ensureUserOrg } from "@/lib/services/onboarding";
 
 export type Viewer = {
   userId: string;
@@ -34,10 +35,15 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   };
 });
 
-// Require a signed-in, onboarded viewer. Redirects to /login or /onboarding.
+// Require a signed-in viewer. Redirects to /login if signed out. New users are
+// auto-provisioned an org (by email domain, or a personal workspace) so sign-in
+// never stops to ask for an organization name.
 export async function requireViewer(): Promise<Viewer & { orgId: string }> {
   const viewer = await getViewer();
   if (!viewer) redirect("/login");
-  if (!viewer.orgId) redirect("/onboarding");
+  if (!viewer.orgId) {
+    const orgId = await ensureUserOrg(viewer.userId, viewer.email, viewer.name);
+    return { ...viewer, orgId };
+  }
   return viewer as Viewer & { orgId: string };
 }
