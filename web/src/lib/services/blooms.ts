@@ -234,6 +234,35 @@ export async function revertBloom(userId: string, seedId: string) {
   return { reverted: true, seedId, gardenId: seed.gardenId, stage: REVERT_TO };
 }
 
+// Reopen a bloomed seed to EVOLVE it — the chosen "people change their mind"
+// model. Unlike revert, this KEEPS the existing bloom as history (v1). The seed
+// goes active again; when the community re-blooms it, createBloom mints the next
+// version (v2, v3, …). Bloom votes are pulled back so it doesn't instantly
+// re-bloom. Creator / steward only (for now).
+export async function reopenBloom(userId: string, seedId: string) {
+  const seed = await db.seed.findUnique({ where: { id: seedId } });
+  if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
+  if (seed.stage !== "bloomed" || !seed.bloomId) {
+    throw new ApiError("CONFLICT", "This seed hasn't bloomed");
+  }
+  await requireSeedManager(userId, seedId);
+
+  const REOPEN_TO = "growing";
+  await db.$transaction(async (tx) => {
+    // Keep bloomId pointing at the published version (history); just reactivate.
+    await tx.seed.update({
+      where: { id: seedId },
+      data: { stage: REOPEN_TO },
+    });
+    await tx.seedStageVote.updateMany({
+      where: { seedId, stage: "bloomed" },
+      data: { stage: REOPEN_TO },
+    });
+  });
+
+  return { reopened: true, seedId, gardenId: seed.gardenId };
+}
+
 export async function getBloomDetail(userId: string, bloomId: string) {
   const bloom = await db.bloom.findUnique({
     where: { id: bloomId },

@@ -1,6 +1,6 @@
 import { handle, ok } from "@/lib/api";
 import { requireUserId } from "@/lib/authz";
-import { forceBloom, revertBloom } from "@/lib/services/blooms";
+import { forceBloom, revertBloom, reopenBloom } from "@/lib/services/blooms";
 
 // POST /api/seeds/:id/bloom — manually bloom now (author/steward), bypassing the
 // vote threshold.
@@ -15,4 +15,11 @@ export const POST = handle(async (_req, ctx: { params: { id: string } }) => {
 export const DELETE = handle(async (_req, ctx: { params: { id: string } }) => {
   const userId = await requireUserId();
   return ok(await revertBloom(userId, ctx.params.id));
+});
+
+// PATCH /api/seeds/:id/bloom — reopen to evolve: keep the bloom as history and
+// reactivate the seed so it can grow into a new version (author/steward only).
+export const PATCH = handle(async (_req, ctx: { params: { id: string } }) => {
+  const userId = await requireUserId();
+  return ok(await reopenBloom(userId, ctx.params.id));
 });

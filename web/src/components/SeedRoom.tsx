@@ -450,6 +450,20 @@ export function SeedRoom({
 
       {/* ── Thread column ── */}
       <div>
+        {/* Reopened to evolve: published before, active again for the next version */}
+        {!isBloomed && seed.bloomId && (
+          <div className="mb-4 rounded-2xl border border-[rgba(76,175,80,0.3)] bg-[rgba(76,175,80,0.07)] p-4 text-center">
+            <p className="mb-1 text-sm font-medium text-accent">🔄 Evolving the next version</p>
+            <p className="mb-2 text-xs text-ink-mid">
+              This was published as a bloom — it&apos;s open again so the community can
+              refine it. Re-bloom to publish the next version (the old one stays as history).
+            </p>
+            <button onClick={() => router.push(`/blooms/${seed.bloomId}`)} className="btn-ghost px-3 py-1.5 text-xs">
+              📖 See the published version
+            </button>
+          </div>
+        )}
+
         {/* Bloomed → always offer the payoff, even if the live moment was missed */}
         {isBloomed && (
           <div className="mb-4 rounded-2xl border border-[rgba(255,179,0,0.35)] bg-[rgba(255,179,0,0.08)] p-4 text-center">
