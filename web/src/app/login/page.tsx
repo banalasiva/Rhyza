@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { signIn, auth } from "@/auth";
-import { GrowingPlant } from "@/components/GrowingPlant";
+import { LandingDemo } from "@/components/LandingDemo";
 
 const BEATS = [
   { emoji: "🌱", title: "Plant a question", body: "A real decision worth thinking through." },
@@ -19,9 +19,9 @@ export default async function LoginPage() {
     <main className="relative flex min-h-screen items-center justify-center px-6 py-10">
       <div className="garden-bg" />
       <div className="relative z-10 grid w-full max-w-4xl items-center gap-10 lg:grid-cols-2">
-        {/* ── Visual ── */}
+        {/* ── Live demo: a real question that Blooms ── */}
         <div className="order-first lg:order-last">
-          <GrowingPlant />
+          <LandingDemo />
         </div>
 
         {/* ── Story + sign in ── */}
