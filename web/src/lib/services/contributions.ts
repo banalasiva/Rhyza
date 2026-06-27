@@ -8,6 +8,7 @@ import {
 import { claudeReply, mediate, mentionsClaude, type ContribForAI } from "@/lib/ai";
 import { extractMentionIds } from "@/lib/mentions";
 import { appUrl, sendEmail, mentionEmailHtml, emailConfigured } from "@/lib/email";
+import { getReactionTypes } from "@/lib/registry";
 
 async function seedOrThrow(seedId: string) {
   const seed = await db.seed.findUnique({ where: { id: seedId } });
@@ -83,23 +84,41 @@ export async function respondAsClaude(
 // access; returns the new contribution, or null if AI is off / failed.
 export async function mediateSeed(userId: string, seedId: string) {
   await requireSeedAccess(userId, seedId);
-  const seed = await db.seed.findUnique({
-    where: { id: seedId },
-    include: {
-      contributions: {
-        where: { deletedAt: null },
-        orderBy: { createdAt: "asc" },
-        include: { author: { select: { name: true } } },
+  const [seed, reactionTypes] = await Promise.all([
+    db.seed.findUnique({
+      where: { id: seedId },
+      include: {
+        contributions: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: "asc" },
+          include: {
+            author: { select: { name: true } },
+            reactions: { select: { reactionKey: true } },
+          },
+        },
       },
-    },
-  });
+    }),
+    getReactionTypes(),
+  ]);
   if (!seed) throw new ApiError("NOT_FOUND", "Seed not found");
 
-  const thread: ContribForAI[] = seed.contributions.map((c) => ({
-    dimension: c.dimension,
-    author: c.author.name || "A member",
-    text: (c.content as { text?: string } | null)?.text ?? "",
-  }));
+  const rmap = new Map(reactionTypes.map((r) => [r.key, r]));
+  const thread: ContribForAI[] = seed.contributions.map((c) => {
+    const counts: Record<string, number> = {};
+    for (const r of c.reactions) counts[r.reactionKey] = (counts[r.reactionKey] ?? 0) + 1;
+    const reactions = Object.entries(counts)
+      .map(([k, n]) => {
+        const t = rmap.get(k);
+        return `${t?.emoji ?? ""} ${t?.label ?? k} ×${n}`;
+      })
+      .join(", ");
+    return {
+      dimension: c.dimension,
+      author: c.author.name || "A member",
+      text: (c.content as { text?: string } | null)?.text ?? "",
+      reactions: reactions || undefined,
+    };
+  });
 
   const text = await mediate({
     title: seed.title,

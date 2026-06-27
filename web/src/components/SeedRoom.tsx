@@ -97,6 +97,7 @@ export function SeedRoom({
   const [bursts, setBursts] = useState<
     { id: number; emoji: string; x: number; y: number; dx: number }[]
   >([]);
+  const [labelFx, setLabelFx] = useState<{ id: number; text: string; x: number; y: number }[]>([]);
   const burstId = useRef(0);
   const [showHelp, setShowHelp] = useState(false);
 
@@ -282,6 +283,12 @@ export function SeedRoom({
     setTimeout(() => setBursts((b) => b.filter((p) => Math.floor(p.id / 100) !== id)), 900);
   }
 
+  function spawnLabel(text: string, x: number, y: number) {
+    const id = ++burstId.current;
+    setLabelFx((prev) => [...prev, { id, text, x, y }]);
+    setTimeout(() => setLabelFx((prev) => prev.filter((l) => l.id !== id)), 1200);
+  }
+
   async function react(contributionId: string, key: string, el?: HTMLElement) {
     const current = contributions.find((c) => c.id === contributionId);
     const willAdd = current ? !current.myReactions.includes(key) : true;
@@ -297,11 +304,12 @@ export function SeedRoom({
       }),
     );
     playNatureSound("chirp");
-    // Celebrate the click with a floating-emoji burst (only when adding).
+    // Celebrate the click AND show what the reaction means (only when adding).
     if (willAdd && el) {
-      const emoji = reactions.find((r) => r.key === key)?.emoji ?? "✨";
+      const r = reactions.find((x) => x.key === key);
       const rect = el.getBoundingClientRect();
-      spawnBurst(emoji, rect.left + rect.width / 2, rect.top);
+      spawnBurst(r?.emoji ?? "✨", rect.left + rect.width / 2, rect.top);
+      spawnLabel(`${r?.emoji ?? ""} ${r?.label ?? ""}`.trim(), rect.left + rect.width / 2, rect.top);
     }
     try {
       await apiPost(`/api/contributions/${contributionId}/reactions`, { reactionKey: key });
@@ -469,6 +477,12 @@ export function SeedRoom({
           style={{ left: b.x, top: b.y, ["--dx" as string]: `${b.dx}px` } as React.CSSProperties}
         >
           {b.emoji}
+        </span>
+      ))}
+      {/* Floating reaction LABEL — tells you what the reaction means */}
+      {labelFx.map((l) => (
+        <span key={l.id} className="reaction-label" style={{ left: l.x, top: l.y }}>
+          {l.text}
         </span>
       ))}
 
@@ -675,11 +689,13 @@ export function SeedRoom({
                         key={r.key}
                         onClick={(e) => react(c.id, r.key, e.currentTarget)}
                         title={r.label}
-                        className={`rounded-full border px-2 py-0.5 text-xs transition active:scale-125 ${
+                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition active:scale-110 ${
                           mine ? "border-accent text-accent" : "border-[rgba(255,255,255,0.08)] text-ink-soft hover:text-ink"
                         }`}
                       >
-                        {r.emoji} {n > 0 && n}
+                        <span>{r.emoji}</span>
+                        <span className="opacity-80">{r.label}</span>
+                        {n > 0 && <span className="font-medium">· {n}</span>}
                       </button>
                     );
                   })}

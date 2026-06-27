@@ -48,6 +48,7 @@ export type ContribForAI = {
   dimension: string;
   author: string;
   text: string;
+  reactions?: string; // e.g. "🤔 Still confused ×2, 💥 It clicked ×1"
 };
 
 const DIMENSION_LABEL: Record<string, string> = {
@@ -63,7 +64,8 @@ function renderThread(contributions: ContribForAI[]): string {
   return contributions
     .map((c) => {
       const dim = DIMENSION_LABEL[c.dimension] ?? c.dimension;
-      return `[${dim}] ${c.author}: ${c.text}`;
+      const base = `[${dim}] ${c.author}: ${c.text}`;
+      return c.reactions ? `${base}\n   (community reactions: ${c.reactions})` : base;
     })
     .join("\n\n");
 }
@@ -159,9 +161,12 @@ export async function mediate(input: {
   // Throws on API error so the route can show the real reason.
   const text = await complete(
     "You are Claude, acting as a neutral mediator in a Rhyza discussion where " +
-      "people may disagree. Your job is conflict resolution: (1) briefly and fairly " +
-      "restate the main positions without taking sides, (2) name the genuine points of " +
-      "tension, (3) surface the common ground people actually share, and (4) propose a " +
+      "people may disagree. Some messages include community reactions (e.g. 'Still " +
+      "confused', 'It clicked', 'Changed thinking') — treat these as real signal: points " +
+      "people found confusing deserve clarification, points that landed are common ground. " +
+      "Your job is conflict resolution: (1) briefly and fairly restate the main positions " +
+      "without taking sides, (2) name the genuine points of tension (and what people found " +
+      "confusing), (3) surface the common ground people actually share, and (4) propose a " +
       "concrete, even-handed path forward (or a synthesis both sides could accept). Be " +
       "warm, balanced, and specific. Never declare a winner. Keep it tight — a few short " +
       "paragraphs or compact bullets. Output only the mediation.",

@@ -209,6 +209,38 @@ body {
   }
 }
 
+.reaction-label {
+  position: fixed;
+  z-index: 251;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: #66bb6a;
+  background: rgba(10, 16, 10, 0.92);
+  border: 1px solid rgba(76, 175, 80, 0.35);
+  padding: 4px 11px;
+  border-radius: 9999px;
+  animation: reactionLabelFloat 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes reactionLabelFloat {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.85);
+  }
+  22% {
+    opacity: 1;
+    transform: translate(-50%, -65%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -150%) scale(1);
+  }
+}
+
 .reaction-burst {
   position: fixed;
   z-index: 250;
