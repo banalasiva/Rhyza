@@ -528,6 +528,52 @@ export async function composeImpactCopy(
   }
 }
 
+// On-demand summary of a whole discussion, organised by dimension — so people
+// don't navigate dimension tabs themselves; they ask an AI to lay the thread
+// out for them. Read-only (never posted). Returns null if the provider isn't
+// configured; throws on API error so the route can surface the real reason.
+export async function summarizeThread(
+  provider: "claude" | "chatgpt",
+  input: { title: string; content: string; contributions: ContribForAI[] },
+): Promise<string | null> {
+  const who = provider === "chatgpt" ? "ChatGPT" : "Claude";
+  const system =
+    `You are ${who}, catching someone up on a ThinkThru discussion fast. Read the whole ` +
+    "thread and distill it — accurate to what was actually said, never invented. Lay it out " +
+    "under these labels, but include a label ONLY if there's real content for it:\n" +
+    "**Foundations** — what's really being asked and the assumptions in play.\n" +
+    "**Understanding** — the mental models and framings people are using.\n" +
+    "**In practice** — concrete examples, applications, or recommendations raised.\n" +
+    "**Open debate** — the genuine disagreements and trade-offs still live.\n" +
+    "**Where it stands** — one line on how close the group is to a decision.\n" +
+    "Use the exact **bold** labels above, each followed by 1–3 tight sentences. No preamble, " +
+    "no 'Here is' — output only the summary.";
+  const prompt = [
+    `SEED: ${input.title}`,
+    input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
+    `\nTHE DISCUSSION:\n${renderThread(input.contributions)}`,
+    `\nSummarize.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const images = collectImages(input.contributions);
+
+  if (provider === "chatgpt") {
+    if (!openaiConfigured()) return null;
+    const resp = await getOpenAI().chat.completions.create({
+      model: OPENAI_MODEL,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: openaiUserContent(prompt, images) },
+      ],
+    });
+    return resp.choices[0]?.message?.content?.trim() || null;
+  }
+  if (!aiConfigured()) return null;
+  const text = await complete(system, userMessage(prompt, images), 700);
+  return text || null;
+}
+
 // An AI casts its read on how mature the discussion is — a real quorum vote.
 // Returns { stage, note } or null if that provider isn't configured / failed.
 const STAGE_GUIDE =

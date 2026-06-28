@@ -92,7 +92,11 @@ export function SeedRoom({
   const [distribution, setDistribution] = useState(seed.distribution);
   const [myVote, setMyVote] = useState<string | null>(seed.myVote);
   const [stage, setStage] = useState<string>(seed.stage);
-  const [filterDim, setFilterDim] = useState<DimensionKey | null>(null); // null = All
+  const [aiMenu, setAiMenu] = useState(false); // compact "Ask AI" menu
+  const [summarizing, setSummarizing] = useState<"claude" | "chatgpt" | null>(null);
+  const [summary, setSummary] = useState<{ provider: "claude" | "chatgpt"; text: string } | null>(
+    null,
+  );
   const [tab, setTab] = useState<"discussion" | "polls" | "quorum">("discussion");
   const [stakeBoard, setStakeBoard] = useState<Board | null>(null);
   const [evolveDismissed, setEvolveDismissed] = useState(false);
@@ -360,13 +364,32 @@ export function SeedRoom({
     try {
       const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/mediate`, { provider });
       setContributions((prev) => [...prev, hydrate(c)]);
-      setFilterDim(null); // show the full thread so the mediation is visible
       playNatureSound("chirp");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Mediation failed");
     } finally {
       setMediating(false);
       setMediatingWho(null);
+    }
+  }
+
+  // Ask an AI to summarize the whole thread by dimension — replaces manual
+  // dimension navigation. Read-only; shown in a dismissible panel.
+  async function askSummary(provider: "claude" | "chatgpt") {
+    setAiMenu(false);
+    setSummarizing(provider);
+    setError(null);
+    try {
+      const res = await apiPost<{ text: string; provider: "claude" | "chatgpt" }>(
+        `/api/seeds/${seed.id}/summary`,
+        { provider },
+      );
+      setSummary({ provider, text: res.text });
+      playNatureSound("chirp");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't summarize");
+    } finally {
+      setSummarizing(null);
     }
   }
 
@@ -611,10 +634,9 @@ export function SeedRoom({
     setTimeout(() => router.push(`/gardens/${seed.garden.id}/tree`), 6000);
   }
 
-  // Linear thread: everything chronologically, or filtered to one dimension.
-  const visibleContributions = filterDim
-    ? contributions.filter((c) => c.dimension === filterDim)
-    : contributions;
+  // One linear conversation, chronological. (Dimensions live as per-message
+  // badges + the on-demand AI summary, not as a manual filter.)
+  const visibleContributions = contributions;
 
   return (
     <div className="relative mt-3 grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -806,73 +828,100 @@ export function SeedRoom({
         </div>
         <h1 className="serif-xl mb-4">{seed.title}</h1>
 
-        {/* Mediation — ask an AI to help resolve disagreement */}
-        {!isBloomed && (
-          <div className="mb-4 flex flex-wrap gap-2">
-            <button
-              onClick={() => askMediate("claude")}
-              disabled={mediating}
-              className="btn-ghost px-3 py-1.5 text-xs"
-              title="Claude reads the discussion and proposes a fair path forward"
-            >
-              {mediatingWho === "claude" ? "🕊️ Claude mediating…" : "🕊️ Ask Claude to mediate"}
-            </button>
-            <button
-              onClick={() => askMediate("chatgpt")}
-              disabled={mediating}
-              className="btn-ghost px-3 py-1.5 text-xs"
-              title="ChatGPT reads the discussion and proposes a fair path forward"
-            >
-              {mediatingWho === "chatgpt" ? "🕊️ ChatGPT mediating…" : "🕊️ Ask ChatGPT to mediate"}
-            </button>
-          </div>
-        )}
-        {seed.content && <p className="card mb-5 p-4 text-sm text-ink-mid">{seed.content}</p>}
+        {seed.content && <p className="card mb-4 p-4 text-sm text-ink-mid">{seed.content}</p>}
 
-        {/* Dimension FILTER chips (optional lens) — default 'All' is linear */}
-        <div className="mb-4 flex flex-wrap gap-2 border-b border-[rgba(76,175,80,0.12)] pb-3">
+        {/* Compact AI helpers — summarize the thread, or ask an AI to mediate.
+            Tucked into one small menu so it doesn't eat space on mobile. */}
+        <div className="relative mb-3 flex items-center justify-between gap-2">
+          <p className="text-[11px] text-ink-soft">
+            ✨ Each message is auto-labelled by dimension — tap a label to change it.
+          </p>
           <button
-            onClick={() => setFilterDim(null)}
-            className="rounded-full px-3 py-1.5 text-sm transition"
-            style={{
-              color: filterDim === null ? "#E8E4DC" : "#A0A890",
-              background: filterDim === null ? "rgba(255,255,255,0.08)" : "transparent",
-            }}
+            onClick={() => setAiMenu((v) => !v)}
+            aria-expanded={aiMenu}
+            aria-haspopup="menu"
+            className="btn-ghost shrink-0 px-3 py-1.5 text-xs"
           >
-            All {contributions.length > 0 && <span className="opacity-60">{contributions.length}</span>}
+            ✨ Ask AI {aiMenu ? "▴" : "▾"}
           </button>
-          {DIMENSIONS.map((d) => {
-            const count = contributions.filter((c) => c.dimension === d.key).length;
-            const active = filterDim === d.key;
-            return (
+          {aiMenu && (
+            <>
               <button
-                key={d.key}
-                onClick={() => setFilterDim(active ? null : d.key)}
-                aria-pressed={active}
-                aria-label={`Filter by ${d.label}`}
-                className="rounded-full px-3 py-1.5 text-sm transition"
-                style={{
-                  color: active ? d.color : "#A0A890",
-                  background: active ? `${d.color}22` : "transparent",
-                }}
+                className="fixed inset-0 z-10 cursor-default"
+                aria-label="Close menu"
+                onClick={() => setAiMenu(false)}
+              />
+              <div
+                role="menu"
+                className="absolute right-0 top-full z-20 mt-1 w-60 rounded-xl border border-[rgba(76,175,80,0.22)] bg-[#0B120B] p-2 shadow-xl"
               >
-                <span aria-hidden>{d.emoji}</span> {d.label}
-                {count > 0 && <span className="ml-1 opacity-60">{count}</span>}
-              </button>
-            );
-          })}
+                <p className="px-1 pb-1 text-[10px] uppercase tracking-wide text-ink-soft">
+                  📋 Summarize the discussion
+                </p>
+                <div className="mb-2 flex gap-1.5">
+                  {(["claude", "chatgpt"] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => askSummary(p)}
+                      disabled={summarizing !== null}
+                      className="flex-1 rounded-lg border border-[rgba(76,175,80,0.2)] px-2 py-1.5 text-[11px] text-ink-mid transition hover:text-ink disabled:opacity-50"
+                    >
+                      {summarizing === p ? "…" : p === "claude" ? "Claude" : "ChatGPT"}
+                    </button>
+                  ))}
+                </div>
+                {!isBloomed && (
+                  <>
+                    <p className="px-1 pb-1 text-[10px] uppercase tracking-wide text-ink-soft">
+                      🕊️ Mediate a disagreement
+                    </p>
+                    <div className="flex gap-1.5">
+                      {(["claude", "chatgpt"] as const).map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => {
+                            setAiMenu(false);
+                            askMediate(p);
+                          }}
+                          disabled={mediating}
+                          className="flex-1 rounded-lg border border-[rgba(76,175,80,0.2)] px-2 py-1.5 text-[11px] text-ink-mid transition hover:text-ink disabled:opacity-50"
+                        >
+                          {mediatingWho === p ? "…" : p === "claude" ? "Claude" : "ChatGPT"}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
-        <p className="mb-3 text-[11px] text-ink-soft">
-          ✨ Claude labels each message by dimension (top-right) — tap a label to change it.
-        </p>
+        {/* On-demand AI summary — replaces manual dimension navigation. */}
+        {summary && (
+          <div className="card mb-4 border-[rgba(76,175,80,0.25)] p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold text-ink">
+                ✨ {summary.provider === "chatgpt" ? "ChatGPT" : "Claude"} · discussion summary
+              </p>
+              <button
+                onClick={() => setSummary(null)}
+                aria-label="Dismiss summary"
+                className="text-ink-soft transition hover:text-ink"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="text-sm leading-relaxed text-ink-mid">
+              <InlineText text={summary.text} />
+            </div>
+          </div>
+        )}
 
         {/* Contributions — one linear conversation */}
         <div className="space-y-3">
           {visibleContributions.length === 0 && (
-            <p className="text-sm text-ink-soft">
-              {filterDim ? "Nothing in this lens yet." : "No thoughts yet. Be the first to share."}
-            </p>
+            <p className="text-sm text-ink-soft">No thoughts yet. Be the first to share.</p>
           )}
           {visibleContributions.map((c) => {
             const cd = DIMENSIONS.find((d) => d.key === c.dimension) ?? DIMENSIONS[1];

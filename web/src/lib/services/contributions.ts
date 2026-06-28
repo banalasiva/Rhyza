@@ -12,6 +12,7 @@ import {
   mediate,
   openaiMediate,
   aiStageVote,
+  summarizeThread,
   mentionsClaude,
   type ContribForAI,
 } from "@/lib/ai";
@@ -219,6 +220,24 @@ export async function aiVoteOnSeed(
   // human who asked, since they hold seed access for createBloom.
   const result = await settleStage(seedId, invokerId);
   return { contribution, result };
+}
+
+// Ask Claude or ChatGPT to summarize the whole discussion, organised by
+// dimension. Read-only — nothing is posted to the thread. Returns the summary
+// text, or null if that provider isn't configured.
+export async function summarizeSeed(
+  userId: string,
+  seedId: string,
+  provider: "claude" | "chatgpt" = "claude",
+): Promise<string | null> {
+  await requireSeedAccess(userId, seedId);
+  const data = await threadForSeed(seedId);
+  if (!data) throw new ApiError("NOT_FOUND", "Seed not found");
+  return summarizeThread(provider, {
+    title: data.seed.title,
+    content: data.seed.content,
+    contributions: data.thread,
+  });
 }
 
 // Ask Claude or ChatGPT to mediate the seed's discussion. Posts the mediation as
