@@ -433,5 +433,3 @@ body {
 .quorum-bird {
   animation: quorumBird 9s ease-in-out infinite;
 }
-
-/* deploy-pipeline check — via GitHub Action + Vercel Deploy Hook (5) */
