@@ -27,6 +27,7 @@ import { QuorumCircle } from "@/components/QuorumCircle";
 import { Icon, type IconName } from "@/components/Icon";
 import { ReadAloud } from "@/components/ReadAloud";
 import { MicButton } from "@/components/MicButton";
+import { MessageActions } from "@/components/MessageActions";
 
 const SEED_TABS = [
   { key: "discussion", label: "Discussion", icon: "discussion" },
@@ -937,6 +938,7 @@ export function SeedRoom({
                     {c.endorsementCount > 0 && ` · ${c.endorsementCount}`}
                   </button>
                   {c.text && <ReadAloud text={c.text} compact />}
+                  {c.text && <MessageActions text={c.text} path={`/seeds/${seed.id}`} />}
                   {c.author?.id === currentUserId && (
                     <>
                       <button
