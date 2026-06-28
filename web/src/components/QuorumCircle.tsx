@@ -16,8 +16,9 @@ export function QuorumCircle() {
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/quorum-circle.png"
+        src="/quorum-circle.jpg"
         alt=""
+        loading="lazy"
         onError={() => setImgOk(false)}
         className="h-44 w-full object-cover sm:h-52"
       />
