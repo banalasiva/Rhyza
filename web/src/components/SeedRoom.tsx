@@ -23,6 +23,7 @@ import { Attachments, type Attachment } from "@/components/Attachments";
 import { StakeMap } from "@/components/StakeMap";
 import { StakeBoard, type Board } from "@/components/StakeBoard";
 import { SeedPolls } from "@/components/SeedPolls";
+import { QuorumHero } from "@/components/QuorumHero";
 import { Icon, type IconName } from "@/components/Icon";
 
 type ReactionType = { key: string; emoji: string; label: string };
@@ -176,15 +177,39 @@ export function SeedRoom({
   const bloomNeeded = Math.max(0, bloomTarget - bloomedVotes);
   const bloomReady = bloomedVotes >= bloomTarget && dimsWithContribs >= 3;
 
-  // Convergence signal from the debate ratio.
+  // Convergence signal read LIVE from the stage votes — so it moves as people
+  // vote, including when they vote it *backwards* (an earlier stage) to say the
+  // direction slipped.
   const convergence = useMemo(() => {
-    const total = contributions.length;
-    const debate = contributions.filter((c) => c.dimension === "debate").length;
-    const ratio = total === 0 ? 0 : debate / total;
-    if (total >= 3 && ratio < 0.25) return { label: "Converging", color: "#66BB6A", note: "Community is aligning on core understanding" };
-    if (ratio > 0.4) return { label: "Diverging", color: "#EF9A9A", note: "Healthy debate — perspectives still forming" };
-    return { label: "Building", color: "#FFB300", note: "Understanding is taking shape" };
-  }, [contributions]);
+    if (isBloomed)
+      return { label: "Bloomed", color: "#FFB300", note: "Collective knowledge, remembered." };
+    const total = distribution.reduce((n, d) => n + d.votes, 0);
+    if (total === 0)
+      return { label: "Awaiting votes", color: "#8a9482", note: "Vote a stage to show where you feel it stands." };
+    const anchor = stageIndex(stage);
+    let behind = 0,
+      ahead = 0,
+      at = 0,
+      distinct = 0;
+    for (const d of distribution) {
+      if (d.votes <= 0) continue;
+      distinct++;
+      const i = STAGES.findIndex((s) => s.key === d.stage);
+      if (i < anchor) behind += d.votes;
+      else if (i > anchor) ahead += d.votes;
+      else at += d.votes;
+    }
+    const f = (n: number) => n / total;
+    if (f(behind) >= 0.34)
+      return { label: "Pulling back", color: "#EF9A9A", note: "Some feel the direction slipped — worth revisiting." };
+    if (f(ahead) >= 0.34)
+      return { label: "Gaining momentum", color: "#66BB6A", note: "The community is pushing it forward." };
+    if (distinct >= 3 && f(at) < 0.5)
+      return { label: "Diverging", color: "#FFB300", note: "Healthy spread — perspectives still forming." };
+    if (f(at) >= 0.5)
+      return { label: "Converging", color: "#66BB6A", note: "The community is aligning on where it stands." };
+    return { label: "Building", color: "#FFB300", note: "Understanding is taking shape." };
+  }, [distribution, stage, isBloomed]);
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -590,15 +615,18 @@ export function SeedRoom({
         </div>
 
         {tab === "quorum" ? (
-          <StakeBoard
-            embedded
-            seedId={seed.id}
-            initial={stakeBoard}
-            onChange={setStakeBoard}
-            onClose={() => {}}
-          />
+          <>
+            <QuorumHero />
+            <StakeBoard
+              embedded
+              seedId={seed.id}
+              initial={stakeBoard}
+              onChange={setStakeBoard}
+              onClose={() => {}}
+            />
+          </>
         ) : tab === "polls" ? (
-          <SeedPolls seedId={seed.id} currentUserId={currentUserId} />
+          <SeedPolls seedId={seed.id} currentUserId={currentUserId} uploadsEnabled={uploadsEnabled} />
         ) : (
         <>
         {/* Reopened to evolve — compact, dismissible */}
@@ -1037,19 +1065,29 @@ export function SeedRoom({
               className="mt-4 rounded-2xl border p-3"
               style={{ borderColor: bloomReady ? "rgba(255,179,0,0.4)" : "rgba(255,255,255,0.07)", background: bloomReady ? "rgba(255,179,0,0.08)" : "rgba(255,255,255,0.03)" }}
             >
-              <p className="eyebrow mb-2" style={{ color: bloomReady ? "#FFB300" : "#5A6456" }}>🌸 Bloom · High bar</p>
+              <p className="eyebrow mb-2" style={{ color: bloomReady ? "#FFB300" : "#5A6456" }}>🌸 Ready to bloom?</p>
               <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
                 <div className="h-full rounded-full" style={{ width: `${Math.min(100, (bloomedVotes / bloomTarget) * 100)}%`, background: bloomReady ? "linear-gradient(to right,#FFD54F,#FF8F00)" : "rgba(255,179,0,0.4)", transition: "width 0.7s" }} />
               </div>
-              <p className="mb-3 text-[11px]" style={{ color: bloomReady ? "#FFB300" : "#5A6456" }}>
+              <p className="mb-1 text-[11px]" style={{ color: bloomReady ? "#FFB300" : "#5A6456" }}>
                 {isBloomed
                   ? "🌸 Bloomed — collective knowledge, remembered."
-                  : bloomReady
-                    ? `🌸 Ready to bloom! ${bloomedVotes}/${bloomTarget} voted.`
-                    : `${bloomedVotes}/${bloomTarget} bloom votes (${bloomNeeded} more)`}
+                  : `${bloomedVotes} of ${bloomTarget} people have voted to bloom${
+                      bloomNeeded > 0 ? ` — ${bloomNeeded} more to go` : " — ready!"
+                    }`}
               </p>
-              <Requirement met={bloomedVotes >= bloomTarget} label={`${bloomedVotes}/${bloomTarget} voted Bloom`} />
-              <Requirement met={dimsWithContribs >= 3} label={`${dimsWithContribs}/3 dimensions have contributions`} />
+              {!isBloomed && (
+                <p className="mb-3 text-[10px] leading-relaxed text-ink-soft">
+                  This bar fills as people vote “Bloomed”. At {bloomTarget} votes, the seed blooms into durable knowledge.
+                </p>
+              )}
+              <Requirement met={bloomedVotes >= bloomTarget} label={`${bloomedVotes} of ${bloomTarget} voted to bloom`} />
+              <Requirement met={dimsWithContribs >= 3} label={`${dimsWithContribs} of 3 dimensions explored`} />
+              {stakeBoard && (stakeBoard.locked || stakeBoard.bloomProgress.configured) && (
+                <p className="mt-2 text-[10px] leading-relaxed text-bloom">
+                  ⚖️ Final call is stake-weighted — the Quorum tab shows whose votes weigh more.
+                </p>
+              )}
               {seed.canBloom && !isBloomed && (
                 <button
                   onClick={bloomNow}

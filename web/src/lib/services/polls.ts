@@ -8,7 +8,12 @@ import { getStakeWeightMap } from "@/lib/services/stake";
 export async function createPoll(
   userId: string,
   seedId: string,
-  input: { question: string; options: string[]; weightMode: "equal" | "stake" },
+  input: {
+    question: string;
+    options: string[];
+    weightMode: "equal" | "stake";
+    attachments?: { url: string; type: string; name?: string }[];
+  },
 ) {
   await ensureSeedParticipant(userId, seedId);
   const poll = await db.poll.create({
@@ -17,6 +22,7 @@ export async function createPoll(
       authorId: userId,
       question: input.question.trim(),
       weightMode: input.weightMode,
+      attachments: input.attachments ?? [],
       options: {
         create: input.options.map((text, i) => ({ text: text.trim(), sortOrder: i })),
       },
@@ -96,6 +102,7 @@ export async function listPolls(userId: string, seedId: string) {
     return {
       id: poll.id,
       question: poll.question,
+      attachments: (poll.attachments as { url: string; type: "image" | "video" | "file"; name?: string }[]) ?? [],
       weightMode: poll.weightMode as "equal" | "stake",
       stakeActive: stakeMode,
       closed: !!poll.closedAt,

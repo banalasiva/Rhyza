@@ -1,15 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiGet, apiPost } from "@/lib/client";
 import { playNatureSound } from "@/lib/sound";
+import { upload } from "@vercel/blob/client";
 import { Avatar } from "@/components/Avatar";
+import { Attachments, type Attachment } from "@/components/Attachments";
 import { timeAgo } from "@/lib/time";
+
+const MAX_POLL_FILE = 25 * 1024 * 1024; // 25 MB
 
 type PollOption = { id: string; text: string; votes: number; pct: number };
 type Poll = {
   id: string;
   question: string;
+  attachments: Attachment[];
   weightMode: "equal" | "stake";
   stakeActive: boolean;
   closed: boolean;
@@ -21,7 +26,20 @@ type Poll = {
   options: PollOption[];
 };
 
-export function SeedPolls({ seedId }: { seedId: string; currentUserId: string }) {
+function attachmentType(mime: string): Attachment["type"] {
+  if (mime.startsWith("image/")) return "image";
+  if (mime.startsWith("video/")) return "video";
+  return "file";
+}
+
+export function SeedPolls({
+  seedId,
+  uploadsEnabled = false,
+}: {
+  seedId: string;
+  currentUserId: string;
+  uploadsEnabled?: boolean;
+}) {
   const [polls, setPolls] = useState<Poll[] | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +106,7 @@ export function SeedPolls({ seedId }: { seedId: string; currentUserId: string })
       {creating && (
         <PollCreator
           seedId={seedId}
+          uploadsEnabled={uploadsEnabled}
           onDone={(next) => {
             setCreating(false);
             if (next) setPolls(next);
@@ -164,6 +183,8 @@ function PollCard({
         {poll.closed && " · 🔒 closed"}
       </p>
 
+      {poll.attachments.length > 0 && <Attachments items={poll.attachments} />}
+
       <div className="space-y-2">
         {poll.options.map((o) => {
           const mine = poll.myVote === o.id;
@@ -215,16 +236,45 @@ function PollCard({
 
 function PollCreator({
   seedId,
+  uploadsEnabled,
   onDone,
 }: {
   seedId: string;
+  uploadsEnabled: boolean;
   onDone: (next: Poll[] | null) => void;
 }) {
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState<string[]>(["", ""]);
   const [weightMode, setWeightMode] = useState<"equal" | "stake">("equal");
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setError(null);
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        if (file.size > MAX_POLL_FILE) {
+          setError(`"${file.name}" is over 25 MB — please attach a smaller file.`);
+          continue;
+        }
+        const blob = await upload(file.name, file, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+        });
+        setAttachments((prev) => [...prev, { url: blob.url, type: attachmentType(file.type), name: file.name }]);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
 
   async function create() {
     const opts = options.map((o) => o.trim()).filter(Boolean);
@@ -239,6 +289,7 @@ function PollCreator({
         question: question.trim(),
         options: opts,
         weightMode,
+        attachments,
       });
       playNatureSound("chirp");
       onDone(next);
@@ -284,6 +335,51 @@ function PollCreator({
           >
             + add option
           </button>
+        )}
+      </div>
+
+      {/* Attachments (images / videos, ≤ 25 MB) */}
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        accept="image/*,video/*"
+        className="hidden"
+        onChange={(e) => handleFiles(e.target.files)}
+      />
+      <div className="mb-3">
+        <button
+          type="button"
+          onClick={() =>
+            uploadsEnabled
+              ? fileRef.current?.click()
+              : setError("Attachments aren't enabled yet — connect a Vercel Blob store, then redeploy.")
+          }
+          disabled={busy || uploading}
+          className="flex items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.2)] px-3 py-1.5 text-xs text-ink-mid transition hover:text-ink disabled:opacity-40"
+        >
+          {uploading ? "⏳ Uploading…" : "📎 Add image / video"}
+          <span className="text-ink-soft">· ≤ 25 MB</span>
+        </button>
+        {attachments.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {attachments.map((a, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 rounded-lg border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.5)] px-2 py-1 text-xs text-ink-mid"
+              >
+                <span>{a.type === "image" ? "🖼️" : a.type === "video" ? "🎬" : "📎"}</span>
+                <span className="max-w-[140px] truncate">{a.name || "file"}</span>
+                <button
+                  onClick={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                  className="text-ink-soft hover:text-[#e57373]"
+                  title="Remove"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

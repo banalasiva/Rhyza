@@ -339,3 +339,58 @@ body {
 .weight-bar-fill {
   transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+/* Quorum hero — a sunlit circle of stakeholders */
+@keyframes quorumSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes quorumPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+@keyframes quorumBob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2.5px);
+  }
+}
+@keyframes quorumBird {
+  from {
+    transform: translateX(-10px);
+    opacity: 0;
+  }
+  10%,
+  90% {
+    opacity: 0.8;
+  }
+  to {
+    transform: translateX(60px);
+    opacity: 0;
+  }
+}
+.quorum-spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: quorumSpin 70s linear infinite;
+}
+.quorum-pulse {
+  animation: quorumPulse 4s ease-in-out infinite;
+}
+.quorum-bob {
+  animation: quorumBob 3.5s ease-in-out infinite;
+}
+.quorum-bird {
+  animation: quorumBird 9s ease-in-out infinite;
+}

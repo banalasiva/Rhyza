@@ -115,6 +115,7 @@ export const createPollSchema = z.object({
   question: z.string().min(3, "Ask a clear question").max(300),
   options: z.array(z.string().min(1).max(200)).min(2, "Add at least two options").max(8),
   weightMode: z.enum(["equal", "stake"]).optional().default("equal"),
+  attachments: z.array(attachmentSchema).max(6).optional().default([]),
 });
 
 export const pollVoteSchema = z.object({
