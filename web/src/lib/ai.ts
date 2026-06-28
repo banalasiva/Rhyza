@@ -54,6 +54,63 @@ async function complete(
   return textFromMessage(msg);
 }
 
+// A web source the AI actually cited — the durable, checkable material that
+// makes a reply trustworthy enough to carry into a bloom.
+export type Source = { url: string; title: string };
+
+// The latest server-side web search tool (dynamic filtering), supported on
+// Opus 4.8. The model decides when to reach for it; we just make it available.
+const WEB_SEARCH_TOOL: Anthropic.WebSearchTool20260209 = {
+  type: "web_search_20260209",
+  name: "web_search",
+  max_uses: 5,
+};
+
+// Collect the unique web pages Claude cited, in first-seen order, capped.
+function citedSources(msg: Anthropic.Message, cap = 6): Source[] {
+  const seen = new Set<string>();
+  const out: Source[] = [];
+  for (const block of msg.content) {
+    if (block.type !== "text" || !block.citations) continue;
+    for (const c of block.citations) {
+      if (c.type !== "web_search_result_location") continue;
+      if (seen.has(c.url)) continue;
+      seen.add(c.url);
+      out.push({ url: c.url, title: (c.title || c.url).trim() });
+      if (out.length >= cap) return out;
+    }
+  }
+  return out;
+}
+
+// One Claude completion WITH web search available, so @claude can answer
+// questions about the current, real world (today's prices, what's open near
+// someone, recent events). Returns the prose plus whatever it cited. THROWS on
+// API error like complete().
+async function completeSearched(
+  system: string,
+  prompt: string | Anthropic.ContentBlockParam[],
+  maxTokens = 1536,
+): Promise<{ text: string; sources: Source[] }> {
+  const stream = getClient().messages.stream({
+    model: MODEL,
+    max_tokens: maxTokens,
+    system,
+    messages: [{ role: "user", content: prompt }],
+    tools: [WEB_SEARCH_TOOL],
+  });
+  const msg = await stream.finalMessage();
+  return { text: textFromMessage(msg), sources: citedSources(msg) };
+}
+
+// Render cited sources as a compact footer appended to an AI reply. Empty when
+// nothing was searched, so non-search replies look exactly as before.
+export function sourcesFooter(sources: Source[]): string {
+  if (sources.length === 0) return "";
+  const lines = sources.map((s) => `- [${s.title}](${s.url})`);
+  return `\n\nSources:\n${lines.join("\n")}`;
+}
+
 export type ContribForAI = {
   dimension: string;
   author: string;
@@ -162,18 +219,24 @@ export async function claudeReply(input: {
     .join("\n");
 
   // Throws on API error so the route can show the real reason. Images in the
-  // thread are attached as vision blocks so Claude can actually see them.
-  const text = await complete(
+  // thread are attached as vision blocks so Claude can actually see them. Web
+  // search is available so questions about the current, real world (today's
+  // prices, what's open nearby, recent events) get a real answer instead of "I
+  // can't access that" — the model decides when to search.
+  const { text, sources } = await completeSearched(
     "You are Claude, a thoughtful participant in a Rhyza learning conversation — a " +
       "collaborative knowledge garden where members explore a topic together. Someone " +
       "tagged you with @claude. Answer their question or add genuinely useful, specific " +
       "insight grounded in the discussion so far (including any images shown). Don't just " +
-      "repeat what's been said. Be concise (1–3 short paragraphs), warm, and direct. Output " +
+      "repeat what's been said. When the question depends on current or real-world facts " +
+      "(prices, availability, local listings, recent events), use web search and ground your " +
+      "answer in what you find. Be concise (1–3 short paragraphs), warm, and direct. Output " +
       "only your reply — no greeting like 'Sure!', no sign-off, and don't refer to yourself " +
       "in the third person.",
     userMessage(prompt, collectImages(input.contributions)),
   );
-  return text || null;
+  if (!text) return null;
+  return text + sourcesFooter(sources);
 }
 
 // Shared mediator brief, parameterised by which AI is speaking.
@@ -303,9 +366,52 @@ function openaiUserContent(
   ];
 }
 
+// Build the Responses-API input for a single user turn, attaching images as
+// input_image parts when present. The Responses API (not chat.completions) is
+// what carries the web_search tool, so the @chatgpt reply path uses it.
+function openaiResponseInput(
+  text: string,
+  images: string[],
+): OpenAI.Responses.ResponseInput {
+  const parts: OpenAI.Responses.ResponseInputContent[] = [
+    { type: "input_text", text },
+    ...images.map(
+      (url): OpenAI.Responses.ResponseInputContent => ({
+        type: "input_image",
+        image_url: url,
+        detail: "auto",
+      }),
+    ),
+  ];
+  return [{ role: "user", content: parts }];
+}
+
+// Collect the web pages ChatGPT cited (url_citation annotations on its output
+// text), unique and capped — the OpenAI mirror of citedSources().
+function openaiCitedSources(resp: OpenAI.Responses.Response, cap = 6): Source[] {
+  const seen = new Set<string>();
+  const out: Source[] = [];
+  for (const item of resp.output) {
+    if (item.type !== "message") continue;
+    for (const part of item.content) {
+      if (part.type !== "output_text") continue;
+      for (const a of part.annotations) {
+        if (a.type !== "url_citation") continue;
+        if (seen.has(a.url)) continue;
+        seen.add(a.url);
+        out.push({ url: a.url, title: (a.title || a.url).trim() });
+        if (out.length >= cap) return out;
+      }
+    }
+  }
+  return out;
+}
+
 // ChatGPT's reply when a member tags @chatgpt. Returns null if AI isn't
 // configured or the reply is empty; THROWS on API error so the route can show
-// the real reason (mirrors claudeReply).
+// the real reason (mirrors claudeReply). Uses the Responses API with web search
+// so @chatgpt can answer current/real-world questions the way the consumer app
+// can, and surfaces the sources it used.
 export async function chatgptReply(input: {
   title: string;
   content: string;
@@ -325,24 +431,23 @@ export async function chatgptReply(input: {
     .filter(Boolean)
     .join("\n");
 
-  const resp = await getOpenAI().chat.completions.create({
+  const resp = await getOpenAI().responses.create({
     model: OPENAI_MODEL,
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are ChatGPT, a thoughtful participant in a Rhyza learning conversation — a " +
-          "collaborative knowledge garden where members explore a topic together. Someone tagged " +
-          "you with @chatgpt. Answer their question or add genuinely useful, specific insight " +
-          "grounded in the discussion so far (including any images shown). Don't just repeat what's " +
-          "been said. Be concise (1–3 short paragraphs), warm, and direct. Output only your reply — " +
-          "no greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.",
-      },
-      { role: "user", content: openaiUserContent(prompt, collectImages(input.contributions)) },
-    ],
+    instructions:
+      "You are ChatGPT, a thoughtful participant in a Rhyza learning conversation — a " +
+      "collaborative knowledge garden where members explore a topic together. Someone tagged " +
+      "you with @chatgpt. Answer their question or add genuinely useful, specific insight " +
+      "grounded in the discussion so far (including any images shown). Don't just repeat what's " +
+      "been said. When the question depends on current or real-world facts (prices, availability, " +
+      "local listings, recent events), use web search and ground your answer in what you find. " +
+      "Be concise (1–3 short paragraphs), warm, and direct. Output only your reply — " +
+      "no greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.",
+    input: openaiResponseInput(prompt, collectImages(input.contributions)),
+    tools: [{ type: "web_search" }],
   });
-  const text = resp.choices[0]?.message?.content?.trim() ?? "";
-  return text || null;
+  const text = resp.output_text.trim();
+  if (!text) return null;
+  return text + sourcesFooter(openaiCitedSources(resp));
 }
 
 // An AI casts its read on how mature the discussion is — a real quorum vote.

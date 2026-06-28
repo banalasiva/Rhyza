@@ -132,6 +132,14 @@ body {
     color: var(--ink);
     font-weight: 600;
   }
+  .prose-inline a {
+    color: #66bb6a;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .prose-inline a:hover {
+    color: #81c784;
+  }
   .mention {
     color: #66bb6a;
     background: rgba(76, 175, 80, 0.12);
