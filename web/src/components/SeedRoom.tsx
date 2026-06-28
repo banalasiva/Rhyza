@@ -28,6 +28,7 @@ import { Icon, type IconName } from "@/components/Icon";
 import { ReadAloud } from "@/components/ReadAloud";
 import { MicButton } from "@/components/MicButton";
 import { MessageActions } from "@/components/MessageActions";
+import { SeedInvite } from "@/components/SeedInvite";
 
 const SEED_TABS = [
   { key: "discussion", label: "Discussion", icon: "discussion" },
@@ -864,92 +865,22 @@ export function SeedRoom({
           </div>
         ) : (
           <>
-            <p className="eyebrow mb-2">
-              🌱 Seed · by {seed.author?.name || "someone"} · {participants} participant
-              {participants === 1 ? "" : "s"} · {visibility === "private" ? "🔒 Private" : "🌍 Public"}
-            </p>
-            {/* Tap the question for its actions (edit / visibility / delete). */}
-            <div className="relative mb-4">
-              <button
-                onClick={() => setSeedMenu((v) => !v)}
-                aria-expanded={seedMenu}
-                aria-haspopup="menu"
-                className="group flex w-full items-start gap-2 text-left"
-                title="Tap for options"
-              >
-                <h1 className="serif-xl">{seedTitle}</h1>
-                <span
-                  className="mt-2 shrink-0 text-lg leading-none text-ink-soft transition group-hover:text-ink"
-                  aria-hidden
-                >
-                  ⋯
-                </span>
-              </button>
-              {seedMenu && (
-                <>
-                  <button
-                    className="fixed inset-0 z-10 cursor-default"
-                    aria-label="Close menu"
-                    onClick={() => setSeedMenu(false)}
-                  />
-                  <div
-                    role="menu"
-                    className="absolute left-0 top-full z-20 mt-1 w-56 rounded-xl border border-[rgba(76,175,80,0.22)] bg-[#0B120B] p-1.5 shadow-xl"
-                  >
-                    {seed.canManage && (
-                      <button
-                        onClick={() => {
-                          setSeedMenu(false);
-                          setSeedTitleDraft(seedTitle);
-                          setSeedContentDraft(seedContent);
-                          setEditingSeed(true);
-                        }}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-ink-mid transition hover:text-ink"
-                      >
-                        ✎ Edit question
-                      </button>
-                    )}
-                    {seed.canManage && (
-                      <button
-                        onClick={() => {
-                          setSeedMenu(false);
-                          toggleVisibility();
-                        }}
-                        disabled={visBusy}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-ink-mid transition hover:text-ink disabled:opacity-50"
-                      >
-                        {visibility === "private" ? "🌍 Make public" : "🔒 Make private"}
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        setSeedMenu(false);
-                        setShowHelp(true);
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-ink-mid transition hover:text-ink"
-                    >
-                      <Icon name="info" size={14} /> How it works
-                    </button>
-                    {seed.canManage && (
-                      <button
-                        onClick={() => {
-                          setSeedMenu(false);
-                          removeSeed();
-                        }}
-                        disabled={busy}
-                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-[#e57373] transition hover:opacity-80"
-                      >
-                        <Icon name="delete" size={14} /> Delete seed
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {seedContent && (
-              <p className="card mb-4 p-4 text-sm text-ink-mid">{seedContent}</p>
-            )}
+            <h1 className="serif-xl mb-1 break-words">{seedTitle}</h1>
+            {/* Slack-style one-line meta — tap to open the details sheet. */}
+            <button
+              onClick={() => setSeedMenu(true)}
+              aria-haspopup="dialog"
+              className="mb-4 inline-flex items-center gap-1.5 text-xs text-ink-soft transition hover:text-ink"
+            >
+              <span>{visibility === "private" ? "🔒 Private" : "🌍 Public"}</span>
+              <span aria-hidden>·</span>
+              <span>
+                {participants} member{participants === 1 ? "" : "s"}
+              </span>
+              <span aria-hidden className="text-sm leading-none">
+                ⌄
+              </span>
+            </button>
           </>
         )}
 
@@ -1525,6 +1456,107 @@ export function SeedRoom({
                     <Icon name="delete" size={14} /> Delete
                   </button>
                 </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Seed details sheet — tap the question/meta to open. Visibility, member
+          count, framing, and every seed action in one tidy place. */}
+      {seedMenu && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <button
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            aria-label="Close"
+            onClick={() => setSeedMenu(false)}
+          />
+          <div
+            role="dialog"
+            aria-label="Seed details"
+            className="relative z-10 max-h-[85vh] w-full max-w-md overflow-auto rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 shadow-2xl sm:rounded-2xl"
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-wide text-ink-soft">
+                  {visibility === "private" ? "🔒 Private seed" : "🌍 Public seed"} ·{" "}
+                  {participants} member{participants === 1 ? "" : "s"}
+                </p>
+                <h2 className="serif-lg mt-0.5 break-words">{seedTitle}</h2>
+                <p className="mt-0.5 text-xs text-ink-soft">by {seed.author?.name || "someone"}</p>
+              </div>
+              <button
+                onClick={() => setSeedMenu(false)}
+                aria-label="Close"
+                className="shrink-0 text-ink-soft transition hover:text-ink"
+              >
+                ✕
+              </button>
+            </div>
+
+            {seedContent && (
+              <p className="mb-3 rounded-xl bg-[rgba(255,255,255,0.03)] p-3 text-sm text-ink-mid">
+                {seedContent}
+              </p>
+            )}
+
+            {/* Invite — sharing is now part of the details panel */}
+            <div className="mb-3 border-t border-[rgba(255,255,255,0.06)] pt-3">
+              <SeedInvite
+                seedId={seed.id}
+                gardenName={seed.garden.name}
+                isPrivate={visibility === "private"}
+                inline
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="grid grid-cols-2 gap-2 border-t border-[rgba(255,255,255,0.06)] pt-3 text-sm">
+              {seed.canManage && (
+                <button
+                  onClick={() => {
+                    setSeedMenu(false);
+                    setSeedTitleDraft(seedTitle);
+                    setSeedContentDraft(seedContent);
+                    setEditingSeed(true);
+                  }}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
+                >
+                  ✎ Edit question
+                </button>
+              )}
+              {seed.canManage && (
+                <button
+                  onClick={() => {
+                    setSeedMenu(false);
+                    toggleVisibility();
+                  }}
+                  disabled={visBusy}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink disabled:opacity-50"
+                >
+                  {visibility === "private" ? "🌍 Make public" : "🔒 Make private"}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setSeedMenu(false);
+                  setShowHelp(true);
+                }}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
+              >
+                <Icon name="info" size={14} /> How it works
+              </button>
+              {seed.canManage && (
+                <button
+                  onClick={() => {
+                    setSeedMenu(false);
+                    removeSeed();
+                  }}
+                  disabled={busy}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[#e57373] transition hover:bg-[rgba(229,115,115,0.08)]"
+                >
+                  <Icon name="delete" size={14} /> Delete seed
+                </button>
               )}
             </div>
           </div>
