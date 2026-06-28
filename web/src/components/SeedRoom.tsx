@@ -18,6 +18,7 @@ import { PlantSvg } from "@/components/PlantSvg";
 import { HowItWorks } from "@/components/HowItWorks";
 import { RichEditor } from "@/components/RichEditor";
 import { InlineText } from "@/components/InlineText";
+import { CollapsibleText } from "@/components/CollapsibleText";
 import { Avatar } from "@/components/Avatar";
 import { Attachments, type Attachment } from "@/components/Attachments";
 import { StakeMap } from "@/components/StakeMap";
@@ -115,6 +116,8 @@ export function SeedRoom({
   const [draftAttachments, setDraftAttachments] = useState<Attachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null); // scroll target when switching tabs
+  const tabsMounted = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [blooming, setBlooming] = useState(false);
@@ -165,6 +168,17 @@ export function SeedRoom({
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // When the section tab changes (e.g. via the rail's "Open the Quorum tab"
+  // button at the bottom), bring the tabs/content back into view — otherwise
+  // you switch tabs but stay scrolled at the bottom of the previous one.
+  useEffect(() => {
+    if (!tabsMounted.current) {
+      tabsMounted.current = true; // skip the initial render
+      return;
+    }
+    tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [tab]);
 
   // Show the walkthrough automatically the first time someone opens a seed.
   useEffect(() => {
@@ -751,9 +765,10 @@ export function SeedRoom({
       <div>
         {/* Tabs: Discussion · Polls · Quorum */}
         <div
+          ref={tabsRef}
           role="tablist"
           aria-label="Seed sections"
-          className="mb-4 flex gap-1 rounded-full border border-[rgba(76,175,80,0.15)] bg-[rgba(7,13,7,0.5)] p-1 text-sm"
+          className="mb-4 flex scroll-mt-4 gap-1 rounded-full border border-[rgba(76,175,80,0.15)] bg-[rgba(7,13,7,0.5)] p-1 text-sm"
         >
           {SEED_TABS.map((t, idx) => {
             const active = tab === t.key;
@@ -1057,7 +1072,7 @@ export function SeedRoom({
                   <>
                     {c.text && (
                       <div className="mb-3 text-sm leading-relaxed text-ink">
-                        <InlineText text={c.text} />
+                        <CollapsibleText text={c.text} />
                       </div>
                     )}
                     <Attachments items={c.attachments ?? []} />

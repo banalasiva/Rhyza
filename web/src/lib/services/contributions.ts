@@ -599,38 +599,45 @@ export async function toggleEndorsement(userId: string, contributionId: string) 
       const endorserName = endorser?.name || "Someone";
       const text = ((contribution.content as { text?: string } | null)?.text ?? "").trim();
       const snippet = text.slice(0, 90);
-      const note = await db.notification.create({
-        data: {
-          recipientId: contribution.authorId,
-          actorId: userId,
-          type: "endorsement",
-          title: `${endorserName} found your point valuable ✦`,
-          body: snippet
-            ? `“${snippet}${text.length > 90 ? "…" : ""}” · in ${contribution.seed.title}`
-            : `in ${contribution.seed.title}`,
-          entityType: "seed",
-          entityId: contribution.seedId,
-        },
-        select: { id: true },
-      });
-      await deliver([
-        {
-          notificationId: note.id,
-          recipientId: contribution.authorId,
-          type: "endorsement",
-          push: {
+      // Best-effort: a notification hiccup (or not-yet-applied migration) must
+      // never break endorsing. The link jumps to the endorsed comment.
+      try {
+        const note = await db.notification.create({
+          data: {
+            recipientId: contribution.authorId,
+            actorId: userId,
+            type: "endorsement",
             title: `${endorserName} found your point valuable ✦`,
-            body: contribution.seed.title,
+            body: snippet
+              ? `“${snippet}${text.length > 90 ? "…" : ""}” · in ${contribution.seed.title}`
+              : `in ${contribution.seed.title}`,
+            entityType: "seed",
+            entityId: contribution.seedId,
+            anchorId: contributionId,
           },
-          link: `/seeds/${contribution.seedId}`,
-          email: {
-            kind: "endorsement",
-            seedTitle: contribution.seed.title,
-            actorName: endorserName,
-            snippet,
+          select: { id: true },
+        });
+        await deliver([
+          {
+            notificationId: note.id,
+            recipientId: contribution.authorId,
+            type: "endorsement",
+            push: {
+              title: `${endorserName} found your point valuable ✦`,
+              body: snippet || contribution.seed.title,
+            },
+            link: `/seeds/${contribution.seedId}#c-${contributionId}`,
+            email: {
+              kind: "endorsement",
+              seedTitle: contribution.seed.title,
+              actorName: endorserName,
+              snippet,
+            },
           },
-        },
-      ]);
+        ]);
+      } catch (err) {
+        console.error("endorsement notification failed", err);
+      }
     }
   }
   const count = await db.contributionEndorsement.count({ where: { contributionId } });
