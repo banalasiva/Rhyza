@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 // The Quorum banner: "everyone who carries this comes together." Prefers the
-// uploaded photo at /public/quorum-circle.png; if that's missing it falls back
+// uploaded photo at /public/quorum-circle.jpg; if that's missing it falls back
 // to the animated SVG below, so the tab is never broken.
 export function QuorumCircle() {
   const [imgOk, setImgOk] = useState(true);
