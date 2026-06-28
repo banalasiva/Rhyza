@@ -434,4 +434,4 @@ body {
   animation: quorumBird 9s ease-in-out infinite;
 }
 
-/* deploy-pipeline check — after fresh reconnect of rhyza-8q4a (4) */
+/* deploy-pipeline check — via GitHub Action + Vercel Deploy Hook (5) */
