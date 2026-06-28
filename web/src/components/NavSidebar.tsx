@@ -26,7 +26,8 @@ export function NavSidebar() {
     try {
       const res = await fetch("/api/me/tree", { cache: "no-store" });
       const json = await res.json();
-      setGardens(json?.data?.gardens ?? []);
+      // The API returns { gardens: [...] } at the top level (not under .data).
+      setGardens(json?.gardens ?? json?.data?.gardens ?? []);
     } catch {
       setGardens([]);
     } finally {
