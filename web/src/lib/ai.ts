@@ -228,11 +228,13 @@ export async function claudeReply(input: {
       "collaborative knowledge garden where members explore a topic together. Someone " +
       "tagged you with @claude. Answer their question or add genuinely useful, specific " +
       "insight grounded in the discussion so far (including any images shown). Don't just " +
-      "repeat what's been said. When the question depends on current or real-world facts " +
-      "(prices, availability, local listings, recent events), use web search and ground your " +
-      "answer in what you find. Be concise (1–3 short paragraphs), warm, and direct. Output " +
-      "only your reply — no greeting like 'Sure!', no sign-off, and don't refer to yourself " +
-      "in the third person.",
+      "repeat what's been said. You have a web_search tool: whenever the question is about " +
+      "specific places, shops, businesses, prices, products, availability, addresses, or " +
+      "anything local, recent, or real-world (e.g. 'names and locations of stores near X'), " +
+      "you MUST search the web first and answer with concrete specifics — real names, " +
+      "neighbourhoods, and links — not generic advice like 'try Google Maps'. Be concise " +
+      "(1–3 short paragraphs), warm, and direct. Output only your reply — no greeting like " +
+      "'Sure!', no sign-off, and don't refer to yourself in the third person.",
     userMessage(prompt, collectImages(input.contributions)),
   );
   if (!text) return null;
@@ -431,23 +433,43 @@ export async function chatgptReply(input: {
     .filter(Boolean)
     .join("\n");
 
-  const resp = await getOpenAI().responses.create({
+  const system =
+    "You are ChatGPT, a thoughtful participant in a Rhyza learning conversation — a " +
+    "collaborative knowledge garden where members explore a topic together. Someone tagged " +
+    "you with @chatgpt. Answer their question or add genuinely useful, specific insight " +
+    "grounded in the discussion so far (including any images shown). Don't just repeat what's " +
+    "been said. You have a web search tool: whenever the question is about specific places, " +
+    "shops, businesses, prices, products, availability, addresses, or anything local, recent, " +
+    "or real-world (e.g. 'names and locations of stores near X'), you MUST search the web first " +
+    "and answer with concrete specifics — real names, neighbourhoods, and links — not generic " +
+    "advice like 'try Google Maps'. Be concise (1–3 short paragraphs), warm, and direct. Output " +
+    "only your reply — no greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.";
+  const images = collectImages(input.contributions);
+
+  try {
+    const resp = await getOpenAI().responses.create({
+      model: OPENAI_MODEL,
+      instructions: system,
+      input: openaiResponseInput(prompt, images),
+      tools: [{ type: "web_search" }],
+    });
+    const text = resp.output_text.trim();
+    if (text) return text + sourcesFooter(openaiCitedSources(resp));
+  } catch (err) {
+    // Some OpenAI models don't support the Responses web_search tool. Rather
+    // than leave the mention unanswered, fall back to a plain reply below.
+    console.error("chatgptReply web search failed, falling back", err);
+  }
+
+  const resp = await getOpenAI().chat.completions.create({
     model: OPENAI_MODEL,
-    instructions:
-      "You are ChatGPT, a thoughtful participant in a Rhyza learning conversation — a " +
-      "collaborative knowledge garden where members explore a topic together. Someone tagged " +
-      "you with @chatgpt. Answer their question or add genuinely useful, specific insight " +
-      "grounded in the discussion so far (including any images shown). Don't just repeat what's " +
-      "been said. When the question depends on current or real-world facts (prices, availability, " +
-      "local listings, recent events), use web search and ground your answer in what you find. " +
-      "Be concise (1–3 short paragraphs), warm, and direct. Output only your reply — " +
-      "no greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.",
-    input: openaiResponseInput(prompt, collectImages(input.contributions)),
-    tools: [{ type: "web_search" }],
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: openaiUserContent(prompt, images) },
+    ],
   });
-  const text = resp.output_text.trim();
-  if (!text) return null;
-  return text + sourcesFooter(openaiCitedSources(resp));
+  const text = resp.choices[0]?.message?.content?.trim() ?? "";
+  return text || null;
 }
 
 // An AI casts its read on how mature the discussion is — a real quorum vote.

@@ -254,6 +254,28 @@ export function SeedRoom({
     const tagsClaude = /(^|[^a-zA-Z0-9])@claude\b/i.test(text);
     const tagsChatGpt = /(^|[^a-zA-Z0-9])@(chatgpt|openai|gpt)\b/i.test(text);
     const tagsAI = tagsClaude || tagsChatGpt;
+
+    // Print the person's own message immediately, before the AI is asked, so
+    // the order reads naturally: your message first, the AI's answer after. We
+    // reuse the viewer's name/avatar from any message they've already posted;
+    // the server's canonical record replaces this the moment it returns.
+    const tempId = `temp-${Date.now()}`;
+    const mine = contributions.find((c) => c.author.id === currentUserId)?.author;
+    const sentAttachments = draftAttachments;
+    const optimistic = hydrate({
+      id: tempId,
+      dimension: "understanding",
+      text,
+      attachments: sentAttachments,
+      parentId: null,
+      author: mine ?? { id: currentUserId, name: "You", image: null },
+      createdAt: new Date().toISOString(),
+    });
+    setContributions((prev) => [...prev, optimistic]);
+    setDraft("");
+    setDraftAttachments([]);
+    playNatureSound("drop");
+
     try {
       // If an AI is tagged, show a "thinking" placeholder while it replies.
       if (tagsAI) {
@@ -263,17 +285,16 @@ export function SeedRoom({
       // No dimension sent — people just write; Claude labels it after posting.
       const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/contributions`, {
         text,
-        attachments: draftAttachments,
+        attachments: sentAttachments,
       });
       const replies = c.aiReplies ?? [];
+      // Swap the optimistic copy for the server's record, then append AI replies.
       setContributions((prev) => {
-        const next = [...prev, hydrate(c)];
+        const next = prev.map((x) => (x.id === tempId ? hydrate(c) : x));
         for (const r of replies) next.push(hydrate(r));
         return next;
       });
-      setDraft("");
-      setDraftAttachments([]);
-      playNatureSound(replies.length ? "chirp" : "drop");
+      if (replies.length) playNatureSound("chirp");
       if (tagsAI && replies.length === 0) {
         setError(
           c.aiError === "not_configured"
@@ -284,6 +305,10 @@ export function SeedRoom({
       // Let Claude label the dimension in the background; the badge fills in.
       classify(c.id);
     } catch (err) {
+      // Roll back the optimistic message and restore the draft so nothing is lost.
+      setContributions((prev) => prev.filter((x) => x.id !== tempId));
+      setDraft(text);
+      setDraftAttachments(sentAttachments);
       setError(err instanceof Error ? err.message : "Failed to contribute");
     } finally {
       setThinking(false);
