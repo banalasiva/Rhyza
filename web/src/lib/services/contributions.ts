@@ -337,20 +337,23 @@ export async function addContribution(
   const snippet = previewSnippet(input.text);
 
   // Notify the seed's author (unless they're the contributor) — with a taste of
-  // the message and a link straight to it.
+  // the message and a link straight to it. Best-effort: a notification hiccup
+  // (or a not-yet-applied migration) must never block posting.
   if (seed.createdById !== userId) {
-    await db.notification.create({
-      data: {
-        recipientId: seed.createdById,
-        actorId: userId,
-        type: "contribution",
-        title: "New contribution on your seed",
-        body: snippet ? `“${snippet}” · ${seed.title}` : seed.title,
-        entityType: "seed",
-        entityId: seedId,
-        anchorId: contribution.id,
-      },
-    });
+    await db.notification
+      .create({
+        data: {
+          recipientId: seed.createdById,
+          actorId: userId,
+          type: "contribution",
+          title: "New contribution on your seed",
+          body: snippet ? `“${snippet}” · ${seed.title}` : seed.title,
+          entityType: "seed",
+          entityId: seedId,
+          anchorId: contribution.id,
+        },
+      })
+      .catch((err) => console.error("seed-author notification failed", err));
   }
 
   // Notify anyone @-mentioned (in-app + email), as long as they can see the seed.
