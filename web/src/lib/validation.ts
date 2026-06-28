@@ -36,8 +36,20 @@ export const patchSeedSchema = z
     message: "Nothing to update",
   });
 
+// Attachments are only ever our own Vercel Blob uploads. Pinning the host stops
+// a crafted attachment URL from making the AI providers fetch arbitrary URLs
+// server-side (SSRF) when the image is passed to them as a vision input.
+function isUploadedFileUrl(u: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(u);
+    return protocol === "https:" && hostname.endsWith(".blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+}
+
 export const attachmentSchema = z.object({
-  url: z.string().url().max(2000),
+  url: z.string().url().max(2000).refine(isUploadedFileUrl, "Attachments must be uploaded files"),
   type: z.enum(["image", "video", "file"]),
   name: z.string().max(200).optional(),
 });

@@ -6,27 +6,14 @@ import { requireUserId } from "@/lib/authz";
 // (image/video/screenshot) straight to Vercel Blob, bypassing the serverless
 // body-size limit. Only signed-in users can upload.
 export async function POST(request: Request): Promise<NextResponse> {
-  // Precise diagnostics so we stop guessing: is the token even in this build?
-  const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) {
-    return NextResponse.json(
-      {
-        error:
-          "BLOB_READ_WRITE_TOKEN is NOT present in this running deployment. " +
-          "Redeploy AFTER adding it, and open the production URL (not a preview build).",
-      },
-      { status: 400 },
-    );
+  // Authenticate FIRST — never reveal env/secret state to anonymous callers.
+  try {
+    await requireUserId();
+  } catch {
+    return NextResponse.json({ error: "Sign in to upload." }, { status: 401 });
   }
-  if (!token.startsWith("vercel_blob_rw_")) {
-    return NextResponse.json(
-      {
-        error:
-          "BLOB_READ_WRITE_TOKEN is present but malformed (it should start with " +
-          "'vercel_blob_rw_'). Replace its value with the real token from the Blob store.",
-      },
-      { status: 400 },
-    );
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json({ error: "Uploads aren't available right now." }, { status: 503 });
   }
 
   const body = (await request.json()) as HandleUploadBody;

@@ -73,12 +73,15 @@ type ShellArgs = {
 
 export function emailShell(a: ShellArgs): string {
   const glyph = a.glyph ?? "🌱";
+  // Escape href values defensively (HTML-attribute context).
+  const cta = escapeHtml(a.ctaLink);
+  const unsub = a.unsubLink ? escapeHtml(a.unsubLink) : "";
   const footer = `
     <p style="color:#5A6456;font-size:12px;line-height:1.6;margin:24px 0 0">
       ${escapeHtml(a.reason ?? "You're getting this because you're part of a ThinkThru garden.")}
       ${
-        a.unsubLink
-          ? `<br><a href="${a.unsubLink}" style="color:#5A6456;text-decoration:underline">Turn off emails like this</a>`
+        unsub
+          ? `<br><a href="${unsub}" style="color:#5A6456;text-decoration:underline">Turn off emails like this</a>`
           : ""
       }
     </p>`;
@@ -95,11 +98,11 @@ export function emailShell(a: ShellArgs): string {
       </div>
       <div style="padding:8px 28px 28px">
         <div style="color:#A0A890;line-height:1.65;font-size:15px">${a.bodyHtml}</div>
-        <a href="${a.ctaLink}" style="display:inline-block;margin-top:20px;background:#4CAF50;color:#06120A;text-decoration:none;padding:12px 24px;border-radius:100px;font-weight:600;font-size:15px">
+        <a href="${cta}" style="display:inline-block;margin-top:20px;background:#4CAF50;color:#06120A;text-decoration:none;padding:12px 24px;border-radius:100px;font-weight:600;font-size:15px">
           ${escapeHtml(a.ctaText)}
         </a>
         <p style="color:#5A6456;font-size:12px;margin-top:18px;word-break:break-all">
-          Or open this link:<br><a href="${a.ctaLink}" style="color:#7BA37F">${a.ctaLink}</a>
+          Or open this link:<br><a href="${cta}" style="color:#7BA37F">${cta}</a>
         </p>
         ${footer}
       </div>
@@ -231,7 +234,7 @@ export function digestEmailHtml(args: {
   const rows = args.items
     .map(
       (it) => `
-      <a href="${it.link}" style="display:block;text-decoration:none;border:1px solid rgba(76,175,80,0.14);border-radius:12px;padding:13px 15px;margin-top:10px;background:#0E160E">
+      <a href="${escapeHtml(it.link)}" style="display:block;text-decoration:none;border:1px solid rgba(76,175,80,0.14);border-radius:12px;padding:13px 15px;margin-top:10px;background:#0E160E">
         <div style="color:#E8E4DC;font-size:14px;font-weight:600">${escapeHtml(it.title)}</div>
         ${it.body ? `<div style="color:#8A937E;font-size:13px;margin-top:3px">${escapeHtml(it.body)}</div>` : ""}
       </a>`,

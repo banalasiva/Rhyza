@@ -123,11 +123,13 @@ export async function getInviteByToken(token: string) {
   });
   if (!invite) return null;
   const expired = invite.expiresAt.getTime() < Date.now();
+  // Note: the invite's scoped `email` is intentionally NOT returned here — the
+  // accept page is unauthenticated, so we don't expose the target address to
+  // anyone holding the link. acceptInvite() checks the email match server-side.
   return {
     token: invite.token,
     status: invite.status,
     expired,
-    email: invite.email,
     orgName: invite.org.name,
     garden: invite.garden,
     inviterName: invite.invitedBy.name,

@@ -1,4 +1,4 @@
-import { handle, ok } from "@/lib/api";
+import { handle, ok, ApiError } from "@/lib/api";
 import { requireUserId } from "@/lib/authz";
 import { db } from "@/lib/db";
 import { pushConfigured, sendPushToUser } from "@/lib/push";
@@ -7,9 +7,13 @@ import { emailConfigured, appUrl } from "@/lib/email";
 export const dynamic = "force-dynamic";
 
 // GET /api/notifications/test — self-diagnostic. Sends a test push + test email
-// to the LOGGED-IN user only (never anyone else, so it's safe) and reports
-// exactly what is and isn't configured. Open it in the browser while signed in.
+// to the LOGGED-IN user and reports what's configured. Because it actually
+// sends mail/push, it's OFF by default and only runs when ENABLE_NOTIF_TEST=1
+// is set in the environment — flip it on to debug, then remove it.
 export const GET = handle(async () => {
+  if (process.env.ENABLE_NOTIF_TEST !== "1") {
+    throw new ApiError("NOT_FOUND", "Not found");
+  }
   const userId = await requireUserId();
 
   // User + prefs (also confirms the delivery migration's columns exist).
