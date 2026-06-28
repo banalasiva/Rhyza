@@ -24,6 +24,18 @@ export const setSeedVisibilitySchema = z.object({
   visibility: visibilityEnum,
 });
 
+// PATCH a seed: any of visibility, title, or framing (content). All optional so
+// the same endpoint serves both the visibility toggle and the edit form.
+export const patchSeedSchema = z
+  .object({
+    visibility: visibilityEnum.optional(),
+    title: z.string().min(4, "Give your seed a clear question").max(200).optional(),
+    content: z.string().max(5000).optional(),
+  })
+  .refine((d) => d.visibility !== undefined || d.title !== undefined || d.content !== undefined, {
+    message: "Nothing to update",
+  });
+
 export const attachmentSchema = z.object({
   url: z.string().url().max(2000),
   type: z.enum(["image", "video", "file"]),

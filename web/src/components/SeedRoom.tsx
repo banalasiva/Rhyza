@@ -99,7 +99,15 @@ export function SeedRoom({
   );
   const [tab, setTab] = useState<"discussion" | "polls" | "quorum">("discussion");
   const [stakeBoard, setStakeBoard] = useState<Board | null>(null);
-  const [evolveDismissed, setEvolveDismissed] = useState(false);
+  // Seed title/framing — local copies so an edit shows instantly.
+  const [seedTitle, setSeedTitle] = useState(seed.title);
+  const [seedContent, setSeedContent] = useState(seed.content);
+  const [seedMenu, setSeedMenu] = useState(false); // tap-the-question menu
+  const [editingSeed, setEditingSeed] = useState(false);
+  const [seedTitleDraft, setSeedTitleDraft] = useState(seed.title);
+  const [seedContentDraft, setSeedContentDraft] = useState(seed.content);
+  // Which message's action sheet is open (reactions + edit/copy/share/…).
+  const [sheetForId, setSheetForId] = useState<string | null>(null);
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
   const [retagId, setRetagId] = useState<string | null>(null); // open re-tag menu
   const [draft, setDraft] = useState("");
@@ -441,6 +449,37 @@ export function SeedRoom({
     }
   }
 
+  // Save an edit to the seed's question / framing.
+  async function saveSeedEdit() {
+    const title = seedTitleDraft.trim();
+    const content = seedContentDraft.trim();
+    if (title.length < 4) {
+      setError("Give your seed a clear question (at least 4 characters).");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/seeds/${seed.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error?.message ?? "Couldn't save the edit");
+      }
+      setSeedTitle(title);
+      setSeedContent(content);
+      setEditingSeed(false);
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't save the edit");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function spawnBurst(emoji: string, x: number, y: number) {
     const id = ++burstId.current;
     // A few emojis fan out for a little celebratory pop.
@@ -637,6 +676,9 @@ export function SeedRoom({
   // One linear conversation, chronological. (Dimensions live as per-message
   // badges + the on-demand AI summary, not as a manual filter.)
   const visibleContributions = contributions;
+  // The message whose action sheet is open (looked up live so reactions /
+  // endorsements stay current while the sheet is showing).
+  const sheetC = sheetForId ? contributions.find((c) => c.id === sheetForId) ?? null : null;
 
   return (
     <div className="relative mt-3 grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -745,29 +787,6 @@ export function SeedRoom({
           <SeedPolls seedId={seed.id} currentUserId={currentUserId} uploadsEnabled={uploadsEnabled} />
         ) : (
         <>
-        {/* Reopened to evolve — compact, dismissible */}
-        {!isBloomed && seed.bloomId && !evolveDismissed && (
-          <div className="mb-3 flex items-center gap-2 rounded-full border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.06)] px-3 py-1.5 text-xs">
-            <span className="flex items-center gap-1 text-accent">
-              <Icon name="evolve" size={14} /> Evolving
-            </span>
-            <span className="text-ink-soft">· published before</span>
-            <button
-              onClick={() => router.push(`/blooms/${seed.bloomId}`)}
-              className="text-ink-mid underline hover:text-ink"
-            >
-              view it
-            </button>
-            <button
-              onClick={() => setEvolveDismissed(true)}
-              className="ml-auto text-ink-soft transition hover:text-ink"
-              title="Dismiss"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
         {/* Bloomed → always offer the payoff, even if the live moment was missed */}
         {isBloomed && (
           <div className="mb-4 rounded-2xl border border-[rgba(255,179,0,0.35)] bg-[rgba(255,179,0,0.08)] p-4 text-center">
@@ -789,46 +808,129 @@ export function SeedRoom({
             </div>
           </div>
         )}
-        <div className="mb-3 flex flex-wrap items-center gap-3">
-          <p className="eyebrow">
-            🌱 Seed · by {seed.author?.name || "someone"} · {participants} participant{participants === 1 ? "" : "s"}
-          </p>
-          {/* Visibility — a pill for everyone, a toggle for managers */}
-          {seed.canManage ? (
-            <button
-              onClick={toggleVisibility}
-              disabled={visBusy}
-              title="Toggle who can see this seed"
-              className="rounded-full border border-[rgba(255,255,255,0.12)] px-3 py-1 text-xs text-ink-mid transition hover:text-ink"
-            >
-              {visibility === "private" ? "🔒 Private" : "🌍 Public"} · change
-            </button>
-          ) : (
-            <span className="rounded-full border border-[rgba(255,255,255,0.08)] px-3 py-1 text-xs text-ink-soft">
-              {visibility === "private" ? "🔒 Private" : "🌍 Public"}
-            </span>
-          )}
-          {seed.canManage && (
-            <button
-              onClick={removeSeed}
-              disabled={busy}
-              title="Delete this seed"
-              className="flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.1)] px-3 py-1 text-xs text-ink-soft transition hover:text-[#e57373]"
-            >
-              <Icon name="delete" size={13} /> Delete
-            </button>
-          )}
-          <button
-            onClick={() => setShowHelp(true)}
-            title="How ThinkThru works"
-            className="flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.1)] px-3 py-1 text-xs text-ink-soft transition hover:text-ink"
-          >
-            <Icon name="info" size={13} /> How it works
-          </button>
-        </div>
-        <h1 className="serif-xl mb-4">{seed.title}</h1>
+        {editingSeed ? (
+          /* Inline edit of the question + framing (managers only). */
+          <div className="mb-4">
+            <p className="eyebrow mb-2">✎ Edit your seed</p>
+            <input
+              className="input mb-2 text-base"
+              value={seedTitleDraft}
+              onChange={(e) => setSeedTitleDraft(e.target.value)}
+              placeholder="Your question"
+              autoFocus
+            />
+            <textarea
+              className="input min-h-[80px]"
+              value={seedContentDraft}
+              onChange={(e) => setSeedContentDraft(e.target.value)}
+              placeholder="Add framing or context (optional)"
+            />
+            <div className="mt-2 flex gap-2">
+              <button onClick={saveSeedEdit} disabled={busy} className="btn-primary px-3 py-1 text-xs">
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setEditingSeed(false);
+                  setSeedTitleDraft(seedTitle);
+                  setSeedContentDraft(seedContent);
+                }}
+                className="btn-ghost px-3 py-1 text-xs"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="eyebrow mb-2">
+              🌱 Seed · by {seed.author?.name || "someone"} · {participants} participant
+              {participants === 1 ? "" : "s"} · {visibility === "private" ? "🔒 Private" : "🌍 Public"}
+            </p>
+            {/* Tap the question for its actions (edit / visibility / delete). */}
+            <div className="relative mb-4">
+              <button
+                onClick={() => setSeedMenu((v) => !v)}
+                aria-expanded={seedMenu}
+                aria-haspopup="menu"
+                className="group flex w-full items-start gap-2 text-left"
+                title="Tap for options"
+              >
+                <h1 className="serif-xl">{seedTitle}</h1>
+                <span
+                  className="mt-2 shrink-0 text-lg leading-none text-ink-soft transition group-hover:text-ink"
+                  aria-hidden
+                >
+                  ⋯
+                </span>
+              </button>
+              {seedMenu && (
+                <>
+                  <button
+                    className="fixed inset-0 z-10 cursor-default"
+                    aria-label="Close menu"
+                    onClick={() => setSeedMenu(false)}
+                  />
+                  <div
+                    role="menu"
+                    className="absolute left-0 top-full z-20 mt-1 w-56 rounded-xl border border-[rgba(76,175,80,0.22)] bg-[#0B120B] p-1.5 shadow-xl"
+                  >
+                    {seed.canManage && (
+                      <button
+                        onClick={() => {
+                          setSeedMenu(false);
+                          setSeedTitleDraft(seedTitle);
+                          setSeedContentDraft(seedContent);
+                          setEditingSeed(true);
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-ink-mid transition hover:text-ink"
+                      >
+                        ✎ Edit question
+                      </button>
+                    )}
+                    {seed.canManage && (
+                      <button
+                        onClick={() => {
+                          setSeedMenu(false);
+                          toggleVisibility();
+                        }}
+                        disabled={visBusy}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-ink-mid transition hover:text-ink disabled:opacity-50"
+                      >
+                        {visibility === "private" ? "🌍 Make public" : "🔒 Make private"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setSeedMenu(false);
+                        setShowHelp(true);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-ink-mid transition hover:text-ink"
+                    >
+                      <Icon name="info" size={14} /> How it works
+                    </button>
+                    {seed.canManage && (
+                      <button
+                        onClick={() => {
+                          setSeedMenu(false);
+                          removeSeed();
+                        }}
+                        disabled={busy}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-[#e57373] transition hover:opacity-80"
+                      >
+                        <Icon name="delete" size={14} /> Delete seed
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
 
-        {seed.content && <p className="card mb-4 p-4 text-sm text-ink-mid">{seed.content}</p>}
+            {seedContent && (
+              <p className="card mb-4 p-4 text-sm text-ink-mid">{seedContent}</p>
+            )}
+          </>
+        )}
 
         {/* Compact AI helpers — summarize the thread, or ask an AI to mediate.
             Tucked into one small menu so it doesn't eat space on mobile. */}
@@ -1009,48 +1111,44 @@ export function SeedRoom({
                     <Attachments items={c.attachments ?? []} />
                   </>
                 )}
-                <div className="mb-2 flex flex-wrap gap-1.5">
-                  {reactions.map((r) => {
-                    const n = c.reactionCounts[r.key] ?? 0;
-                    const mine = c.myReactions.includes(r.key);
-                    return (
-                      <button
-                        key={r.key}
-                        onClick={(e) => react(c.id, r.key, e.currentTarget)}
-                        title={r.label}
-                        aria-pressed={mine}
-                        aria-label={`${r.label}${n > 0 ? `, ${n}` : ""}`}
-                        className={`inline-flex min-h-[28px] items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition active:scale-110 ${
-                          mine ? "border-accent text-accent" : "border-[rgba(255,255,255,0.08)] text-ink-soft hover:text-ink"
-                        }`}
-                      >
-                        <span aria-hidden>{r.emoji}</span>
-                        <span className="opacity-80">{r.label}</span>
-                        {n > 0 && <span className="font-medium">· {n}</span>}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="flex items-center gap-3 text-xs text-ink-soft">
-                  <button onClick={() => endorse(c.id)} aria-pressed={c.iEndorsed} className={`transition ${c.iEndorsed ? "text-bloom" : "hover:text-ink"}`}>
-                    <span aria-hidden>✦</span> {c.iEndorsed ? "Endorsed" : "Endorse"}
-                    {c.endorsementCount > 0 && ` · ${c.endorsementCount}`}
-                  </button>
-                  {c.text && <ReadAloud text={c.text} compact />}
-                  {c.text && <MessageActions text={c.text} path={`/seeds/${seed.id}`} />}
-                  {c.author?.id === currentUserId && (
-                    <>
-                      <button
-                        onClick={() => { setEditingId(c.id); setEditDraft(c.text); }}
-                        className="transition hover:text-ink"
-                      >
-                        ✎ Edit
-                      </button>
-                      <button onClick={() => removeContribution(c.id)} className="flex items-center gap-1 transition hover:text-[#e57373]">
-                        <Icon name="delete" size={12} /> Delete
-                      </button>
-                    </>
+                {/* Compact footer — existing reactions + a ⋯ that opens the
+                    full action sheet (react / endorse / copy / share / …). */}
+                <div className="mt-2 flex items-center gap-2 text-xs text-ink-soft">
+                  {reactions.some((r) => (c.reactionCounts[r.key] ?? 0) > 0) && (
+                    <button
+                      onClick={() => setSheetForId(c.id)}
+                      className="flex flex-wrap items-center gap-1"
+                      aria-label="Reactions — tap to react"
+                    >
+                      {reactions
+                        .filter((r) => (c.reactionCounts[r.key] ?? 0) > 0)
+                        .map((r) => (
+                          <span
+                            key={r.key}
+                            className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 ${
+                              c.myReactions.includes(r.key)
+                                ? "border-accent text-accent"
+                                : "border-[rgba(255,255,255,0.08)]"
+                            }`}
+                          >
+                            <span aria-hidden>{r.emoji}</span>
+                            <span>{c.reactionCounts[r.key]}</span>
+                          </span>
+                        ))}
+                    </button>
                   )}
+                  {c.endorsementCount > 0 && (
+                    <span className={c.iEndorsed ? "text-bloom" : ""} aria-label={`${c.endorsementCount} endorsements`}>
+                      ✦ {c.endorsementCount}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setSheetForId(c.id)}
+                    aria-label="Message actions"
+                    className="ml-auto rounded-full px-2 py-1 text-base leading-none transition hover:text-ink"
+                  >
+                    ⋯
+                  </button>
                 </div>
               </div>
             );
@@ -1306,6 +1404,111 @@ export function SeedRoom({
           </div>
         </div>
       </aside>
+
+      {/* Message action sheet — tap a message's ⋯ to react or act on it.
+          Keeps each message in the thread clean. */}
+      {sheetC && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+          <button
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            aria-label="Close"
+            onClick={() => setSheetForId(null)}
+          />
+          <div
+            role="dialog"
+            aria-label="Message actions"
+            className="relative z-10 w-full max-w-md rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 shadow-2xl sm:rounded-2xl"
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Avatar name={sheetC.author?.name} image={sheetC.author?.image} size={28} />
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-ink">{sheetC.author?.name || "Someone"}</p>
+                  <p className="truncate text-[11px] text-ink-soft">{sheetC.text || "attachment"}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSheetForId(null)}
+                aria-label="Close"
+                className="shrink-0 text-ink-soft transition hover:text-ink"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Reactions */}
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {reactions.map((r) => {
+                const mine = sheetC.myReactions.includes(r.key);
+                const n = sheetC.reactionCounts[r.key] ?? 0;
+                return (
+                  <button
+                    key={r.key}
+                    onClick={(e) => react(sheetC.id, r.key, e.currentTarget)}
+                    aria-pressed={mine}
+                    className={`inline-flex min-h-[34px] items-center gap-1 rounded-full border px-3 py-1 text-xs transition active:scale-110 ${
+                      mine
+                        ? "border-accent text-accent"
+                        : "border-[rgba(255,255,255,0.1)] text-ink-soft hover:text-ink"
+                    }`}
+                  >
+                    <span aria-hidden>{r.emoji}</span>
+                    <span>{r.label}</span>
+                    {n > 0 && <span className="font-medium">· {n}</span>}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Actions */}
+            <div className="grid grid-cols-2 gap-2 border-t border-[rgba(255,255,255,0.06)] pt-3 text-sm">
+              <button
+                onClick={() => endorse(sheetC.id)}
+                aria-pressed={sheetC.iEndorsed}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left transition hover:bg-[rgba(255,255,255,0.04)] ${
+                  sheetC.iEndorsed ? "text-bloom" : "text-ink-mid"
+                }`}
+              >
+                ✦ {sheetC.iEndorsed ? "Endorsed" : "Endorse"}
+                {sheetC.endorsementCount > 0 && ` · ${sheetC.endorsementCount}`}
+              </button>
+              {sheetC.text && (
+                <div className="flex items-center rounded-lg px-3 py-2 text-ink-mid">
+                  <ReadAloud text={sheetC.text} />
+                </div>
+              )}
+              {sheetC.text && (
+                <div className="col-span-2 flex items-center gap-3 rounded-lg px-3 py-2 text-ink-mid">
+                  <MessageActions text={sheetC.text} path={`/seeds/${seed.id}`} />
+                </div>
+              )}
+              {sheetC.author?.id === currentUserId && (
+                <>
+                  <button
+                    onClick={() => {
+                      setEditingId(sheetC.id);
+                      setEditDraft(sheetC.text);
+                      setSheetForId(null);
+                    }}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
+                  >
+                    ✎ Edit
+                  </button>
+                  <button
+                    onClick={() => {
+                      removeContribution(sheetC.id);
+                      setSheetForId(null);
+                    }}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[#e57373] transition hover:bg-[rgba(229,115,115,0.08)]"
+                  >
+                    <Icon name="delete" size={14} /> Delete
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

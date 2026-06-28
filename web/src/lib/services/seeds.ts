@@ -61,6 +61,21 @@ export async function setSeedVisibility(
   return { id: seedId, visibility };
 }
 
+// Edit a seed's question and/or framing — creator / seed steward only.
+export async function updateSeed(
+  userId: string,
+  seedId: string,
+  data: { title?: string; content?: string },
+) {
+  await requireSeedManager(userId, seedId);
+  const patch: { title?: string; content?: string } = {};
+  if (data.title !== undefined) patch.title = data.title;
+  if (data.content !== undefined) patch.content = data.content;
+  if (Object.keys(patch).length === 0) return { id: seedId };
+  await db.seed.update({ where: { id: seedId }, data: patch });
+  return { id: seedId, ...patch };
+}
+
 // How many distinct people are participating in a seed: everyone who has
 // authored a (non-deleted) contribution, plus the seed's planter. Used to size
 // the bloom target. Matches the "participants" count shown in the UI.
