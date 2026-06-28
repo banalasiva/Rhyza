@@ -1,10 +1,27 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { mentionToken } from "@/lib/mentions";
 import { Avatar } from "@/components/Avatar";
 
 type Person = { id: string; name: string; image: string | null };
+
+// A unified @-mention item: people insert a structured token; the AIs insert
+// plain "@claude" / "@chatgpt" (detected server-side).
+type MentionItem = {
+  id: string;
+  name: string; // lowercase match key
+  label: string; // display name
+  image: string | null;
+  ai: boolean;
+  insert: string;
+};
+
+// The AIs are always taggable, even before anyone else has joined.
+const AI_MENTIONS: MentionItem[] = [
+  { id: "ai:claude", name: "claude", label: "Claude", image: null, ai: true, insert: "@claude" },
+  { id: "ai:chatgpt", name: "chatgpt gpt openai", label: "ChatGPT", image: null, ai: true, insert: "@chatgpt" },
+];
 
 // A lightweight "block" editor: a textarea with a formatting toolbar that wraps
 // the current selection in markdown markers (**bold**, *italic*, `code`), plus
@@ -30,11 +47,26 @@ export function RichEditor({
   const ref = useRef<HTMLTextAreaElement>(null);
   const [menu, setMenu] = useState<{ at: number; query: string } | null>(null);
   const [active, setActive] = useState(0);
+  // Touch devices: Enter makes a new line and a Send button submits (like Slack
+  // mobile). Desktop keeps Enter-to-send.
+  const [isTouch, setIsTouch] = useState(false);
+  useEffect(() => {
+    setIsTouch(typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)")?.matches === true);
+  }, []);
 
+  const allItems: MentionItem[] = [
+    ...AI_MENTIONS,
+    ...people.map((p) => ({
+      id: p.id,
+      name: p.name.toLowerCase(),
+      label: p.name,
+      image: p.image,
+      ai: false,
+      insert: mentionToken(p.name, p.id),
+    })),
+  ];
   const matches = menu
-    ? people
-        .filter((p) => p.name.toLowerCase().includes(menu.query.toLowerCase()))
-        .slice(0, 6)
+    ? allItems.filter((it) => it.name.includes(menu.query.toLowerCase())).slice(0, 6)
     : [];
   const showMenu = menu !== null && matches.length > 0;
 
@@ -56,7 +88,8 @@ export function RichEditor({
   function syncMenu(text: string, caret: number) {
     const before = text.slice(0, caret);
     const m = before.match(/(^|\s)@([^\s@]{0,40})$/);
-    if (m && people.length > 0) {
+    if (m) {
+      // Always offer the menu — the AIs are taggable even with no people listed.
       setMenu({ at: caret - m[2].length - 1, query: m[2] });
       setActive(0);
     } else {
@@ -69,13 +102,12 @@ export function RichEditor({
     syncMenu(e.target.value, e.target.selectionStart ?? e.target.value.length);
   }
 
-  function pick(person: Person) {
+  function pick(item: MentionItem) {
     const el = ref.current;
     if (!el || !menu) return;
     const caret = el.selectionStart ?? value.length;
-    const token = mentionToken(person.name, person.id);
-    const next = value.slice(0, menu.at) + token + " " + value.slice(caret);
-    const newCaret = menu.at + token.length + 1;
+    const next = value.slice(0, menu.at) + item.insert + " " + value.slice(caret);
+    const newCaret = menu.at + item.insert.length + 1;
     onChange(next);
     setMenu(null);
     requestAnimationFrame(() => {
@@ -108,8 +140,9 @@ export function RichEditor({
       if (k === "i") return (e.preventDefault(), wrap("*"));
       if (k === "e") return (e.preventDefault(), wrap("`"));
     }
-    // Enter sends; Shift+Enter inserts a newline.
-    if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey && onSubmit) {
+    // Desktop: Enter sends, Shift+Enter newline. Touch: Enter always newlines
+    // (the Send button submits), so typing multi-line on a phone isn't painful.
+    if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey && onSubmit && !isTouch) {
       e.preventDefault();
       onSubmit();
     }
@@ -128,9 +161,22 @@ export function RichEditor({
           <span className="font-mono text-xs">{"</>"}</span>
         </ToolbarButton>
         {toolbarExtra}
-        <span className="ml-auto self-center pr-1 text-[10px] text-ink-soft">
-          Enter to send · Shift+Enter for a new line
-        </span>
+        <div className="ml-auto flex items-center gap-2 self-center">
+          <span className="pr-1 text-[10px] text-ink-soft">
+            {isTouch ? "Tap Send to post" : "Enter to send · Shift+Enter for a new line"}
+          </span>
+          {isTouch && onSubmit && (
+            <button
+              type="button"
+              onClick={() => onSubmit()}
+              disabled={disabled}
+              className="rounded-md px-3 py-1 text-xs font-medium text-bg transition disabled:opacity-40"
+              style={{ background: "var(--accent)" }}
+            >
+              Send
+            </button>
+          )}
+        </div>
       </div>
       <textarea
         ref={ref}
@@ -145,20 +191,31 @@ export function RichEditor({
       />
       {showMenu && (
         <div className="absolute left-0 right-0 z-30 mt-1 max-h-60 overflow-auto rounded-xl border border-[rgba(76,175,80,0.25)] bg-[rgba(10,16,10,0.98)] p-1 shadow-xl backdrop-blur">
-          {matches.map((p, i) => (
+          {matches.map((it, i) => (
             <button
-              key={p.id}
+              key={it.id}
               type="button"
               onMouseDown={(e) => {
                 e.preventDefault();
-                pick(p);
+                pick(it);
               }}
               className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition ${
                 i === active ? "bg-[rgba(76,175,80,0.18)] text-ink" : "text-ink-mid hover:text-ink"
               }`}
             >
-              <Avatar name={p.name} image={p.image} size={22} />
-              <span>{p.name}</span>
+              {it.ai ? (
+                <span className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[rgba(76,175,80,0.18)] text-[12px] text-accent">
+                  ✦
+                </span>
+              ) : (
+                <Avatar name={it.label} image={it.image} size={22} />
+              )}
+              <span>{it.label}</span>
+              {it.ai && (
+                <span className="ml-auto rounded-full bg-[rgba(76,175,80,0.12)] px-1.5 py-0.5 text-[9px] text-accent">
+                  AI
+                </span>
+              )}
             </button>
           ))}
         </div>
