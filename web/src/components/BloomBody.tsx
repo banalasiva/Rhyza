@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ReadAloud } from "@/components/ReadAloud";
 
 // The bloom's title + summary, with inline editing. Blooms are AI-synthesized
 // but collaborative — any member can refine the text.
@@ -106,7 +107,8 @@ export function BloomBody({
         {summary}
       </article>
 
-      <div className="mt-3 text-right">
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <ReadAloud text={`${title}. ${summary}`} />
         <button onClick={() => setEditing(true)} className="btn-ghost px-4 py-1.5 text-xs">
           ✎ Edit bloom
         </button>

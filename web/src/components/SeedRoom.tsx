@@ -25,6 +25,8 @@ import { StakeBoard, type Board } from "@/components/StakeBoard";
 import { SeedPolls } from "@/components/SeedPolls";
 import { QuorumCircle } from "@/components/QuorumCircle";
 import { Icon, type IconName } from "@/components/Icon";
+import { ReadAloud } from "@/components/ReadAloud";
+import { MicButton } from "@/components/MicButton";
 
 const SEED_TABS = [
   { key: "discussion", label: "Discussion", icon: "discussion" },
@@ -902,6 +904,7 @@ export function SeedRoom({
                     <span aria-hidden>✦</span> {c.iEndorsed ? "Endorsed" : "Endorse"}
                     {c.endorsementCount > 0 && ` · ${c.endorsementCount}`}
                   </button>
+                  {c.text && <ReadAloud text={c.text} compact />}
                   {c.author?.id === currentUserId && (
                     <>
                       <button
@@ -966,6 +969,11 @@ export function SeedRoom({
                   contribute();
               }}
               toolbarExtra={
+                <>
+                <MicButton
+                  disabled={busy}
+                  onText={(t) => setDraft((d) => (d.trim() ? `${d.trim()} ${t}` : t))}
+                />
                 <button
                   type="button"
                   onClick={() =>
@@ -983,6 +991,7 @@ export function SeedRoom({
                 >
                   {uploading ? "⏳" : <Icon name="attach" size={15} />}
                 </button>
+                </>
               }
             />
 
