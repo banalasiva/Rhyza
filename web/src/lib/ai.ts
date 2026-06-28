@@ -472,6 +472,62 @@ export async function chatgptReply(input: {
   return text || null;
 }
 
+// Warm, personal copy for an impact-moment email — written by Claude or
+// ChatGPT so "your thought took root" reads like a real human noticing, not a
+// templated alert. Returns { heading, intro } or null (caller uses static copy
+// when AI is off or the call fails). Kept short and gated, so it's cheap.
+export async function composeImpactCopy(
+  provider: "claude" | "chatgpt",
+  input: {
+    kind: "bloom" | "endorsement";
+    recipientName: string;
+    seedTitle: string;
+    actorName?: string;
+    snippet?: string;
+  },
+): Promise<{ heading: string; intro: string } | null> {
+  const who = provider === "chatgpt" ? "ChatGPT" : "Claude";
+  const moment =
+    input.kind === "bloom"
+      ? `A seed they helped grow, "${input.seedTitle}", just bloomed into durable knowledge in the Sacred Tree. Their contribution mattered to the outcome.`
+      : `${input.actorName || "Someone"} marked their contribution in "${input.seedTitle}" as genuinely valuable${
+          input.snippet ? ` — the point was: "${input.snippet}"` : ""
+        }. They were understood.`;
+  const system =
+    `You are ${who}, writing a tiny, heartfelt notification email for Rhyza — a garden ` +
+    `where people grow ideas into shared knowledge. Celebrate the person's real impact ` +
+    `without flattery or hype. Warm, specific, human. No emojis, no exclamation spam. ` +
+    `Reply in exactly two lines:\nHEADING: <max 8 words>\nINTRO: <1–2 warm sentences to ${
+      input.recipientName || "them"
+    }>`;
+  const prompt = `The moment: ${moment}\nWrite the heading and intro.`;
+
+  try {
+    let text = "";
+    if (provider === "chatgpt") {
+      if (!openaiConfigured()) return null;
+      const resp = await getOpenAI().chat.completions.create({
+        model: OPENAI_MODEL,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: prompt },
+        ],
+      });
+      text = resp.choices[0]?.message?.content ?? "";
+    } else {
+      if (!aiConfigured()) return null;
+      text = await complete(system, prompt, 200);
+    }
+    const heading = text.match(/HEADING:\s*(.+)/i)?.[1]?.trim().slice(0, 80);
+    const intro = text.match(/INTRO:\s*([\s\S]+)/i)?.[1]?.trim().replace(/\s+/g, " ").slice(0, 400);
+    if (!heading || !intro) return null;
+    return { heading, intro };
+  } catch (err) {
+    console.error("composeImpactCopy failed", err);
+    return null;
+  }
+}
+
 // An AI casts its read on how mature the discussion is — a real quorum vote.
 // Returns { stage, note } or null if that provider isn't configured / failed.
 const STAGE_GUIDE =

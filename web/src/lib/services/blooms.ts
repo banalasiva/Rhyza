@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { requireSeedAccess, requireSeedManager } from "@/lib/authz";
 import { synthesizeBloom, type ContribForAI } from "@/lib/ai";
+import { deliver } from "@/lib/services/notify";
 
 const DIMENSION_ROLE: Record<string, { type: string; role: string }> = {
   foundations: { type: "explainer", role: "Laid the foundations" },
@@ -156,6 +157,27 @@ export async function createBloom(
     });
     return created;
   });
+
+  // Deliver the bloom moment to every contributor over email + push. The in-app
+  // rows were just written inside the transaction; fetch them for their ids so
+  // we can stamp delivery and never re-send in the digest. Best-effort.
+  const rows = await db.notification.findMany({
+    where: { type: "bloom", entityType: "bloom", entityId: bloom.id },
+    select: { id: true, recipientId: true },
+  });
+  await deliver(
+    rows.map((r) => ({
+      notificationId: r.id,
+      recipientId: r.recipientId,
+      type: "bloom",
+      push: {
+        title: "A seed you grew just bloomed 🌸",
+        body: `${seed.title} — now permanent knowledge in the Sacred Tree`,
+      },
+      link: `/blooms/${bloom.id}`,
+      email: { kind: "bloom", seedTitle: seed.title },
+    })),
+  );
 
   return bloom;
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireViewer } from "@/lib/session";
 import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
+import { NotificationSettings } from "@/components/NotificationSettings";
 
 function href(entityType: string | null, entityId: string | null): string {
   if (!entityId) return "/";
@@ -13,11 +14,17 @@ function href(entityType: string | null, entityId: string | null): string {
 
 export default async function NotificationsPage() {
   const viewer = await requireViewer();
-  const notifications = await db.notification.findMany({
-    where: { recipientId: viewer.userId },
-    orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
-    take: 50,
-  });
+  const [notifications, prefs] = await Promise.all([
+    db.notification.findMany({
+      where: { recipientId: viewer.userId },
+      orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
+      take: 50,
+    }),
+    db.user.findUnique({
+      where: { id: viewer.userId },
+      select: { emailNotify: true, pushNotify: true, digestNotify: true },
+    }),
+  ]);
   // Mark everything read on view so the bell badge clears.
   await db.notification.updateMany({
     where: { recipientId: viewer.userId, readAt: null },
@@ -33,6 +40,9 @@ export default async function NotificationsPage() {
           ← Your gardens
         </Link>
         <h1 className="serif-xl mb-6">🔔 Notifications</h1>
+        <NotificationSettings
+          initial={prefs ?? { emailNotify: true, pushNotify: true, digestNotify: true }}
+        />
         {notifications.length === 0 ? (
           <p className="text-sm text-ink-soft">Nothing yet. Go plant something. 🌱</p>
         ) : (

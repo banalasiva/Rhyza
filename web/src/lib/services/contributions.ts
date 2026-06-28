@@ -19,7 +19,7 @@ import { extractMentionIds } from "@/lib/mentions";
 import { requestAdmissionIfNeeded } from "@/lib/services/stake";
 import { settleStage } from "@/lib/services/voting";
 import { STAGES } from "@/lib/constants";
-import { appUrl, sendEmail, mentionEmailHtml, emailConfigured } from "@/lib/email";
+import { deliver } from "@/lib/services/notify";
 import { getReactionTypes } from "@/lib/registry";
 
 async function seedOrThrow(seedId: string) {
@@ -367,46 +367,39 @@ async function notifyMentions(
     const recipientIds = allowed.map((r) => r.userId);
     if (recipientIds.length === 0) return;
 
-    const [actor, recipients] = await Promise.all([
-      db.user.findUnique({ where: { id: actorId }, select: { name: true } }),
-      db.user.findMany({
-        where: { id: { in: recipientIds } },
-        select: { id: true, email: true, name: true },
-      }),
-    ]);
+    const actor = await db.user.findUnique({ where: { id: actorId }, select: { name: true } });
     const actorName = actor?.name || "Someone";
 
-    await db.notification.createMany({
-      data: recipientIds.map((rid) => ({
-        recipientId: rid,
-        actorId,
-        type: "mention",
-        title: `${actorName} mentioned you`,
-        body: seed.title,
-        entityType: "seed",
-        entityId: seed.id,
-      })),
-    });
+    // Create one row per recipient (not createMany) so we get their ids back
+    // and can stamp delivery on each.
+    const rows = await Promise.all(
+      recipientIds.map((rid) =>
+        db.notification.create({
+          data: {
+            recipientId: rid,
+            actorId,
+            type: "mention",
+            title: `${actorName} mentioned you`,
+            body: seed.title,
+            entityType: "seed",
+            entityId: seed.id,
+          },
+          select: { id: true, recipientId: true },
+        }),
+      ),
+    );
 
-    if (emailConfigured()) {
-      const link = `${appUrl()}/seeds/${seed.id}`;
-      await Promise.all(
-        recipients
-          .filter((r) => r.email)
-          .map((r) =>
-            sendEmail({
-              to: r.email,
-              subject: `${actorName} mentioned you on Rhyza`,
-              html: mentionEmailHtml({
-                actorName,
-                recipientName: r.name,
-                seedTitle: seed.title,
-                link,
-              }),
-            }),
-          ),
-      );
-    }
+    // Fan out to email + push (deliver respects each person's preferences).
+    await deliver(
+      rows.map((r) => ({
+        notificationId: r.id,
+        recipientId: r.recipientId,
+        type: "mention",
+        push: { title: `${actorName} mentioned you`, body: seed.title },
+        link: `/seeds/${seed.id}`,
+        email: { kind: "mention", seedTitle: seed.title, actorName },
+      })),
+    );
   } catch (err) {
     console.error("notifyMentions failed", err);
   }
@@ -562,21 +555,41 @@ export async function toggleEndorsement(userId: string, contributionId: string) 
       // An impact moment: name the person and echo the point, so it reads as
       // "you were understood," not a bare like.
       const endorser = await db.user.findUnique({ where: { id: userId }, select: { name: true } });
+      const endorserName = endorser?.name || "Someone";
       const text = ((contribution.content as { text?: string } | null)?.text ?? "").trim();
       const snippet = text.slice(0, 90);
-      await db.notification.create({
+      const note = await db.notification.create({
         data: {
           recipientId: contribution.authorId,
           actorId: userId,
           type: "endorsement",
-          title: `${endorser?.name || "Someone"} found your point valuable ✦`,
+          title: `${endorserName} found your point valuable ✦`,
           body: snippet
             ? `“${snippet}${text.length > 90 ? "…" : ""}” · in ${contribution.seed.title}`
             : `in ${contribution.seed.title}`,
           entityType: "seed",
           entityId: contribution.seedId,
         },
+        select: { id: true },
       });
+      await deliver([
+        {
+          notificationId: note.id,
+          recipientId: contribution.authorId,
+          type: "endorsement",
+          push: {
+            title: `${endorserName} found your point valuable ✦`,
+            body: contribution.seed.title,
+          },
+          link: `/seeds/${contribution.seedId}`,
+          email: {
+            kind: "endorsement",
+            seedTitle: contribution.seed.title,
+            actorName: endorserName,
+            snippet,
+          },
+        },
+      ]);
     }
   }
   const count = await db.contributionEndorsement.count({ where: { contributionId } });

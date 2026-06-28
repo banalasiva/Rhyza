@@ -30,12 +30,14 @@
     "openai": "^6.45.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "web-push": "^3.6.7",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.16.5",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
+    "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.4.47",
     "prisma": "^5.22.0",

@@ -72,8 +72,15 @@ model User {
   lastActiveAt DateTime? @map("last_active_at")
   deletedAt    DateTime? @map("deleted_at")
 
+  // Notification preferences + a one-click unsubscribe token for email footers.
+  emailNotify  Boolean   @default(true) @map("email_notify")
+  pushNotify   Boolean   @default(true) @map("push_notify")
+  digestNotify Boolean   @default(true) @map("digest_notify")
+  unsubToken   String?   @unique @map("unsub_token")
+
   accounts     Account[]
   sessions     Session[]
+  pushSubscriptions PushSubscription[]
 
   orgMemberships    OrgMember[]
   gardenMemberships GardenMember[]
@@ -517,6 +524,10 @@ model Notification {
   entityId    String?   @map("entity_id") @db.Uuid
   actorId     String?   @map("actor_id") @db.Uuid
   readAt      DateTime? @map("read_at")
+  // When this notification was delivered over each external channel, so the
+  // daily digest never re-sends what already went out instantly.
+  emailedAt   DateTime? @map("emailed_at")
+  pushedAt    DateTime? @map("pushed_at")
   createdAt   DateTime  @default(now()) @map("created_at")
 
   recipient User  @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
@@ -524,6 +535,22 @@ model Notification {
 
   @@index([recipientId, createdAt])
   @@map("notifications")
+}
+
+// A browser/device push subscription (Web Push). One person can have several —
+// phone, laptop — so we keep them per-endpoint and prune dead ones on send.
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 // ─────────────────────────────────────────────────────────────
