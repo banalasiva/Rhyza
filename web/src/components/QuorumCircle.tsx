@@ -1,8 +1,8 @@
 "use client";
 
-// An animated banner for the Quorum tab: a backlit circle of stakeholders around
-// a glowing mandala at sunset — the "everyone who carries this stands in the
-// circle" motif. Pure SVG/CSS, no asset to host. Below it, people weigh in.
+// A banner for the Quorum tab: people gathered in a circle around a glowing
+// sun-mandala at dusk — the "everyone who carries this comes together" motif.
+// Not about heroes; about coming together. Pure SVG/CSS, no asset to host.
 
 const FIGURES = Array.from({ length: 13 });
 
@@ -31,9 +31,13 @@ function Figure({ i, total }: { i: number; total: number }) {
   );
 }
 
-export function QuorumHero() {
+export function QuorumCircle() {
   return (
-    <div className="relative mb-4 h-36 w-full overflow-hidden rounded-2xl border border-[rgba(255,179,0,0.18)]">
+    <div
+      role="img"
+      aria-label="People gathered in a circle around a glowing sun at dusk — coming together to decide."
+      className="relative mb-4 h-36 w-full overflow-hidden rounded-2xl border border-[rgba(255,179,0,0.18)]"
+    >
       {/* sky / sunset */}
       <div
         className="absolute inset-0"

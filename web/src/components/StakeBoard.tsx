@@ -230,7 +230,7 @@ export function StakeBoard({
             <h2 className="serif-lg">Who carries this decision?</h2>
           </div>
           {!embedded && (
-            <button onClick={onClose} className="text-ink-soft transition hover:text-ink" title="Close">
+            <button onClick={onClose} className="text-ink-soft transition hover:text-ink" title="Close" aria-label="Close">
               ✕
             </button>
           )}

@@ -6,9 +6,48 @@
   --bg: #070d07;
   --ink: #e8e4dc;
   --ink-mid: #a0a890;
-  --ink-soft: #5a6456;
+  /* WCAG 2.2 AA: lifted from #5a6456 (~3.1:1) to ~5.5:1 on the dark bg so the
+     faintest secondary text still meets the 4.5:1 contrast minimum. */
+  --ink-soft: #828b79;
   --accent: #4caf50;
   --bloom: #ffb300;
+}
+
+/* WCAG 2.4.7 / 2.4.11 — a clearly visible keyboard focus indicator everywhere. */
+:focus-visible {
+  outline: 2px solid #8be59b;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* WCAG 2.3.3 / 2.2.2 — honour a user's request for less motion: neutralise the
+   ambient animations (mandala, bob, petals, pulses) without breaking layout. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Skip link — first focusable element, jumps past the chrome to the content. */
+.skip-link {
+  position: fixed;
+  top: -60px;
+  left: 12px;
+  z-index: 300;
+  padding: 8px 14px;
+  border-radius: 0 0 8px 8px;
+  background: var(--accent);
+  color: #07130a;
+  font-weight: 600;
+  transition: top 0.15s;
+}
+.skip-link:focus {
+  top: 0;
 }
 
 html,

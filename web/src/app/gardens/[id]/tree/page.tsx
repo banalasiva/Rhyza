@@ -19,7 +19,7 @@ export default async function SacredTreePage({
     <div className="relative min-h-screen">
       <div className="garden-bg" />
       <NavBar name={viewer.name} />
-      <main className="relative z-10 mx-auto max-w-5xl px-5 py-5">
+      <main id="main" className="relative z-10 mx-auto max-w-5xl px-5 py-5">
         <div className="mb-4 flex items-center justify-between">
           <Link href={`/gardens/${garden.id}`} className="btn-ghost px-3 py-1.5 text-xs">
             ← {garden.emoji} {garden.name}

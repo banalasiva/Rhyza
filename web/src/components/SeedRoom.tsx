@@ -23,7 +23,7 @@ import { Attachments, type Attachment } from "@/components/Attachments";
 import { StakeMap } from "@/components/StakeMap";
 import { StakeBoard, type Board } from "@/components/StakeBoard";
 import { SeedPolls } from "@/components/SeedPolls";
-import { QuorumHero } from "@/components/QuorumHero";
+import { QuorumCircle } from "@/components/QuorumCircle";
 import { Icon, type IconName } from "@/components/Icon";
 
 type ReactionType = { key: string; emoji: string; label: string };
@@ -616,7 +616,7 @@ export function SeedRoom({
 
         {tab === "quorum" ? (
           <>
-            <QuorumHero />
+            <QuorumCircle />
             <StakeBoard
               embedded
               seedId={seed.id}
@@ -946,6 +946,7 @@ export function SeedRoom({
                   }
                   disabled={busy || uploading}
                   title="Attach image, video, or screenshot"
+                  aria-label="Attach image, video, or screenshot"
                   className="flex h-7 items-center rounded-md border px-2 text-sm text-ink-mid transition hover:text-ink disabled:opacity-40"
                   style={{ borderColor: "rgba(76,175,80,0.2)" }}
                 >
@@ -1007,6 +1008,7 @@ export function SeedRoom({
               onClick={() => setMutedState((m) => !m)}
               className="absolute right-3 top-3 text-sm text-ink-soft hover:text-ink"
               title={muted ? "Unmute" : "Mute"}
+              aria-label={muted ? "Unmute sounds" : "Mute sounds"}
             >
               {muted ? "🔇" : "🔊"}
             </button>

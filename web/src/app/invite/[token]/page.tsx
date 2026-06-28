@@ -17,7 +17,7 @@ export default async function InvitePage({
     !invite || invite.status !== "pending" || invite.expired;
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center px-6">
+    <main id="main" className="relative flex min-h-screen items-center justify-center px-6">
       <div className="garden-bg" />
       <div className="card relative z-10 w-full max-w-sm p-8 text-center">
         <div className="mb-1 text-3xl">🌱</div>

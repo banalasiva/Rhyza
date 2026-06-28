@@ -30,9 +30,10 @@ export async function NavBar({ name }: { name?: string }) {
         <Link
           href="/notifications"
           title="Notifications"
+          aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
           className="relative rounded-full border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.6)] px-2.5 py-1.5 text-sm text-ink-mid transition hover:text-ink"
         >
-          🔔
+          <span aria-hidden>🔔</span>
           {unread > 0 && (
             <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-bg">
               {unread > 9 ? "9+" : unread}

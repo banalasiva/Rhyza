@@ -61,6 +61,8 @@ export function NavSidebar() {
       <button
         onClick={() => setOpenPersist(!open)}
         title="Your gardens & seeds"
+        aria-label="Your gardens and seeds"
+        aria-expanded={open}
         className="rounded-full border border-[rgba(76,175,80,0.2)] px-2.5 py-1 text-sm text-ink-mid transition hover:text-ink"
       >
         ☰

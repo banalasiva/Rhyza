@@ -18,7 +18,7 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
       <div className="relative min-h-screen">
         <div className="garden-bg" />
         <NavBar name={viewer.name} />
-        <main className="relative z-10 mx-auto max-w-md px-6 py-16 text-center">
+        <main id="main" className="relative z-10 mx-auto max-w-md px-6 py-16 text-center">
           <div className="mb-2 text-4xl">🍂</div>
           <h1 className="serif-lg mb-2">This bloom is no longer here</h1>
           <p className="mb-5 text-sm text-ink-mid">
@@ -37,7 +37,7 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
     <div className="relative min-h-screen">
       <div className="garden-bg" />
       <NavBar name={viewer.name} />
-      <main className="relative z-10 mx-auto max-w-2xl px-6 py-8">
+      <main id="main" className="relative z-10 mx-auto max-w-2xl px-6 py-8">
         <Link
           href={`/gardens/${bloom.garden.id}/tree`}
           className="btn-ghost inline-flex px-3 py-1.5 text-xs"
