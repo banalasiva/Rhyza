@@ -33,9 +33,11 @@ export function emailConfigured(): boolean {
 type SendArgs = { to: string; subject: string; html: string };
 
 export async function sendEmail({ to, subject, html }: SendArgs): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY;
+  // Trim defensively — a stray newline/space pasted into the env var would
+  // otherwise make the Authorization header invalid.
+  const apiKey = process.env.RESEND_API_KEY?.trim();
   if (!apiKey) return false; // not configured — caller falls back to the link
-  const from = process.env.RESEND_FROM || "ThinkThru <onboarding@resend.dev>";
+  const from = (process.env.RESEND_FROM || "ThinkThru <onboarding@resend.dev>").trim();
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {

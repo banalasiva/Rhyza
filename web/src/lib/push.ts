@@ -14,14 +14,14 @@ let configured: boolean | null = null;
 
 export function pushConfigured(): boolean {
   if (configured !== null) return configured;
-  const pub = process.env.VAPID_PUBLIC_KEY;
-  const priv = process.env.VAPID_PRIVATE_KEY;
+  const pub = process.env.VAPID_PUBLIC_KEY?.trim();
+  const priv = process.env.VAPID_PRIVATE_KEY?.trim();
   if (!pub || !priv) {
     configured = false;
     return false;
   }
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || "mailto:hello@thinkthru.app",
+    (process.env.VAPID_SUBJECT || "mailto:hello@thinkthru.app").trim(),
     pub,
     priv,
   );
