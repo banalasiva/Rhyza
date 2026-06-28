@@ -10,7 +10,7 @@ import {
   bloomTargetFor,
   type DimensionKey,
 } from "@/lib/constants";
-import { apiPost } from "@/lib/client";
+import { apiPost, apiGet } from "@/lib/client";
 import { playNatureSound, setMuted } from "@/lib/sound";
 import { timeAgo } from "@/lib/time";
 import { upload } from "@vercel/blob/client";
@@ -21,7 +21,9 @@ import { InlineText } from "@/components/InlineText";
 import { Avatar } from "@/components/Avatar";
 import { Attachments, type Attachment } from "@/components/Attachments";
 import { StakeMap } from "@/components/StakeMap";
+import { StakeBoard, type Board } from "@/components/StakeBoard";
 import { SeedPolls } from "@/components/SeedPolls";
+import { Icon, type IconName } from "@/components/Icon";
 
 type ReactionType = { key: string; emoji: string; label: string };
 type Contribution = SeedDetail["contributions"][number];
@@ -81,7 +83,8 @@ export function SeedRoom({
   const [myVote, setMyVote] = useState<string | null>(seed.myVote);
   const [stage, setStage] = useState<string>(seed.stage);
   const [filterDim, setFilterDim] = useState<DimensionKey | null>(null); // null = All
-  const [tab, setTab] = useState<"discussion" | "polls">("discussion");
+  const [tab, setTab] = useState<"discussion" | "polls" | "quorum">("discussion");
+  const [stakeBoard, setStakeBoard] = useState<Board | null>(null);
   const [evolveDismissed, setEvolveDismissed] = useState(false);
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
   const [retagId, setRetagId] = useState<string | null>(null); // open re-tag menu
@@ -108,6 +111,13 @@ export function SeedRoom({
   const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => setMuted(muted), [muted]);
+
+  // Load the stake board once so the rail glance + Quorum tab share one source.
+  useEffect(() => {
+    apiGet<Board>(`/api/seeds/${seed.id}/stake`)
+      .then(setStakeBoard)
+      .catch(() => {});
+  }, [seed.id]);
 
   // Show the walkthrough automatically the first time someone opens a seed.
   useEffect(() => {
@@ -551,34 +561,52 @@ export function SeedRoom({
 
       {/* ── Thread column ── */}
       <div>
-        {/* Tabs: Discussion ↔ Polls */}
+        {/* Tabs: Discussion · Polls · Quorum */}
         <div className="mb-4 flex gap-1 rounded-full border border-[rgba(76,175,80,0.15)] bg-[rgba(7,13,7,0.5)] p-1 text-sm">
           {([
-            { key: "discussion", label: "💬 Discussion" },
-            { key: "polls", label: "📊 Polls" },
-          ] as const).map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className="flex-1 rounded-full px-3 py-1.5 transition"
-              style={{
-                background: tab === t.key ? "rgba(76,175,80,0.18)" : "transparent",
-                color: tab === t.key ? "#E8E4DC" : "#A0A890",
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
+            { key: "discussion", label: "Discussion", icon: "discussion" },
+            { key: "polls", label: "Polls", icon: "polls" },
+            { key: "quorum", label: "Quorum", icon: "quorum" },
+          ] as { key: "discussion" | "polls" | "quorum"; label: string; icon: IconName }[]).map((t) => {
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 transition"
+                style={{
+                  background: active ? "rgba(76,175,80,0.18)" : "transparent",
+                  color: active ? "#E8E4DC" : "#A0A890",
+                }}
+              >
+                <Icon name={t.icon} size={16} muted={!active} />
+                {t.label}
+                {t.key === "quorum" && stakeBoard && stakeBoard.pendingAdmissions.length > 0 && (
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent" title="Someone wants into the decision" />
+                )}
+              </button>
+            );
+          })}
         </div>
 
-        {tab === "polls" ? (
+        {tab === "quorum" ? (
+          <StakeBoard
+            embedded
+            seedId={seed.id}
+            initial={stakeBoard}
+            onChange={setStakeBoard}
+            onClose={() => {}}
+          />
+        ) : tab === "polls" ? (
           <SeedPolls seedId={seed.id} currentUserId={currentUserId} />
         ) : (
         <>
         {/* Reopened to evolve — compact, dismissible */}
         {!isBloomed && seed.bloomId && !evolveDismissed && (
           <div className="mb-3 flex items-center gap-2 rounded-full border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.06)] px-3 py-1.5 text-xs">
-            <span className="text-accent">🔄 Evolving</span>
+            <span className="flex items-center gap-1 text-accent">
+              <Icon name="evolve" size={14} /> Evolving
+            </span>
             <span className="text-ink-soft">· published before</span>
             <button
               onClick={() => router.push(`/blooms/${seed.bloomId}`)}
@@ -641,17 +669,17 @@ export function SeedRoom({
               onClick={removeSeed}
               disabled={busy}
               title="Delete this seed"
-              className="rounded-full border border-[rgba(255,255,255,0.1)] px-3 py-1 text-xs text-ink-soft transition hover:text-[#e57373]"
+              className="flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.1)] px-3 py-1 text-xs text-ink-soft transition hover:text-[#e57373]"
             >
-              🗑 Delete
+              <Icon name="delete" size={13} /> Delete
             </button>
           )}
           <button
             onClick={() => setShowHelp(true)}
             title="How Rhyza works"
-            className="rounded-full border border-[rgba(255,255,255,0.1)] px-3 py-1 text-xs text-ink-soft transition hover:text-ink"
+            className="flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.1)] px-3 py-1 text-xs text-ink-soft transition hover:text-ink"
           >
-            ⓘ How it works
+            <Icon name="info" size={13} /> How it works
           </button>
         </div>
         <h1 className="serif-xl mb-4">{seed.title}</h1>
@@ -823,8 +851,8 @@ export function SeedRoom({
                       >
                         ✎ Edit
                       </button>
-                      <button onClick={() => removeContribution(c.id)} className="transition hover:text-[#e57373]">
-                        🗑 Delete
+                      <button onClick={() => removeContribution(c.id)} className="flex items-center gap-1 transition hover:text-[#e57373]">
+                        <Icon name="delete" size={12} /> Delete
                       </button>
                     </>
                   )}
@@ -890,10 +918,10 @@ export function SeedRoom({
                   }
                   disabled={busy || uploading}
                   title="Attach image, video, or screenshot"
-                  className="h-7 rounded-md border px-2 text-sm text-ink-mid transition hover:text-ink disabled:opacity-40"
+                  className="flex h-7 items-center rounded-md border px-2 text-sm text-ink-mid transition hover:text-ink disabled:opacity-40"
                   style={{ borderColor: "rgba(76,175,80,0.2)" }}
                 >
-                  {uploading ? "⏳" : "📎"}
+                  {uploading ? "⏳" : <Icon name="attach" size={15} />}
                 </button>
               }
             />
@@ -1034,8 +1062,10 @@ export function SeedRoom({
               )}
             </div>
 
-            {/* Stake-weighted quorum — who carries the decision */}
-            <StakeMap seedId={seed.id} bloomed={isBloomed} />
+            {/* Stake-weighted quorum glance — full board lives in the Quorum tab */}
+            {tab !== "quorum" && (
+              <StakeMap board={stakeBoard} onOpen={() => setTab("quorum")} bloomed={isBloomed} />
+            )}
           </div>
         </div>
       </aside>

@@ -53,11 +53,13 @@ export function StakeBoard({
   onClose,
   onChange,
   initial,
+  embedded = false,
 }: {
   seedId: string;
   onClose: () => void;
   onChange?: (b: Board) => void;
   initial?: Board | null;
+  embedded?: boolean;
 }) {
   const [board, setBoard] = useState<Board | null>(initial ?? null);
   const [draft, setDraft] = useState<Record<string, Record<string, number>>>({});
@@ -208,7 +210,7 @@ export function StakeBoard({
 
   if (!board) {
     return (
-      <Shell onClose={onClose}>
+      <Shell onClose={onClose} embedded={embedded}>
         <p className="p-8 text-center text-sm text-ink-soft">{error ?? "Loading the stake board…"}</p>
       </Shell>
     );
@@ -219,17 +221,19 @@ export function StakeBoard({
   const sorted = [...board.participants].sort((a, b) => (b.stake?.weight ?? 0) - (a.stake?.weight ?? 0));
 
   return (
-    <Shell onClose={onClose}>
-      <div className="max-h-[88vh] overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+    <Shell onClose={onClose} embedded={embedded}>
+      <div className={embedded ? "px-1 py-1" : "max-h-[88vh] overflow-y-auto px-5 py-5 sm:px-7 sm:py-6"}>
         {/* Header */}
         <div className="mb-1 flex items-start justify-between gap-3">
           <div>
             <p className="eyebrow mb-1">⚖️ Decision weight</p>
             <h2 className="serif-lg">Who carries this decision?</h2>
           </div>
-          <button onClick={onClose} className="text-ink-soft transition hover:text-ink" title="Close">
-            ✕
-          </button>
+          {!embedded && (
+            <button onClick={onClose} className="text-ink-soft transition hover:text-ink" title="Close">
+              ✕
+            </button>
+          )}
         </div>
         <p className="mb-5 max-w-2xl text-sm text-ink-mid">
           For each dimension, split it across the people who carry it. Reads stay{" "}
@@ -527,7 +531,16 @@ export function StakeBoard({
   );
 }
 
-function Shell({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+function Shell({
+  children,
+  onClose,
+  embedded,
+}: {
+  children: React.ReactNode;
+  onClose: () => void;
+  embedded?: boolean;
+}) {
+  if (embedded) return <div>{children}</div>;
   return (
     <div
       className="fixed inset-0 z-[160] flex items-center justify-center bg-[rgba(6,10,6,0.78)] px-3 py-6 backdrop-blur-sm"
