@@ -126,3 +126,7 @@ export const admissionVoteSchema = z.object({
   candidateId: z.string().uuid(),
   approve: z.boolean(),
 });
+
+export const aiActionSchema = z.object({
+  provider: z.enum(["claude", "chatgpt"]),
+});

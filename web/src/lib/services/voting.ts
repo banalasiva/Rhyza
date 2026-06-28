@@ -28,6 +28,19 @@ export async function castStageVote(
     create: { seedId, userId, stage },
   });
 
+  return settleStage(seedId, userId);
+}
+
+// Recompute the displayed stage from the current votes and fire a bloom if the
+// quorum is met. Shared by human votes (castStageVote) and AI quorum votes —
+// the vote is already recorded; this only settles the consequences.
+export async function settleStage(seedId: string, triggeredById: string) {
+  const seed = await db.seed.findUnique({
+    where: { id: seedId },
+    select: { stage: true },
+  });
+  if (!seed) throw new ApiError("NOT_FOUND", "Seed not found");
+
   const [distribution, participants, stakeEval] = await Promise.all([
     stageDistribution(seedId),
     countParticipants(seedId),
@@ -60,7 +73,7 @@ export async function castStageVote(
   if (shouldBloom) {
     let bloomId: string;
     try {
-      const bloom = await createBloom(userId, seedId, userId);
+      const bloom = await createBloom(triggeredById, seedId, triggeredById);
       bloomId = bloom.id;
     } catch (err) {
       // A concurrent vote may have bloomed it first — recover its id so the

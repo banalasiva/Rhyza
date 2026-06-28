@@ -9,6 +9,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import { STAGE_KEYS } from "@/lib/constants";
 
 const MODEL = "claude-opus-4-8";
 // ChatGPT model — overridable via env so the exact OpenAI model is a config
@@ -342,6 +343,64 @@ export async function chatgptReply(input: {
   });
   const text = resp.choices[0]?.message?.content?.trim() ?? "";
   return text || null;
+}
+
+// An AI casts its read on how mature the discussion is — a real quorum vote.
+// Returns { stage, note } or null if that provider isn't configured / failed.
+const STAGE_GUIDE =
+  "seed: just asked, no real exploration yet. " +
+  "germinating: early, scattered exploration. " +
+  "sprouting: ideas taking shape, some structure. " +
+  "growing: substantial discussion, the group is converging. " +
+  "bloomed: genuinely converged — ready to be finalised into a durable answer.";
+
+export async function aiStageVote(
+  provider: "claude" | "chatgpt",
+  input: { title: string; content: string; contributions: ContribForAI[] },
+): Promise<{ stage: string; note: string } | null> {
+  const who = provider === "chatgpt" ? "ChatGPT" : "Claude";
+  const system =
+    `You are ${who}, a member of a Rhyza decision circle casting your honest read on how ` +
+    `mature this discussion is. The growth stages — ${STAGE_GUIDE} ` +
+    `Only say "bloomed" if the group has actually converged enough to finalise. ` +
+    `Reply in exactly two lines:\nSTAGE: <seed|germinating|sprouting|growing|bloomed>\nWHY: <one sentence>`;
+  const prompt = [
+    `SEED: ${input.title}`,
+    input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
+    `\nTHE DISCUSSION:\n${renderThread(input.contributions)}`,
+    `\nWhat stage is this, and why?`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    let text = "";
+    if (provider === "chatgpt") {
+      if (!openaiConfigured()) return null;
+      const resp = await getOpenAI().chat.completions.create({
+        model: OPENAI_MODEL,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: prompt },
+        ],
+      });
+      text = resp.choices[0]?.message?.content ?? "";
+    } else {
+      if (!aiConfigured()) return null;
+      text = await complete(system, prompt, 200);
+    }
+
+    const tagged = text.match(/STAGE:\s*(seed|germinating|sprouting|growing|bloomed)/i);
+    const loose = text.match(/seed|germinating|sprouting|growing|bloomed/i);
+    const stage = (tagged?.[1] ?? loose?.[0] ?? "").toLowerCase();
+    if (!(STAGE_KEYS as string[]).includes(stage)) return null;
+    const why = text.match(/WHY:\s*(.+)/i)?.[1] ?? "";
+    const note = (why || "Based on where the discussion stands.").trim().slice(0, 240);
+    return { stage, note };
+  } catch (err) {
+    console.error("aiStageVote failed", err);
+    return null;
+  }
 }
 
 // ChatGPT as neutral mediator (mirrors mediate). Returns null if not configured

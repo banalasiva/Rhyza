@@ -111,6 +111,7 @@ export function SeedRoom({
   const [thinkingWho, setThinkingWho] = useState("Claude");
   const [mediating, setMediating] = useState(false);
   const [mediatingWho, setMediatingWho] = useState<"claude" | "chatgpt" | null>(null);
+  const [aiVoting, setAiVoting] = useState<"claude" | "chatgpt" | null>(null);
   const [visibility, setVisibility] = useState<"public" | "private">(seed.visibility);
   const [visBusy, setVisBusy] = useState(false);
   const [bloomConfirm, setBloomConfirm] = useState(false); // confirm modal open
@@ -341,6 +342,30 @@ export function SeedRoom({
     } finally {
       setMediating(false);
       setMediatingWho(null);
+    }
+  }
+
+  async function askAIVote(provider: "claude" | "chatgpt") {
+    if (isBloomed || aiVoting) return;
+    setAiVoting(provider);
+    setError(null);
+    try {
+      const res = await apiPost<{
+        contribution: ContributionResponse;
+        distribution: typeof distribution;
+        stage: string;
+        bloomed: boolean;
+        bloomId: string | null;
+      }>(`/api/seeds/${seed.id}/ai-vote`, { provider });
+      setContributions((prev) => [...prev, hydrate(res.contribution)]);
+      setDistribution(res.distribution);
+      setStage(res.stage);
+      playNatureSound("wind");
+      if (res.bloomed && res.bloomId) triggerBloom();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI vote failed");
+    } finally {
+      setAiVoting(null);
     }
   }
 
@@ -1128,6 +1153,27 @@ export function SeedRoom({
             </div>
             {myVote === null && !isBloomed && (
               <p className="mt-2 text-center text-xs italic text-ink-soft">Tap a stage to vote → watch the plant respond</p>
+            )}
+
+            {/* Bring the AIs into the quorum — they read the thread and vote too */}
+            {!isBloomed && (
+              <div className="mt-3">
+                <p className="mb-1.5 text-center text-[10px] text-ink-soft">Bring an AI into the quorum</p>
+                <div className="flex gap-2">
+                  {(["claude", "chatgpt"] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => askAIVote(p)}
+                      disabled={aiVoting !== null || busy}
+                      className="flex-1 rounded-lg border border-[rgba(76,175,80,0.22)] px-2 py-1.5 text-[11px] text-ink-mid transition hover:text-ink disabled:opacity-50"
+                    >
+                      {aiVoting === p
+                        ? "🗳️ voting…"
+                        : `🗳️ ${p === "claude" ? "Claude" : "ChatGPT"} vote`}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
 
             {/* Convergence */}

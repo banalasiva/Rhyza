@@ -11,11 +11,14 @@ import {
   classifyDimension,
   mediate,
   openaiMediate,
+  aiStageVote,
   mentionsClaude,
   type ContribForAI,
 } from "@/lib/ai";
 import { extractMentionIds } from "@/lib/mentions";
 import { requestAdmissionIfNeeded } from "@/lib/services/stake";
+import { settleStage } from "@/lib/services/voting";
+import { STAGES } from "@/lib/constants";
 import { appUrl, sendEmail, mentionEmailHtml, emailConfigured } from "@/lib/email";
 import { getReactionTypes } from "@/lib/registry";
 
@@ -161,6 +164,61 @@ export async function respondAsClaude(
     include: { author: { select: { id: true, name: true, image: true } } },
   });
   return contribution;
+}
+
+// Ask an AI to join the quorum: it reads the thread, posts its read as a short
+// contribution, and casts a real stage vote — which counts in "Community feels"
+// and toward the bloom quorum (headcount path), exactly like a person's. A human
+// must invoke it (they're the one with seed access). Returns null if the
+// provider isn't configured.
+export async function aiVoteOnSeed(
+  invokerId: string,
+  seedId: string,
+  provider: "claude" | "chatgpt",
+) {
+  const seed = await db.seed.findUnique({
+    where: { id: seedId },
+    select: { stage: true, bloomId: true, deletedAt: true },
+  });
+  if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
+  if (seed.stage === "bloomed" && seed.bloomId) {
+    throw new ApiError("CONFLICT", "This seed has already bloomed");
+  }
+  await requireSeedAccess(invokerId, seedId);
+
+  const data = await threadForSeed(seedId);
+  if (!data) throw new ApiError("NOT_FOUND", "Seed not found");
+
+  const decision = await aiStageVote(provider, {
+    title: data.seed.title,
+    content: data.seed.content,
+    contributions: data.thread,
+  });
+  if (!decision) return null;
+
+  const bot = provider === "chatgpt" ? await getOrCreateChatGptUser() : await getOrCreateClaudeUser();
+  const stageMeta = STAGES.find((s) => s.key === decision.stage) ?? STAGES[0];
+
+  // Post the rationale (becomes a participant) and cast the vote (counts).
+  const contribution = await db.contribution.create({
+    data: {
+      seedId,
+      authorId: bot.id,
+      dimension: decision.stage === "bloomed" ? "bloom" : "debate",
+      content: { text: `🗳️ I'd call this **${stageMeta.emoji} ${stageMeta.label}** — ${decision.note}` },
+    },
+    include: { author: { select: { id: true, name: true, image: true } } },
+  });
+  await db.seedStageVote.upsert({
+    where: { seedId_userId: { seedId, userId: bot.id } },
+    update: { stage: decision.stage, votedAt: new Date() },
+    create: { seedId, userId: bot.id, stage: decision.stage },
+  });
+
+  // Settle the consequences (display stage + maybe bloom), attributed to the
+  // human who asked, since they hold seed access for createBloom.
+  const result = await settleStage(seedId, invokerId);
+  return { contribution, result };
 }
 
 // Ask Claude or ChatGPT to mediate the seed's discussion. Posts the mediation as
