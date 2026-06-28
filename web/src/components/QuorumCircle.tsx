@@ -1,9 +1,35 @@
 "use client";
 
-// A banner for the Quorum tab: people gathered in a circle around a glowing
-// sun-mandala at dusk — the "everyone who carries this comes together" motif.
-// Not about heroes; about coming together. Pure SVG/CSS, no asset to host.
+import { useState } from "react";
 
+// The Quorum banner: "everyone who carries this comes together." Prefers the
+// uploaded photo at /public/quorum-circle.png; if that's missing it falls back
+// to the animated SVG below, so the tab is never broken.
+export function QuorumCircle() {
+  const [imgOk, setImgOk] = useState(true);
+  if (!imgOk) return <QuorumArt />;
+  return (
+    <div
+      role="img"
+      aria-label="People and animals gathered in a circle around a glowing light at dusk — coming together to decide."
+      className="relative mb-4 overflow-hidden rounded-2xl border border-[rgba(255,179,0,0.18)]"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/quorum-circle.png"
+        alt=""
+        onError={() => setImgOk(false)}
+        className="h-44 w-full object-cover sm:h-52"
+      />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[rgba(8,13,8,0.85)] to-transparent" />
+      <p className="absolute bottom-3 left-4 text-[12px] font-medium tracking-wide text-[rgba(255,235,190,0.95)]">
+        ⚖️ Everyone who carries this comes together
+      </p>
+    </div>
+  );
+}
+
+// Animated SVG fallback — a circle of figures around a turning sun-mandala.
 const FIGURES = Array.from({ length: 13 });
 
 function Figure({ i, total }: { i: number; total: number }) {
@@ -31,7 +57,7 @@ function Figure({ i, total }: { i: number; total: number }) {
   );
 }
 
-export function QuorumCircle() {
+function QuorumArt() {
   return (
     <div
       role="img"
