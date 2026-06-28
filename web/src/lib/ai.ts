@@ -8,10 +8,15 @@
 // @claude mentions simply don't get a reply).
 
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 
 const MODEL = "claude-opus-4-8";
+// ChatGPT model — overridable via env so the exact OpenAI model is a config
+// choice, not a hardcode that can drift out of date.
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
 
 let client: Anthropic | null = null;
+let openaiClient: OpenAI | null = null;
 
 export function aiConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
@@ -247,4 +252,83 @@ export async function classifyDimension(input: {
 // Does this text tag Claude? Matches "@claude" as a whole word, case-insensitive.
 export function mentionsClaude(text: string): boolean {
   return /(^|[^a-zA-Z0-9])@claude\b/i.test(text);
+}
+
+// ─────────────────────────────────────────────────────────────
+// ChatGPT (OpenAI) — a second AI participant alongside Claude. Gated behind
+// OPENAI_API_KEY exactly like Claude: when unset, @chatgpt mentions go
+// unanswered and nothing else changes.
+// ─────────────────────────────────────────────────────────────
+
+export function openaiConfigured(): boolean {
+  return !!process.env.OPENAI_API_KEY;
+}
+
+function getOpenAI(): OpenAI {
+  if (!openaiClient) openaiClient = new OpenAI();
+  return openaiClient;
+}
+
+// Does this text tag ChatGPT? Matches @chatgpt / @openai / @gpt.
+export function mentionsChatGpt(text: string): boolean {
+  return /(^|[^a-zA-Z0-9])@(chatgpt|openai|gpt)\b/i.test(text);
+}
+
+// Build an OpenAI user message, attaching images as vision parts when present.
+function openaiUserContent(
+  text: string,
+  images: string[],
+): string | OpenAI.Chat.Completions.ChatCompletionContentPart[] {
+  if (images.length === 0) return text;
+  return [
+    { type: "text", text },
+    ...images.map(
+      (url): OpenAI.Chat.Completions.ChatCompletionContentPart => ({
+        type: "image_url",
+        image_url: { url },
+      }),
+    ),
+  ];
+}
+
+// ChatGPT's reply when a member tags @chatgpt. Returns null if AI isn't
+// configured or the reply is empty; THROWS on API error so the route can show
+// the real reason (mirrors claudeReply).
+export async function chatgptReply(input: {
+  title: string;
+  content: string;
+  dimension: string;
+  mention: string;
+  contributions: ContribForAI[];
+}): Promise<string | null> {
+  if (!openaiConfigured()) return null;
+  const dim = DIMENSION_LABEL[input.dimension] ?? input.dimension;
+  const prompt = [
+    `SEED: ${input.title}`,
+    input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
+    `\nCONVERSATION SO FAR:\n${renderThread(input.contributions)}`,
+    `\nYou were tagged in the "${dim}" dimension. The message tagging you:\n"${input.mention}"`,
+    `\nReply as a participant.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const resp = await getOpenAI().chat.completions.create({
+    model: OPENAI_MODEL,
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are ChatGPT, a thoughtful participant in a Rhyza learning conversation — a " +
+          "collaborative knowledge garden where members explore a topic together. Someone tagged " +
+          "you with @chatgpt. Answer their question or add genuinely useful, specific insight " +
+          "grounded in the discussion so far (including any images shown). Don't just repeat what's " +
+          "been said. Be concise (1–3 short paragraphs), warm, and direct. Output only your reply — " +
+          "no greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.",
+      },
+      { role: "user", content: openaiUserContent(prompt, collectImages(input.contributions)) },
+    ],
+  });
+  const text = resp.choices[0]?.message?.content?.trim() ?? "";
+  return text || null;
 }

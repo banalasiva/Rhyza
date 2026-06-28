@@ -1,8 +1,12 @@
 import { handle, ok } from "@/lib/api";
 import { requireUserId } from "@/lib/authz";
 import { createContributionSchema } from "@/lib/validation";
-import { addContribution, respondAsClaude } from "@/lib/services/contributions";
-import { aiConfigured, mentionsClaude } from "@/lib/ai";
+import {
+  addContribution,
+  respondAsClaude,
+  respondAsChatGpt,
+} from "@/lib/services/contributions";
+import { aiConfigured, openaiConfigured, mentionsClaude, mentionsChatGpt } from "@/lib/ai";
 
 function toDTO(c: {
   id: string;
@@ -34,28 +38,36 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   const body = createContributionSchema.parse(await req.json());
   const c = await addContribution(userId, ctx.params.id, body);
 
-  let aiReply = null;
-  // null = wasn't tagged; "not_configured" = no key; any other string = the
-  // actual API error so the user sees why Claude didn't reply.
+  // @claude and/or @chatgpt can both be tagged in one message — each replies.
+  const aiReplies: ReturnType<typeof toDTO>[] = [];
+  // "not_configured" = no key; any other string = the actual API error.
   let aiError: string | null = null;
+
   if (mentionsClaude(body.text)) {
-    if (!aiConfigured()) {
-      aiError = "not_configured";
-    } else {
+    if (!aiConfigured()) aiError = "not_configured";
+    else {
       try {
-        const claudeContribution = await respondAsClaude(
-          ctx.params.id,
-          body.dimension,
-          body.text,
-          c.id,
-        );
-        if (claudeContribution) aiReply = toDTO(claudeContribution);
-        else aiError = "Claude returned an empty reply";
+        const reply = await respondAsClaude(ctx.params.id, body.dimension, body.text, c.id);
+        if (reply) aiReplies.push(toDTO(reply));
+        else aiError = aiError ?? "Claude returned an empty reply";
       } catch (err) {
-        aiError = err instanceof Error ? err.message : "Claude request failed";
+        aiError = aiError ?? (err instanceof Error ? err.message : "Claude request failed");
       }
     }
   }
 
-  return ok({ ...toDTO(c), aiReply, aiError }, 201);
+  if (mentionsChatGpt(body.text)) {
+    if (!openaiConfigured()) aiError = aiError ?? "not_configured";
+    else {
+      try {
+        const reply = await respondAsChatGpt(ctx.params.id, body.dimension, body.text, c.id);
+        if (reply) aiReplies.push(toDTO(reply));
+        else aiError = aiError ?? "ChatGPT returned an empty reply";
+      } catch (err) {
+        aiError = aiError ?? (err instanceof Error ? err.message : "ChatGPT request failed");
+      }
+    }
+  }
+
+  return ok({ ...toDTO(c), aiReplies, aiError }, 201);
 });

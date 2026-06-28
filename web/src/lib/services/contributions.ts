@@ -7,6 +7,7 @@ import {
 } from "@/lib/authz";
 import {
   claudeReply,
+  chatgptReply,
   classifyDimension,
   mediate,
   mentionsClaude,
@@ -24,6 +25,7 @@ async function seedOrThrow(seedId: string) {
 }
 
 const CLAUDE_EMAIL = "claude@rhyza.ai";
+const CHATGPT_EMAIL = "chatgpt@rhyza.ai";
 
 // Claude is a permanent participant: one shared system user that authors its
 // replies. Created lazily the first time someone tags @claude.
@@ -33,6 +35,71 @@ async function getOrCreateClaudeUser() {
     update: {},
     create: { email: CLAUDE_EMAIL, name: "Claude" },
     select: { id: true, name: true, image: true },
+  });
+}
+
+// ChatGPT is a second permanent AI participant, created lazily on first @chatgpt.
+async function getOrCreateChatGptUser() {
+  return db.user.upsert({
+    where: { email: CHATGPT_EMAIL },
+    update: {},
+    create: { email: CHATGPT_EMAIL, name: "ChatGPT" },
+    select: { id: true, name: true, image: true },
+  });
+}
+
+// Build the thread (with images) an AI participant sees for this seed.
+async function threadForSeed(seedId: string) {
+  const seed = await db.seed.findUnique({
+    where: { id: seedId },
+    include: {
+      contributions: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        include: { author: { select: { name: true } } },
+      },
+    },
+  });
+  if (!seed) return null;
+  const thread: ContribForAI[] = seed.contributions.map((c) => {
+    const content = c.content as
+      | { text?: string; attachments?: { url: string; type: string }[] }
+      | null;
+    const images = (content?.attachments ?? [])
+      .filter((a) => a.type === "image")
+      .map((a) => a.url);
+    return {
+      dimension: c.dimension,
+      author: c.author.name || "A member",
+      text: content?.text ?? "",
+      images: images.length ? images : undefined,
+    };
+  });
+  return { seed, thread };
+}
+
+// ChatGPT's reply to an @chatgpt mention, posted as the ChatGPT system user.
+export async function respondAsChatGpt(
+  seedId: string,
+  dimension: string,
+  mentionText: string,
+  parentId: string,
+) {
+  const data = await threadForSeed(seedId);
+  if (!data) return null;
+  const reply = await chatgptReply({
+    title: data.seed.title,
+    content: data.seed.content,
+    dimension,
+    mention: mentionText,
+    contributions: data.thread,
+  });
+  if (!reply) return null;
+
+  const bot = await getOrCreateChatGptUser();
+  return db.contribution.create({
+    data: { seedId, authorId: bot.id, dimension, parentId, content: { text: reply } },
+    include: { author: { select: { id: true, name: true, image: true } } },
   });
 }
 

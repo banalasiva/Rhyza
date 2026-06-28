@@ -45,13 +45,13 @@ type ContributionResponse = {
   parentId: string | null;
   author: Contribution["author"];
   createdAt: string;
-  aiReply?: Omit<ContributionResponse, "aiReply" | "aiError"> | null;
+  aiReplies?: Omit<ContributionResponse, "aiReplies" | "aiError">[];
   aiError?: string | null;
 };
 
 // Turn a bare API contribution into a full client-side Contribution (with the
 // reaction/endorsement fields the UI tracks locally).
-function hydrate(c: Omit<ContributionResponse, "aiReply">): Contribution {
+function hydrate(c: Omit<ContributionResponse, "aiReplies">): Contribution {
   return {
     id: c.id,
     dimension: c.dimension,
@@ -107,6 +107,7 @@ export function SeedRoom({
   const [muted, setMutedState] = useState(false);
   const [glowing, setGlowing] = useState<Set<string>>(new Set());
   const [thinking, setThinking] = useState(false);
+  const [thinkingWho, setThinkingWho] = useState("Claude");
   const [mediating, setMediating] = useState(false);
   const [visibility, setVisibility] = useState<"public" | "private">(seed.visibility);
   const [visBusy, setVisBusy] = useState(false);
@@ -248,27 +249,33 @@ export function SeedRoom({
     setBusy(true);
     setError(null);
     const tagsClaude = /(^|[^a-zA-Z0-9])@claude\b/i.test(text);
+    const tagsChatGpt = /(^|[^a-zA-Z0-9])@(chatgpt|openai|gpt)\b/i.test(text);
+    const tagsAI = tagsClaude || tagsChatGpt;
     try {
-      // If Claude is tagged, show a "thinking" placeholder while it replies.
-      if (tagsClaude) setThinking(true);
+      // If an AI is tagged, show a "thinking" placeholder while it replies.
+      if (tagsAI) {
+        setThinkingWho(tagsClaude && tagsChatGpt ? "Claude and ChatGPT" : tagsChatGpt ? "ChatGPT" : "Claude");
+        setThinking(true);
+      }
       // No dimension sent — people just write; Claude labels it after posting.
       const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/contributions`, {
         text,
         attachments: draftAttachments,
       });
+      const replies = c.aiReplies ?? [];
       setContributions((prev) => {
         const next = [...prev, hydrate(c)];
-        if (c.aiReply) next.push(hydrate(c.aiReply));
+        for (const r of replies) next.push(hydrate(r));
         return next;
       });
       setDraft("");
       setDraftAttachments([]);
-      playNatureSound(c.aiReply ? "chirp" : "drop");
-      if (tagsClaude && !c.aiReply) {
+      playNatureSound(replies.length ? "chirp" : "drop");
+      if (tagsAI && replies.length === 0) {
         setError(
           c.aiError === "not_configured"
-            ? "Claude isn't configured — add ANTHROPIC_API_KEY in Vercel and redeploy."
-            : `Claude couldn't reply: ${c.aiError ?? "unknown error"}`,
+            ? "The AI you tagged isn't configured — add its API key (ANTHROPIC_API_KEY or OPENAI_API_KEY) in Vercel and redeploy."
+            : `The AI couldn't reply: ${c.aiError ?? "unknown error"}`,
         );
       }
       // Let Claude label the dimension in the background; the badge fills in.
@@ -559,7 +566,7 @@ export function SeedRoom({
     <div className="relative mt-3 grid gap-6 lg:grid-cols-[1fr_360px]">
       {/* Screen-reader status announcements (WCAG 4.1.3) */}
       <div aria-live="polite" className="sr-only">
-        {thinking ? "Claude is thinking…" : mediating ? "Claude is mediating…" : error ?? ""}
+        {thinking ? `${thinkingWho} is thinking…` : mediating ? "Claude is mediating…" : error ?? ""}
       </div>
       {showHelp && <HowItWorks onClose={() => setShowHelp(false)} />}
 
@@ -803,7 +810,7 @@ export function SeedRoom({
           )}
           {visibleContributions.map((c) => {
             const cd = DIMENSIONS.find((d) => d.key === c.dimension) ?? DIMENSIONS[1];
-            const isClaude = c.author?.name === "Claude";
+            const isAI = c.author?.name === "Claude" || c.author?.name === "ChatGPT";
             return (
               <div key={c.id} className={`card p-4 ${glowing.has(c.id) ? "endorsed-glow" : ""}`}>
                 <div className="mb-2 flex items-center justify-between">
@@ -812,7 +819,7 @@ export function SeedRoom({
                     <div>
                       <p className="flex items-center gap-1.5 text-sm font-medium text-ink">
                         {c.author?.name || "Someone"}
-                        {c.author?.name === "Claude" && (
+                        {isAI && (
                           <span className="rounded-full bg-[rgba(76,175,80,0.15)] px-1.5 py-0.5 text-[10px] font-normal text-accent">
                             ✦ AI
                           </span>
@@ -823,10 +830,10 @@ export function SeedRoom({
                   </div>
                   <div className="relative shrink-0">
                     <button
-                      onClick={() => !isClaude && setRetagId(retagId === c.id ? null : c.id)}
+                      onClick={() => !isAI && setRetagId(retagId === c.id ? null : c.id)}
                       className="rounded-full px-2 py-0.5 text-xs transition"
                       style={{ color: cd.color, background: `${cd.color}1A` }}
-                      title={isClaude ? cd.label : "Claude's label — tap to change"}
+                      title={isAI ? cd.label : "Claude's label — tap to change"}
                     >
                       {classifyingIds.has(c.id) ? (
                         <span className="inline-flex items-center gap-1">
@@ -925,7 +932,7 @@ export function SeedRoom({
           {thinking && (
             <div className="card flex items-center gap-2 p-4 text-sm text-ink-soft">
               <span className="claude-thinking-dot" />
-              Claude is thinking…
+              {thinkingWho} {thinkingWho.includes("and") ? "are" : "is"} thinking…
             </div>
           )}
         </div>
@@ -961,7 +968,7 @@ export function SeedRoom({
             <RichEditor
               value={draft}
               onChange={setDraft}
-              placeholder={`What's your take? (**bold**, *italic*, \`code\` · @ to tag, @claude to ask)`}
+              placeholder={`What's your take? (**bold**, *italic*, \`code\` · @ to tag, @claude or @chatgpt to ask)`}
               disabled={busy}
               people={seed.people}
               onSubmit={() => {
@@ -1020,7 +1027,7 @@ export function SeedRoom({
             {error && <p className="mb-2 mt-2 text-sm text-[#e57373]">{error}</p>}
             <div className="mt-3 flex items-center justify-between gap-2">
               <span className="text-xs text-ink-soft">
-                <span className="text-accent">@claude</span> to ask · <span className="text-accent">@</span> to tag
+                <span className="text-accent">@claude</span> · <span className="text-accent">@chatgpt</span> to ask · <span className="text-accent">@</span> to tag
               </span>
               <button
                 onClick={contribute}
