@@ -29,9 +29,9 @@ export function CreateOrgForm() {
       <input
         className="input"
         placeholder="e.g. Acme Engineering"
+        aria-label="Organization name"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        autoFocus
         maxLength={80}
       />
       {error && <p className="text-sm text-[#e57373]">{error}</p>}

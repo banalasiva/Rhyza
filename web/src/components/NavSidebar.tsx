@@ -56,6 +56,17 @@ export function NavSidebar() {
     if (next && gardens === null) load();
   }
 
+  // Esc closes the drawer (WCAG 2.1.2 — no keyboard trap).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenPersist(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   return (
     <>
       <button
@@ -69,11 +80,15 @@ export function NavSidebar() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[120]" onClick={() => setOpenPersist(false)}>
-          {/* light, non-darkening scrim — click to close */}
-          <div className="absolute inset-0 bg-[rgba(0,0,0,0.18)]" />
+        <div className="fixed inset-0 z-[120]">
+          {/* light, non-darkening scrim — a real button so it's keyboard-operable */}
+          <button
+            type="button"
+            aria-label="Close menu"
+            onClick={() => setOpenPersist(false)}
+            className="absolute inset-0 cursor-default bg-[rgba(0,0,0,0.18)]"
+          />
           <aside
-            onClick={(e) => e.stopPropagation()}
             className="absolute left-0 top-0 h-full w-[300px] max-w-[85vw] overflow-auto border-r border-[rgba(76,175,80,0.18)] bg-[rgba(8,13,8,0.98)] p-4 backdrop-blur animate-[fadeUp_0.25s_ease-out]"
           >
             <div className="mb-3 flex items-center justify-between">

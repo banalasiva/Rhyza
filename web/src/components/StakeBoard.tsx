@@ -547,13 +547,9 @@ function Shell({
 }) {
   if (embedded) return <div>{children}</div>;
   return (
-    <div
-      className="fixed inset-0 z-[160] flex items-center justify-center bg-[rgba(6,10,6,0.78)] px-3 py-6 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div onClick={(e) => e.stopPropagation()} className="card w-full max-w-2xl animate-[fadeUp_0.35s_ease-out]">
-        {children}
-      </div>
+    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-[rgba(6,10,6,0.78)] px-3 py-6 backdrop-blur-sm">
+      <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0 cursor-default" />
+      <div className="card relative z-10 w-full max-w-2xl animate-[fadeUp_0.35s_ease-out]">{children}</div>
     </div>
   );
 }

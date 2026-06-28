@@ -24,16 +24,18 @@ export function HowItWorks({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   return (
-    <div
-      className="fixed inset-0 z-[180] flex items-center justify-center bg-[rgba(8,5,0,0.74)] px-4 py-8 backdrop-blur-sm"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-[180] flex items-center justify-center bg-[rgba(8,5,0,0.74)] px-4 py-8 backdrop-blur-sm">
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="absolute inset-0 cursor-default"
+      />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="hiw-title"
-        className="card max-h-full w-full max-w-xl overflow-auto p-7 animate-[fadeUp_0.4s_ease-out]"
-        onClick={(e) => e.stopPropagation()}
+        className="card relative z-10 max-h-full w-full max-w-xl overflow-auto p-7 animate-[fadeUp_0.4s_ease-out]"
       >
         {/* ── Welcome ── */}
         <div className="text-center">

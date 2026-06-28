@@ -27,8 +27,13 @@ export function Attachments({ items }: { items: Attachment[] }) {
               key={i}
               src={a.url}
               controls
+              aria-label={a.name || "Attached video"}
               className="max-h-72 w-full max-w-md rounded-xl border border-[rgba(255,255,255,0.08)]"
-            />
+            >
+              {/* Captions slot — uploaders can add a caption track in a later
+                  feature; present so assistive tech exposes the affordance. */}
+              <track kind="captions" />
+            </video>
           );
         }
         return (
