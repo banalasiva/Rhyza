@@ -144,6 +144,27 @@ export function SeedRoom({
       .catch(() => {});
   }, [seed.id]);
 
+  // Deep link from a notification (…/seeds/:id#c-<contributionId>) — scroll to
+  // the exact message and pulse it so it's easy to spot.
+  useEffect(() => {
+    const m = typeof window !== "undefined" && window.location.hash.match(/^#c-([0-9a-fA-F-]{36})$/);
+    if (!m) return;
+    const id = m[1];
+    const t = setTimeout(() => {
+      const el = document.getElementById(`c-${id}`);
+      if (!el) return;
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setGlowing((s) => new Set(s).add(id));
+      setTimeout(() => setGlowing((s) => {
+        const n = new Set(s);
+        n.delete(id);
+        return n;
+      }), 2200);
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Show the walkthrough automatically the first time someone opens a seed.
   useEffect(() => {
     try {
@@ -1029,7 +1050,7 @@ export function SeedRoom({
             const cd = DIMENSIONS.find((d) => d.key === c.dimension) ?? DIMENSIONS[1];
             const isAI = c.author?.name === "Claude" || c.author?.name === "ChatGPT";
             return (
-              <div key={c.id} className={`card p-4 ${glowing.has(c.id) ? "endorsed-glow" : ""}`}>
+              <div id={`c-${c.id}`} key={c.id} className={`card scroll-mt-20 p-4 ${glowing.has(c.id) ? "endorsed-glow" : ""}`}>
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Avatar name={c.author?.name} image={c.author?.image} size={32} />

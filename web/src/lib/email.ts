@@ -133,15 +133,23 @@ export function mentionEmailHtml(args: {
   recipientName: string;
   seedTitle: string;
   link: string;
+  snippet?: string;
   unsubLink?: string;
 }): string {
+  const quoted = args.snippet
+    ? `<blockquote style="border-left:3px solid #4CAF50;margin:14px 0 0;padding:2px 0 2px 14px;color:#C7CDBC;font-style:italic">“${escapeHtml(
+        args.snippet,
+      )}”</blockquote>`
+    : "";
   return emailShell({
-    preview: `${args.actorName} mentioned you in ${args.seedTitle}`,
+    preview: args.snippet
+      ? `${args.actorName}: ${args.snippet}`
+      : `${args.actorName} mentioned you in ${args.seedTitle}`,
     glyph: "💬",
     heading: `${args.actorName} mentioned you`,
     bodyHtml: `Hi ${escapeHtml(args.recipientName || "there")} — ${escapeHtml(
       args.actorName,
-    )} tagged you in <strong style="color:#E8E4DC">${escapeHtml(args.seedTitle)}</strong>. Your voice is wanted in this conversation.`,
+    )} tagged you in <strong style="color:#E8E4DC">${escapeHtml(args.seedTitle)}</strong>. Your voice is wanted in this conversation.${quoted}`,
     ctaText: "View the conversation",
     ctaLink: args.link,
     reason: "You're getting this because you were mentioned on ThinkThru.",

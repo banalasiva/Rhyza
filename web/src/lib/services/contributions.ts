@@ -334,7 +334,10 @@ export async function addContribution(
     include: { author: { select: { id: true, name: true, image: true } } },
   });
 
-  // Notify the seed's author (unless they're the contributor).
+  const snippet = previewSnippet(input.text);
+
+  // Notify the seed's author (unless they're the contributor) — with a taste of
+  // the message and a link straight to it.
   if (seed.createdById !== userId) {
     await db.notification.create({
       data: {
@@ -342,21 +345,33 @@ export async function addContribution(
         actorId: userId,
         type: "contribution",
         title: "New contribution on your seed",
-        body: seed.title,
+        body: snippet ? `“${snippet}” · ${seed.title}` : seed.title,
         entityType: "seed",
         entityId: seedId,
+        anchorId: contribution.id,
       },
     });
   }
 
   // Notify anyone @-mentioned (in-app + email), as long as they can see the seed.
-  await notifyMentions(userId, seed, input.text);
+  await notifyMentions(userId, seed, input.text, contribution.id, snippet);
 
   // If the decision quorum is locked and this is a newcomer, open an admission
   // request so the carriers can vote them in. Never blocks the contribution.
   await requestAdmissionIfNeeded(seedId, userId);
 
   return contribution;
+}
+
+// A readable, truncated preview of a message: turns @[Name](uuid) tokens into
+// "@Name", collapses whitespace, and caps the length. Used so notifications
+// carry a taste of what was said instead of a bare title.
+function previewSnippet(text: string, max = 120): string {
+  const clean = text
+    .replace(/@\[([^\]]+)\]\([0-9a-fA-F-]{36}\)/g, "@$1")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean.length > max ? `${clean.slice(0, max).trimEnd()}…` : clean;
 }
 
 // Create "mention" notifications (and emails) for everyone tagged in the text,
@@ -366,6 +381,8 @@ async function notifyMentions(
   actorId: string,
   seed: { id: string; gardenId: string; title: string; visibility: string },
   text: string,
+  contributionId: string,
+  snippet: string,
 ) {
   try {
     const ids = extractMentionIds(text).filter((id) => id !== actorId);
@@ -399,24 +416,26 @@ async function notifyMentions(
             actorId,
             type: "mention",
             title: `${actorName} mentioned you`,
-            body: seed.title,
+            body: snippet ? `“${snippet}” · in ${seed.title}` : `in ${seed.title}`,
             entityType: "seed",
             entityId: seed.id,
+            anchorId: contributionId,
           },
           select: { id: true, recipientId: true },
         }),
       ),
     );
 
-    // Fan out to email + push (deliver respects each person's preferences).
+    // Fan out to email + push (deliver respects each person's preferences). The
+    // link jumps to the exact message; push/email carry the preview snippet.
     await deliver(
       rows.map((r) => ({
         notificationId: r.id,
         recipientId: r.recipientId,
         type: "mention",
-        push: { title: `${actorName} mentioned you`, body: seed.title },
-        link: `/seeds/${seed.id}`,
-        email: { kind: "mention", seedTitle: seed.title, actorName },
+        push: { title: `${actorName} mentioned you`, body: snippet || seed.title },
+        link: `/seeds/${seed.id}#c-${contributionId}`,
+        email: { kind: "mention", seedTitle: seed.title, actorName, snippet },
       })),
     );
   } catch (err) {

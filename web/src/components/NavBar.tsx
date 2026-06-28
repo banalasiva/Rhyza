@@ -12,9 +12,14 @@ export async function NavBar({ name }: { name?: string }) {
 
   return (
     <header className="relative z-20 flex items-center justify-between px-5 py-3">
-      {/* Logo + side-panel toggle */}
+      {/* Logo + side-panel toggle. Sign out lives inside the panel. */}
       <div className="flex items-center gap-2">
-        <NavSidebar />
+        <NavSidebar
+          signOut={async () => {
+            "use server";
+            await signOut({ redirectTo: "/login" });
+          }}
+        />
         <Link
           href="/"
           title="Back to your gardens"
@@ -43,20 +48,10 @@ export async function NavBar({ name }: { name?: string }) {
         <Link
           href="/roots"
           title="What you've grown"
-          className="hidden items-center gap-1 text-sm text-ink-soft transition hover:text-ink sm:inline-flex"
+          className="flex items-center gap-1 text-sm text-ink-soft transition hover:text-ink"
         >
-          🌳 {name ?? session?.user?.name}
+          🌳 <span className="hidden sm:inline">{name ?? session?.user?.name}</span>
         </Link>
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/login" });
-          }}
-        >
-          <button type="submit" className="btn-ghost px-3 py-1.5 text-xs">
-            Sign out
-          </button>
-        </form>
       </div>
     </header>
   );

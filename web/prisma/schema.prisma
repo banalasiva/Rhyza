@@ -522,6 +522,7 @@ model Notification {
   body        String?
   entityType  String?   @map("entity_type") // seed | bloom | garden | contribution
   entityId    String?   @map("entity_id") @db.Uuid
+  anchorId    String?   @map("anchor_id") @db.Uuid // the exact contribution to scroll to
   actorId     String?   @map("actor_id") @db.Uuid
   readAt      DateTime? @map("read_at")
   // When this notification was delivered over each external channel, so the

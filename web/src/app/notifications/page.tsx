@@ -4,9 +4,15 @@ import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
 import { NotificationSettings } from "@/components/NotificationSettings";
 
-function href(entityType: string | null, entityId: string | null): string {
+function href(
+  entityType: string | null,
+  entityId: string | null,
+  anchorId?: string | null,
+): string {
   if (!entityId) return "/";
-  if (entityType === "seed") return `/seeds/${entityId}`;
+  // Jump to the exact message when we know it (mentions / new contributions).
+  const anchor = anchorId ? `#c-${anchorId}` : "";
+  if (entityType === "seed") return `/seeds/${entityId}${anchor}`;
   if (entityType === "bloom") return `/blooms/${entityId}`;
   if (entityType === "garden") return `/gardens/${entityId}`;
   return "/";
@@ -50,7 +56,7 @@ export default async function NotificationsPage() {
             {notifications.map((n) => (
               <li key={n.id}>
                 <Link
-                  href={href(n.entityType, n.entityId)}
+                  href={href(n.entityType, n.entityId, n.anchorId)}
                   className={`card block p-4 ${n.readAt ? "opacity-60" : ""}`}
                 >
                   <p className="text-sm text-ink">{n.title}</p>

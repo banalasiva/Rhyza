@@ -142,6 +142,7 @@ async function renderEmail(
         recipientName: ctx.recipientName,
         seedTitle: email.seedTitle,
         link: ctx.link,
+        snippet: email.snippet,
         unsubLink: ctx.unsubLink,
       }),
     };

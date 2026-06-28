@@ -16,7 +16,8 @@ const STORAGE_KEY = "thinkthru_nav_open";
 
 // A slide-in left panel listing the viewer's gardens and seeds (private/public,
 // alphabetical, with bloom counts). Remembers open/closed across pages.
-export function NavSidebar() {
+// `signOut` is a server action passed down from the (server) NavBar.
+export function NavSidebar({ signOut }: { signOut?: () => void }) {
   const [open, setOpen] = useState(false);
   const [gardens, setGardens] = useState<GardenNode[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -145,6 +146,27 @@ export function NavSidebar() {
                 );
               })}
             </div>
+
+            {/* Account actions pinned at the bottom of the panel */}
+            {signOut && (
+              <div className="mt-6 border-t border-[rgba(76,175,80,0.15)] pt-3">
+                <Link
+                  href="/roots"
+                  onClick={() => setOpenPersist(false)}
+                  className="mb-1 block rounded-lg px-1 py-1.5 text-sm text-ink-mid transition hover:text-ink"
+                >
+                  🌳 What you&apos;ve grown
+                </Link>
+                <form action={signOut}>
+                  <button
+                    type="submit"
+                    className="w-full rounded-lg px-1 py-1.5 text-left text-sm text-ink-soft transition hover:text-[#e57373]"
+                  >
+                    ↩ Sign out
+                  </button>
+                </form>
+              </div>
+            )}
           </aside>
         </div>
       )}
