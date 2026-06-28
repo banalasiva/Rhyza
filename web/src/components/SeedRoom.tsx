@@ -109,6 +109,7 @@ export function SeedRoom({
   const [thinking, setThinking] = useState(false);
   const [thinkingWho, setThinkingWho] = useState("Claude");
   const [mediating, setMediating] = useState(false);
+  const [mediatingWho, setMediatingWho] = useState<"claude" | "chatgpt" | null>(null);
   const [visibility, setVisibility] = useState<"public" | "private">(seed.visibility);
   const [visBusy, setVisBusy] = useState(false);
   const [bloomConfirm, setBloomConfirm] = useState(false); // confirm modal open
@@ -325,11 +326,12 @@ export function SeedRoom({
     }
   }
 
-  async function askMediate() {
+  async function askMediate(provider: "claude" | "chatgpt") {
     setMediating(true);
+    setMediatingWho(provider);
     setError(null);
     try {
-      const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/mediate`, {});
+      const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/mediate`, { provider });
       setContributions((prev) => [...prev, hydrate(c)]);
       setFilterDim(null); // show the full thread so the mediation is visible
       playNatureSound("chirp");
@@ -337,6 +339,7 @@ export function SeedRoom({
       setError(err instanceof Error ? err.message : "Mediation failed");
     } finally {
       setMediating(false);
+      setMediatingWho(null);
     }
   }
 
@@ -566,7 +569,11 @@ export function SeedRoom({
     <div className="relative mt-3 grid gap-6 lg:grid-cols-[1fr_360px]">
       {/* Screen-reader status announcements (WCAG 4.1.3) */}
       <div aria-live="polite" className="sr-only">
-        {thinking ? `${thinkingWho} is thinking…` : mediating ? "Claude is mediating…" : error ?? ""}
+        {thinking
+          ? `${thinkingWho} is thinking…`
+          : mediating
+            ? `${mediatingWho === "chatgpt" ? "ChatGPT" : "Claude"} is mediating…`
+            : error ?? ""}
       </div>
       {showHelp && <HowItWorks onClose={() => setShowHelp(false)} />}
 
@@ -748,16 +755,24 @@ export function SeedRoom({
         </div>
         <h1 className="serif-xl mb-4">{seed.title}</h1>
 
-        {/* Mediation — ask Claude to help resolve disagreement */}
+        {/* Mediation — ask an AI to help resolve disagreement */}
         {!isBloomed && (
-          <div className="mb-4">
+          <div className="mb-4 flex flex-wrap gap-2">
             <button
-              onClick={askMediate}
+              onClick={() => askMediate("claude")}
               disabled={mediating}
               className="btn-ghost px-3 py-1.5 text-xs"
               title="Claude reads the discussion and proposes a fair path forward"
             >
-              {mediating ? "🕊️ Mediating…" : "🕊️ Ask Claude to mediate"}
+              {mediatingWho === "claude" ? "🕊️ Claude mediating…" : "🕊️ Ask Claude to mediate"}
+            </button>
+            <button
+              onClick={() => askMediate("chatgpt")}
+              disabled={mediating}
+              className="btn-ghost px-3 py-1.5 text-xs"
+              title="ChatGPT reads the discussion and proposes a fair path forward"
+            >
+              {mediatingWho === "chatgpt" ? "🕊️ ChatGPT mediating…" : "🕊️ Ask ChatGPT to mediate"}
             </button>
           </div>
         )}

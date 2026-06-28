@@ -175,6 +175,33 @@ export async function claudeReply(input: {
   return text || null;
 }
 
+// Shared mediator brief, parameterised by which AI is speaking.
+function mediatorSystem(name: string): string {
+  return (
+    `You are ${name}, acting as a neutral mediator in a Rhyza discussion where ` +
+    "people may disagree. Some messages include community reactions (e.g. 'Still " +
+    "confused', 'It clicked', 'Changed thinking') — treat these as real signal: points " +
+    "people found confusing deserve clarification, points that landed are common ground. " +
+    "Your job is conflict resolution: (1) briefly and fairly restate the main positions " +
+    "without taking sides, (2) name the genuine points of tension (and what people found " +
+    "confusing), (3) surface the common ground people actually share, and (4) propose a " +
+    "concrete, even-handed path forward (or a synthesis both sides could accept). Be " +
+    "warm, balanced, and specific. Never declare a winner. Keep it tight — a few short " +
+    "paragraphs or compact bullets. Output only the mediation."
+  );
+}
+
+function mediatePrompt(input: { title: string; content: string; contributions: ContribForAI[] }): string {
+  return [
+    `SEED: ${input.title}`,
+    input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
+    `\nTHE DISCUSSION:\n${renderThread(input.contributions)}`,
+    `\nMediate.`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 // Claude as neutral mediator: read the discussion, surface where people
 // disagree, find common ground, and propose a fair path forward. Returns null
 // if AI isn't configured or the call fails.
@@ -184,27 +211,11 @@ export async function mediate(input: {
   contributions: ContribForAI[];
 }): Promise<string | null> {
   if (!aiConfigured()) return null;
-  const prompt = [
-    `SEED: ${input.title}`,
-    input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
-    `\nTHE DISCUSSION:\n${renderThread(input.contributions)}`,
-    `\nMediate.`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const prompt = mediatePrompt(input);
 
   // Throws on API error so the route can show the real reason.
   const text = await complete(
-    "You are Claude, acting as a neutral mediator in a Rhyza discussion where " +
-      "people may disagree. Some messages include community reactions (e.g. 'Still " +
-      "confused', 'It clicked', 'Changed thinking') — treat these as real signal: points " +
-      "people found confusing deserve clarification, points that landed are common ground. " +
-      "Your job is conflict resolution: (1) briefly and fairly restate the main positions " +
-      "without taking sides, (2) name the genuine points of tension (and what people found " +
-      "confusing), (3) surface the common ground people actually share, and (4) propose a " +
-      "concrete, even-handed path forward (or a synthesis both sides could accept). Be " +
-      "warm, balanced, and specific. Never declare a winner. Keep it tight — a few short " +
-      "paragraphs or compact bullets. Output only the mediation.",
+    mediatorSystem("Claude"),
     userMessage(prompt, collectImages(input.contributions)),
   );
   return text || null;
@@ -331,4 +342,25 @@ export async function chatgptReply(input: {
   });
   const text = resp.choices[0]?.message?.content?.trim() ?? "";
   return text || null;
+}
+
+// ChatGPT as neutral mediator (mirrors mediate). Returns null if not configured
+// or empty; throws on API error.
+export async function openaiMediate(input: {
+  title: string;
+  content: string;
+  contributions: ContribForAI[];
+}): Promise<string | null> {
+  if (!openaiConfigured()) return null;
+  const resp = await getOpenAI().chat.completions.create({
+    model: OPENAI_MODEL,
+    messages: [
+      { role: "system", content: mediatorSystem("ChatGPT") },
+      {
+        role: "user",
+        content: openaiUserContent(mediatePrompt(input), collectImages(input.contributions)),
+      },
+    ],
+  });
+  return resp.choices[0]?.message?.content?.trim() || null;
 }

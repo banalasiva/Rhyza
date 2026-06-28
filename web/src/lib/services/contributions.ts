@@ -10,6 +10,7 @@ import {
   chatgptReply,
   classifyDimension,
   mediate,
+  openaiMediate,
   mentionsClaude,
   type ContribForAI,
 } from "@/lib/ai";
@@ -162,10 +163,14 @@ export async function respondAsClaude(
   return contribution;
 }
 
-// Ask Claude to mediate the seed's discussion. Posts the mediation as a
-// contribution by the Claude system user in the Debate dimension. Requires seed
+// Ask Claude or ChatGPT to mediate the seed's discussion. Posts the mediation as
+// a contribution by that AI's system user in the Debate dimension. Requires seed
 // access; returns the new contribution, or null if AI is off / failed.
-export async function mediateSeed(userId: string, seedId: string) {
+export async function mediateSeed(
+  userId: string,
+  seedId: string,
+  provider: "claude" | "chatgpt" = "claude",
+) {
   await requireSeedAccess(userId, seedId);
   const [seed, reactionTypes] = await Promise.all([
     db.seed.findUnique({
@@ -210,18 +215,17 @@ export async function mediateSeed(userId: string, seedId: string) {
     };
   });
 
-  const text = await mediate({
-    title: seed.title,
-    content: seed.content,
-    contributions: thread,
-  });
+  const text = await (provider === "chatgpt"
+    ? openaiMediate({ title: seed.title, content: seed.content, contributions: thread })
+    : mediate({ title: seed.title, content: seed.content, contributions: thread }));
   if (!text) return null;
 
-  const claude = await getOrCreateClaudeUser();
+  const bot =
+    provider === "chatgpt" ? await getOrCreateChatGptUser() : await getOrCreateClaudeUser();
   const contribution = await db.contribution.create({
     data: {
       seedId,
-      authorId: claude.id,
+      authorId: bot.id,
       dimension: "debate",
       content: { text: `🕊️ **Mediation**\n\n${text}` },
     },
