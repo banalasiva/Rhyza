@@ -120,3 +120,8 @@ export const createPollSchema = z.object({
 export const pollVoteSchema = z.object({
   optionId: z.string().uuid(),
 });
+
+export const admissionVoteSchema = z.object({
+  candidateId: z.string().uuid(),
+  approve: z.boolean(),
+});

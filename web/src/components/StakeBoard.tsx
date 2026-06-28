@@ -33,6 +33,14 @@ export type Board = {
   myRatings: Record<string, Record<string, number>>;
   myCrosses: string[];
   carriesHeadline: string | null;
+  pendingAdmissions: {
+    candidateId: string;
+    name: string;
+    image: string | null;
+    approvalPct: number;
+    iCanVote: boolean;
+    myApprove: boolean | null;
+  }[];
   ratersSubmitted: number;
   totalRaters: number;
   threshold: number;
@@ -172,6 +180,21 @@ export function StakeBoard({
     }
   }
 
+  async function voteAdmission(candidateId: string, approve: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      const b = await apiPost<Board>(`/api/seeds/${seedId}/stake/admission`, { candidateId, approve });
+      applyBoard(b);
+      seedDraft(b); // admission may have reopened the board
+      playNatureSound(approve ? "bloom" : "wind");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't vote");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function toggleDimension(dim: string) {
     if (!board) return;
     const set = new Set(board.activeDimensions);
@@ -230,6 +253,64 @@ export function StakeBoard({
             {board.locked ? "🔒 Locked for the vote" : board.revealed ? "👁 Revealed" : "🙈 Blind"}
           </span>
         </div>
+
+        {/* Pending newcomer admissions — vote to add them to the quorum */}
+        {board.pendingAdmissions.length > 0 && (
+          <div className="mb-5 space-y-2">
+            {board.pendingAdmissions.map((a) => (
+              <div
+                key={a.candidateId}
+                className="rounded-2xl border border-[rgba(76,175,80,0.35)] bg-[rgba(76,175,80,0.06)] p-3"
+              >
+                <div className="mb-2 flex items-center gap-2">
+                  <Avatar name={a.name} image={a.image} size={26} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-ink">
+                      🙋 <span className="font-medium">{a.name}</span> wants into the decision
+                    </p>
+                    <p className="text-[11px] text-ink-soft">
+                      {a.approvalPct}% of the stake approves · needs over 50% to reopen the board
+                    </p>
+                  </div>
+                </div>
+                <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
+                  <div
+                    className="weight-bar-fill h-full rounded-full"
+                    style={{
+                      width: `${Math.min(100, a.approvalPct)}%`,
+                      background: a.approvalPct > 50 ? "#4CAF50" : "rgba(76,175,80,0.5)",
+                    }}
+                  />
+                </div>
+                {a.iCanVote ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => voteAdmission(a.candidateId, true)}
+                      disabled={busy}
+                      className="rounded-full px-3 py-1 text-xs font-medium text-bg transition"
+                      style={{ background: a.myApprove === true ? "#4CAF50" : "rgba(76,175,80,0.6)" }}
+                    >
+                      {a.myApprove === true ? "✓ Admitted" : "Admit"}
+                    </button>
+                    <button
+                      onClick={() => voteAdmission(a.candidateId, false)}
+                      disabled={busy}
+                      className="rounded-full border px-3 py-1 text-xs transition"
+                      style={{
+                        borderColor: a.myApprove === false ? "#e57373" : "rgba(255,255,255,0.12)",
+                        color: a.myApprove === false ? "#e57373" : "#A0A890",
+                      }}
+                    >
+                      Not yet
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-ink-soft">Only current decision-makers vote on this.</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Active dimensions (consensus) */}
         <div className="mb-5">

@@ -61,7 +61,18 @@ export function StakeMap({ seedId, bloomed }: { seedId: string; bloomed?: boolea
         </div>
 
         {board?.carriesHeadline && revealed && (
-          <p className="mb-3 text-sm font-medium text-bloom">🌸 {board.carriesHeadline}</p>
+          <p className="mb-2 text-sm font-medium text-bloom">🌸 {board.carriesHeadline}</p>
+        )}
+
+        {board && board.pendingAdmissions.length > 0 && (
+          <button
+            onClick={() => setOpen(true)}
+            className="mb-3 flex w-full items-center gap-1.5 rounded-lg border border-[rgba(76,175,80,0.35)] bg-[rgba(76,175,80,0.08)] px-2 py-1.5 text-left text-[11px] text-ink-mid transition hover:text-ink"
+          >
+            🙋 {board.pendingAdmissions.map((a) => a.name).join(", ")}{" "}
+            {board.pendingAdmissions.length === 1 ? "wants" : "want"} into the decision —
+            <span className="text-accent">vote</span>
+          </button>
         )}
 
         {revealed ? (

@@ -195,6 +195,7 @@ model Seed {
   invites       Invite[]
   stakeRatings  StakeRating[]
   stakeState    SeedStake?
+  stakeAdmissions StakeAdmission[]
   polls         Poll[]
 
   @@index([gardenId, stage])
@@ -267,11 +268,44 @@ model SeedStake {
   activeDimensions Json     @default("[]") @map("active_dimensions")
   optOuts          Json     @default("[]") @map("opt_outs")
   phase            String   @default("collecting")
+  // Snapshot of the participant ids at the moment the board was locked. A later
+  // contributor not in this set is a "newcomer" who needs an admission vote.
+  lockedParticipants Json   @default("[]") @map("locked_participants")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
 
   @@map("seed_stake")
+}
+
+// A newcomer's request to join a LOCKED decision quorum. The existing carriers
+// vote with their weight; once >50% of the locked stake approves, the board
+// reopens so everyone can re-weigh each other and fold the newcomer in.
+model StakeAdmission {
+  seedId      String   @map("seed_id") @db.Uuid
+  candidateId String   @map("candidate_id") @db.Uuid
+  status      String   @default("pending") // pending | admitted | declined
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  seed  Seed                 @relation(fields: [seedId], references: [id], onDelete: Cascade)
+  votes StakeAdmissionVote[]
+
+  @@id([seedId, candidateId])
+  @@index([seedId])
+  @@map("stake_admissions")
+}
+
+model StakeAdmissionVote {
+  seedId      String   @map("seed_id") @db.Uuid
+  candidateId String   @map("candidate_id") @db.Uuid
+  voterId     String   @map("voter_id") @db.Uuid
+  approve     Boolean
+  votedAt     DateTime @default(now()) @map("voted_at")
+
+  admission StakeAdmission @relation(fields: [seedId, candidateId], references: [seedId, candidateId], onDelete: Cascade)
+
+  @@id([seedId, candidateId, voterId])
+  @@map("stake_admission_votes")
 }
 
 // ─────────────────────────────────────────────────────────────

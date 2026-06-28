@@ -13,6 +13,7 @@ import {
   type ContribForAI,
 } from "@/lib/ai";
 import { extractMentionIds } from "@/lib/mentions";
+import { requestAdmissionIfNeeded } from "@/lib/services/stake";
 import { appUrl, sendEmail, mentionEmailHtml, emailConfigured } from "@/lib/email";
 import { getReactionTypes } from "@/lib/registry";
 
@@ -202,6 +203,10 @@ export async function addContribution(
 
   // Notify anyone @-mentioned (in-app + email), as long as they can see the seed.
   await notifyMentions(userId, seed, input.text);
+
+  // If the decision quorum is locked and this is a newcomer, open an admission
+  // request so the carriers can vote them in. Never blocks the contribution.
+  await requestAdmissionIfNeeded(seedId, userId);
 
   return contribution;
 }

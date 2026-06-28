@@ -93,7 +93,7 @@ export type StakeBoard = Awaited<ReturnType<typeof getStakeBoard>>;
 export async function getStakeBoard(userId: string, seedId: string) {
   const seed = await requireSeedAccess(userId, seedId);
 
-  const [parts, stateRow, ratings, contribRows, votes] = await Promise.all([
+  const [parts, stateRow, ratings, contribRows, votes, admissions] = await Promise.all([
     participantUsers(seedId),
     db.seedStake.findUnique({ where: { seedId } }),
     db.stakeRating.findMany({ where: { seedId } }),
@@ -102,6 +102,10 @@ export async function getStakeBoard(userId: string, seedId: string) {
       select: { authorId: true, dimension: true },
     }),
     db.seedStageVote.findMany({ where: { seedId }, select: { userId: true, stage: true } }),
+    db.stakeAdmission.findMany({
+      where: { seedId, status: "pending" },
+      include: { votes: true },
+    }),
   ]);
 
   const partIds = parts.map((p) => p.id);
@@ -172,6 +176,26 @@ export async function getStakeBoard(userId: string, seedId: string) {
   const yes = stakeYesShare(profiles, yesIds);
   const configured = submittedRaters.size > 0;
 
+  // Pending newcomer-admission requests, tallied by the locked stake.
+  const lockedIds = (stateRow?.lockedParticipants as string[]) ?? [];
+  const weightOf = (id: string) => profById.get(id)?.weight ?? 0;
+  const lockedTotal = lockedIds.reduce((s, id) => s + weightOf(id), 0);
+  const iCarry = lockedIds.includes(userId) && weightOf(userId) > 0;
+  const pendingAdmissions = admissions.map((a) => {
+    const yesW = a.votes
+      .filter((v) => v.approve && lockedIds.includes(v.voterId))
+      .reduce((s, v) => s + weightOf(v.voterId), 0);
+    const mine = a.votes.find((v) => v.voterId === userId);
+    return {
+      candidateId: a.candidateId,
+      name: nameOf(a.candidateId),
+      image: parts.find((p) => p.id === a.candidateId)?.image ?? null,
+      approvalPct: lockedTotal > 0 ? Math.round((yesW / lockedTotal) * 100) : 0,
+      iCanVote: iCarry && a.candidateId !== userId,
+      myApprove: mine ? mine.approve : null,
+    };
+  });
+
   return {
     seedId,
     phase,
@@ -186,6 +210,7 @@ export async function getStakeBoard(userId: string, seedId: string) {
     myRatings,
     myCrosses: [...myCrosses],
     carriesHeadline,
+    pendingAdmissions,
     ratersSubmitted: submittedRaters.size,
     totalRaters: partIds.length,
     threshold: STAKE_BLOOM_THRESHOLD_PCT,
@@ -292,18 +317,147 @@ export async function setCross(
   return getStakeBoard(userId, seedId);
 }
 
-// Manager reveals the map early, or locks it for the bloom vote.
+// Manager reveals the map early, or locks it for the bloom vote. Locking
+// snapshots the current quorum so we can detect later newcomers; unlocking
+// clears that snapshot and any open admission requests.
 export async function setStakePhase(
   userId: string,
   seedId: string,
   phase: "collecting" | "revealed" | "locked",
 ) {
   await requireSeedManager(userId, seedId);
+  const lockedParticipants =
+    phase === "locked" ? (await participantUsers(seedId)).map((p) => p.id) : [];
   await db.seedStake.upsert({
     where: { seedId },
-    update: { phase },
-    create: { seedId, phase, activeDimensions: [...STAKE_DIMENSION_KEYS] },
+    update: { phase, lockedParticipants },
+    create: { seedId, phase, lockedParticipants, activeDimensions: [...STAKE_DIMENSION_KEYS] },
   });
+  if (phase !== "locked") {
+    await db.stakeAdmission.deleteMany({ where: { seedId, status: "pending" } });
+  }
+  return getStakeBoard(userId, seedId);
+}
+
+// Called when someone posts: if the board is LOCKED and they weren't in the
+// locked quorum, open a pending admission request and notify the carriers.
+// Never throws into the contribution path.
+export async function requestAdmissionIfNeeded(seedId: string, candidateId: string) {
+  try {
+    const state = await db.seedStake.findUnique({ where: { seedId } });
+    if (!state || state.phase !== "locked") return;
+    const locked = (state.lockedParticipants as string[]) ?? [];
+    if (locked.includes(candidateId)) return; // already a carrier
+
+    const existing = await db.stakeAdmission.findUnique({
+      where: { seedId_candidateId: { seedId, candidateId } },
+    });
+    if (existing) return; // one request per candidate
+
+    const [candidate, seed, weights] = await Promise.all([
+      db.user.findUnique({ where: { id: candidateId }, select: { name: true } }),
+      db.seed.findUnique({ where: { id: seedId }, select: { title: true } }),
+      getStakeWeightMap(seedId),
+    ]);
+    await db.stakeAdmission.create({ data: { seedId, candidateId } });
+
+    // Notify the weighted carriers so they can vote on admitting the newcomer.
+    const carriers = locked.filter((id) => (weights[id] ?? 0) > 0 && id !== candidateId);
+    if (carriers.length > 0) {
+      await db.notification.createMany({
+        data: carriers.map((id) => ({
+          recipientId: id,
+          actorId: candidateId,
+          type: "stake_admission",
+          title: `${candidate?.name || "Someone"} wants into the decision`,
+          body: seed?.title ?? "",
+          entityType: "seed",
+          entityId: seedId,
+        })),
+      });
+    }
+  } catch (err) {
+    console.error("requestAdmissionIfNeeded failed", err);
+  }
+}
+
+// A carrier votes to admit (or not) a newcomer. Once >50% of the locked stake
+// approves, the board reopens (unlocks → revealed) so the whole quorum can
+// re-weigh each other and fold the newcomer in.
+export async function voteAdmission(
+  userId: string,
+  seedId: string,
+  candidateId: string,
+  approve: boolean,
+) {
+  const state = await db.seedStake.findUnique({ where: { seedId } });
+  if (!state) throw new ApiError("NOT_FOUND", "No stake board");
+  await ensureSeedParticipant(userId, seedId);
+  const admission = await db.stakeAdmission.findUnique({
+    where: { seedId_candidateId: { seedId, candidateId } },
+  });
+  if (!admission || admission.status !== "pending") {
+    throw new ApiError("CONFLICT", "No open admission request");
+  }
+  const locked = (state.lockedParticipants as string[]) ?? [];
+  const weights = await getStakeWeightMap(seedId);
+  if (!locked.includes(userId) || (weights[userId] ?? 0) <= 0) {
+    throw new ApiError("FORBIDDEN", "Only current decision-makers can vote on this");
+  }
+
+  await db.stakeAdmissionVote.upsert({
+    where: { seedId_candidateId_voterId: { seedId, candidateId, voterId: userId } },
+    update: { approve },
+    create: { seedId, candidateId, voterId: userId, approve },
+  });
+
+  // Tally by stake. Admit once approvers hold > half the locked weight.
+  const votes = await db.stakeAdmissionVote.findMany({ where: { seedId, candidateId } });
+  const totalWeight = locked.reduce((s, id) => s + (weights[id] ?? 0), 0);
+  const yesWeight = votes
+    .filter((v) => v.approve)
+    .reduce((s, v) => s + (weights[v.voterId] ?? 0), 0);
+
+  if (totalWeight > 0 && yesWeight / totalWeight > 0.5) {
+    await db.$transaction(async (tx) => {
+      await tx.stakeAdmission.update({
+        where: { seedId_candidateId: { seedId, candidateId } },
+        data: { status: "admitted" },
+      });
+      // Reopen the board so everyone re-weighs each other.
+      await tx.seedStake.update({
+        where: { seedId },
+        data: { phase: "revealed", lockedParticipants: [] },
+      });
+      const seed = await tx.seed.findUnique({ where: { id: seedId }, select: { title: true } });
+      // Welcome the newcomer + nudge everyone to re-weigh.
+      await tx.notification.create({
+        data: {
+          recipientId: candidateId,
+          actorId: userId,
+          type: "stake_admission",
+          title: "You're in the decision quorum 🎉",
+          body: seed?.title ?? "",
+          entityType: "seed",
+          entityId: seedId,
+        },
+      });
+      await tx.notification.createMany({
+        data: locked
+          .filter((id) => id !== userId)
+          .map((id) => ({
+            recipientId: id,
+            actorId: userId,
+            type: "stake_admission",
+            title: "The decision quorum reopened — re-weigh together",
+            body: seed?.title ?? "",
+            entityType: "seed",
+            entityId: seedId,
+          })),
+      });
+    });
+  }
+
   return getStakeBoard(userId, seedId);
 }
 
