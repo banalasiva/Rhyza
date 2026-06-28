@@ -30,6 +30,7 @@ import { ReadAloud } from "@/components/ReadAloud";
 import { MicButton } from "@/components/MicButton";
 import { MessageActions } from "@/components/MessageActions";
 import { SeedInvite } from "@/components/SeedInvite";
+import { MembersSheet } from "@/components/MembersSheet";
 
 const SEED_TABS = [
   { key: "discussion", label: "Discussion", icon: "discussion" },
@@ -104,7 +105,8 @@ export function SeedRoom({
   // Seed title/framing — local copies so an edit shows instantly.
   const [seedTitle, setSeedTitle] = useState(seed.title);
   const [seedContent, setSeedContent] = useState(seed.content);
-  const [seedMenu, setSeedMenu] = useState(false); // tap-the-question menu
+  const [seedMenu, setSeedMenu] = useState(false); // tap-the-question details sheet
+  const [membersOpen, setMembersOpen] = useState(false);
   const [editingSeed, setEditingSeed] = useState(false);
   const [seedTitleDraft, setSeedTitleDraft] = useState(seed.title);
   const [seedContentDraft, setSeedContentDraft] = useState(seed.content);
@@ -512,6 +514,24 @@ export function SeedRoom({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't save the edit");
     } finally {
+      setBusy(false);
+    }
+  }
+
+  // Leave the seed yourself (non-owners). Revokes access on a private seed.
+  async function leaveSeed() {
+    if (!confirm("Leave this seed? If it's private, you'll lose access.")) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/seeds/${seed.id}/members`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error?.message ?? "Couldn't leave the seed");
+      }
+      router.push(`/gardens/${seed.garden.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't leave the seed");
       setBusy(false);
     }
   }
@@ -1555,12 +1575,34 @@ export function SeedRoom({
               <button
                 onClick={() => {
                   setSeedMenu(false);
+                  setMembersOpen(true);
+                }}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
+              >
+                👥 Members
+              </button>
+              <button
+                onClick={() => {
+                  setSeedMenu(false);
                   setShowHelp(true);
                 }}
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
               >
                 <Icon name="info" size={14} /> How it works
               </button>
+              {/* Leave — for participants who aren't the owner */}
+              {seed.author?.id !== currentUserId && (
+                <button
+                  onClick={() => {
+                    setSeedMenu(false);
+                    leaveSeed();
+                  }}
+                  disabled={busy}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-[#e57373]"
+                >
+                  🚪 Leave seed
+                </button>
+              )}
               {seed.canManage && (
                 <button
                   onClick={() => {
@@ -1577,6 +1619,8 @@ export function SeedRoom({
           </div>
         </div>
       )}
+
+      {membersOpen && <MembersSheet seedId={seed.id} onClose={() => setMembersOpen(false)} />}
     </div>
   );
 }

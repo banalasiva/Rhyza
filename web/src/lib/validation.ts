@@ -142,3 +142,8 @@ export const admissionVoteSchema = z.object({
 export const aiActionSchema = z.object({
   provider: z.enum(["claude", "chatgpt"]),
 });
+
+export const seedMemberActionSchema = z.object({
+  targetId: z.string().uuid(),
+  action: z.enum(["promote", "demote", "remove"]),
+});
