@@ -330,6 +330,8 @@ export function StakeBoard({
                   onClick={() => board.canManage && toggleDimension(d.key)}
                   disabled={!board.canManage || busy}
                   title={d.blurb}
+                  aria-pressed={on}
+                  aria-label={`${d.label}${on ? "" : " (not applicable)"}`}
                   className="rounded-full border px-3 py-1 text-xs transition disabled:cursor-default"
                   style={{
                     color: on ? d.color : "#5A6456",
@@ -385,7 +387,8 @@ export function StakeBoard({
                 <button
                   onClick={() => patch({ optedOut: !board.iOptedOut })}
                   disabled={busy}
-                  className="ml-1 text-[10px] transition"
+                  aria-pressed={board.iOptedOut}
+                  className="ml-1 inline-flex min-h-[24px] items-center text-[10px] transition"
                   style={{ color: board.iOptedOut ? "#66BB6A" : "#A0A890" }}
                   title="Your weight is shared equally among the others"
                 >
@@ -395,8 +398,10 @@ export function StakeBoard({
                 <button
                   onClick={() => patch({ cross: { rateeId: p.id, crossed: !p.iCrossed } })}
                   disabled={busy}
-                  className="ml-1 text-[10px] transition"
-                  style={{ color: p.iCrossed ? "#e57373" : "#5A6456" }}
+                  aria-pressed={p.iCrossed}
+                  aria-label={`Cross out ${p.name} — flag they shouldn't decide this`}
+                  className="ml-1 inline-flex min-h-[24px] items-center text-[10px] transition"
+                  style={{ color: p.iCrossed ? "#e57373" : "#828B79" }}
                   title="Cross out — flag they shouldn't decide this (reduces their weight)"
                 >
                   {p.iCrossed ? "✕ crossed" : "✕ cross"}

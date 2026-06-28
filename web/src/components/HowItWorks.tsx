@@ -1,24 +1,44 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { DIMENSIONS } from "@/lib/constants";
 
 // Rhyza's welcome + how-it-works. Shown on a member's first seed visit and from
 // the "ⓘ How it works" button. Leads with the why (preserving the journey behind
 // a decision), then how a Seed grows into shared wisdom.
 export function HowItWorks({ onClose }: { onClose: () => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // Dialog behaviour (WCAG 2.1.2 / 2.4.3): Esc closes, focus moves in on open.
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      prev?.focus?.();
+    };
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-[180] flex items-center justify-center bg-[rgba(8,5,0,0.74)] px-4 py-8 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="hiw-title"
         className="card max-h-full w-full max-w-xl overflow-auto p-7 animate-[fadeUp_0.4s_ease-out]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Welcome ── */}
         <div className="text-center">
-          <div className="text-3xl">🌱</div>
-          <h2 className="serif-xl mt-1">Welcome to Rhyza</h2>
+          <div className="text-3xl" aria-hidden>🌱</div>
+          <h2 id="hiw-title" className="serif-xl mt-1">Welcome to Rhyza</h2>
         </div>
 
         <div className="mt-4 space-y-3 text-[15px] leading-relaxed text-ink-mid">
@@ -114,7 +134,7 @@ export function HowItWorks({ onClose }: { onClose: () => void }) {
           Communities create <span className="text-accent">wisdom</span>.
         </p>
 
-        <button onClick={onClose} className="btn-primary w-full">
+        <button ref={closeRef} onClick={onClose} className="btn-primary w-full">
           Enter Rhyza 🌿
         </button>
       </div>

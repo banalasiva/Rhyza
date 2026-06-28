@@ -26,6 +26,12 @@ import { SeedPolls } from "@/components/SeedPolls";
 import { QuorumCircle } from "@/components/QuorumCircle";
 import { Icon, type IconName } from "@/components/Icon";
 
+const SEED_TABS = [
+  { key: "discussion", label: "Discussion", icon: "discussion" },
+  { key: "polls", label: "Polls", icon: "polls" },
+  { key: "quorum", label: "Quorum", icon: "quorum" },
+] as const satisfies readonly { key: string; label: string; icon: IconName }[];
+
 type ReactionType = { key: string; emoji: string; label: string };
 type Contribution = SeedDetail["contributions"][number];
 
@@ -549,6 +555,10 @@ export function SeedRoom({
 
   return (
     <div className="relative mt-3 grid gap-6 lg:grid-cols-[1fr_360px]">
+      {/* Screen-reader status announcements (WCAG 4.1.3) */}
+      <div aria-live="polite" className="sr-only">
+        {thinking ? "Claude is thinking…" : mediating ? "Claude is mediating…" : error ?? ""}
+      </div>
       {showHelp && <HowItWorks onClose={() => setShowHelp(false)} />}
 
       {/* Floating reaction bursts (rendered over everything, position:fixed) */}
@@ -587,33 +597,50 @@ export function SeedRoom({
       {/* ── Thread column ── */}
       <div>
         {/* Tabs: Discussion · Polls · Quorum */}
-        <div className="mb-4 flex gap-1 rounded-full border border-[rgba(76,175,80,0.15)] bg-[rgba(7,13,7,0.5)] p-1 text-sm">
-          {([
-            { key: "discussion", label: "Discussion", icon: "discussion" },
-            { key: "polls", label: "Polls", icon: "polls" },
-            { key: "quorum", label: "Quorum", icon: "quorum" },
-          ] as { key: "discussion" | "polls" | "quorum"; label: string; icon: IconName }[]).map((t) => {
+        <div
+          role="tablist"
+          aria-label="Seed sections"
+          className="mb-4 flex gap-1 rounded-full border border-[rgba(76,175,80,0.15)] bg-[rgba(7,13,7,0.5)] p-1 text-sm"
+        >
+          {SEED_TABS.map((t, idx) => {
             const active = tab === t.key;
             return (
               <button
                 key={t.key}
+                role="tab"
+                id={`tab-${t.key}`}
+                aria-selected={active}
+                aria-controls={`panel-${t.key}`}
+                tabIndex={active ? 0 : -1}
                 onClick={() => setTab(t.key)}
+                onKeyDown={(e) => {
+                  if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+                  e.preventDefault();
+                  const dir = e.key === "ArrowRight" ? 1 : -1;
+                  const nt = SEED_TABS[(idx + dir + SEED_TABS.length) % SEED_TABS.length];
+                  setTab(nt.key);
+                  requestAnimationFrame(() => document.getElementById(`tab-${nt.key}`)?.focus());
+                }}
                 className="flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 transition"
                 style={{
                   background: active ? "rgba(76,175,80,0.18)" : "transparent",
-                  color: active ? "#E8E4DC" : "#A0A890",
+                  color: active ? "#E8E4DC" : "#828B79",
                 }}
               >
                 <Icon name={t.icon} size={16} muted={!active} />
                 {t.label}
                 {t.key === "quorum" && stakeBoard && stakeBoard.pendingAdmissions.length > 0 && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-accent" title="Someone wants into the decision" />
+                  <span
+                    className="h-1.5 w-1.5 rounded-full bg-accent"
+                    aria-label="Someone wants into the decision"
+                  />
                 )}
               </button>
             );
           })}
         </div>
 
+        <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "quorum" ? (
           <>
             <QuorumCircle />
@@ -746,13 +773,15 @@ export function SeedRoom({
               <button
                 key={d.key}
                 onClick={() => setFilterDim(active ? null : d.key)}
+                aria-pressed={active}
+                aria-label={`Filter by ${d.label}`}
                 className="rounded-full px-3 py-1.5 text-sm transition"
                 style={{
                   color: active ? d.color : "#A0A890",
                   background: active ? `${d.color}22` : "transparent",
                 }}
               >
-                {d.emoji} {d.label}
+                <span aria-hidden>{d.emoji}</span> {d.label}
                 {count > 0 && <span className="ml-1 opacity-60">{count}</span>}
               </button>
             );
@@ -855,11 +884,13 @@ export function SeedRoom({
                         key={r.key}
                         onClick={(e) => react(c.id, r.key, e.currentTarget)}
                         title={r.label}
-                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition active:scale-110 ${
+                        aria-pressed={mine}
+                        aria-label={`${r.label}${n > 0 ? `, ${n}` : ""}`}
+                        className={`inline-flex min-h-[28px] items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition active:scale-110 ${
                           mine ? "border-accent text-accent" : "border-[rgba(255,255,255,0.08)] text-ink-soft hover:text-ink"
                         }`}
                       >
-                        <span>{r.emoji}</span>
+                        <span aria-hidden>{r.emoji}</span>
                         <span className="opacity-80">{r.label}</span>
                         {n > 0 && <span className="font-medium">· {n}</span>}
                       </button>
@@ -867,8 +898,8 @@ export function SeedRoom({
                   })}
                 </div>
                 <div className="flex items-center gap-3 text-xs text-ink-soft">
-                  <button onClick={() => endorse(c.id)} className={`transition ${c.iEndorsed ? "text-bloom" : "hover:text-ink"}`}>
-                    ✦ {c.iEndorsed ? "Endorsed" : "Endorse"}
+                  <button onClick={() => endorse(c.id)} aria-pressed={c.iEndorsed} className={`transition ${c.iEndorsed ? "text-bloom" : "hover:text-ink"}`}>
+                    <span aria-hidden>✦</span> {c.iEndorsed ? "Endorsed" : "Endorse"}
                     {c.endorsementCount > 0 && ` · ${c.endorsementCount}`}
                   </button>
                   {c.author?.id === currentUserId && (
@@ -994,6 +1025,7 @@ export function SeedRoom({
         )}
         </>
         )}
+        </div>
       </div>
 
       {/* ── Right rail ── */}
@@ -1035,6 +1067,8 @@ export function SeedRoom({
                     key={s.key}
                     onClick={() => vote(s.key)}
                     disabled={busy || isBloomed}
+                    aria-pressed={mine}
+                    aria-label={`Vote this seed is at: ${s.label} (${d.pct}%)`}
                     className="block w-full rounded-xl border p-2 text-left transition disabled:cursor-default"
                     style={{ borderColor: mine ? "rgba(76,175,80,0.4)" : "rgba(255,255,255,0.06)" }}
                   >

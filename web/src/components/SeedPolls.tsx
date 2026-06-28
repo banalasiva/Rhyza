@@ -194,6 +194,8 @@ function PollCard({
               key={o.id}
               onClick={() => !poll.closed && onVote(poll.id, o.id)}
               disabled={poll.closed}
+              aria-pressed={mine}
+              aria-label={`${o.text} — ${o.pct}%${mine ? ", your vote" : ""}`}
               className="relative block w-full overflow-hidden rounded-xl border p-2.5 text-left transition disabled:cursor-default"
               style={{ borderColor: mine ? "rgba(76,175,80,0.5)" : "rgba(255,255,255,0.08)" }}
             >
@@ -304,6 +306,7 @@ function PollCreator({
       <input
         className="input mb-3"
         placeholder="Ask a question…"
+        aria-label="Poll question"
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
         autoFocus
@@ -314,6 +317,7 @@ function PollCreator({
             <input
               className="input py-2"
               placeholder={`Option ${i + 1}`}
+              aria-label={`Option ${i + 1}`}
               value={o}
               onChange={(e) => setOptions((prev) => prev.map((x, j) => (j === i ? e.target.value : x)))}
             />
@@ -393,6 +397,7 @@ function PollCreator({
           <button
             key={m.key}
             onClick={() => setWeightMode(m.key)}
+            aria-pressed={weightMode === m.key}
             className="rounded-xl border p-2.5 text-left transition"
             style={{
               borderColor: weightMode === m.key ? "rgba(76,175,80,0.5)" : "rgba(255,255,255,0.08)",
