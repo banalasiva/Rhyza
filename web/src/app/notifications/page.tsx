@@ -18,14 +18,38 @@ function href(
   return "/";
 }
 
+// Field list, with `anchorId` optional so the page survives even if the
+// anchor_id migration hasn't been applied yet (older DBs fall back below).
+const BASE_SELECT = {
+  id: true,
+  type: true,
+  title: true,
+  body: true,
+  entityType: true,
+  entityId: true,
+  readAt: true,
+  createdAt: true,
+} as const;
+
+async function loadNotifications(userId: string) {
+  const args = {
+    where: { recipientId: userId },
+    orderBy: [{ readAt: "asc" }, { createdAt: "desc" }] as const,
+    take: 50,
+  };
+  try {
+    return await db.notification.findMany({ ...args, select: { ...BASE_SELECT, anchorId: true } });
+  } catch {
+    // anchor_id column not present yet — load without it (no deep-link).
+    const rows = await db.notification.findMany({ ...args, select: BASE_SELECT });
+    return rows.map((r) => ({ ...r, anchorId: null as string | null }));
+  }
+}
+
 export default async function NotificationsPage() {
   const viewer = await requireViewer();
   const [notifications, prefs] = await Promise.all([
-    db.notification.findMany({
-      where: { recipientId: viewer.userId },
-      orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
-      take: 50,
-    }),
+    loadNotifications(viewer.userId),
     db.user.findUnique({
       where: { id: viewer.userId },
       select: { emailNotify: true, pushNotify: true, digestNotify: true },
