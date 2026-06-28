@@ -35,7 +35,7 @@ export default async function NotificationsPage() {
     <div className="relative min-h-screen">
       <div className="garden-bg" />
       <NavBar name={viewer.name} />
-      <main id="main" className="relative z-10 mx-auto max-w-2xl px-6 py-8">
+      <main id="main" className="relative z-10 mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
         <Link href="/" className="btn-ghost mb-5 inline-flex px-3 py-1.5 text-xs">
           ← Your gardens
         </Link>

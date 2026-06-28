@@ -20,24 +20,24 @@ export default async function GardenPage({ params }: { params: { id: string } })
     <div className="relative min-h-screen">
       <div className="garden-bg" />
       <NavBar name={viewer.name} />
-      <main id="main" className="relative z-10 mx-auto max-w-3xl px-6 py-8">
+      <main id="main" className="relative z-10 mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
         <Link href="/" className="btn-ghost mb-5 inline-flex px-3 py-1.5 text-xs">
           ← Your gardens
         </Link>
-        <div className="mb-6 flex items-start justify-between gap-3">
-          <div>
-            <p className="eyebrow mb-1 flex items-center gap-2">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="eyebrow mb-1 flex flex-wrap items-center gap-2">
               <span>{garden.emoji} Garden</span>
               <span className="rounded-full border border-[rgba(255,255,255,0.1)] px-2 py-0.5 text-[10px] font-normal tracking-normal text-ink-soft">
                 {garden.visibility === "private" ? "🔒 Private" : "🌍 Public"}
               </span>
             </p>
-            <h1 className="serif-xl">{garden.name}</h1>
+            <h1 className="serif-xl break-words">{garden.name}</h1>
             {garden.description && (
               <p className="mt-1 text-sm text-ink-mid">{garden.description}</p>
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             {garden.canManage && <GardenSettings garden={{ id: garden.id, name: garden.name, description: garden.description, emoji: garden.emoji, visibility: garden.visibility }} />}
             <Link href={`/gardens/${garden.id}/tree`} className="btn-ghost">
               🌸 Sacred Tree

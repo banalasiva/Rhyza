@@ -14,7 +14,7 @@ export default async function GardensHome() {
       <FirstVisitIntro />
       <div className="garden-bg" />
       <NavBar name={viewer.name} />
-      <main id="main" className="relative z-10 mx-auto max-w-4xl px-6 py-8">
+      <main id="main" className="relative z-10 mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
         <p className="eyebrow mb-2">Your gardens</p>
         <h1 className="serif-xl mb-8">What will the community grow today?</h1>
 
