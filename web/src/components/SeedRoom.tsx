@@ -21,6 +21,7 @@ import { InlineText } from "@/components/InlineText";
 import { Avatar } from "@/components/Avatar";
 import { Attachments, type Attachment } from "@/components/Attachments";
 import { StakeMap } from "@/components/StakeMap";
+import { SeedPolls } from "@/components/SeedPolls";
 
 type ReactionType = { key: string; emoji: string; label: string };
 type Contribution = SeedDetail["contributions"][number];
@@ -80,6 +81,7 @@ export function SeedRoom({
   const [myVote, setMyVote] = useState<string | null>(seed.myVote);
   const [stage, setStage] = useState<string>(seed.stage);
   const [filterDim, setFilterDim] = useState<DimensionKey | null>(null); // null = All
+  const [tab, setTab] = useState<"discussion" | "polls">("discussion");
   const [evolveDismissed, setEvolveDismissed] = useState(false);
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
   const [retagId, setRetagId] = useState<string | null>(null); // open re-tag menu
@@ -549,6 +551,30 @@ export function SeedRoom({
 
       {/* ── Thread column ── */}
       <div>
+        {/* Tabs: Discussion ↔ Polls */}
+        <div className="mb-4 flex gap-1 rounded-full border border-[rgba(76,175,80,0.15)] bg-[rgba(7,13,7,0.5)] p-1 text-sm">
+          {([
+            { key: "discussion", label: "💬 Discussion" },
+            { key: "polls", label: "📊 Polls" },
+          ] as const).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className="flex-1 rounded-full px-3 py-1.5 transition"
+              style={{
+                background: tab === t.key ? "rgba(76,175,80,0.18)" : "transparent",
+                color: tab === t.key ? "#E8E4DC" : "#A0A890",
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "polls" ? (
+          <SeedPolls seedId={seed.id} currentUserId={currentUserId} />
+        ) : (
+        <>
         {/* Reopened to evolve — compact, dismissible */}
         {!isBloomed && seed.bloomId && !evolveDismissed && (
           <div className="mb-3 flex items-center gap-2 rounded-full border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.06)] px-3 py-1.5 text-xs">
@@ -908,6 +934,8 @@ export function SeedRoom({
               </button>
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
 

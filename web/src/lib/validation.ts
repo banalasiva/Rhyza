@@ -104,6 +104,19 @@ export const stakeConfigSchema = z.object({
   activeDimensions: z.array(stakeDimEnum).optional(),
   // Self action — opt in/out of carrying stake ("not required for me").
   optedOut: z.boolean().optional(),
+  // Peer action — cross out (or un-cross) another participant.
+  cross: z.object({ rateeId: z.string().uuid(), crossed: z.boolean() }).optional(),
   // Manager action — reveal the map early, or lock it for the bloom vote.
   phase: z.enum(["collecting", "revealed", "locked"]).optional(),
+});
+
+// ── Polls ──
+export const createPollSchema = z.object({
+  question: z.string().min(3, "Ask a clear question").max(300),
+  options: z.array(z.string().min(1).max(200)).min(2, "Add at least two options").max(8),
+  weightMode: z.enum(["equal", "stake"]).optional().default("equal"),
+});
+
+export const pollVoteSchema = z.object({
+  optionId: z.string().uuid(),
 });

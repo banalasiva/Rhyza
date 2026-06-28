@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { STAKE_DIMENSIONS, DIMENSIONS } from "@/lib/constants";
+import { useEffect, useMemo, useState } from "react";
+import { STAKE_DIMENSIONS } from "@/lib/constants";
 import { apiGet, apiPost } from "@/lib/client";
 import { playNatureSound } from "@/lib/sound";
 import { Avatar } from "@/components/Avatar";
@@ -14,6 +14,8 @@ type Participant = {
   isMe: boolean;
   optedOut: boolean;
   hasSubmitted: boolean;
+  crossedBy: number;
+  iCrossed: boolean;
   contribution: { total: number; dims: Record<string, number> };
   stake: Stake;
 };
@@ -29,16 +31,14 @@ export type Board = {
   iVotedBloom: boolean;
   canManage: boolean;
   myRatings: Record<string, Record<string, number>>;
+  myCrosses: string[];
+  carriesHeadline: string | null;
   ratersSubmitted: number;
   totalRaters: number;
   threshold: number;
   bloomProgress: { configured: boolean; pct: number; threshold: number; yesVoters: number };
   participants: Participant[];
 };
-
-function dimMeta(key: string) {
-  return STAKE_DIMENSIONS.find((d) => d.key === key)!;
-}
 
 export function StakeBoard({
   seedId,
@@ -55,69 +55,76 @@ export function StakeBoard({
   const [draft, setDraft] = useState<Record<string, Record<string, number>>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false); // re-open my ratings after submit
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [editing, setEditing] = useState(false);
 
   function applyBoard(b: Board) {
     setBoard(b);
     onChange?.(b);
   }
 
+  // Seed the draft: each dimension is a pie split across non-opted people. Use my
+  // saved read when complete, else an equal split (so it starts summing to 100).
+  function seedDraft(b: Board) {
+    const people = b.participants.filter((p) => !p.optedOut);
+    const d: Record<string, Record<string, number>> = {};
+    for (const p of b.participants) d[p.id] = {};
+    for (const dim of b.activeDimensions) {
+      const saved = people.map((p) => b.myRatings[p.id]?.[dim]);
+      const complete = saved.length > 0 && saved.every((v) => typeof v === "number");
+      people.forEach((p, i) => {
+        d[p.id][dim] = complete ? (saved[i] as number) : people.length ? Math.round(100 / people.length) : 0;
+      });
+    }
+    setDraft(d);
+    setEditing(!b.iSubmitted);
+  }
+
   async function load() {
     try {
       const b = await apiGet<Board>(`/api/seeds/${seedId}/stake`);
       applyBoard(b);
-      // Seed the draft from my saved ratings (default 0 for unrated dims).
-      const d: Record<string, Record<string, number>> = {};
-      for (const p of b.participants) {
-        d[p.id] = {};
-        for (const dim of b.activeDimensions) d[p.id][dim] = b.myRatings[p.id]?.[dim] ?? 0;
-      }
-      setDraft(d);
-      setEditing(!b.iSubmitted);
+      seedDraft(b);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load the stake board");
     }
   }
 
   useEffect(() => {
-    if (initial) {
-      const d: Record<string, Record<string, number>> = {};
-      for (const p of initial.participants) {
-        d[p.id] = {};
-        for (const dim of initial.activeDimensions) d[p.id][dim] = initial.myRatings[p.id]?.[dim] ?? 0;
-      }
-      setDraft(d);
-      setEditing(!initial.iSubmitted);
-    } else {
-      load();
-    }
+    if (initial) seedDraft(initial);
+    else load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function setScore(rateeId: string, dim: string, val: number) {
-    setDraft((prev) => ({ ...prev, [rateeId]: { ...prev[rateeId], [dim]: val } }));
+  // Coupled allocation: changing one person's share in a dimension rebalances the
+  // others proportionally so the dimension always sums to 100.
+  function setDimValue(dim: string, rateeId: string, raw: number) {
+    if (!board) return;
+    const val = Math.max(0, Math.min(100, Math.round(raw)));
+    const others = board.participants.filter((p) => !p.optedOut && p.id !== rateeId);
+    setDraft((prev) => {
+      const next = { ...prev, [rateeId]: { ...prev[rateeId], [dim]: val } };
+      const remainder = 100 - val;
+      const curSum = others.reduce((s, p) => s + (prev[p.id]?.[dim] ?? 0), 0);
+      for (const p of others) {
+        const cur = prev[p.id]?.[dim] ?? 0;
+        const share = curSum > 0 ? (cur / curSum) * remainder : others.length ? remainder / others.length : 0;
+        next[p.id] = { ...next[p.id], [dim]: Math.round(share) };
+      }
+      return next;
+    });
   }
 
-  // Your personal read (local-only): how YOU would weight people, from your own
-  // sliders. Honest — it never leaks anyone else's blind ratings.
+  // Your personal read (local-only): average of your shares across dimensions.
   const myReadWeights = useMemo(() => {
-    if (!board) return {};
-    const optSet = new Set(board.optOuts);
-    const totals: Record<string, number> = {};
-    let sum = 0;
-    for (const p of board.participants) {
-      if (optSet.has(p.id)) {
-        totals[p.id] = 0;
-        continue;
-      }
-      let t = 0;
-      for (const dim of board.activeDimensions) t += draft[p.id]?.[dim] ?? 0;
-      totals[p.id] = t;
-      sum += t;
-    }
+    if (!board) return {} as Record<string, number>;
+    const people = board.participants.filter((p) => !p.optedOut);
+    const dims = board.activeDimensions;
     const out: Record<string, number> = {};
-    for (const p of board.participants) out[p.id] = sum > 0 ? Math.round((totals[p.id] / sum) * 100) : 0;
+    for (const p of people) {
+      let t = 0;
+      for (const dim of dims) t += draft[p.id]?.[dim] ?? 0;
+      out[p.id] = dims.length ? Math.round(t / dims.length) : 0;
+    }
     return out;
   }, [board, draft]);
 
@@ -126,15 +133,15 @@ export function StakeBoard({
     setBusy(true);
     setError(null);
     try {
-      const ratings = board.participants.map((p) => ({ rateeId: p.id, scores: draft[p.id] ?? {} }));
+      const ratings = board.participants
+        .filter((p) => !p.optedOut)
+        .map((p) => ({ rateeId: p.id, scores: draft[p.id] ?? {} }));
       const b = await apiPost<Board>(`/api/seeds/${seedId}/stake`, { ratings, submit });
       applyBoard(b);
       if (submit) {
         setEditing(false);
         playNatureSound("bloom");
-      } else {
-        playNatureSound("drop");
-      }
+      } else playNatureSound("drop");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save");
     } finally {
@@ -154,6 +161,10 @@ export function StakeBoard({
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error?.message ?? "Failed");
       applyBoard(data as Board);
+      if (body.cross) {
+        seedDraft(data as Board); // opt/cross changes the pie
+        playNatureSound("wind");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed");
     } finally {
@@ -166,26 +177,27 @@ export function StakeBoard({
     const set = new Set(board.activeDimensions);
     if (set.has(dim)) set.delete(dim);
     else set.add(dim);
-    if (set.size === 0) return; // keep at least one live
-    patch({ activeDimensions: [...set] });
+    if (set.size === 0) return;
+    patch({ activeDimensions: [...set] }).then(() => {
+      if (board) seedDraft({ ...board, activeDimensions: [...set] });
+    });
   }
 
   if (!board) {
     return (
       <Shell onClose={onClose}>
-        <p className="p-8 text-center text-sm text-ink-soft">
-          {error ?? "Loading the stake board…"}
-        </p>
+        <p className="p-8 text-center text-sm text-ink-soft">{error ?? "Loading the stake board…"}</p>
       </Shell>
     );
   }
 
   const activeDims = STAKE_DIMENSIONS.filter((d) => board.activeDimensions.includes(d.key));
+  const people = board.participants.filter((p) => !p.optedOut);
   const sorted = [...board.participants].sort((a, b) => (b.stake?.weight ?? 0) - (a.stake?.weight ?? 0));
 
   return (
     <Shell onClose={onClose}>
-      <div ref={scrollRef} className="max-h-[88vh] overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
+      <div className="max-h-[88vh] overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">
         {/* Header */}
         <div className="mb-1 flex items-start justify-between gap-3">
           <div>
@@ -197,27 +209,20 @@ export function StakeBoard({
           </button>
         </div>
         <p className="mb-5 max-w-2xl text-sm text-ink-mid">
-          Allocate what each person brings to this seed. Everyone&apos;s read stays{" "}
-          <span className="text-ink">blind</span> until all submit — then the averaged map decides how
-          much each bloom vote weighs. The person who carries the most gets the most say.
+          For each dimension, split it across the people who carry it. Reads stay{" "}
+          <span className="text-ink">blind</span> until everyone submits — then the averaged map sets how
+          much each bloom vote weighs.
         </p>
 
-        {/* Progress + reveal state */}
+        {/* Progress + state */}
         <div className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-[rgba(76,175,80,0.18)] bg-[rgba(255,255,255,0.02)] px-4 py-3">
           <span className="text-sm text-ink">
             {board.ratersSubmitted}/{board.totalRaters} have weighed in
           </span>
           <div className="flex -space-x-1.5">
             {board.participants.map((p) => (
-              <span
-                key={p.id}
-                title={`${p.name}${p.hasSubmitted ? " — submitted" : " — pending"}`}
-                className="rounded-full ring-2"
-                style={{ ["--tw-ring-color" as string]: p.hasSubmitted ? "#4CAF50" : "rgba(255,255,255,0.1)" }}
-              >
-                <span style={{ opacity: p.hasSubmitted ? 1 : 0.4 }}>
-                  <Avatar name={p.name} image={p.image} size={22} />
-                </span>
+              <span key={p.id} title={`${p.name}${p.hasSubmitted ? " — submitted" : " — pending"}`} style={{ opacity: p.hasSubmitted ? 1 : 0.4 }}>
+                <Avatar name={p.name} image={p.image} size={22} />
               </span>
             ))}
           </div>
@@ -229,8 +234,7 @@ export function StakeBoard({
         {/* Active dimensions (consensus) */}
         <div className="mb-5">
           <p className="mb-2 text-xs text-ink-soft">
-            Dimensions in play
-            {board.canManage ? " · tap to rule one not-applicable" : " (set by the steward)"}
+            Dimensions in play{board.canManage ? " · tap to rule one not-applicable" : " (set by the steward)"}
           </p>
           <div className="flex flex-wrap gap-2">
             {STAKE_DIMENSIONS.map((d) => {
@@ -256,10 +260,12 @@ export function StakeBoard({
           </div>
         </div>
 
-        {/* Revealed stake map */}
+        {/* Revealed map */}
         {board.revealed && (
           <div className="mb-6 rounded-2xl border border-[rgba(255,179,0,0.25)] bg-[rgba(255,179,0,0.05)] p-4">
-            <p className="eyebrow mb-3 text-bloom">🌸 The stake map · who decides</p>
+            {board.carriesHeadline && (
+              <p className="serif-lg mb-3 text-bloom">🌸 {board.carriesHeadline}</p>
+            )}
             <div className="space-y-2.5">
               {sorted.map((p) => (
                 <WeightRow key={p.id} p={p} />
@@ -268,11 +274,56 @@ export function StakeBoard({
           </div>
         )}
 
-        {/* My allocation grid */}
+        {/* Who's here — opt-out (self) + cross-out (others) */}
+        <p className="eyebrow mb-2">👥 Who's here</p>
+        <div className="mb-5 flex flex-wrap gap-2">
+          {board.participants.map((p) => (
+            <div
+              key={p.id}
+              className="flex items-center gap-2 rounded-full border px-2.5 py-1"
+              style={{
+                borderColor: p.isMe ? "rgba(76,175,80,0.35)" : "rgba(255,255,255,0.08)",
+                opacity: p.optedOut ? 0.5 : 1,
+              }}
+            >
+              <Avatar name={p.name} image={p.image} size={20} />
+              <span className="text-xs text-ink">{p.name}</span>
+              {editing && !p.optedOut && (
+                <span className="text-[10px] text-accent">{myReadWeights[p.id] ?? 0}%</span>
+              )}
+              {p.crossedBy > 0 && (
+                <span className="text-[10px] text-[#e57373]" title={`Crossed by ${p.crossedBy}`}>
+                  ✕{p.crossedBy}
+                </span>
+              )}
+              {p.isMe ? (
+                <button
+                  onClick={() => patch({ optedOut: !board.iOptedOut })}
+                  disabled={busy}
+                  className="ml-1 text-[10px] transition"
+                  style={{ color: board.iOptedOut ? "#66BB6A" : "#A0A890" }}
+                  title="Your weight is shared equally among the others"
+                >
+                  {board.iOptedOut ? "↩ opt in" : "🙅 not me"}
+                </button>
+              ) : (
+                <button
+                  onClick={() => patch({ cross: { rateeId: p.id, crossed: !p.iCrossed } })}
+                  disabled={busy}
+                  className="ml-1 text-[10px] transition"
+                  style={{ color: p.iCrossed ? "#e57373" : "#5A6456" }}
+                  title="Cross out — flag they shouldn't decide this (reduces their weight)"
+                >
+                  {p.iCrossed ? "✕ crossed" : "✕ cross"}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Allocate — one pie per dimension */}
         <div className="mb-2 flex items-center justify-between">
-          <p className="eyebrow">
-            {editing ? "✍️ Your read" : "✅ You submitted"} · how much each person brings
-          </p>
+          <p className="eyebrow">{editing ? "✍️ Split each dimension" : "✅ You submitted"}</p>
           {board.iSubmitted && !editing && (
             <button onClick={() => setEditing(true)} className="text-xs text-ink-mid underline hover:text-ink">
               edit my read
@@ -280,104 +331,85 @@ export function StakeBoard({
           )}
         </div>
 
-        <div className="space-y-3">
-          {board.participants.map((p) => (
-            <div
-              key={p.id}
-              className="rounded-2xl border p-4"
-              style={{
-                borderColor: p.isMe ? "rgba(76,175,80,0.35)" : "rgba(255,255,255,0.07)",
-                background: p.isMe ? "rgba(76,175,80,0.05)" : "rgba(255,255,255,0.02)",
-                opacity: p.optedOut ? 0.55 : 1,
-              }}
-            >
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Avatar name={p.name} image={p.image} size={30} />
-                  <div>
-                    <p className="flex items-center gap-1.5 text-sm font-medium text-ink">
-                      {p.name}
-                      {p.isMe && (
-                        <span className="rounded-full bg-[rgba(76,175,80,0.15)] px-1.5 py-0.5 text-[10px] text-accent">
-                          you
-                        </span>
-                      )}
-                      {p.optedOut && (
-                        <span className="rounded-full bg-[rgba(255,255,255,0.06)] px-1.5 py-0.5 text-[10px] text-ink-soft">
-                          opted out
-                        </span>
-                      )}
-                    </p>
-                    <ContributionStrip contribution={p.contribution} />
-                  </div>
-                </div>
-                {/* Your personal read of this person */}
-                {editing && !p.optedOut && (
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wide text-ink-soft">your read</p>
-                    <p className="text-sm font-semibold" style={{ color: "#66BB6A" }}>
-                      {myReadWeights[p.id] ?? 0}%
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Opt-out toggle on your own card */}
-              {p.isMe && (
-                <button
-                  onClick={() => patch({ optedOut: !board.iOptedOut })}
-                  disabled={busy}
-                  className="mb-3 rounded-full border px-3 py-1 text-xs transition"
-                  style={{
-                    borderColor: board.iOptedOut ? "rgba(76,175,80,0.4)" : "rgba(255,255,255,0.1)",
-                    color: board.iOptedOut ? "#66BB6A" : "#A0A890",
-                  }}
-                  title="Your weight is shared equally among the others"
-                >
-                  {board.iOptedOut ? "↩ I'll carry stake after all" : "🙅 Not required for me"}
-                </button>
-              )}
-
-              {/* Sliders — only while editing and not opted out */}
-              {editing && !p.optedOut ? (
-                <div className="grid gap-2.5 sm:grid-cols-2">
-                  {activeDims.map((d) => {
-                    const val = draft[p.id]?.[d.key] ?? 0;
-                    return (
-                      <div key={d.key}>
-                        <div className="mb-1 flex items-center justify-between text-[11px]">
-                          <span style={{ color: d.color }}>
-                            {d.emoji} {d.label}
-                          </span>
-                          <span className="text-ink-soft">{val}</span>
-                        </div>
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          step={5}
-                          value={val}
-                          onChange={(e) => setScore(p.id, d.key, Number(e.target.value))}
-                          className="stake-range"
-                          style={{ ["--dim" as string]: d.color, ["--fill" as string]: `${val}%` } as React.CSSProperties}
+        {editing ? (
+          people.length < 2 ? (
+            <p className="rounded-xl border border-[rgba(255,255,255,0.07)] p-4 text-sm text-ink-soft">
+              You&apos;re the only one carrying stake right now — you hold 100%. Once others join (or opt
+              back in) you&apos;ll split each dimension across the group.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {activeDims.map((d) => {
+                const sum = people.reduce((s, p) => s + (draft[p.id]?.[d.key] ?? 0), 0);
+                return (
+                  <div key={d.key} className="rounded-2xl border border-[rgba(255,255,255,0.07)] p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-sm font-medium" style={{ color: d.color }}>
+                        {d.emoji} {d.label}
+                      </span>
+                      <span className="text-[10px] text-ink-soft" title={d.blurb}>
+                        {sum === 100 ? "100%" : `${sum}%`}
+                      </span>
+                    </div>
+                    {/* Stacked preview bar */}
+                    <div className="mb-3 flex h-2 overflow-hidden rounded-full bg-[rgba(255,255,255,0.05)]">
+                      {people.map((p, i) => (
+                        <span
+                          key={p.id}
+                          title={`${p.name} ${draft[p.id]?.[d.key] ?? 0}%`}
+                          style={{
+                            width: `${draft[p.id]?.[d.key] ?? 0}%`,
+                            background: d.color,
+                            opacity: 1 - i * 0.13,
+                          }}
                         />
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                !p.optedOut &&
-                p.stake && <StakeShareBars dims={p.stake.dims} active={board.activeDimensions} />
-              )}
+                      ))}
+                    </div>
+                    <div className="space-y-2">
+                      {people.map((p) => {
+                        const v = draft[p.id]?.[d.key] ?? 0;
+                        return (
+                          <div key={p.id} className="flex items-center gap-2">
+                            <Avatar name={p.name} image={p.image} size={18} />
+                            <span className="w-16 shrink-0 truncate text-xs text-ink-mid">{p.name}</span>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              step={5}
+                              value={v}
+                              onChange={(e) => setDimValue(d.key, p.id, Number(e.target.value))}
+                              className="stake-range flex-1"
+                              style={{ ["--dim" as string]: d.color, ["--fill" as string]: `${v}%` } as React.CSSProperties}
+                            />
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={v}
+                              onChange={(e) => setDimValue(d.key, p.id, Number(e.target.value))}
+                              className="w-12 shrink-0 rounded-md border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.5)] px-1.5 py-0.5 text-right text-xs text-ink outline-none"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          )
+        ) : (
+          <p className="text-sm text-ink-mid">
+            ✅ Your read is in. {board.revealed ? "The map above is live." : "It reveals once everyone submits."}
+          </p>
+        )}
 
         {error && <p className="mt-3 text-sm text-[#e57373]">{error}</p>}
 
-        {/* Footer actions */}
+        {/* Footer */}
         <div className="sticky bottom-0 mt-5 flex flex-wrap items-center gap-2 border-t border-[rgba(76,175,80,0.15)] bg-[rgba(10,16,10,0.92)] py-3 backdrop-blur">
-          {editing ? (
+          {editing && people.length >= 2 ? (
             <>
               <button onClick={() => save(true)} disabled={busy} className="btn-primary text-sm">
                 {busy ? "Saving…" : board.iSubmitted ? "Update my read" : "Submit my read"}
@@ -389,7 +421,7 @@ export function StakeBoard({
             </>
           ) : (
             <span className="text-sm text-ink-mid">
-              ✅ Your read is in. {board.revealed ? "The map above is live." : "It reveals once everyone submits."}
+              {board.iSubmitted ? "✅ Your read is in." : "Split each dimension, then submit."}
             </span>
           )}
           {board.canManage && (
@@ -420,74 +452,30 @@ function Shell({ children, onClose }: { children: React.ReactNode; onClose: () =
       className="fixed inset-0 z-[160] flex items-center justify-center bg-[rgba(6,10,6,0.78)] px-3 py-6 backdrop-blur-sm"
       onClick={onClose}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="card w-full max-w-2xl animate-[fadeUp_0.35s_ease-out]"
-      >
+      <div onClick={(e) => e.stopPropagation()} className="card w-full max-w-2xl animate-[fadeUp_0.35s_ease-out]">
         {children}
       </div>
     </div>
   );
 }
 
-// Profile A — a slim multi-color strip of how they shaped the conversation.
-function ContributionStrip({ contribution }: { contribution: { total: number; dims: Record<string, number> } }) {
-  if (contribution.total === 0) {
-    return <p className="text-[11px] text-ink-soft">no messages yet</p>;
-  }
-  const segs = DIMENSIONS.filter((d) => (contribution.dims[d.key] ?? 0) > 0);
-  return (
-    <div className="mt-0.5 flex items-center gap-1.5">
-      <div className="flex h-1.5 w-24 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
-        {segs.map((d) => (
-          <span key={d.key} style={{ width: `${contribution.dims[d.key]}%`, background: d.color }} title={`${d.label} ${contribution.dims[d.key]}%`} />
-        ))}
-      </div>
-      <span className="text-[10px] text-ink-soft">{contribution.total} msg</span>
-    </div>
-  );
-}
-
-// Per-dimension share bars (shown for others once revealed / after you submit).
-function StakeShareBars({ dims, active }: { dims: Record<string, number>; active: string[] }) {
-  const shown = STAKE_DIMENSIONS.filter((d) => active.includes(d.key));
-  return (
-    <div className="grid gap-1.5 sm:grid-cols-2">
-      {shown.map((d) => {
-        const v = Math.round(dims[d.key] ?? 0);
-        return (
-          <div key={d.key} className="flex items-center gap-2">
-            <span className="w-20 shrink-0 text-[11px]" style={{ color: d.color }}>
-              {d.emoji} {d.label}
-            </span>
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
-              <div className="weight-bar-fill h-full rounded-full" style={{ width: `${v}%`, background: d.color }} />
-            </div>
-            <span className="w-8 shrink-0 text-right text-[10px] text-ink-soft">{v}%</span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// A participant's overall bloom weight, big and clear.
 function WeightRow({ p }: { p: Participant }) {
   const w = Math.round(p.stake?.weight ?? 0);
+  const dim = p.optedOut || p.crossedBy > 0;
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-3" style={{ opacity: p.optedOut ? 0.5 : 1 }}>
       <Avatar name={p.name} image={p.image} size={26} />
-      <span className="w-24 shrink-0 truncate text-sm text-ink">{p.name}</span>
+      <span className="flex w-28 shrink-0 items-center gap-1 truncate text-sm text-ink">
+        {p.name}
+        {p.crossedBy > 0 && <span className="text-[10px] text-[#e57373]">✕{p.crossedBy}</span>}
+      </span>
       <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
         <div
           className="weight-bar-fill h-full rounded-full"
-          style={{
-            width: `${p.optedOut ? 0 : w}%`,
-            background: "linear-gradient(to right,#FFD54F,#FF8F00)",
-          }}
+          style={{ width: `${p.optedOut ? 0 : w}%`, background: "linear-gradient(to right,#FFD54F,#FF8F00)" }}
         />
       </div>
-      <span className="w-12 shrink-0 text-right text-sm font-semibold text-bloom">
+      <span className="w-12 shrink-0 text-right text-sm font-semibold" style={{ color: dim ? "#A0A890" : "#FFB300" }}>
         {p.optedOut ? "—" : `${w}%`}
       </span>
     </div>

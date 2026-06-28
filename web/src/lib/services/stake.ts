@@ -109,9 +109,12 @@ export async function getStakeBoard(userId: string, seedId: string) {
   const optOuts = optOutsOf(stateRow).filter((id) => partIds.includes(id));
   const phase = stateRow?.phase ?? "collecting";
 
-  // Build the submitted-ratings matrix + this viewer's own (possibly draft) ratings.
+  // Build the submitted-ratings matrix + this viewer's own (possibly draft)
+  // ratings, plus cross-out counts (who peers crossed) and my own crosses.
   const submittedMap: Record<string, Record<string, ScoreMap>> = {};
   const myRatings: Record<string, ScoreMap> = {};
+  const crosses: Record<string, number> = {};
+  const myCrosses = new Set<string>();
   const submittedRaters = new Set<string>();
   let iSubmitted = false;
   for (const r of ratings) {
@@ -119,6 +122,10 @@ export async function getStakeBoard(userId: string, seedId: string) {
     if (r.submitted) {
       (submittedMap[r.raterId] ??= {})[r.rateeId] = scores;
       submittedRaters.add(r.raterId);
+    }
+    if (r.crossed && r.raterId !== r.rateeId) {
+      crosses[r.rateeId] = (crosses[r.rateeId] ?? 0) + 1;
+      if (r.raterId === userId) myCrosses.add(r.rateeId);
     }
     if (r.raterId === userId) {
       myRatings[r.rateeId] = scores;
@@ -137,9 +144,25 @@ export async function getStakeBoard(userId: string, seedId: string) {
     activeDimensions: active,
     ratings: submittedMap,
     optOuts,
+    crosses,
   });
   const profById = new Map(profiles.map((p) => [p.userId, p]));
   const canManage = await computeCanManage(userId, seed);
+
+  // Plain-language headline: who carries the decision. Only when revealed and
+  // there's a meaningful leader.
+  const ranked = [...profiles]
+    .filter((p) => !p.optedOut && p.weight > 0)
+    .sort((a, b) => b.weight - a.weight);
+  const nameOf = (id: string) => parts.find((p) => p.id === id)?.name ?? "Someone";
+  let carriesHeadline: string | null = null;
+  if (revealed && ranked.length > 0) {
+    const top = ranked[0];
+    if (top.weight >= 45) carriesHeadline = `${nameOf(top.userId)} carries this decision`;
+    else if (ranked.length >= 2 && top.weight + ranked[1].weight >= 60)
+      carriesHeadline = `${nameOf(top.userId)} & ${nameOf(ranked[1].userId)} carry this decision`;
+    else carriesHeadline = "This decision is carried broadly";
+  }
 
   // Live stake-weighted bloom progress: how much of the total stake has voted
   // to bloom. Only meaningful once people have submitted ratings.
@@ -161,6 +184,8 @@ export async function getStakeBoard(userId: string, seedId: string) {
     iVotedBloom: yesIds.has(userId),
     canManage,
     myRatings,
+    myCrosses: [...myCrosses],
+    carriesHeadline,
     ratersSubmitted: submittedRaters.size,
     totalRaters: partIds.length,
     threshold: STAKE_BLOOM_THRESHOLD_PCT,
@@ -179,6 +204,8 @@ export async function getStakeBoard(userId: string, seedId: string) {
         isMe: p.id === userId,
         optedOut: optOuts.includes(p.id),
         hasSubmitted: submittedRaters.has(p.id),
+        crossedBy: prof?.crossedBy ?? 0,
+        iCrossed: myCrosses.has(p.id),
         contribution: contrib[p.id] ?? { total: 0, dims: {} },
         stake: revealed
           ? {
@@ -246,6 +273,25 @@ export async function setOptOut(userId: string, seedId: string, optedOut: boolea
   return getStakeBoard(userId, seedId);
 }
 
+// Peer cross-out: I flag that someone shouldn't carry this decision (or undo).
+// Stored on my rating row for that person, so it rides alongside my scores.
+export async function setCross(
+  userId: string,
+  seedId: string,
+  rateeId: string,
+  crossed: boolean,
+) {
+  if (rateeId === userId) throw new ApiError("BAD_REQUEST", "You can't cross out yourself");
+  await ensureSeedParticipant(userId, seedId);
+  await ensureStakeState(seedId);
+  await db.stakeRating.upsert({
+    where: { seedId_raterId_rateeId: { seedId, raterId: userId, rateeId } },
+    update: { crossed },
+    create: { seedId, raterId: userId, rateeId, crossed, scores: {} },
+  });
+  return getStakeBoard(userId, seedId);
+}
+
 // Manager reveals the map early, or locks it for the bloom vote.
 export async function setStakePhase(
   userId: string,
@@ -261,6 +307,30 @@ export async function setStakePhase(
   return getStakeBoard(userId, seedId);
 }
 
+// Final bloom weight per user (0..100). Used by stake-weighted polls. Returns
+// an empty map when no one has submitted ratings (caller falls back to equal).
+export async function getStakeWeightMap(seedId: string): Promise<Record<string, number>> {
+  const [stateRow, ratings, allRatings, parts] = await Promise.all([
+    db.seedStake.findUnique({ where: { seedId } }),
+    db.stakeRating.findMany({ where: { seedId, submitted: true } }),
+    db.stakeRating.findMany({ where: { seedId, crossed: true }, select: { raterId: true, rateeId: true } }),
+    participantUsers(seedId).then((u) => u.map((p) => p.id)),
+  ]);
+  if (ratings.length === 0) return {};
+  const submittedMap: Record<string, Record<string, ScoreMap>> = {};
+  for (const r of ratings) (submittedMap[r.raterId] ??= {})[r.rateeId] = (r.scores as ScoreMap) ?? {};
+  const crosses: Record<string, number> = {};
+  for (const r of allRatings) if (r.raterId !== r.rateeId) crosses[r.rateeId] = (crosses[r.rateeId] ?? 0) + 1;
+  const profiles = computeStakeWeights({
+    participants: parts,
+    activeDimensions: activeOf(stateRow),
+    ratings: submittedMap,
+    optOuts: optOutsOf(stateRow).filter((id) => parts.includes(id)),
+    crosses,
+  });
+  return Object.fromEntries(profiles.map((p) => [p.userId, p.weight]));
+}
+
 // ── bloom evaluation (used by voting) ────────────────────────
 
 // Is the stake-weighted quorum reached? Returns configured:false when no one has
@@ -272,9 +342,10 @@ export async function evaluateStakeBloom(seedId: string): Promise<{
   yesVoters: number;
   threshold: number;
 }> {
-  const [stateRow, ratings, votes, parts] = await Promise.all([
+  const [stateRow, ratings, allRatings, votes, parts] = await Promise.all([
     db.seedStake.findUnique({ where: { seedId } }),
     db.stakeRating.findMany({ where: { seedId, submitted: true } }),
+    db.stakeRating.findMany({ where: { seedId, crossed: true }, select: { raterId: true, rateeId: true } }),
     db.seedStageVote.findMany({ where: { seedId }, select: { userId: true, stage: true } }),
     participantUsers(seedId).then((u) => u.map((p) => p.id)),
   ]);
@@ -295,11 +366,16 @@ export async function evaluateStakeBloom(seedId: string): Promise<{
   for (const r of ratings) {
     (submittedMap[r.raterId] ??= {})[r.rateeId] = (r.scores as ScoreMap) ?? {};
   }
+  const crosses: Record<string, number> = {};
+  for (const r of allRatings) {
+    if (r.raterId !== r.rateeId) crosses[r.rateeId] = (crosses[r.rateeId] ?? 0) + 1;
+  }
   const profiles = computeStakeWeights({
     participants: parts,
     activeDimensions: active,
     ratings: submittedMap,
     optOuts,
+    crosses,
   });
   const yesIds = new Set<string>(
     votes.filter((v) => v.stage === "bloomed").map((v) => String(v.userId)),

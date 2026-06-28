@@ -92,6 +92,8 @@ model User {
   invitesSent          Invite[]          @relation("InvitesSent")
   stakeRatingsGiven    StakeRating[]     @relation("StakeRater")
   stakeRatingsReceived StakeRating[]     @relation("StakeRatee")
+  pollsCreated         Poll[]
+  pollVotes            PollVote[]
 
   @@map("users")
 }
@@ -193,6 +195,7 @@ model Seed {
   invites       Invite[]
   stakeRatings  StakeRating[]
   stakeState    SeedStake?
+  polls         Poll[]
 
   @@index([gardenId, stage])
   @@map("seeds")
@@ -242,6 +245,9 @@ model StakeRating {
   rateeId   String   @map("ratee_id") @db.Uuid
   scores    Json     @default("{}")
   submitted Boolean  @default(false)
+  // Peer "this person shouldn't decide this" flag. Proportionally discounts the
+  // ratee's bloom weight; the removed weight redistributes to the clean quorum.
+  crossed   Boolean  @default(false)
   updatedAt DateTime @updatedAt @map("updated_at")
 
   seed  Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
@@ -266,6 +272,57 @@ model SeedStake {
   seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
 
   @@map("seed_stake")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Polls — a question + options inside a seed. weightMode decides whether each
+// vote counts equally, or by the voter's stake (the Bloom decision-maker weight).
+// ─────────────────────────────────────────────────────────────
+
+model Poll {
+  id         String    @id @default(uuid()) @db.Uuid
+  seedId     String    @map("seed_id") @db.Uuid
+  authorId   String    @map("author_id") @db.Uuid
+  question   String
+  weightMode String    @default("equal") @map("weight_mode") // equal | stake
+  closedAt   DateTime? @map("closed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  seed    Seed         @relation(fields: [seedId], references: [id], onDelete: Cascade)
+  author  User         @relation(fields: [authorId], references: [id])
+  options PollOption[]
+  votes   PollVote[]
+
+  @@index([seedId])
+  @@map("polls")
+}
+
+model PollOption {
+  id        String @id @default(uuid()) @db.Uuid
+  pollId    String @map("poll_id") @db.Uuid
+  text      String
+  sortOrder Int    @default(0) @map("sort_order")
+
+  poll  Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  votes PollVote[]
+
+  @@index([pollId])
+  @@map("poll_options")
+}
+
+model PollVote {
+  pollId   String   @map("poll_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  optionId String   @map("option_id") @db.Uuid
+  votedAt  DateTime @default(now()) @map("voted_at")
+
+  poll   Poll       @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  option PollOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@id([pollId, userId])
+  @@index([optionId])
+  @@map("poll_votes")
 }
 
 // ─────────────────────────────────────────────────────────────

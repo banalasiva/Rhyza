@@ -27,6 +27,8 @@ export type StakeProfile = {
   // Overall bloom weight (0..100). All non-opted weights sum to ~100.
   weight: number;
   optedOut: boolean;
+  // How many peers crossed this person out.
+  crossedBy: number;
   // How many raters actually scored this person (drives "n raters" hints).
   raterCount: number;
 };
@@ -37,14 +39,19 @@ export type ComputeInput = {
   // ratings[raterId][rateeId] = { dim: score }. Only submitted ratings belong here.
   ratings: Record<string, Record<string, ScoreMap>>;
   optOuts: string[];
+  // crosses[rateeId] = how many peers crossed this person out. Proportionally
+  // discounts their weight: factor = 1 − crossers/(participants − 1).
+  crosses?: Record<string, number>;
 };
 
 export function computeStakeWeights(input: ComputeInput): StakeProfile[] {
   const { participants, ratings, optOuts } = input;
+  const crosses = input.crosses ?? {};
   const dims = input.activeDimensions.filter((d) =>
     (STAKE_DIMENSION_KEYS as string[]).includes(d),
   );
   const optSet = new Set(optOuts);
+  const denom = Math.max(1, participants.length - 1); // other participants
 
   // Step 2: mean score per (ratee, dim); also remember how many raters weighed in.
   const avg: Record<string, Record<string, number>> = {};
@@ -99,17 +106,35 @@ export function computeStakeWeights(input: ComputeInput): StakeProfile[] {
     weightAll[p] = wsum > 0 ? (weightAll[p] / wsum) * 100 : 0;
   }
 
-  // Opt-out redistribution: vacated weight shared EQUALLY among the quorum.
-  const remaining = participants.filter((p) => !optSet.has(p));
-  let vacated = 0;
-  for (const p of participants) if (optSet.has(p)) vacated += weightAll[p];
-  const bonus = remaining.length > 0 ? vacated / remaining.length : 0;
+  // Apply removals. Opt-out zeroes a person; a cross proportionally discounts
+  // them: keepFactor = 1 − crossers/(participants − 1). Whatever weight is freed
+  // (by both) is pooled and handed EQUALLY to the "clean" quorum — people who
+  // are present (not opted out) and uncrossed. A crossed person never gets their
+  // own removed weight back.
+  const kept: Record<string, number> = {};
+  for (const p of participants) {
+    if (optSet.has(p)) {
+      kept[p] = 0;
+      continue;
+    }
+    const crossers = Math.min(crosses[p] ?? 0, denom);
+    const keepFactor = Math.max(0, 1 - crossers / denom);
+    kept[p] = weightAll[p] * keepFactor;
+  }
+  const keptSum = participants.reduce((s, p) => s + kept[p], 0);
+  const freed = Math.max(0, 100 - keptSum);
+
+  let recipients = participants.filter((p) => !optSet.has(p) && (crosses[p] ?? 0) === 0);
+  if (recipients.length === 0) recipients = participants.filter((p) => kept[p] > 0);
+  const bonus = recipients.length > 0 ? freed / recipients.length : 0;
+  const recipientSet = new Set(recipients);
 
   return participants.map((p) => ({
     userId: p,
     dims: share[p],
-    weight: optSet.has(p) ? 0 : weightAll[p] + bonus,
+    weight: kept[p] + (recipientSet.has(p) ? bonus : 0),
     optedOut: optSet.has(p),
+    crossedBy: Math.min(crosses[p] ?? 0, denom),
     raterCount: raterCount[p] ?? 0,
   }));
 }

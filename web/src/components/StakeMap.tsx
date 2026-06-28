@@ -39,17 +39,30 @@ export function StakeMap({ seedId, bloomed }: { seedId: string; bloomed?: boolea
   const revealed = board?.revealed && carriers.length > 0;
   const prog = board?.bloomProgress;
 
+  // Until the viewer has weighed in, this is the primary call-to-action (green).
+  const primary = !!board && !board.iSubmitted && !bloomed;
+
   return (
     <>
-      <div className="mt-4 rounded-2xl border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] p-3">
+      <div
+        className="mt-4 rounded-2xl border p-3"
+        style={{
+          borderColor: primary ? "rgba(76,175,80,0.45)" : "rgba(255,255,255,0.07)",
+          background: primary ? "rgba(76,175,80,0.07)" : "rgba(255,255,255,0.03)",
+        }}
+      >
         <div className="mb-2 flex items-center justify-between">
           <p className="eyebrow">⚖️ Decision weight</p>
-          {board && !board.iSubmitted && !bloomed && (
+          {primary && (
             <span className="rounded-full bg-[rgba(76,175,80,0.15)] px-1.5 py-0.5 text-[9px] font-semibold text-accent">
-              weigh in
+              your move
             </span>
           )}
         </div>
+
+        {board?.carriesHeadline && revealed && (
+          <p className="mb-3 text-sm font-medium text-bloom">🌸 {board.carriesHeadline}</p>
+        )}
 
         {revealed ? (
           <>
@@ -101,12 +114,18 @@ export function StakeMap({ seedId, bloomed }: { seedId: string; bloomed?: boolea
           </p>
         )}
 
-        <button
-          onClick={() => setOpen(true)}
-          className="mt-3 w-full rounded-full border border-[rgba(76,175,80,0.25)] px-3 py-1.5 text-xs text-ink-mid transition hover:text-ink"
-        >
-          {board?.iSubmitted ? "⚖️ Open the stake board" : "⚖️ Weigh in on the decision"}
-        </button>
+        {primary ? (
+          <button onClick={() => setOpen(true)} className="btn-primary mt-3 w-full text-xs">
+            ⚖️ Open decision weight
+          </button>
+        ) : (
+          <button
+            onClick={() => setOpen(true)}
+            className="mt-3 w-full rounded-full border border-[rgba(76,175,80,0.25)] px-3 py-1.5 text-xs text-ink-mid transition hover:text-ink"
+          >
+            ⚖️ Open the stake board
+          </button>
+        )}
       </div>
 
       {open && (
