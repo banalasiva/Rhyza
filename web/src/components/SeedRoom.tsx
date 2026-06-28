@@ -135,9 +135,9 @@ export function SeedRoom({
   // Show the walkthrough automatically the first time someone opens a seed.
   useEffect(() => {
     try {
-      if (!localStorage.getItem("rhyza_seen_intro")) {
+      if (!localStorage.getItem("thinkthru_seen_intro")) {
         setShowHelp(true);
-        localStorage.setItem("rhyza_seen_intro", "1");
+        localStorage.setItem("thinkthru_seen_intro", "1");
       }
     } catch {
       /* localStorage unavailable — skip */
@@ -798,7 +798,7 @@ export function SeedRoom({
           )}
           <button
             onClick={() => setShowHelp(true)}
-            title="How Rhyza works"
+            title="How ThinkThru works"
             className="flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.1)] px-3 py-1 text-xs text-ink-soft transition hover:text-ink"
           >
             <Icon name="info" size={13} /> How it works

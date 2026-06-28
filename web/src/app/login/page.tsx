@@ -26,7 +26,7 @@ export default async function LoginPage() {
 
         {/* ── Story + sign in ── */}
         <div className="text-center lg:text-left">
-          <p className="eyebrow mb-4">🌱 Rhyza</p>
+          <p className="eyebrow mb-4">🌱 ThinkThru</p>
           <h1 className="serif-xl mb-3">
             Every important decision begins with a conversation.
           </h1>

@@ -2,11 +2,11 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Rhyza — The Learning Garden",
+  title: "ThinkThru — The Learning Garden",
   description:
     "A Human Intent Network. Plant seeds, grow understanding together, bloom durable knowledge.",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Rhyza" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "ThinkThru" },
   icons: {
     icon: "/icon-192.png",
     apple: "/icon-192.png",

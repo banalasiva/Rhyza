@@ -8,7 +8,7 @@ type Scenario = { q: string; msgs: Msg[]; bloom: string };
 
 // A looping, self-explaining demo: a real question, a few labeled messages, then
 // it Blooms — cycling through relatable decisions so a visitor sees their own
-// use case and understands Rhyza in seconds. No sign-in needed.
+// use case and understands ThinkThru in seconds. No sign-in needed.
 const SCENARIOS: Scenario[] = [
   {
     q: "Which school should we choose for Aria?",

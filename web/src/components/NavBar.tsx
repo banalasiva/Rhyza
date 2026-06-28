@@ -21,7 +21,7 @@ export async function NavBar({ name }: { name?: string }) {
           className="rounded-full border px-3 py-1.5 font-serif text-[15px] text-ink backdrop-blur transition hover:border-accent"
           style={{ background: "rgba(7,13,7,0.82)" }}
         >
-          🌱 Rhyza
+          🌱 ThinkThru
         </Link>
       </div>
 

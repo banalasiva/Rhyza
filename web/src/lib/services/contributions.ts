@@ -28,8 +28,8 @@ async function seedOrThrow(seedId: string) {
   return seed;
 }
 
-const CLAUDE_EMAIL = "claude@rhyza.ai";
-const CHATGPT_EMAIL = "chatgpt@rhyza.ai";
+const CLAUDE_EMAIL = "claude@thinkthru.app";
+const CHATGPT_EMAIL = "chatgpt@thinkthru.app";
 
 // Claude is a permanent participant: one shared system user that authors its
 // replies. Created lazily the first time someone tags @claude.

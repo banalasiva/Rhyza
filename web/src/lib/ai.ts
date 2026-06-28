@@ -1,4 +1,4 @@
-// Claude integration for Rhyza. Two jobs:
+// Claude integration for ThinkThru. Two jobs:
 //   1. synthesizeBloom() — distill a seed's whole thread into the durable summary
 //      when it blooms.
 //   2. claudeReply() — answer when a member tags @claude inside a conversation.
@@ -180,7 +180,7 @@ export async function synthesizeBloom(input: {
       .join("\n");
 
     const text = await complete(
-      "You are the synthesis engine for Rhyza, a collaborative learning garden. " +
+      "You are the synthesis engine for ThinkThru, a collaborative learning garden. " +
         "A 'seed' is a question the community explores across five dimensions " +
         "(Foundations, Understanding, Application, Debate, Bloom). When a seed blooms, " +
         "you distill the entire thread into one durable summary capturing the collective " +
@@ -224,7 +224,7 @@ export async function claudeReply(input: {
   // prices, what's open nearby, recent events) get a real answer instead of "I
   // can't access that" — the model decides when to search.
   const { text, sources } = await completeSearched(
-    "You are Claude, a thoughtful participant in a Rhyza learning conversation — a " +
+    "You are Claude, a thoughtful participant in a ThinkThru learning conversation — a " +
       "collaborative knowledge garden where members explore a topic together. Someone " +
       "tagged you with @claude. Answer their question or add genuinely useful, specific " +
       "insight grounded in the discussion so far (including any images shown). Don't just " +
@@ -244,7 +244,7 @@ export async function claudeReply(input: {
 // Shared mediator brief, parameterised by which AI is speaking.
 function mediatorSystem(name: string): string {
   return (
-    `You are ${name}, acting as a neutral mediator in a Rhyza discussion where ` +
+    `You are ${name}, acting as a neutral mediator in a ThinkThru discussion where ` +
     "people may disagree. Some messages include community reactions (e.g. 'Still " +
     "confused', 'It clicked', 'Changed thinking') — treat these as real signal: points " +
     "people found confusing deserve clarification, points that landed are common ground. " +
@@ -306,7 +306,7 @@ export async function classifyDimension(input: {
       .filter(Boolean)
       .join("\n");
     const out = await complete(
-      "You classify a message in a Rhyza discussion into exactly one of five dimensions. " +
+      "You classify a message in a ThinkThru discussion into exactly one of five dimensions. " +
         "Definitions — foundations: why the topic exists, core ideas, assumptions, definitions. " +
         "understanding: mental models, analogies, how to think about it. " +
         "application: how it's used in practice, real examples, implementation, recommendations. " +
@@ -434,7 +434,7 @@ export async function chatgptReply(input: {
     .join("\n");
 
   const system =
-    "You are ChatGPT, a thoughtful participant in a Rhyza learning conversation — a " +
+    "You are ChatGPT, a thoughtful participant in a ThinkThru learning conversation — a " +
     "collaborative knowledge garden where members explore a topic together. Someone tagged " +
     "you with @chatgpt. Answer their question or add genuinely useful, specific insight " +
     "grounded in the discussion so far (including any images shown). Don't just repeat what's " +
@@ -494,7 +494,7 @@ export async function composeImpactCopy(
           input.snippet ? ` — the point was: "${input.snippet}"` : ""
         }. They were understood.`;
   const system =
-    `You are ${who}, writing a tiny, heartfelt notification email for Rhyza — a garden ` +
+    `You are ${who}, writing a tiny, heartfelt notification email for ThinkThru — a garden ` +
     `where people grow ideas into shared knowledge. Celebrate the person's real impact ` +
     `without flattery or hype. Warm, specific, human. No emojis, no exclamation spam. ` +
     `Reply in exactly two lines:\nHEADING: <max 8 words>\nINTRO: <1–2 warm sentences to ${
@@ -543,7 +543,7 @@ export async function aiStageVote(
 ): Promise<{ stage: string; note: string } | null> {
   const who = provider === "chatgpt" ? "ChatGPT" : "Claude";
   const system =
-    `You are ${who}, a member of a Rhyza decision circle casting your honest read on how ` +
+    `You are ${who}, a member of a ThinkThru decision circle casting your honest read on how ` +
     `mature this discussion is. The growth stages — ${STAGE_GUIDE} ` +
     `Only say "bloomed" if the group has actually converged enough to finalise. ` +
     `Reply in exactly two lines:\nSTAGE: <seed|germinating|sprouting|growing|bloomed>\nWHY: <one sentence>`;

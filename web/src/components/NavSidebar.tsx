@@ -12,7 +12,7 @@ type GardenNode = {
   seeds: SeedNode[];
 };
 
-const STORAGE_KEY = "rhyza_nav_open";
+const STORAGE_KEY = "thinkthru_nav_open";
 
 // A slide-in left panel listing the viewer's gardens and seeds (private/public,
 // alphabetical, with bloom counts). Remembers open/closed across pages.

@@ -1,8 +1,8 @@
 {
-  "name": "rhyza-web",
+  "name": "thinkthru-web",
   "version": "0.1.0",
   "private": true,
-  "description": "Rhyza — the real Learning module. Next.js app built from the design prototype.",
+  "description": "ThinkThru — the real Learning module. Next.js app built from the design prototype.",
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev --turbo",

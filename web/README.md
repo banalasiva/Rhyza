@@ -1,4 +1,4 @@
-# Rhyza — Web App
+# ThinkThru — Web App
 
 The real Learning module, built from the design prototype in `../prototype`.
 This is a fresh Next.js 14 application with a real database, authentication, and

@@ -1,4 +1,4 @@
-// Rhyza data model — translated from docs/DATA_MODEL.md.
+// ThinkThru data model — translated from docs/DATA_MODEL.md.
 // Postgres. UUID primary keys. Soft deletes (deletedAt) where the spec calls for them.
 //
 // v1 scope note: pgvector embeddings, attachments, and search-query logging from the

@@ -35,7 +35,7 @@ type SendArgs = { to: string; subject: string; html: string };
 export async function sendEmail({ to, subject, html }: SendArgs): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return false; // not configured — caller falls back to the link
-  const from = process.env.RESEND_FROM || "Rhyza <onboarding@resend.dev>";
+  const from = process.env.RESEND_FROM || "ThinkThru <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -73,7 +73,7 @@ export function emailShell(a: ShellArgs): string {
   const glyph = a.glyph ?? "🌱";
   const footer = `
     <p style="color:#5A6456;font-size:12px;line-height:1.6;margin:24px 0 0">
-      ${escapeHtml(a.reason ?? "You're getting this because you're part of a Rhyza garden.")}
+      ${escapeHtml(a.reason ?? "You're getting this because you're part of a ThinkThru garden.")}
       ${
         a.unsubLink
           ? `<br><a href="${a.unsubLink}" style="color:#5A6456;text-decoration:underline">Turn off emails like this</a>`
@@ -102,7 +102,7 @@ export function emailShell(a: ShellArgs): string {
         ${footer}
       </div>
     </div>
-    <p style="text-align:center;color:#3A463A;font-size:11px;margin:16px 0 0">Rhyza · grow ideas into knowledge</p>
+    <p style="text-align:center;color:#3A463A;font-size:11px;margin:16px 0 0">ThinkThru · grow ideas into knowledge</p>
   </div>
   </div>`;
 }
@@ -117,12 +117,12 @@ export function inviteEmailHtml(args: {
     ? `the <strong style="color:#E8E4DC">${escapeHtml(args.gardenName)}</strong> garden in <strong style="color:#E8E4DC">${escapeHtml(args.orgName)}</strong>`
     : `<strong style="color:#E8E4DC">${escapeHtml(args.orgName)}</strong>`;
   return emailShell({
-    preview: `${args.inviterName} invited you to Rhyza`,
-    heading: "You've been invited to Rhyza",
+    preview: `${args.inviterName} invited you to ThinkThru`,
+    heading: "You've been invited to ThinkThru",
     bodyHtml: `${escapeHtml(args.inviterName)} invited you to join ${where} — a garden where ideas grow into collective knowledge.`,
     ctaText: "Accept invite",
     ctaLink: args.link,
-    reason: "You're getting this because someone invited you to a Rhyza garden.",
+    reason: "You're getting this because someone invited you to a ThinkThru garden.",
   });
 }
 
@@ -142,7 +142,7 @@ export function mentionEmailHtml(args: {
     )} tagged you in <strong style="color:#E8E4DC">${escapeHtml(args.seedTitle)}</strong>. Your voice is wanted in this conversation.`,
     ctaText: "View the conversation",
     ctaLink: args.link,
-    reason: "You're getting this because you were mentioned on Rhyza.",
+    reason: "You're getting this because you were mentioned on ThinkThru.",
     unsubLink: args.unsubLink,
   });
 }
@@ -232,7 +232,7 @@ export function digestEmailHtml(args: {
     glyph: "🌿",
     heading: args.intro ? args.intro : "While you were away",
     bodyHtml: `Hi ${escapeHtml(args.recipientName || "there")} — here's what grew in your gardens:${rows}`,
-    ctaText: "Open Rhyza",
+    ctaText: "Open ThinkThru",
     ctaLink: args.homeLink,
     reason: "You're getting this daily digest because you have activity in your gardens.",
     unsubLink: args.unsubLink,

@@ -136,7 +136,7 @@ async function renderEmail(
 ): Promise<{ subject: string; body: string } | null> {
   if (email.kind === "mention") {
     return {
-      subject: `${email.actorName || "Someone"} mentioned you on Rhyza`,
+      subject: `${email.actorName || "Someone"} mentioned you on ThinkThru`,
       body: mentionEmailHtml({
         actorName: email.actorName || "Someone",
         recipientName: ctx.recipientName,

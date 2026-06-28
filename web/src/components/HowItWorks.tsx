@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { DIMENSIONS } from "@/lib/constants";
 
-// Rhyza's welcome + how-it-works. Shown on a member's first seed visit and from
+// ThinkThru's welcome + how-it-works. Shown on a member's first seed visit and from
 // the "ⓘ How it works" button. Leads with the why (preserving the journey behind
 // a decision), then how a Seed grows into shared wisdom.
 export function HowItWorks({ onClose }: { onClose: () => void }) {
@@ -40,7 +40,7 @@ export function HowItWorks({ onClose }: { onClose: () => void }) {
         {/* ── Welcome ── */}
         <div className="text-center">
           <div className="text-3xl" aria-hidden>🌱</div>
-          <h2 id="hiw-title" className="serif-xl mt-1">Welcome to Rhyza</h2>
+          <h2 id="hiw-title" className="serif-xl mt-1">Welcome to ThinkThru</h2>
         </div>
 
         <div className="mt-4 space-y-3 text-[15px] leading-relaxed text-ink-mid">
@@ -66,11 +66,11 @@ export function HowItWorks({ onClose }: { onClose: () => void }) {
             the journey that led there.
           </p>
           <p className="text-base font-medium text-ink">
-            Rhyza exists to preserve that journey.
+            ThinkThru exists to preserve that journey.
           </p>
           <p>
             Inspired by nature&apos;s hidden root networks, where countless
-            connections help entire forests thrive, Rhyza helps communities grow
+            connections help entire forests thrive, ThinkThru helps communities grow
             conversations into collective intelligence.
           </p>
         </div>
@@ -137,7 +137,7 @@ export function HowItWorks({ onClose }: { onClose: () => void }) {
         </p>
 
         <button ref={closeRef} onClick={onClose} className="btn-primary w-full">
-          Enter Rhyza 🌿
+          Enter ThinkThru 🌿
         </button>
       </div>
     </div>

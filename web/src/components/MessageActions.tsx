@@ -47,7 +47,7 @@ export function MessageActions({ text, path }: { text: string; path: string }) {
       label: "Telegram",
       href: `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`,
     },
-    { label: "Email", href: `mailto:?subject=${encodeURIComponent("Shared from Rhyza")}&body=${enc}` },
+    { label: "Email", href: `mailto:?subject=${encodeURIComponent("Shared from ThinkThru")}&body=${enc}` },
     { label: "X / Twitter", href: `https://twitter.com/intent/tweet?text=${enc}` },
   ];
 

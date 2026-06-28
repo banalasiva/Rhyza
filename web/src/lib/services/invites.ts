@@ -47,7 +47,7 @@ export async function createGardenInvite(
   if (email && emailConfigured()) {
     emailed = await sendEmail({
       to: email,
-      subject: `You're invited to ${garden.name} on Rhyza`,
+      subject: `You're invited to ${garden.name} on ThinkThru`,
       html: inviteEmailHtml({
         orgName: org?.name ?? "an organization",
         gardenName: garden.name,
@@ -98,7 +98,7 @@ export async function createSeedInvite(
   if (email && emailConfigured()) {
     emailed = await sendEmail({
       to: email,
-      subject: `You're invited to a discussion on Rhyza`,
+      subject: `You're invited to a discussion on ThinkThru`,
       html: inviteEmailHtml({
         orgName: orgRow?.name ?? "an organization",
         gardenName: `${garden.name} · ${seed.title}`,

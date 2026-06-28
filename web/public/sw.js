@@ -1,4 +1,4 @@
-/* Rhyza service worker — Web Push receiver + click handler.
+/* ThinkThru service worker — Web Push receiver + click handler.
    Kept tiny and dependency-free so it loads instantly. */
 
 self.addEventListener("push", (event) => {
@@ -6,9 +6,9 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch (_e) {
-    data = { title: "Rhyza", body: event.data ? event.data.text() : "" };
+    data = { title: "ThinkThru", body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "Rhyza";
+  const title = data.title || "ThinkThru";
   const options = {
     body: data.body || "",
     icon: "/icon-192.png",

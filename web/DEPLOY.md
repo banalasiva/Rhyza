@@ -1,4 +1,4 @@
-# Deploying Rhyza (Vercel + Neon)
+# Deploying ThinkThru (Vercel + Neon)
 
 This guide takes the app from zero to a live deployment. It needs accounts you
 own — a Neon database, a Vercel project, and a Google Cloud project for OAuth.
@@ -141,10 +141,10 @@ app **send invite emails**, configure Resend:
 1. Create an account at <https://resend.com> → **API Keys** → create one →
    set `RESEND_API_KEY`.
 2. Sender address (`RESEND_FROM`):
-   - **Testing:** use `Rhyza <onboarding@resend.dev>` (Resend's shared sender) —
+   - **Testing:** use `ThinkThru <onboarding@resend.dev>` (Resend's shared sender) —
      works immediately, can only email your own verified address.
    - **Production:** **Domains** → add and verify your domain (SPF/DKIM DNS
-     records) → use e.g. `Rhyza <invites@yourdomain.com>`.
+     records) → use e.g. `ThinkThru <invites@yourdomain.com>`.
 3. Set `APP_URL` to your deployed URL so invite links point at the right place
    (e.g. `https://your-app.vercel.app`).
 

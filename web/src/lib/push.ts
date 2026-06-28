@@ -21,7 +21,7 @@ export function pushConfigured(): boolean {
     return false;
   }
   webpush.setVapidDetails(
-    process.env.VAPID_SUBJECT || "mailto:hello@rhyza.app",
+    process.env.VAPID_SUBJECT || "mailto:hello@thinkthru.app",
     pub,
     priv,
   );
