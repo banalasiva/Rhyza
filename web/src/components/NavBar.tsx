@@ -40,9 +40,13 @@ export async function NavBar({ name }: { name?: string }) {
             </span>
           )}
         </Link>
-        <span className="hidden text-sm text-ink-soft sm:inline">
-          {name ?? session?.user?.name}
-        </span>
+        <Link
+          href="/roots"
+          title="What you've grown"
+          className="hidden items-center gap-1 text-sm text-ink-soft transition hover:text-ink sm:inline-flex"
+        >
+          🌳 {name ?? session?.user?.name}
+        </Link>
         <form
           action={async () => {
             "use server";
