@@ -1,0 +1,22 @@
+name: Deploy to Vercel (rhyza-8q4a)
+
+# Auto-deploy that does NOT depend on Vercel's GitHub App integration (which got
+# stuck after the repo rename). GitHub's own CI fires a Vercel Deploy Hook on
+# every push to main → Vercel builds rhyza-8q4a in Production.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel deploy hook
+        run: |
+          if [ -z "${{ secrets.VERCEL_DEPLOY_HOOK }}" ]; then
+            echo "::error::VERCEL_DEPLOY_HOOK secret is not set. Create a Deploy Hook in Vercel (rhyza-8q4a → Settings → Git → Deploy Hooks, branch main) and add its URL as a repo secret named VERCEL_DEPLOY_HOOK."
+            exit 1
+          fi
+          curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK }}"
+          echo "Triggered Vercel production deploy for rhyza-8q4a."
