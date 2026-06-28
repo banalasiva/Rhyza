@@ -840,7 +840,17 @@ export function SeedRoom({
                           </span>
                         )}
                       </p>
-                      <p className="text-xs text-ink-soft">{timeAgo(c.createdAt)}</p>
+                      <p className="flex items-center gap-1.5 text-xs text-ink-soft">
+                        {timeAgo(c.createdAt)}
+                        {c.endorsementCount >= 2 && (
+                          <span
+                            className="inline-flex items-center gap-0.5 rounded-full bg-[rgba(76,175,80,0.12)] px-1.5 py-0.5 text-[9px] font-medium text-accent"
+                            title={`${c.endorsementCount} people found this valuable`}
+                          >
+                            🌱 Taking root
+                          </span>
+                        )}
+                      </p>
                     </div>
                   </div>
                   <div className="relative shrink-0">

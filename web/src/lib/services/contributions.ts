@@ -501,12 +501,20 @@ export async function toggleEndorsement(userId: string, contributionId: string) 
       data: { contributionId, endorserId: userId },
     });
     if (contribution.authorId !== userId) {
+      // An impact moment: name the person and echo the point, so it reads as
+      // "you were understood," not a bare like.
+      const endorser = await db.user.findUnique({ where: { id: userId }, select: { name: true } });
+      const text = ((contribution.content as { text?: string } | null)?.text ?? "").trim();
+      const snippet = text.slice(0, 90);
       await db.notification.create({
         data: {
           recipientId: contribution.authorId,
           actorId: userId,
           type: "endorsement",
-          title: "Your contribution was endorsed ✦",
+          title: `${endorser?.name || "Someone"} found your point valuable ✦`,
+          body: snippet
+            ? `“${snippet}${text.length > 90 ? "…" : ""}” · in ${contribution.seed.title}`
+            : `in ${contribution.seed.title}`,
           entityType: "seed",
           entityId: contribution.seedId,
         },
