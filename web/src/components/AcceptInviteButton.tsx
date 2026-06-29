@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/client";
 
-export function AcceptInviteButton({ token }: { token: string }) {
+export function AcceptInviteButton({ token, seed = false }: { token: string; seed?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export function AcceptInviteButton({ token }: { token: string }) {
   return (
     <div>
       <button onClick={accept} className="btn-primary w-full" disabled={busy}>
-        {busy ? "Joining…" : "Accept & join"}
+        {busy ? "Joining…" : seed ? "Join the conversation 🌿" : "Accept & join"}
       </button>
       {error && <p className="mt-2 text-sm text-[#e57373]">{error}</p>}
     </div>

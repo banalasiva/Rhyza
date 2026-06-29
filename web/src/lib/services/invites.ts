@@ -134,11 +134,23 @@ export async function getInviteByToken(token: string) {
     include: {
       org: { select: { name: true } },
       garden: { select: { id: true, name: true, emoji: true } },
+      seed: { select: { id: true, title: true, content: true } },
       invitedBy: { select: { name: true } },
     },
   });
   if (!invite) return null;
   const expired = invite.expiresAt.getTime() < Date.now();
+  // For a seed invite, surface the actual question so the person sees what
+  // they're being pulled into — content is far more magnetic than a name.
+  const seed = invite.seed
+    ? {
+        title: invite.seed.title,
+        snippet:
+          invite.seed.content.length > 180
+            ? `${invite.seed.content.slice(0, 180).trimEnd()}…`
+            : invite.seed.content,
+      }
+    : null;
   // Note: the invite's scoped `email` is intentionally NOT returned here — the
   // accept page is unauthenticated, so we don't expose the target address to
   // anyone holding the link. acceptInvite() checks the email match server-side.
@@ -148,6 +160,7 @@ export async function getInviteByToken(token: string) {
     expired,
     orgName: invite.org.name,
     garden: invite.garden,
+    seed,
     inviterName: invite.invitedBy.name,
   };
 }
