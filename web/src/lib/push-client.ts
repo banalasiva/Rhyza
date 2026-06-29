@@ -85,6 +85,19 @@ export function pushPermission(): PushState {
   return "off";
 }
 
+// Does THIS device currently have an active push subscription? (Permission can
+// be granted while no subscription exists — e.g. right after unsubscribing.)
+export async function deviceSubscribed(): Promise<boolean> {
+  if (!supported() || Notification.permission !== "granted") return false;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return false;
+    return !!(await reg.pushManager.getSubscription());
+  } catch {
+    return false;
+  }
+}
+
 // Turn push ON for this device: register SW, request permission, subscribe.
 export async function enablePush(): Promise<PushState> {
   if (!supported()) return "unsupported";

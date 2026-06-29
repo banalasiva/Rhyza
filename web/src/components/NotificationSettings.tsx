@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { enablePush, disablePush, healPush, pushPermission } from "@/lib/push-client";
+import { enablePush, disablePush, healPush, pushPermission, deviceSubscribed } from "@/lib/push-client";
 
 type Prefs = { emailNotify: boolean; pushNotify: boolean; digestNotify: boolean };
 
@@ -59,18 +59,28 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
   const [testing, setTesting] = useState(false);
   const [testMsg, setTestMsg] = useState<string | null>(null);
 
-  // On load: reflect THIS device's push state. If already granted, keep its
-  // subscription fresh (heals one bound to an old VAPID key).
+  // On load: reflect whether THIS device is actually subscribed. If it is, keep
+  // its subscription fresh (heals an old-key one) and self-correct the account
+  // pref — a subscribed device should never be left muted account-wide.
   useEffect(() => {
-    const p = pushPermission();
-    if (p === "unsupported") setPushUnsupported(true);
-    else if (p === "denied") setPushDenied(true);
-    else if (p === "on") {
-      setDeviceOn(true);
-      healPush();
-    } else {
-      setDeviceOn(false); // permission not yet granted on this device
-    }
+    (async () => {
+      const p = pushPermission();
+      if (p === "unsupported") {
+        setPushUnsupported(true);
+        return;
+      }
+      if (p === "denied") {
+        setPushDenied(true);
+        return;
+      }
+      const subbed = await deviceSubscribed();
+      setDeviceOn(subbed);
+      if (subbed) {
+        await healPush();
+        if (!prefs.pushNotify) update({ pushNotify: true });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function update(patch: Partial<Prefs>) {
@@ -111,9 +121,12 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
           setPushUnsupported(true);
         }
       } else {
+        // Unsubscribe THIS device only. We deliberately do NOT set
+        // pushNotify=false — that's account-wide and would silence your other
+        // devices too. With no subscription here, this device simply won't be
+        // pushed.
         await disablePush();
         setDeviceOn(false);
-        await update({ pushNotify: false });
       }
     } finally {
       setPushBusy(false);
