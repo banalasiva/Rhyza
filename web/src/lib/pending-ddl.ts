@@ -121,4 +121,10 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "seed_reports_seed_id_idx",
     sql: `CREATE INDEX IF NOT EXISTS "seed_reports_seed_id_idx" ON "seed_reports" ("seed_id")`,
   },
+
+  // 20260629220000_notification_nudged_at
+  {
+    label: "notifications.nudged_at",
+    sql: `ALTER TABLE "notifications" ADD COLUMN IF NOT EXISTS "nudged_at" TIMESTAMP(3)`,
+  },
 ];

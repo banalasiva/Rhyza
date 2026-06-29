@@ -646,6 +646,9 @@ model Notification {
   // daily digest never re-sends what already went out instantly.
   emailedAt   DateTime? @map("emailed_at")
   pushedAt    DateTime? @map("pushed_at")
+  // When this notification was rolled into a twice-daily re-engagement push, so
+  // the morning and evening nudge slots never re-summarise the same item.
+  nudgedAt    DateTime? @map("nudged_at")
   createdAt   DateTime  @default(now()) @map("created_at")
 
   recipient User  @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
