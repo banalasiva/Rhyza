@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireViewer } from "@/lib/session";
 import { getMyRoots } from "@/lib/services/roots";
 import { NavBar } from "@/components/NavBar";
+import { ProfilePhoto } from "@/components/ProfilePhoto";
 import { STAGES } from "@/lib/constants";
 
 export default async function RootsPage() {
@@ -9,7 +10,9 @@ export default async function RootsPage() {
   const roots = await getMyRoots(viewer.userId);
   const { stats } = roots;
 
-  const firstName = (viewer.name || "you").split(" ")[0];
+  const raw = (viewer.name || "you").split(" ")[0];
+  const firstName = raw.charAt(0).toUpperCase() + raw.slice(1);
+  const uploadsEnabled = !!process.env.BLOB_READ_WRITE_TOKEN;
   const nothingYet =
     stats.contributions === 0 && stats.bloomsHelped === 0 && stats.seedsPlanted === 0;
 
@@ -22,14 +25,17 @@ export default async function RootsPage() {
           ← Your gardens
         </Link>
 
-        <div className="mb-6">
-          <p className="eyebrow mb-1">🌳 Your roots</p>
-          <h1 className="serif-xl mb-2">What you&apos;ve grown</h1>
-          <p className="text-sm text-ink-mid">
-            {nothingYet
-              ? "Your thinking will live here — every point you raise, every decision you help bloom."
-              : `Where ${firstName}'s thinking lives across the community.`}
-          </p>
+        <div className="mb-6 flex items-center gap-4">
+          <ProfilePhoto name={viewer.name || "You"} image={viewer.image} uploadsEnabled={uploadsEnabled} />
+          <div className="min-w-0">
+            <p className="eyebrow mb-1">🌳 Your roots</p>
+            <h1 className="serif-xl">Hey {firstName} 👋</h1>
+            <p className="mt-1 text-sm text-ink-mid">
+              {nothingYet
+                ? "Your thinking will live here — every point you raise, every decision you help bloom."
+                : "Here's what you've grown across the community."}
+            </p>
+          </div>
         </div>
 
         {/* Stat chips */}
