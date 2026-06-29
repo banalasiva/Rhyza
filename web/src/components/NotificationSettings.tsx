@@ -73,7 +73,11 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
       const res = await fetch("/api/push/test", { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setTestMsg(`Sent to ${data.sent} device${data.sent === 1 ? "" : "s"} — check your notifications.`);
+        const failed = Array.isArray(data.failures) ? data.failures.length : 0;
+        setTestMsg(
+          `Sent to ${data.sent}/${data.devices} device${data.devices === 1 ? "" : "s"} — check your notifications.` +
+            (failed ? ` (${failed} device didn’t accept it — turn notifications off then on to refresh.)` : ""),
+        );
       } else {
         setTestMsg(data?.error?.message ?? "Couldn't send a test.");
       }

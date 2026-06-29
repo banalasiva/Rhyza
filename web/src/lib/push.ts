@@ -90,3 +90,36 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
   );
   return sent;
 }
+
+// Like sendPushToUser, but returns per-device outcomes so a diagnostic can show
+// exactly why a push didn't arrive (e.g. 403 = the subscription is bound to a
+// different VAPID key and must be re-created). Also prunes 404/410 dead subs.
+export async function sendPushDetailed(
+  userId: string,
+  payload: PushPayload,
+): Promise<{ configured: boolean; devices: number; sent: number; failures: { status: number | null; message: string }[] }> {
+  if (!pushConfigured()) return { configured: false, devices: 0, sent: 0, failures: [] };
+  const subs = await db.pushSubscription.findMany({ where: { userId } });
+  const body = JSON.stringify(payload);
+  let sent = 0;
+  const failures: { status: number | null; message: string }[] = [];
+  await Promise.all(
+    subs.map(async (s) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          body,
+        );
+        sent++;
+      } catch (err: unknown) {
+        const status = (err as { statusCode?: number })?.statusCode ?? null;
+        const message = err instanceof Error ? err.message : String(err);
+        failures.push({ status, message: message.slice(0, 160) });
+        if (status === 404 || status === 410) {
+          await db.pushSubscription.delete({ where: { endpoint: s.endpoint } }).catch(() => {});
+        }
+      }
+    }),
+  );
+  return { configured: true, devices: subs.length, sent, failures };
+}
