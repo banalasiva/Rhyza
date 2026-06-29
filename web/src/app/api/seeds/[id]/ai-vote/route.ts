@@ -1,5 +1,6 @@
 import { handle, ok, ApiError } from "@/lib/api";
 import { requireUserId } from "@/lib/authz";
+import { enforceAiRateLimit } from "@/lib/ratelimit";
 import { aiActionSchema } from "@/lib/validation";
 import { aiVoteOnSeed } from "@/lib/services/contributions";
 
@@ -7,6 +8,7 @@ import { aiVoteOnSeed } from "@/lib/services/contributions";
 // posts its read and casts a stage vote. Body: { provider }.
 export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   const userId = await requireUserId();
+  await enforceAiRateLimit(userId);
   const { provider } = aiActionSchema.parse(await req.json());
   const out = await aiVoteOnSeed(userId, ctx.params.id, provider);
   if (!out) {

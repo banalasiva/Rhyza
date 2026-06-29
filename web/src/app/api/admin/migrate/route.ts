@@ -10,9 +10,10 @@ import { PENDING_DDL } from "@/lib/pending-ddl";
 //
 // Safety: the SQL is a FIXED list (no user input ever reaches it), every
 // statement is IF NOT EXISTS / ADD COLUMN IF NOT EXISTS, and there are no
-// destructive operations — so the worst a caller can do is ensure the schema is
-// current. Still gated: you must be signed in, and — if ADMIN_EMAILS is set —
-// your email must be on that allowlist.
+// destructive operations. It is also HARD-GATED and FAILS CLOSED: the endpoint
+// is disabled unless ADMIN_EMAILS is set in the environment, and then only
+// those emails may call it. An unset allowlist denies everyone (never
+// fail-open), so this privileged surface is off by default in production.
 export const POST = handle(async () => {
   const viewer = await getViewer();
   if (!viewer) throw new ApiError("UNAUTHORIZED", "Sign in first.");
@@ -21,7 +22,11 @@ export const POST = handle(async () => {
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
-  if (allow.length > 0 && !allow.includes((viewer.email ?? "").toLowerCase())) {
+  if (allow.length === 0) {
+    // Fail closed: no allowlist configured ⇒ nobody may run DDL over HTTP.
+    throw new ApiError("FORBIDDEN", "Migration endpoint is disabled. Set ADMIN_EMAILS to enable it.");
+  }
+  if (!allow.includes((viewer.email ?? "").toLowerCase())) {
     throw new ApiError("FORBIDDEN", "Not an admin on this deployment.");
   }
 

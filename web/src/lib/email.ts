@@ -4,10 +4,29 @@
 
 import { headers } from "next/headers";
 
-// The app's public base URL, used to build invite links. Prefers an explicit
-// APP_URL/AUTH_URL (canonical), otherwise auto-detects from the incoming
-// request's host — so links point at whatever domain you're actually on
-// (production, preview, or localhost) without any env var.
+// The canonical production origin. Used as the safe default so email links
+// (invite-accept, unsubscribe — which carry tokens) can never be pointed at an
+// attacker domain via a forged Host / X-Forwarded-Host header.
+const CANONICAL = "https://thinkthru.app";
+
+// Only trust an auto-detected host if it's one of ours — production, a Vercel
+// preview, or local dev. Anything else (a spoofed Host header) is ignored in
+// favour of CANONICAL.
+function isTrustedHost(host: string): boolean {
+  const h = host.toLowerCase().split(":")[0];
+  return (
+    h === "thinkthru.app" ||
+    h === "www.thinkthru.app" ||
+    h.endsWith(".vercel.app") ||
+    h === "localhost" ||
+    h === "127.0.0.1"
+  );
+}
+
+// The app's public base URL, used to build links in email. Prefers an explicit
+// APP_URL/AUTH_URL (canonical), then a *trusted* request host (so preview/local
+// links work), and otherwise falls back to the canonical origin — never an
+// untrusted, request-supplied host.
 export function appUrl(): string {
   const fromEnv = process.env.APP_URL || process.env.AUTH_URL;
   if (fromEnv) return fromEnv.replace(/\/$/, "");
@@ -15,7 +34,7 @@ export function appUrl(): string {
   try {
     const h = headers();
     const host = h.get("x-forwarded-host") ?? h.get("host");
-    if (host) {
+    if (host && isTrustedHost(host)) {
       const proto =
         h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
       return `${proto}://${host}`;
@@ -23,7 +42,7 @@ export function appUrl(): string {
   } catch {
     // headers() is only available within a request — fall through otherwise.
   }
-  return "http://localhost:3000";
+  return CANONICAL;
 }
 
 export function emailConfigured(): boolean {

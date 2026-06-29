@@ -428,6 +428,18 @@ model QuorumState {
   @@map("quorum_state")
 }
 
+// A durable fixed-window rate-limit counter (no Redis dependency). One row per
+// key (e.g. "ai:<userId>"); the window resets when reset_at passes. Updated via
+// a single atomic SQL upsert so concurrent serverless instances share the count
+// safely. See lib/ratelimit.ts.
+model RateLimit {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime @map("reset_at")
+
+  @@map("rate_limits")
+}
+
 // ─────────────────────────────────────────────────────────────
 // Contributions
 // ─────────────────────────────────────────────────────────────

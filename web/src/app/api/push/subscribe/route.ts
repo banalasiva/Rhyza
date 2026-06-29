@@ -29,9 +29,11 @@ export const POST = handle(async (req) => {
 // DELETE /api/push/subscribe — drop this device's subscription (e.g. the person
 // turned notifications off in the browser).
 export const DELETE = handle(async (req) => {
-  await requireUserId();
+  const userId = await requireUserId();
   const parsed = z.object({ endpoint: z.string().url() }).safeParse(await req.json());
   if (!parsed.success) throw new ApiError("BAD_REQUEST", "Invalid endpoint");
-  await db.pushSubscription.deleteMany({ where: { endpoint: parsed.data.endpoint } });
+  // Scope to the caller's own subscriptions so you can only remove your own
+  // device, never someone else's by guessing their endpoint.
+  await db.pushSubscription.deleteMany({ where: { endpoint: parsed.data.endpoint, userId } });
   return ok({ unsubscribed: true });
 });

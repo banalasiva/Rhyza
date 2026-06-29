@@ -56,4 +56,15 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
       PRIMARY KEY ("seed_id")
     )`,
   },
+
+  // 20260629140000_rate_limits
+  {
+    label: "rate_limits",
+    sql: `CREATE TABLE IF NOT EXISTS "rate_limits" (
+      "key"      TEXT    NOT NULL,
+      "count"    INTEGER NOT NULL DEFAULT 0,
+      "reset_at" TIMESTAMP(3) NOT NULL,
+      PRIMARY KEY ("key")
+    )`,
+  },
 ];

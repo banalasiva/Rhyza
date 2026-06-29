@@ -1,5 +1,6 @@
 import { handle, ok, ApiError } from "@/lib/api";
 import { requireUserId } from "@/lib/authz";
+import { enforceAiRateLimit } from "@/lib/ratelimit";
 import { mediateSeed } from "@/lib/services/contributions";
 
 // POST /api/seeds/:id/mediate — ask Claude or ChatGPT to mediate the discussion.
@@ -7,6 +8,7 @@ import { mediateSeed } from "@/lib/services/contributions";
 // AI's contribution in the Debate dimension.
 export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   const userId = await requireUserId();
+  await enforceAiRateLimit(userId);
   const body = (await req.json().catch(() => ({}))) as { provider?: "claude" | "chatgpt" };
   const provider = body.provider === "chatgpt" ? "chatgpt" : "claude";
   const c = await mediateSeed(userId, ctx.params.id, provider);

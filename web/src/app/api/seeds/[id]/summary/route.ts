@@ -1,5 +1,6 @@
 import { handle, ok, ApiError } from "@/lib/api";
 import { requireUserId } from "@/lib/authz";
+import { enforceAiRateLimit } from "@/lib/ratelimit";
 import { summarizeSeed } from "@/lib/services/contributions";
 
 // POST /api/seeds/:id/summary — ask Claude or ChatGPT to summarize the whole
@@ -7,6 +8,7 @@ import { summarizeSeed } from "@/lib/services/contributions";
 // Body: { provider?: "claude" | "chatgpt" }. Returns { text, provider }.
 export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   const userId = await requireUserId();
+  await enforceAiRateLimit(userId);
   const body = (await req.json().catch(() => ({}))) as { provider?: "claude" | "chatgpt" };
   const provider = body.provider === "chatgpt" ? "chatgpt" : "claude";
   const text = await summarizeSeed(userId, ctx.params.id, provider);

@@ -46,6 +46,8 @@ function Toggle({
 export function NotificationSettings({ initial }: { initial: Prefs }) {
   const [prefs, setPrefs] = useState<Prefs>(initial);
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
 
   async function update(patch: Partial<Prefs>) {
     const next = { ...prefs, ...patch };
@@ -61,6 +63,24 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
       setPrefs(prefs); // roll back
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function sendTest() {
+    setTesting(true);
+    setTestMsg(null);
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setTestMsg(`Sent to ${data.sent} device${data.sent === 1 ? "" : "s"} — check your notifications.`);
+      } else {
+        setTestMsg(data?.error?.message ?? "Couldn't send a test.");
+      }
+    } catch {
+      setTestMsg("Couldn't send a test.");
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -92,6 +112,18 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
           on={prefs.digestNotify}
           onChange={(v) => update({ digestNotify: v })}
         />
+      </div>
+
+      <div className="mt-3 flex items-center gap-3 border-t border-[rgba(255,255,255,0.06)] pt-3">
+        <button
+          type="button"
+          onClick={sendTest}
+          disabled={testing}
+          className="rounded-full border border-[rgba(76,175,80,0.3)] px-3 py-1.5 text-xs text-accent transition hover:text-ink disabled:opacity-50"
+        >
+          {testing ? "Sending…" : "🔔 Send a test notification"}
+        </button>
+        {testMsg && <span className="text-xs text-ink-soft">{testMsg}</span>}
       </div>
     </div>
   );

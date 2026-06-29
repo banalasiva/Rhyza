@@ -1,7 +1,12 @@
 import { randomBytes } from "crypto";
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
-import { ensureGardenMember, requireSeedAccess } from "@/lib/authz";
+import {
+  ensureGardenMember,
+  requireSeedAccess,
+  requireSeedManager,
+  requireGardenSteward,
+} from "@/lib/authz";
 import { appUrl, sendEmail, inviteEmailHtml, emailConfigured } from "@/lib/email";
 
 const INVITE_TTL_DAYS = 14;
@@ -18,6 +23,11 @@ export async function createGardenInvite(
   email: string | undefined,
 ) {
   const garden = await ensureGardenMember(userId, gardenId);
+  // A private garden's roster is the access boundary — only a steward may widen
+  // it. Public gardens are open to org members, so any member may invite.
+  if (garden.visibility === "private") {
+    await requireGardenSteward(userId, gardenId);
+  }
   const inviter = await db.user.findUnique({
     where: { id: userId },
     select: { name: true },
@@ -61,13 +71,19 @@ export async function createGardenInvite(
 }
 
 // Create an invite to a specific seed (used for private seeds). Accepting joins
-// the org, the garden, and the seed. Any seed participant can invite.
+// the org, the garden, and the seed. For a PRIVATE seed only a manager
+// (owner/steward) may invite — the member roster is the access boundary, so a
+// regular member can't pull outsiders into a private discussion. Public seeds
+// are open to garden members, so any participant may invite.
 export async function createSeedInvite(
   userId: string,
   seedId: string,
   email: string | undefined,
 ) {
   const seed = await requireSeedAccess(userId, seedId);
+  if (seed.visibility === "private") {
+    await requireSeedManager(userId, seedId);
+  }
   const [garden, inviter] = await Promise.all([
     db.garden.findUnique({ where: { id: seed.gardenId }, select: { name: true, orgId: true } }),
     db.user.findUnique({ where: { id: userId }, select: { name: true } }),

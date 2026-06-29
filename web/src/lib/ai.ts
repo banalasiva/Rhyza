@@ -63,7 +63,9 @@ export type Source = { url: string; title: string };
 const WEB_SEARCH_TOOL: Anthropic.WebSearchTool20260209 = {
   type: "web_search_20260209",
   name: "web_search",
-  max_uses: 5,
+  // Capped low: thread text is user-controlled and could try to steer the model
+  // into many searches. Two is enough for a real answer and bounds cost/abuse.
+  max_uses: 2,
 };
 
 // Collect the unique web pages Claude cited, in first-seen order, capped.

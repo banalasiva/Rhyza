@@ -1,5 +1,6 @@
 import { handle, ok } from "@/lib/api";
 import { requireUserId } from "@/lib/authz";
+import { enforceAiRateLimit } from "@/lib/ratelimit";
 import { createContributionSchema } from "@/lib/validation";
 import {
   addContribution,
@@ -40,31 +41,39 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
 
   // @claude and/or @chatgpt can both be tagged in one message — each replies.
   const aiReplies: ReturnType<typeof toDTO>[] = [];
-  // "not_configured" = no key; any other string = the actual API error.
+  // "not_configured" = no key; otherwise a clean, generic message (we never
+  // surface raw provider error strings to the client — those are logged).
   let aiError: string | null = null;
 
-  if (mentionsClaude(body.text)) {
+  const wantsClaude = mentionsClaude(body.text);
+  const wantsChatGpt = mentionsChatGpt(body.text);
+  // Tagging an AI triggers a paid completion — count it against the AI budget.
+  if (wantsClaude || wantsChatGpt) await enforceAiRateLimit(userId);
+
+  if (wantsClaude) {
     if (!aiConfigured()) aiError = "not_configured";
     else {
       try {
         const reply = await respondAsClaude(ctx.params.id, body.dimension, body.text, c.id);
         if (reply) aiReplies.push(toDTO(reply));
-        else aiError = aiError ?? "Claude returned an empty reply";
+        else aiError = aiError ?? "Claude couldn't reply just now.";
       } catch (err) {
-        aiError = aiError ?? (err instanceof Error ? err.message : "Claude request failed");
+        console.error("[ai] claude reply failed", err);
+        aiError = aiError ?? "Claude couldn't reply just now.";
       }
     }
   }
 
-  if (mentionsChatGpt(body.text)) {
+  if (wantsChatGpt) {
     if (!openaiConfigured()) aiError = aiError ?? "not_configured";
     else {
       try {
         const reply = await respondAsChatGpt(ctx.params.id, body.dimension, body.text, c.id);
         if (reply) aiReplies.push(toDTO(reply));
-        else aiError = aiError ?? "ChatGPT returned an empty reply";
+        else aiError = aiError ?? "ChatGPT couldn't reply just now.";
       } catch (err) {
-        aiError = aiError ?? (err instanceof Error ? err.message : "ChatGPT request failed");
+        console.error("[ai] chatgpt reply failed", err);
+        aiError = aiError ?? "ChatGPT couldn't reply just now.";
       }
     }
   }
