@@ -1,7 +1,7 @@
 import { handle, ok, ApiError } from "@/lib/api";
 import { getViewer } from "@/lib/session";
 import { db } from "@/lib/db";
-import { pushConfigured } from "@/lib/push";
+import { pushConfigured, pushConfigError } from "@/lib/push";
 import { emailConfigured } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -40,9 +40,11 @@ export const GET = handle(async () => {
 
   return ok({
     push: {
-      vapidConfiguredServer: pushConfigured(), // VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY set
+      vapidConfiguredServer: pushConfigured(), // VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY set & valid
       vapidPublicSet: !!serverPub,
       vapidPrivateSet: !!process.env.VAPID_PRIVATE_KEY,
+      // If keys are set but invalid, this is the exact reason push is off.
+      vapidError: pushConfigError(),
       clientKeySet: !!clientPub, // NEXT_PUBLIC_VAPID_PUBLIC_KEY (needed to subscribe)
       // The single most common silent failure: the key the browser subscribed
       // with must equal the server's public key, or pushes are rejected.

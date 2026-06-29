@@ -11,6 +11,7 @@ import webpush from "web-push";
 import { db } from "@/lib/db";
 
 let configured: boolean | null = null;
+let configError: string | null = null;
 
 export function pushConfigured(): boolean {
   if (configured !== null) return configured;
@@ -20,13 +21,29 @@ export function pushConfigured(): boolean {
     configured = false;
     return false;
   }
-  webpush.setVapidDetails(
-    (process.env.VAPID_SUBJECT || "mailto:hello@thinkthru.app").trim(),
-    pub,
-    priv,
-  );
-  configured = true;
-  return true;
+  // setVapidDetails THROWS on malformed keys. We must never let that propagate:
+  // pushConfigured() is called inside the shared deliver() path, so an
+  // unguarded throw here would abort delivery entirely — taking EMAIL down with
+  // push. Catch it, disable push cleanly, and let everything else proceed.
+  try {
+    webpush.setVapidDetails(
+      (process.env.VAPID_SUBJECT || "mailto:hello@thinkthru.app").trim(),
+      pub,
+      priv,
+    );
+    configured = true;
+  } catch (err) {
+    configError = err instanceof Error ? err.message : String(err);
+    console.error("[push] invalid VAPID keys — push disabled:", configError);
+    configured = false;
+  }
+  return configured;
+}
+
+// Why push is off, if VAPID keys are present but invalid (for diagnostics).
+export function pushConfigError(): string | null {
+  pushConfigured();
+  return configError;
 }
 
 export type PushPayload = {
