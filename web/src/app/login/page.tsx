@@ -3,9 +3,9 @@ import { signIn, auth } from "@/auth";
 import { LandingDemo } from "@/components/LandingDemo";
 
 const BEATS = [
-  { emoji: "🌱", title: "Plant a question", body: "A real decision worth thinking through." },
-  { emoji: "🌿", title: "Grow it together", body: "Many minds, every angle — Claude alongside you." },
-  { emoji: "🌸", title: "Watch it Bloom", body: "Into one answer your community keeps forever." },
+  { emoji: "💬", title: "Discuss", body: "Bring a real decision and talk it through — many minds, every angle, Claude alongside." },
+  { emoji: "⚖️", title: "Decide", body: "Weigh what matters and whose stake runs deepest — the Quorum turns it into one fair call." },
+  { emoji: "🌸", title: "Bloom", body: "It settles into one answer your community keeps forever." },
 ];
 
 export default async function LoginPage() {

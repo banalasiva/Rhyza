@@ -19,7 +19,7 @@ export default async function GardensHome() {
           // First run: warm, personal, and one concrete next step.
           <>
             <p className="eyebrow mb-2">Welcome{viewer.name ? `, ${viewer.name.split(" ")[0]}` : ""} 🌱</p>
-            <h1 className="serif-xl mb-3">Let&apos;s start your first space.</h1>
+            <h1 className="serif-xl mb-3">Let&apos;s start your first garden.</h1>
             <p className="mb-8 max-w-xl text-ink-mid">
               A <span className="text-ink">garden</span> is a space for a group — your family,
               your friends, your team — to think a decision through together. Name yours, then

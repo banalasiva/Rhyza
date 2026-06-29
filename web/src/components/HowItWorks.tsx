@@ -48,8 +48,8 @@ export function HowItWorks({ onClose }: { onClose: () => void }) {
             below for whoever wants it. */}
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">
           {[
-            { e: "🌱", t: "Plant", d: "Ask a question or start a decision." },
-            { e: "🤝", t: "Weigh in", d: "Everyone adds their view & reads the room." },
+            { e: "💬", t: "Discuss", d: "Bring a question and talk it through together." },
+            { e: "⚖️", t: "Decide", d: "Everyone weighs in; the Quorum finds one fair call." },
             { e: "🌸", t: "Bloom", d: "It settles into a decision, remembered forever." },
           ].map((s) => (
             <div key={s.t} className="rounded-xl border border-[rgba(76,175,80,0.15)] bg-[rgba(7,13,7,0.4)] p-3">

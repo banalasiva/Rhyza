@@ -72,7 +72,7 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
         />
         <input
           className="input flex-1"
-          placeholder={firstRun ? "Name your space — e.g. Home & family" : "Garden name — e.g. Product decisions"}
+          placeholder={firstRun ? "Name your garden — e.g. Home & family" : "Garden name — e.g. Product decisions"}
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={80}
@@ -107,7 +107,7 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
       </div>
       {error && <p className="text-sm text-[#e57373]">{error}</p>}
       <button type="submit" className="btn-primary" disabled={busy || name.trim().length < 2}>
-        {busy ? "Planting…" : firstRun ? "Create my space →" : "Create garden"}
+        {busy ? "Planting…" : firstRun ? "Create my garden →" : "Create garden"}
       </button>
     </form>
   );
