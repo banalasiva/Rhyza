@@ -23,7 +23,7 @@ import { Avatar } from "@/components/Avatar";
 import { Attachments, type Attachment } from "@/components/Attachments";
 import { StakeMap } from "@/components/StakeMap";
 import { type Board } from "@/components/StakeBoard";
-import { SeedPolls } from "@/components/SeedPolls";
+import { PollCard, PollCreator, type Poll } from "@/components/SeedPolls";
 import { QuorumV2 } from "@/components/QuorumV2";
 import { Icon, type IconName } from "@/components/Icon";
 import { ReadAloud } from "@/components/ReadAloud";
@@ -33,9 +33,9 @@ import { SeedInvite } from "@/components/SeedInvite";
 import { MembersSheet } from "@/components/MembersSheet";
 
 const SEED_TABS = [
-  { key: "discussion", label: "Discussion", icon: "discussion" },
-  { key: "polls", label: "Polls", icon: "polls" },
-  { key: "quorum", label: "Quorum", icon: "quorum" },
+  { key: "discuss", label: "Discuss", icon: "discussion" },
+  { key: "decide", label: "Decide", icon: "quorum" },
+  { key: "bloom", label: "Bloom", icon: "bloom" },
 ] as const satisfies readonly { key: string; label: string; icon: IconName }[];
 
 type ReactionType = { key: string; emoji: string; label: string };
@@ -100,7 +100,10 @@ export function SeedRoom({
   const [summary, setSummary] = useState<{ provider: "claude" | "chatgpt"; text: string } | null>(
     null,
   );
-  const [tab, setTab] = useState<"discussion" | "polls" | "quorum">("discussion");
+  const [tab, setTab] = useState<"discuss" | "decide" | "bloom">("discuss");
+  // Polls live inline in the Discuss thread now (created from the composer).
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const [pollOpen, setPollOpen] = useState(false);
   const [stakeBoard, setStakeBoard] = useState<Board | null>(null);
   // Seed title/framing — local copies so an edit shows instantly.
   const [seedTitle, setSeedTitle] = useState(seed.title);
@@ -150,6 +153,44 @@ export function SeedRoom({
       .then(setStakeBoard)
       .catch(() => {});
   }, [seed.id]);
+
+  // Load polls once — they render inline in the Discuss thread.
+  useEffect(() => {
+    apiGet<Poll[]>(`/api/seeds/${seed.id}/polls`)
+      .then(setPolls)
+      .catch(() => {});
+  }, [seed.id]);
+
+  async function votePoll(pollId: string, optionId: string) {
+    setPolls((prev) => prev.map((p) => (p.id === pollId ? { ...p, myVote: optionId } : p)));
+    playNatureSound("drop");
+    try {
+      setPolls(await apiPost<Poll[]>(`/api/polls/${pollId}/vote`, { optionId }));
+    } catch {
+      apiGet<Poll[]>(`/api/seeds/${seed.id}/polls`).then(setPolls).catch(() => {});
+    }
+  }
+  async function closePoll(pollId: string, closed: boolean) {
+    try {
+      const res = await fetch(`/api/polls/${pollId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ closed }),
+      });
+      setPolls(await res.json());
+    } catch {
+      apiGet<Poll[]>(`/api/seeds/${seed.id}/polls`).then(setPolls).catch(() => {});
+    }
+  }
+  async function deletePoll(pollId: string) {
+    if (!confirm("Delete this poll?")) return;
+    try {
+      const res = await fetch(`/api/polls/${pollId}`, { method: "DELETE" });
+      setPolls(await res.json());
+    } catch {
+      apiGet<Poll[]>(`/api/seeds/${seed.id}/polls`).then(setPolls).catch(() => {});
+    }
+  }
 
   // Deep link from a notification (…/seeds/:id#c-<contributionId>) — scroll to
   // the exact message and pulse it so it's easy to spot.
@@ -733,6 +774,19 @@ export function SeedRoom({
   // One linear conversation, chronological. (Dimensions live as per-message
   // badges + the on-demand AI summary, not as a manual filter.)
   const visibleContributions = contributions;
+
+  // Merge messages + polls into one time-ordered timeline for the Discuss thread.
+  type TimelineItem =
+    | { kind: "msg"; t: number; c: Contribution }
+    | { kind: "poll"; t: number; p: Poll };
+  const timeline = useMemo<TimelineItem[]>(() => {
+    const items: TimelineItem[] = [
+      ...visibleContributions.map((c) => ({ kind: "msg" as const, t: Date.parse(c.createdAt), c })),
+      ...polls.map((p) => ({ kind: "poll" as const, t: Date.parse(p.createdAt), p })),
+    ];
+    items.sort((a, b) => a.t - b.t);
+    return items;
+  }, [visibleContributions, polls]);
   // The message whose action sheet is open (looked up live so reactions /
   // endorsements stay current while the sheet is showing).
   const sheetC = sheetForId ? contributions.find((c) => c.id === sheetForId) ?? null : null;
@@ -818,7 +872,7 @@ export function SeedRoom({
               >
                 <Icon name={t.icon} size={16} muted={!active} />
                 {t.label}
-                {t.key === "quorum" && stakeBoard && stakeBoard.pendingAdmissions.length > 0 && (
+                {t.key === "decide" && stakeBoard && stakeBoard.pendingAdmissions.length > 0 && (
                   <span
                     className="h-1.5 w-1.5 rounded-full bg-accent"
                     aria-label="Someone wants into the decision"
@@ -830,10 +884,64 @@ export function SeedRoom({
         </div>
 
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-        {tab === "quorum" ? (
+        {tab === "decide" ? (
           <QuorumV2 seedId={seed.id} />
-        ) : tab === "polls" ? (
-          <SeedPolls seedId={seed.id} currentUserId={currentUserId} uploadsEnabled={uploadsEnabled} />
+        ) : tab === "bloom" ? (
+          <div className="space-y-4">
+            {isBloomed ? (
+              <div className="rounded-2xl border border-[rgba(255,179,0,0.35)] bg-[rgba(255,179,0,0.08)] p-5 text-center">
+                <div className="mb-1 text-3xl">🌸</div>
+                <p className="serif-lg mb-1">This seed has bloomed</p>
+                <p className="mb-3 text-xs text-ink-mid">Collective knowledge, remembered forever.</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {seed.bloomId && (
+                    <button onClick={() => router.push(`/blooms/${seed.bloomId}`)} className="btn-primary text-sm">
+                      🌸 See the bloom
+                    </button>
+                  )}
+                  <button onClick={() => router.push(`/gardens/${seed.garden.id}/tree`)} className="btn-ghost text-sm">
+                    View the Sacred Tree
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="card p-5">
+                <p className="eyebrow mb-2" style={{ color: bloomReady ? "#FFB300" : "#5A6456" }}>
+                  🌸 Ready to bloom?
+                </p>
+                <div className="mb-2 h-2 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min(100, (bloomedVotes / bloomTarget) * 100)}%`,
+                      background: bloomReady ? "linear-gradient(to right,#FFD54F,#FF8F00)" : "rgba(255,179,0,0.4)",
+                      transition: "width 0.7s",
+                    }}
+                  />
+                </div>
+                <p className="mb-3 text-xs text-ink-mid">
+                  {bloomedVotes} of {bloomTarget} people have voted to bloom
+                  {bloomNeeded > 0 ? ` — ${bloomNeeded} more to go` : " — ready!"}
+                </p>
+                <Requirement met={bloomedVotes >= bloomTarget} label={`${bloomedVotes} of ${bloomTarget} voted to bloom`} />
+                <Requirement met={dimsWithContribs >= 3} label={`${dimsWithContribs} of 3 dimensions explored`} />
+                <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
+                  A seed blooms when the community feels it&apos;s ready. When it does, Claude distils the
+                  discussion into durable knowledge in your Sacred Tree.
+                </p>
+                {seed.canBloom && (
+                  <button
+                    onClick={bloomNow}
+                    disabled={busy}
+                    className="mt-4 w-full rounded-full px-3 py-2.5 text-sm font-medium text-bg transition"
+                    style={{ background: "linear-gradient(135deg,#FFB300,#FF8F00)" }}
+                  >
+                    🌸 Bloom now
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         ) : (
         <>
         {/* Bloomed → always offer the payoff, even if the live moment was missed */}
@@ -1004,10 +1112,22 @@ export function SeedRoom({
 
         {/* Contributions — one linear conversation */}
         <div className="space-y-3">
-          {visibleContributions.length === 0 && (
+          {timeline.length === 0 && (
             <p className="text-sm text-ink-soft">No thoughts yet. Be the first to share.</p>
           )}
-          {visibleContributions.map((c) => {
+          {timeline.map((it) => {
+            if (it.kind === "poll") {
+              return (
+                <PollCard
+                  key={`poll-${it.p.id}`}
+                  poll={it.p}
+                  onVote={votePoll}
+                  onClose={closePoll}
+                  onDelete={deletePoll}
+                />
+              );
+            }
+            const c = it.c;
             const cd = DIMENSIONS.find((d) => d.key === c.dimension) ?? DIMENSIONS[1];
             const isAI = c.author?.name === "Claude" || c.author?.name === "ChatGPT";
             return (
@@ -1172,6 +1292,16 @@ export function SeedRoom({
               className="hidden"
               onChange={(e) => handleFiles(e.target.files)}
             />
+            {pollOpen && (
+              <PollCreator
+                seedId={seed.id}
+                uploadsEnabled={uploadsEnabled}
+                onDone={(next) => {
+                  setPollOpen(false);
+                  if (next) setPolls(next);
+                }}
+              />
+            )}
             <RichEditor
               value={draft}
               onChange={setDraft}
@@ -1204,6 +1334,17 @@ export function SeedRoom({
                   style={{ borderColor: "rgba(76,175,80,0.2)" }}
                 >
                   {uploading ? "⏳" : <Icon name="attach" size={15} />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPollOpen((o) => !o)}
+                  disabled={busy}
+                  title="Create a poll"
+                  aria-label="Create a poll"
+                  className="flex h-7 items-center rounded-md border px-2 text-sm text-ink-mid transition hover:text-ink disabled:opacity-40"
+                  style={{ borderColor: pollOpen ? "rgba(76,175,80,0.5)" : "rgba(76,175,80,0.2)" }}
+                >
+                  📊
                 </button>
                 </>
               }
@@ -1365,7 +1506,7 @@ export function SeedRoom({
               <Requirement met={dimsWithContribs >= 3} label={`${dimsWithContribs} of 3 dimensions explored`} />
               {stakeBoard && (stakeBoard.locked || stakeBoard.bloomProgress.configured) && (
                 <p className="mt-2 text-[10px] leading-relaxed text-bloom">
-                  ⚖️ Final call is stake-weighted — the Quorum tab shows whose votes weigh more.
+                  ⚖️ Final call is stake-weighted — the Decide tab shows whose votes weigh more.
                 </p>
               )}
               {seed.canBloom && !isBloomed && (
@@ -1381,8 +1522,8 @@ export function SeedRoom({
             </div>
 
             {/* Stake-weighted quorum glance — full board lives in the Quorum tab */}
-            {tab !== "quorum" && (
-              <StakeMap board={stakeBoard} onOpen={() => setTab("quorum")} bloomed={isBloomed} />
+            {tab !== "decide" && (
+              <StakeMap board={stakeBoard} onOpen={() => setTab("decide")} bloomed={isBloomed} />
             )}
           </div>
         </div>

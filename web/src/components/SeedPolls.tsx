@@ -11,7 +11,7 @@ import { timeAgo } from "@/lib/time";
 const MAX_POLL_FILE = 25 * 1024 * 1024; // 25 MB
 
 type PollOption = { id: string; text: string; votes: number; pct: number };
-type Poll = {
+export type Poll = {
   id: string;
   question: string;
   attachments: Attachment[];
@@ -143,7 +143,7 @@ export function SeedPolls({
   );
 }
 
-function PollCard({
+export function PollCard({
   poll,
   onVote,
   onClose,
@@ -236,7 +236,7 @@ function PollCard({
   );
 }
 
-function PollCreator({
+export function PollCreator({
   seedId,
   uploadsEnabled,
   onDone,

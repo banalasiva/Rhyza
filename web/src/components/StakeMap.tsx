@@ -107,14 +107,14 @@ export function StakeMap({
 
       {primary ? (
         <button onClick={onOpen} className="btn-primary mt-3 w-full text-xs">
-          ⚖️ Open the Quorum tab
+          ⚖️ Open the Decide tab
         </button>
       ) : (
         <button
           onClick={onOpen}
           className="mt-3 w-full rounded-full border border-[rgba(76,175,80,0.25)] px-3 py-1.5 text-xs text-ink-mid transition hover:text-ink"
         >
-          ⚖️ Open the Quorum tab
+          ⚖️ Open the Decide tab
         </button>
       )}
     </div>
