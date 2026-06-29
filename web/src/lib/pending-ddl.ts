@@ -73,4 +73,52 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "push_subscriptions.user_agent",
     sql: `ALTER TABLE "push_subscriptions" ADD COLUMN IF NOT EXISTS "user_agent" TEXT`,
   },
+
+  // 20260629210000_explore_public_seeds
+  {
+    label: "seeds.listed",
+    sql: `ALTER TABLE "seeds" ADD COLUMN IF NOT EXISTS "listed" BOOLEAN NOT NULL DEFAULT false`,
+  },
+  {
+    label: "seeds.last_activity_at",
+    sql: `ALTER TABLE "seeds" ADD COLUMN IF NOT EXISTS "last_activity_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+  },
+  {
+    label: "seeds_listed_last_activity_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "seeds_listed_last_activity_at_idx" ON "seeds" ("listed", "last_activity_at")`,
+  },
+  {
+    label: "seed_follows",
+    sql: `CREATE TABLE IF NOT EXISTS "seed_follows" (
+      "seed_id"    UUID NOT NULL REFERENCES "seeds" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "user_id"    UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY ("seed_id", "user_id")
+    )`,
+  },
+  {
+    label: "seed_follows_user_id_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "seed_follows_user_id_idx" ON "seed_follows" ("user_id")`,
+  },
+  {
+    label: "seed_reports",
+    sql: `CREATE TABLE IF NOT EXISTS "seed_reports" (
+      "id"              UUID NOT NULL DEFAULT gen_random_uuid(),
+      "seed_id"         UUID NOT NULL REFERENCES "seeds" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "contribution_id" UUID,
+      "reporter_id"     UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "reason"          TEXT NOT NULL,
+      "status"          TEXT NOT NULL DEFAULT 'open',
+      "created_at"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY ("id")
+    )`,
+  },
+  {
+    label: "seed_reports_status_created_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "seed_reports_status_created_at_idx" ON "seed_reports" ("status", "created_at")`,
+  },
+  {
+    label: "seed_reports_seed_id_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "seed_reports_seed_id_idx" ON "seed_reports" ("seed_id")`,
+  },
 ];

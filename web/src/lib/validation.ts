@@ -185,3 +185,11 @@ export const quorumHardcodeSchema = z.object({
 export const quorumPhaseSchema = z.object({
   phase: z.enum(["collecting", "revealed", "locked"]),
 });
+
+// ── Explore / public square ──
+export const followSchema = z.object({ following: z.boolean() });
+export const listedSchema = z.object({ listed: z.boolean() });
+export const reportSchema = z.object({
+  reason: z.string().min(1).max(500),
+  contributionId: z.string().uuid().optional(),
+});

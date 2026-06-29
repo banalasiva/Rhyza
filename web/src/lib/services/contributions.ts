@@ -359,11 +359,67 @@ export async function addContribution(
   // Notify anyone @-mentioned (in-app + email), as long as they can see the seed.
   await notifyMentions(userId, seed, input.text, contribution.id, snippet);
 
+  // Notify followers of this seed (the public-square re-engagement hook), and
+  // bump its activity so a world-public seed rises on /explore.
+  await notifyFollowers(userId, seed, contribution.id, snippet);
+  if (seed.listed) {
+    await db.seed
+      .update({ where: { id: seedId }, data: { lastActivityAt: new Date() } })
+      .catch(() => {});
+  }
+
   // If the decision quorum is locked and this is a newcomer, open an admission
   // request so the carriers can vote them in. Never blocks the contribution.
   await requestAdmissionIfNeeded(seedId, userId);
 
   return contribution;
+}
+
+// Notify everyone following a seed when it gets new activity — push only (email
+// stays reserved for the big moments). Best-effort; never blocks posting.
+async function notifyFollowers(
+  actorId: string,
+  seed: { id: string; title: string },
+  contributionId: string,
+  snippet: string,
+) {
+  try {
+    const follows = await db.seedFollow.findMany({
+      where: { seedId: seed.id, userId: { not: actorId } },
+      select: { userId: true },
+    });
+    if (follows.length === 0) return;
+    const actor = await db.user.findUnique({ where: { id: actorId }, select: { name: true } });
+    const actorName = actor?.name || "Someone";
+    const rows = await Promise.all(
+      follows.map((f: { userId: string }) =>
+        db.notification.create({
+          data: {
+            recipientId: f.userId,
+            actorId,
+            type: "follow",
+            title: `New activity in “${seed.title}”`,
+            body: snippet ? `“${snippet}”` : `${actorName} added to a seed you follow`,
+            entityType: "seed",
+            entityId: seed.id,
+            anchorId: contributionId,
+          },
+          select: { id: true, recipientId: true },
+        }),
+      ),
+    );
+    await deliver(
+      rows.map((r: { id: string; recipientId: string }) => ({
+        notificationId: r.id,
+        recipientId: r.recipientId,
+        type: "follow",
+        push: { title: `New in “${seed.title}”`, body: snippet || `${actorName} added a thought` },
+        link: `/seeds/${seed.id}#c-${contributionId}`,
+      })),
+    );
+  } catch (err) {
+    console.error("notifyFollowers failed", err);
+  }
 }
 
 // A readable, truncated preview of a message: turns @[Name](uuid) tokens into

@@ -47,6 +47,9 @@ export async function requireGardenAccess(userId: string, gardenId: string) {
 export async function requireSeedAccess(userId: string, seedId: string) {
   const seed = await db.seed.findUnique({ where: { id: seedId } });
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
+  // World-public (listed) seeds are readable by ANY signed-in user, across orgs
+  // — that's the public square. Org/garden/private checks are skipped for them.
+  if (seed.listed && seed.visibility === "public") return seed;
   await requireGardenAccess(userId, seed.gardenId);
   if (seed.visibility === "private" && seed.createdById !== userId) {
     const member = await db.seedMember.findUnique({
@@ -57,10 +60,20 @@ export async function requireSeedAccess(userId: string, seedId: string) {
   return seed;
 }
 
-// Ensure the user can participate in the seed, auto-joining the garden the way
-// ensureGardenMember does. Throws if they can't access the (private) seed.
+// Ensure the user can participate in the seed. For a normal seed this auto-joins
+// the garden (org member). For a WORLD-PUBLIC seed, a cross-org joiner is
+// contained to a seed membership only — joining one public seed must never grant
+// access to the rest of that garden/org.
 export async function ensureSeedParticipant(userId: string, seedId: string) {
   const seed = await requireSeedAccess(userId, seedId);
+  if (seed.listed && seed.visibility === "public") {
+    await db.seedMember.upsert({
+      where: { seedId_userId: { seedId, userId } },
+      update: {},
+      create: { seedId, userId, role: "member" },
+    });
+    return seed;
+  }
   await db.gardenMember.upsert({
     where: { gardenId_userId: { gardenId: seed.gardenId, userId } },
     update: {},

@@ -133,8 +133,11 @@ export async function getSeedDetail(userId: string, seedId: string) {
 
   // The pool of people who can be @-tagged: members who can actually see this
   // seed (garden members for a public seed; seed members for a private one).
+  // For a private OR world-public seed the taggable pool is the explicit seed
+  // members (+ contributors, added below) — never the whole garden roster, so a
+  // stranger viewing a listed seed can't enumerate the garden's members.
   const peoplePromise =
-    seed.visibility === "private"
+    seed.visibility === "private" || seed.listed
       ? db.seedMember.findMany({
           where: { seedId },
           include: { user: { select: { id: true, name: true, image: true } } },
@@ -146,7 +149,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
 
   // One parallel batch: authorization + all the data, instead of 5 sequential
   // round-trips (this dominates latency when the DB is far away).
-  const [orgMember, member, seedMember, distribution, myVote, contributions, peopleRows] =
+  const [orgMember, member, seedMember, distribution, myVote, contributions, peopleRows, follow] =
     await Promise.all([
       db.orgMember.findUnique({
         where: { orgId_userId: { orgId: seed.garden.orgId, userId } },
@@ -171,8 +174,12 @@ export async function getSeedDetail(userId: string, seedId: string) {
         },
       }),
       peoplePromise,
+      db.seedFollow.findUnique({ where: { seedId_userId: { seedId, userId } } }),
     ]);
-  if (!orgMember) throw new ApiError("FORBIDDEN", "Not a member of this organization");
+  // World-public seeds are viewable across orgs; everyone else must be an org member.
+  if (!orgMember && !(seed.listed && seed.visibility === "public")) {
+    throw new ApiError("FORBIDDEN", "Not a member of this organization");
+  }
 
   const isCreator = seed.createdById === userId;
   // Private garden: must be a garden member (or creator).
@@ -240,6 +247,8 @@ export async function getSeedDetail(userId: string, seedId: string) {
     // present it as active so the UI doesn't show a bloom that doesn't exist.
     stage: (seed.stage === "bloomed" && !seed.bloomId ? "growing" : seed.stage) as StageKey,
     visibility: seed.visibility as "public" | "private",
+    listed: seed.listed,
+    following: !!follow,
     bloomId: seed.bloomId,
     author: seed.createdBy,
     garden: { id: seed.garden.id, name: seed.garden.name, emoji: seed.garden.emoji },

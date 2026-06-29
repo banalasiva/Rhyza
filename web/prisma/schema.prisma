@@ -103,6 +103,8 @@ model User {
   pollVotes            PollVote[]
   quorumBallots        QuorumBallot[]    @relation("QuorumRater")
   quorumHardcodes      QuorumHardcode[]  @relation("QuorumHardcodedBy")
+  seedFollows          SeedFollow[]
+  seedReports          SeedReport[]
 
   @@map("users")
 }
@@ -190,6 +192,11 @@ model Seed {
   content     String
   stage       String    @default("seed") // seed | germinating | sprouting | growing | bloomed
   visibility  String    @default("public") // public (anyone with garden access) | private (seed members only)
+  // World-public: when true (and visibility=public), the seed is discoverable on
+  // /explore by ANY signed-in user, across orgs — readable + followable; joining
+  // to participate is open. lastActivityAt drives the Explore ranking.
+  listed         Boolean   @default(false)
+  lastActivityAt DateTime  @default(now()) @map("last_activity_at")
   bloomId     String?   @map("bloom_id") @db.Uuid
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
@@ -209,9 +216,46 @@ model Seed {
   quorumBallots   QuorumBallot[]
   quorumHardcodes QuorumHardcode[]
   quorumState     QuorumState?
+  followers     SeedFollow[]
+  reports       SeedReport[]
 
   @@index([gardenId, stage])
+  @@index([listed, lastActivityAt])
   @@map("seeds")
+}
+
+// A user following a world-public seed from /explore — they get its activity
+// (new contributions, blooms) through the normal notification pipeline.
+model SeedFollow {
+  seedId    String   @map("seed_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([seedId, userId])
+  @@index([userId])
+  @@map("seed_follows")
+}
+
+// A report on public content (a seed or a contribution) for moderation. Keeps
+// the public square safe: anyone can flag, owners/admins act on it.
+model SeedReport {
+  id             String   @id @default(uuid()) @db.Uuid
+  seedId         String   @map("seed_id") @db.Uuid
+  contributionId String?  @map("contribution_id") @db.Uuid
+  reporterId     String   @map("reporter_id") @db.Uuid
+  reason         String
+  status         String   @default("open") // open | reviewed | dismissed
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  seed     Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
+  reporter User @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([seedId])
+  @@map("seed_reports")
 }
 
 // Membership for PRIVATE seeds: the explicit set of people who can see and

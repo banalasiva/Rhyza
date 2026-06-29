@@ -136,6 +136,8 @@ export function SeedRoom({
   const [aiVoting, setAiVoting] = useState<"claude" | "chatgpt" | null>(null);
   const [visibility, setVisibility] = useState<"public" | "private">(seed.visibility);
   const [visBusy, setVisBusy] = useState(false);
+  const [listed, setListed] = useState<boolean>(seed.listed ?? false);
+  const [following, setFollowing] = useState<boolean>(seed.following ?? false);
   const [bloomConfirm, setBloomConfirm] = useState(false); // confirm modal open
   const [previewBloom, setPreviewBloom] = useState(false); // flower the plant as a preview
   const [bursts, setBursts] = useState<
@@ -526,6 +528,44 @@ export function SeedRoom({
       setVisibility(prev);
     } finally {
       setVisBusy(false);
+    }
+  }
+
+  // Publish the seed to the world (Explore) or pull it back. Needs it public.
+  async function toggleListed() {
+    const next = !listed;
+    if (next && visibility !== "public") {
+      setError("Make the seed public first, then share it with the world.");
+      return;
+    }
+    setListed(next); // optimistic
+    setError(null);
+    try {
+      await apiPost(`/api/seeds/${seed.id}/listed`, { listed: next });
+    } catch (err) {
+      setListed(!next);
+      setError(err instanceof Error ? err.message : "Couldn't update");
+    }
+  }
+
+  async function toggleFollow() {
+    const next = !following;
+    setFollowing(next); // optimistic
+    try {
+      await apiPost(`/api/seeds/${seed.id}/follow`, { following: next });
+    } catch {
+      setFollowing(!next);
+    }
+  }
+
+  async function reportSeed() {
+    const reason = prompt("What's wrong with this seed? (a short reason)");
+    if (!reason || !reason.trim()) return;
+    try {
+      await apiPost(`/api/seeds/${seed.id}/report`, { reason: reason.trim() });
+      setError("Thanks — reported. We'll take a look.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't report");
     }
   }
 
@@ -1722,6 +1762,33 @@ export function SeedRoom({
                   {visibility === "private" ? "🌍 Make public" : "🔒 Make private"}
                 </button>
               )}
+              {seed.canManage && (
+                <button
+                  onClick={() => {
+                    setSeedMenu(false);
+                    toggleListed();
+                  }}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left transition hover:bg-[rgba(255,255,255,0.04)] ${
+                    listed ? "text-accent" : "text-ink-mid hover:text-ink"
+                  }`}
+                >
+                  {listed ? "🌐 Listed on Explore · unlist" : "🌐 Share with the world"}
+                </button>
+              )}
+              {/* Follow — for anyone who isn't the owner */}
+              {seed.author?.id !== currentUserId && (
+                <button
+                  onClick={() => {
+                    setSeedMenu(false);
+                    toggleFollow();
+                  }}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left transition hover:bg-[rgba(255,255,255,0.04)] ${
+                    following ? "text-accent" : "text-ink-mid hover:text-ink"
+                  }`}
+                >
+                  {following ? "✓ Following · unfollow" : "🔔 Follow this seed"}
+                </button>
+              )}
               <button
                 onClick={() => {
                   setSeedMenu(false);
@@ -1740,6 +1807,18 @@ export function SeedRoom({
               >
                 <Icon name="info" size={14} /> How it works
               </button>
+              {/* Report — for anyone who isn't the owner (public-square safety) */}
+              {seed.author?.id !== currentUserId && (
+                <button
+                  onClick={() => {
+                    setSeedMenu(false);
+                    reportSeed();
+                  }}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-soft transition hover:bg-[rgba(255,255,255,0.04)] hover:text-[#e57373]"
+                >
+                  🚩 Report
+                </button>
+              )}
               {/* Leave — for participants who aren't the owner */}
               {seed.author?.id !== currentUserId && (
                 <button
