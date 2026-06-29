@@ -22,9 +22,9 @@ import { CollapsibleText } from "@/components/CollapsibleText";
 import { Avatar } from "@/components/Avatar";
 import { Attachments, type Attachment } from "@/components/Attachments";
 import { StakeMap } from "@/components/StakeMap";
-import { StakeBoard, type Board } from "@/components/StakeBoard";
+import { type Board } from "@/components/StakeBoard";
 import { SeedPolls } from "@/components/SeedPolls";
-import { QuorumCircle } from "@/components/QuorumCircle";
+import { QuorumV2 } from "@/components/QuorumV2";
 import { Icon, type IconName } from "@/components/Icon";
 import { ReadAloud } from "@/components/ReadAloud";
 import { MicButton } from "@/components/MicButton";
@@ -831,16 +831,7 @@ export function SeedRoom({
 
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "quorum" ? (
-          <>
-            <QuorumCircle />
-            <StakeBoard
-              embedded
-              seedId={seed.id}
-              initial={stakeBoard}
-              onChange={setStakeBoard}
-              onClose={() => {}}
-            />
-          </>
+          <QuorumV2 seedId={seed.id} />
         ) : tab === "polls" ? (
           <SeedPolls seedId={seed.id} currentUserId={currentUserId} uploadsEnabled={uploadsEnabled} />
         ) : (
