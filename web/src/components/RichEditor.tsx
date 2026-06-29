@@ -161,22 +161,15 @@ export function RichEditor({
           <span className="font-mono text-xs">{"</>"}</span>
         </ToolbarButton>
         {toolbarExtra}
-        <div className="ml-auto flex items-center gap-2 self-center">
-          <span className="pr-1 text-[10px] text-ink-soft">
-            {isTouch ? "Tap Send to post" : "Enter to send · Shift+Enter for a new line"}
-          </span>
-          {isTouch && onSubmit && (
-            <button
-              type="button"
-              onClick={() => onSubmit()}
-              disabled={disabled}
-              className="rounded-md px-3 py-1 text-xs font-medium text-bg transition disabled:opacity-40"
-              style={{ background: "var(--accent)" }}
-            >
-              Send
-            </button>
-          )}
-        </div>
+        {/* Submission is owned by the parent's single "Contribute" button, so
+            the editor shows no Send of its own — just a desktop keyboard hint. */}
+        {!isTouch && (
+          <div className="ml-auto flex items-center gap-2 self-center">
+            <span className="pr-1 text-[10px] text-ink-soft">
+              Enter to send · Shift+Enter for a new line
+            </span>
+          </div>
+        )}
       </div>
       <textarea
         ref={ref}

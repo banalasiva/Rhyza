@@ -1443,50 +1443,65 @@ export function SeedRoom({
               })}
             </div>
 
-            {/* Actions */}
+            {/* Actions — fixed 2-col layout:
+                  Copy · Edit
+                  Endorse · Share
+                  Read aloud · Delete
+                (Edit/Delete only on your own message; the rest reflow.) */}
             <div className="grid grid-cols-2 gap-2 border-t border-[rgba(255,255,255,0.06)] pt-3 text-sm">
+              {sheetC.text && (
+                <MessageActions
+                  only="copy"
+                  text={sheetC.text}
+                  path={`/seeds/${seed.id}`}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
+                />
+              )}
+              {sheetC.author?.id === currentUserId && (
+                <button
+                  onClick={() => {
+                    setEditingId(sheetC.id);
+                    setEditDraft(sheetC.text);
+                    setSheetForId(null);
+                  }}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
+                >
+                  ✎ Edit
+                </button>
+              )}
               <button
                 onClick={() => endorse(sheetC.id)}
                 aria-pressed={sheetC.iEndorsed}
                 className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left transition hover:bg-[rgba(255,255,255,0.04)] ${
-                  sheetC.iEndorsed ? "text-bloom" : "text-ink-mid"
+                  sheetC.iEndorsed ? "text-bloom" : "text-ink-mid hover:text-ink"
                 }`}
               >
                 ✦ {sheetC.iEndorsed ? "Endorsed" : "Endorse"}
                 {sheetC.endorsementCount > 0 && ` · ${sheetC.endorsementCount}`}
               </button>
               {sheetC.text && (
-                <div className="flex items-center rounded-lg px-3 py-2 text-ink-mid">
+                <MessageActions
+                  only="share"
+                  text={sheetC.text}
+                  path={`/seeds/${seed.id}`}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
+                />
+              )}
+              {sheetC.text && (
+                <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-ink-mid">
                   <ReadAloud text={sheetC.text} />
                 </div>
               )}
-              {sheetC.text && (
-                <div className="col-span-2 flex items-center gap-3 rounded-lg px-3 py-2 text-ink-mid">
-                  <MessageActions text={sheetC.text} path={`/seeds/${seed.id}`} />
-                </div>
-              )}
               {sheetC.author?.id === currentUserId && (
-                <>
-                  <button
-                    onClick={() => {
-                      setEditingId(sheetC.id);
-                      setEditDraft(sheetC.text);
-                      setSheetForId(null);
-                    }}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
-                  >
-                    ✎ Edit
-                  </button>
-                  <button
-                    onClick={() => {
-                      removeContribution(sheetC.id);
-                      setSheetForId(null);
-                    }}
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[#e57373] transition hover:bg-[rgba(229,115,115,0.08)]"
-                  >
-                    <Icon name="delete" size={14} /> Delete
-                  </button>
-                </>
+                <button
+                  onClick={() => {
+                    removeContribution(sheetC.id);
+                    setSheetForId(null);
+                  }}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[#e57373] transition hover:bg-[rgba(229,115,115,0.08)]"
+                >
+                  <Icon name="delete" size={14} /> Delete
+                </button>
               )}
             </div>
           </div>
