@@ -9,7 +9,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { STAGE_KEYS } from "@/lib/constants";
+import { STAGE_KEYS, EXPLORE_TOPICS, sanitizeTopics } from "@/lib/constants";
 
 const MODEL = "claude-opus-4-8";
 // ChatGPT model — overridable via env so the exact OpenAI model is a config
@@ -325,6 +325,44 @@ export async function classifyDimension(input: {
   } catch (err) {
     console.error("classifyDimension failed", err);
     return null;
+  }
+}
+
+// Infer 1–3 Explore topics for a seed being shared to the world, from the fixed
+// EXPLORE_TOPICS taxonomy. Best-effort: returns [] if AI is off or anything
+// fails — Explore still works untagged, just without personalisation for it.
+export async function inferSeedTopics(input: {
+  title: string;
+  content: string;
+}): Promise<string[]> {
+  if (!aiConfigured()) return [];
+  try {
+    const menu = EXPLORE_TOPICS.map((t) => `${t.key} — ${t.label}`).join("\n");
+    const prompt = [
+      `SEED (the question): ${input.title}`,
+      input.content.trim() ? `FRAMING: ${input.content.trim().slice(0, 800)}` : "",
+      `\nTOPICS:\n${menu}`,
+      `\nWhich 1–3 topics best fit this seed? Reply with ONLY their keys, comma-separated.`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const out = await complete(
+      "You tag a community decision-thread with 1–3 topics from a fixed list, so " +
+        "people interested in those topics can discover it. Choose only clearly-relevant " +
+        "topics — fewer is better than a loose fit. Reply with ONLY the topic keys, " +
+        "comma-separated, nothing else.",
+      prompt,
+      24,
+    );
+    const keys = out
+      .toLowerCase()
+      .split(/[,\s]+/)
+      .map((k) => k.trim())
+      .filter(Boolean);
+    return sanitizeTopics(keys, 3);
+  } catch (err) {
+    console.error("inferSeedTopics failed", err);
+    return [];
   }
 }
 

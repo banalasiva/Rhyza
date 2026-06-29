@@ -127,4 +127,30 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "notifications.nudged_at",
     sql: `ALTER TABLE "notifications" ADD COLUMN IF NOT EXISTS "nudged_at" TIMESTAMP(3)`,
   },
+
+  // 20260629230000_explore_topics_interests
+  {
+    label: "seed_topics",
+    sql: `CREATE TABLE IF NOT EXISTS "seed_topics" (
+      "seed_id" UUID NOT NULL REFERENCES "seeds" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "topic"   TEXT NOT NULL,
+      PRIMARY KEY ("seed_id", "topic")
+    )`,
+  },
+  {
+    label: "seed_topics_topic_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "seed_topics_topic_idx" ON "seed_topics" ("topic")`,
+  },
+  {
+    label: "user_interests",
+    sql: `CREATE TABLE IF NOT EXISTS "user_interests" (
+      "user_id" UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "topic"   TEXT NOT NULL,
+      PRIMARY KEY ("user_id", "topic")
+    )`,
+  },
+  {
+    label: "user_interests_topic_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "user_interests_topic_idx" ON "user_interests" ("topic")`,
+  },
 ];

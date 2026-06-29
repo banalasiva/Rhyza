@@ -105,6 +105,7 @@ model User {
   quorumHardcodes      QuorumHardcode[]  @relation("QuorumHardcodedBy")
   seedFollows          SeedFollow[]
   seedReports          SeedReport[]
+  interests            UserInterest[]
 
   @@map("users")
 }
@@ -218,6 +219,7 @@ model Seed {
   quorumState     QuorumState?
   followers     SeedFollow[]
   reports       SeedReport[]
+  topics        SeedTopic[]
 
   @@index([gardenId, stage])
   @@index([listed, lastActivityAt])
@@ -256,6 +258,36 @@ model SeedReport {
   @@index([status, createdAt])
   @@index([seedId])
   @@map("seed_reports")
+}
+
+// A topic tag on a world-public seed (Phase 2 of Explore). Claude infers 1–3 at
+// share time from a fixed taxonomy (see EXPLORE_TOPICS). Kept in its own table —
+// not a column on seeds — so adding it never disturbs the heavily-queried seeds
+// row shape (no migration-lag breakage on seed loads).
+model SeedTopic {
+  seedId String @map("seed_id") @db.Uuid
+  topic  String // a TopicKey slug, e.g. "family"
+
+  seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
+
+  @@id([seedId, topic])
+  @@index([topic])
+  @@map("seed_topics")
+}
+
+// A topic a person wants to hear about. Matched against SeedTopic to personalise
+// the Explore feed and to notify them when a new public seed fits an interest.
+// Own table (not a users column) so it can't disturb the Auth.js adapter's
+// default-select on users.
+model UserInterest {
+  userId String @map("user_id") @db.Uuid
+  topic  String // a TopicKey slug
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, topic])
+  @@index([topic])
+  @@map("user_interests")
 }
 
 // Membership for PRIVATE seeds: the explicit set of people who can see and

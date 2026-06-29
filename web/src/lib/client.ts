@@ -25,6 +25,19 @@ export async function apiPut<T = any>(url: string, body?: unknown): Promise<T> {
   return data as T;
 }
 
+export async function apiPatch<T = any>(url: string, body?: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.error?.message ?? "Request failed");
+  }
+  return data as T;
+}
+
 export async function apiGet<T = any>(url: string): Promise<T> {
   const res = await fetch(url);
   const data = await res.json().catch(() => ({}));
