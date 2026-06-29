@@ -64,25 +64,29 @@ export function LandingDemo() {
     return () => clearTimeout(t);
   }, [si, step, maxStep]);
 
-  const shown = sc.msgs.slice(0, Math.min(step + 1, sc.msgs.length));
   const showBloom = step >= sc.msgs.length;
 
+  // The whole conversation + bloom are ALWAYS in the DOM and reveal by fading in
+  // (opacity), never by mounting — so the card's height never changes and the
+  // page below it doesn't jump on mobile. Reserved min-heights keep the card the
+  // same size across scenarios too.
   return (
     <div className="card mx-auto w-full max-w-sm p-4">
       {/* Seed question (rotating) */}
       <p className="eyebrow mb-1">🌱 Seed</p>
-      <p key={sc.q} className="serif-lg mb-4 animate-[fadeUp_0.5s_ease-out]">
+      <p key={sc.q} className="serif-lg mb-4 min-h-[3.25rem] animate-[fadeUp_0.5s_ease-out]">
         {sc.q}
       </p>
 
-      {/* Conversation */}
-      <div className="space-y-2">
-        {shown.map((m, i) => {
+      {/* Conversation — all messages rendered; opacity reveals them in turn */}
+      <div className="min-h-[176px] space-y-2">
+        {sc.msgs.map((m, i) => {
           const d = dimMeta(m.dim);
+          const revealed = i <= step;
           return (
             <div
               key={`${si}-${i}`}
-              className="flex items-start gap-2 animate-[fadeUp_0.45s_ease-out]"
+              className={`flex items-start gap-2 transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-0"}`}
             >
               <span
                 className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-medium"
@@ -107,18 +111,16 @@ export function LandingDemo() {
         })}
       </div>
 
-      {/* Bloom */}
-      {showBloom && (
-        <div
-          className="mt-3 rounded-xl border p-3 animate-[fadeUp_0.6s_ease-out]"
-          style={{ borderColor: "rgba(255,179,0,0.4)", background: "rgba(255,179,0,0.08)" }}
-        >
-          <p className="mb-1 flex items-center gap-1 text-[11px] font-medium text-bloom">
-            🌸 Bloomed
-          </p>
-          <p className="text-xs leading-relaxed text-ink">{sc.bloom}</p>
-        </div>
-      )}
+      {/* Bloom — always rendered (reserves its space); fades in at the end */}
+      <div
+        className={`mt-3 rounded-xl border p-3 transition-opacity duration-500 ${showBloom ? "opacity-100" : "opacity-0"}`}
+        style={{ borderColor: "rgba(255,179,0,0.4)", background: "rgba(255,179,0,0.08)" }}
+      >
+        <p className="mb-1 flex items-center gap-1 text-[11px] font-medium text-bloom">
+          🌸 Bloomed
+        </p>
+        <p className="text-xs leading-relaxed text-ink">{sc.bloom}</p>
+      </div>
     </div>
   );
 }
