@@ -1126,10 +1126,11 @@ export function SeedRoom({
                   )}
                   <button
                     onClick={() => setSheetForId(c.id)}
-                    aria-label="Message actions"
-                    className="ml-auto rounded-full px-2 py-1 text-base leading-none transition hover:text-ink"
+                    aria-label="Message actions — react, endorse, edit"
+                    className="ml-auto inline-flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.16)] px-2.5 py-1 text-xs leading-none text-ink-mid transition hover:border-accent hover:text-ink"
                   >
-                    ⋯
+                    <span className="text-sm leading-none" aria-hidden>⋯</span>
+                    {c.author?.id === currentUserId ? "Edit" : "More"}
                   </button>
                 </div>
               </div>

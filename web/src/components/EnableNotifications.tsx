@@ -34,36 +34,50 @@ export function EnableNotifications() {
       return;
     }
     setState(Notification.permission as State);
-    // Keep the SW registered so incoming pushes are handled even when no tab
-    // explicitly registered it this session.
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
+    // If permission was already granted, the device might still have NO
+    // subscription saved on the server — e.g. it was granted before VAPID was
+    // configured, or a previous save failed. Re-subscribe and re-save (it's
+    // idempotent) so "on" actually means deliverable.
+    if (Notification.permission === "granted") {
+      subscribeAndSave().catch(() => {});
+    } else {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
   }, []);
+
+  // Register the SW, ensure a push subscription exists, and save it to the
+  // server. Returns whether the server accepted it.
+  async function subscribeAndSave(): Promise<boolean> {
+    if (!VAPID_PUBLIC) return false;
+    const reg = await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    const sub =
+      existing ??
+      (await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC) as BufferSource,
+      }));
+    const json = sub.toJSON();
+    const res = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+    });
+    return res.ok;
+  }
 
   async function enable() {
     if (!VAPID_PUBLIC) return;
     setState("working");
     try {
-      const reg = await navigator.serviceWorker.register("/sw.js");
-      await navigator.serviceWorker.ready;
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
         setState(permission as State);
         return;
       }
-      const existing = await reg.pushManager.getSubscription();
-      const sub =
-        existing ??
-        (await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC) as BufferSource,
-        }));
-      const json = sub.toJSON();
-      await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
-      });
-      setState("granted");
+      const ok = await subscribeAndSave();
+      setState(ok ? "granted" : "default");
     } catch (err) {
       console.error("push enable failed", err);
       setState("default");

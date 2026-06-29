@@ -45,23 +45,17 @@ export default async function GardenPage({ params }: { params: { id: string } })
           </div>
         </div>
 
-        <div className="card mb-4 p-5">
-          <p className="eyebrow mb-3">Plant a seed</p>
-          <PlantSeedForm gardenId={garden.id} />
-        </div>
-
-        <div className="card mb-8 p-5">
-          <p className="eyebrow mb-3">Invite people</p>
-          <InviteForm gardenId={garden.id} />
-        </div>
-
-        <p className="eyebrow mb-3">Growing seeds</p>
+        {/* Lead with the living content — people consume before they produce.
+            The plant/invite actions live below, where a warmed-up reader meets
+            them. (A brand-new garden has nothing to consume, so the short
+            "nothing growing yet" line sits right above the plant form.) */}
+        <p className="eyebrow mb-3">🌱 Growing seeds</p>
         {seeds.length === 0 ? (
-          <p className="text-sm text-ink-soft">
-            Nothing growing yet — plant the first question above.
+          <p className="mb-6 text-sm text-ink-soft">
+            Nothing growing yet — plant the first question below.
           </p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="mb-8 space-y-3">
             {seeds.map((s) => (
               <li key={s.id}>
                 <Link href={`/seeds/${s.id}`} className="card block p-4 transition hover:border-accent">
@@ -88,13 +82,13 @@ export default async function GardenPage({ params }: { params: { id: string } })
 
         {bloomed.length > 0 && (
           <>
-            <div className="mb-3 mt-8 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between">
               <p className="eyebrow">🌸 Bloomed</p>
               <Link href={`/gardens/${garden.id}/tree`} className="text-xs text-ink-soft hover:text-ink">
                 See the Sacred Tree →
               </Link>
             </div>
-            <ul className="space-y-2">
+            <ul className="mb-8 space-y-2">
               {bloomed.map((b) => (
                 <li key={b.id}>
                   <Link
@@ -113,6 +107,17 @@ export default async function GardenPage({ params }: { params: { id: string } })
             </ul>
           </>
         )}
+
+        {/* Produce actions — below the content a reader has just scrolled. */}
+        <div className="card mb-4 p-5">
+          <p className="eyebrow mb-3">Plant a seed</p>
+          <PlantSeedForm gardenId={garden.id} />
+        </div>
+
+        <div className="card p-5">
+          <p className="eyebrow mb-3">Invite people</p>
+          <InviteForm gardenId={garden.id} />
+        </div>
       </main>
     </div>
   );
