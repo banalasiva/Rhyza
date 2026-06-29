@@ -52,16 +52,25 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
   const [pushBusy, setPushBusy] = useState(false);
   const [pushDenied, setPushDenied] = useState(false);
   const [pushUnsupported, setPushUnsupported] = useState(false);
+  // Whether THIS device is actually subscribed (browser permission granted) —
+  // not the account-wide pref. A device where permission was never granted must
+  // read OFF so turning it on triggers the permission prompt + subscribe.
+  const [deviceOn, setDeviceOn] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testMsg, setTestMsg] = useState<string | null>(null);
 
-  // On load: reflect the browser permission, and if it's granted keep the
-  // device's subscription fresh (heals one bound to an old VAPID key).
+  // On load: reflect THIS device's push state. If already granted, keep its
+  // subscription fresh (heals one bound to an old VAPID key).
   useEffect(() => {
     const p = pushPermission();
     if (p === "unsupported") setPushUnsupported(true);
     else if (p === "denied") setPushDenied(true);
-    else if (p === "on") healPush();
+    else if (p === "on") {
+      setDeviceOn(true);
+      healPush();
+    } else {
+      setDeviceOn(false); // permission not yet granted on this device
+    }
   }, []);
 
   async function update(patch: Partial<Prefs>) {
@@ -93,14 +102,17 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
         const r = await enablePush();
         if (r === "on") {
           setPushDenied(false);
+          setDeviceOn(true);
           await update({ pushNotify: true });
         } else if (r === "denied") {
           setPushDenied(true);
+          setDeviceOn(false);
         } else if (r === "unsupported") {
           setPushUnsupported(true);
         }
       } else {
         await disablePush();
+        setDeviceOn(false);
         await update({ pushNotify: false });
       }
     } finally {
@@ -130,7 +142,7 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
     }
   }
 
-  const pushOn = prefs.pushNotify && !pushDenied && !pushUnsupported;
+  const pushOn = deviceOn && !pushDenied && !pushUnsupported;
 
   return (
     <div className="card mb-6 p-5">
