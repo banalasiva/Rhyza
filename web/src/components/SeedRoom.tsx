@@ -107,6 +107,7 @@ export function SeedRoom({
   const [seedContent, setSeedContent] = useState(seed.content);
   const [seedMenu, setSeedMenu] = useState(false); // tap-the-question details sheet
   const [membersOpen, setMembersOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false); // invite form within the details sheet
   const [editingSeed, setEditingSeed] = useState(false);
   const [seedTitleDraft, setSeedTitleDraft] = useState(seed.title);
   const [seedContentDraft, setSeedContentDraft] = useState(seed.content);
@@ -903,7 +904,10 @@ export function SeedRoom({
             <h1 className="serif-xl mb-1 break-words">{seedTitle}</h1>
             {/* Slack-style one-line meta — tap to open the details sheet. */}
             <button
-              onClick={() => setSeedMenu(true)}
+              onClick={() => {
+                setSeedMenu(true);
+                setInviteOpen(false);
+              }}
               aria-haspopup="dialog"
               className="mb-4 inline-flex items-center gap-1.5 text-xs text-ink-soft transition hover:text-ink"
             >
@@ -1535,18 +1539,16 @@ export function SeedRoom({
               </p>
             )}
 
-            {/* Invite — sharing is now part of the details panel */}
-            <div className="mb-3 border-t border-[rgba(255,255,255,0.06)] pt-3">
-              <SeedInvite
-                seedId={seed.id}
-                gardenName={seed.garden.name}
-                isPrivate={visibility === "private"}
-                inline
-              />
-            </div>
-
-            {/* Actions */}
+            {/* Actions — a calm list, no single dominant button. Invite reveals
+                its form inline so it doesn't steal the eye. */}
             <div className="grid grid-cols-2 gap-2 border-t border-[rgba(255,255,255,0.06)] pt-3 text-sm">
+              <button
+                onClick={() => setInviteOpen((v) => !v)}
+                aria-expanded={inviteOpen}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
+              >
+                🔗 Invite people
+              </button>
               {seed.canManage && (
                 <button
                   onClick={() => {
@@ -1616,6 +1618,18 @@ export function SeedRoom({
                 </button>
               )}
             </div>
+
+            {/* Invite form — revealed only when "Invite people" is tapped */}
+            {inviteOpen && (
+              <div className="mt-3 border-t border-[rgba(255,255,255,0.06)] pt-3">
+                <SeedInvite
+                  seedId={seed.id}
+                  gardenName={seed.garden.name}
+                  isPrivate={visibility === "private"}
+                  inline
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
