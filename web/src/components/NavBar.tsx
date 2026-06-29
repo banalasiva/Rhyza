@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { NavSidebar } from "@/components/NavSidebar";
@@ -23,10 +24,11 @@ export async function NavBar({ name }: { name?: string }) {
         <Link
           href="/"
           title="Back to your gardens"
-          className="rounded-full border px-3 py-1.5 font-serif text-[15px] text-ink backdrop-blur transition hover:border-accent"
+          className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-serif text-[15px] text-ink backdrop-blur transition hover:border-accent"
           style={{ background: "rgba(7,13,7,0.82)" }}
         >
-          🌱 ThinkThru
+          <Image src="/emblem.png" alt="" width={22} height={22} className="h-[22px] w-[22px]" />
+          ThinkThru
         </Link>
       </div>
 

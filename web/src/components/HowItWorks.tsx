@@ -39,7 +39,7 @@ export function HowItWorks({ onClose }: { onClose: () => void }) {
       >
         {/* ── Welcome ── */}
         <div className="text-center">
-          <div className="text-3xl" aria-hidden>🌱</div>
+          <Image src="/emblem.png" alt="" width={56} height={56} className="mx-auto h-14 w-14" />
           <h2 id="hiw-title" className="serif-xl mt-1">Welcome to ThinkThru</h2>
           <p className="mt-1 text-sm text-ink-soft">The 10-second version:</p>
         </div>
