@@ -26,7 +26,7 @@ export default async function RootsPage() {
         </Link>
 
         <div className="mb-6 flex items-center gap-4">
-          <ProfilePhoto name={viewer.name || "You"} image={viewer.image} uploadsEnabled={uploadsEnabled} />
+          <ProfilePhoto name={viewer.name || "You"} image={viewer.avatarUrl} uploadsEnabled={uploadsEnabled} />
           <div className="min-w-0">
             <p className="eyebrow mb-1">🌳 Your roots</p>
             <h1 className="serif-xl">Hey {firstName} 👋</h1>
