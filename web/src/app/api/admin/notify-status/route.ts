@@ -1,7 +1,7 @@
 import { handle, ok, ApiError } from "@/lib/api";
 import { getViewer } from "@/lib/session";
 import { db } from "@/lib/db";
-import { pushConfigured, pushConfigError } from "@/lib/push";
+import { pushConfigured, pushConfigError, sendPushDetailed } from "@/lib/push";
 import { emailConfigured } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 // email might not be arriving. Sends nothing; just reports what's configured on
 // the server and the caller's own subscription + preferences. Open it in your
 // phone browser while signed in. Gated to ADMIN_EMAILS (fails closed).
-export const GET = handle(async () => {
+export const GET = handle(async (req) => {
   const viewer = await getViewer();
   if (!viewer) throw new ApiError("UNAUTHORIZED", "Sign in first.");
   const allow = (process.env.ADMIN_EMAILS ?? "")
@@ -38,7 +38,19 @@ export const GET = handle(async () => {
     })
     .catch(() => null);
 
+  // ?send=1 actually fires a test push to your own devices and reports each
+  // device's outcome (200 = accepted; 403 = key mismatch; 404/410 = dead).
+  let testSend: Awaited<ReturnType<typeof sendPushDetailed>> | null = null;
+  if (new URL(req.url).searchParams.get("send") === "1") {
+    testSend = await sendPushDetailed(viewer.userId, {
+      title: "ThinkThru 🔔",
+      body: "Diagnostic test push.",
+      url: "/notifications",
+    });
+  }
+
   return ok({
+    testSend,
     push: {
       vapidConfiguredServer: pushConfigured(), // VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY set & valid
       vapidPublicSet: !!serverPub,

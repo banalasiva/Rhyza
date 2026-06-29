@@ -20,6 +20,27 @@ function urlBase64ToUint8Array(base64: string): Uint8Array {
   return arr;
 }
 
+// Base64url-encode an ArrayBuffer (no padding) — to compare an existing
+// subscription's applicationServerKey against our configured VAPID key.
+function abToBase64Url(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let bin = "";
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+// Does this subscription's bound VAPID key match our current public key? A
+// mismatch means every push to it is rejected (403), so it must be replaced.
+function subscriptionMatchesKey(sub: PushSubscription, vapidPublic: string): boolean {
+  try {
+    const key = sub.options?.applicationServerKey;
+    if (!key) return false;
+    return abToBase64Url(key as ArrayBuffer) === vapidPublic.replace(/=+$/, "");
+  } catch {
+    return false;
+  }
+}
+
 export function EnableNotifications() {
   const [state, setState] = useState<State>("default");
 
@@ -45,13 +66,35 @@ export function EnableNotifications() {
     }
   }, []);
 
-  // Register the SW, ensure a push subscription exists, and save it to the
-  // server. Returns whether the server accepted it.
+  // Register the SW, ensure a push subscription exists THAT MATCHES THE CURRENT
+  // SERVER KEY, and save it. Returns whether the server accepted it.
+  //
+  // The critical bit: a subscription is permanently bound to the VAPID key it
+  // was created with. If the server's key later changes (or was wrong when the
+  // sub was made), the push service rejects every send with 403 — silently. So
+  // we check the existing sub's key and, if it doesn't match, drop it and make
+  // a fresh one. This self-heals the "1 device didn't accept it" case on load.
   async function subscribeAndSave(): Promise<boolean> {
     if (!VAPID_PUBLIC) return false;
     const reg = await navigator.serviceWorker.register("/sw.js");
     await navigator.serviceWorker.ready;
-    const existing = await reg.pushManager.getSubscription();
+
+    let existing = await reg.pushManager.getSubscription();
+    if (existing && !subscriptionMatchesKey(existing, VAPID_PUBLIC)) {
+      try {
+        await existing.unsubscribe();
+      } catch {
+        /* ignore */
+      }
+      // Forget the stale endpoint on the server too.
+      await fetch("/api/push/subscribe", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: existing.endpoint }),
+      }).catch(() => {});
+      existing = null;
+    }
+
     const sub =
       existing ??
       (await reg.pushManager.subscribe({
