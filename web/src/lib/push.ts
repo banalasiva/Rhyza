@@ -13,6 +13,16 @@ import { db } from "@/lib/db";
 let configured: boolean | null = null;
 let configError: string | null = null;
 
+// web-push requires the VAPID subject to be a mailto: or https: URL. Be lenient
+// about the env value: a bare email ("siva@x.com") or domain gets the right
+// scheme prepended, so this common misconfig can't silently disable push.
+function normalizeSubject(raw: string | undefined): string {
+  const s = (raw || "").trim();
+  if (!s) return "mailto:hello@thinkthru.app";
+  if (/^(mailto:|https?:\/\/)/i.test(s)) return s;
+  return s.includes("@") ? `mailto:${s}` : `https://${s}`;
+}
+
 export function pushConfigured(): boolean {
   if (configured !== null) return configured;
   const pub = process.env.VAPID_PUBLIC_KEY?.trim();
@@ -26,11 +36,7 @@ export function pushConfigured(): boolean {
   // unguarded throw here would abort delivery entirely — taking EMAIL down with
   // push. Catch it, disable push cleanly, and let everything else proceed.
   try {
-    webpush.setVapidDetails(
-      (process.env.VAPID_SUBJECT || "mailto:hello@thinkthru.app").trim(),
-      pub,
-      priv,
-    );
+    webpush.setVapidDetails(normalizeSubject(process.env.VAPID_SUBJECT), pub, priv);
     configured = true;
   } catch (err) {
     configError = err instanceof Error ? err.message : String(err);
