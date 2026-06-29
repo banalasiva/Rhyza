@@ -1,6 +1,18 @@
 /* ThinkThru service worker — Web Push receiver + click handler.
    Kept tiny and dependency-free so it loads instantly. */
 
+// Take control immediately on install/activate so the PWA (and the Play Store
+// TWA wrapper) sees an active SW right away.
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+
+// A pass-through fetch handler. We don't cache (the app is online-first), but
+// having a fetch listener is what makes the PWA pass installability checks —
+// the precondition for wrapping it as an Android app.
+self.addEventListener("fetch", () => {
+  // Intentionally no-op: let the network handle every request normally.
+});
+
 self.addEventListener("push", (event) => {
   let data = {};
   try {

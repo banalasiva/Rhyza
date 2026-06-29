@@ -41,7 +41,26 @@ export function HowItWorks({ onClose }: { onClose: () => void }) {
         <div className="text-center">
           <div className="text-3xl" aria-hidden>🌱</div>
           <h2 id="hiw-title" className="serif-xl mt-1">Welcome to ThinkThru</h2>
+          <p className="mt-1 text-sm text-ink-soft">The 10-second version:</p>
         </div>
+
+        {/* The fast path — three steps anyone gets at a glance. The depth is
+            below for whoever wants it. */}
+        <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+          {[
+            { e: "🌱", t: "Plant", d: "Ask a question or start a decision." },
+            { e: "🤝", t: "Weigh in", d: "Everyone adds their view & reads the room." },
+            { e: "🌸", t: "Bloom", d: "It settles into a decision, remembered forever." },
+          ].map((s) => (
+            <div key={s.t} className="rounded-xl border border-[rgba(76,175,80,0.15)] bg-[rgba(7,13,7,0.4)] p-3">
+              <div className="text-2xl" aria-hidden>{s.e}</div>
+              <p className="mt-1 text-sm font-medium text-ink">{s.t}</p>
+              <p className="mt-0.5 text-[11px] leading-snug text-ink-soft">{s.d}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="mt-4 text-center text-xs text-ink-soft">— or, the longer story —</p>
 
         <div className="mt-4 space-y-3 text-[15px] leading-relaxed text-ink-mid">
           <p className="text-ink">Every important decision begins with a conversation.</p>
