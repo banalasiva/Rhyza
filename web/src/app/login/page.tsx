@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { signIn, auth } from "@/auth";
 import { LandingDemo } from "@/components/LandingDemo";
@@ -26,7 +27,14 @@ export default async function LoginPage() {
 
         {/* ── Story + sign in ── */}
         <div className="text-center lg:text-left">
-          <p className="eyebrow mb-4">🌱 ThinkThru</p>
+          <Image
+            src="/logo-source.png"
+            alt="ThinkThru — Think together. Grow together."
+            width={200}
+            height={200}
+            priority
+            className="mx-auto mb-4 h-auto w-40 sm:w-48 lg:mx-0"
+          />
           <h1 className="serif-xl mb-3">
             Every important decision begins with a conversation.
           </h1>
