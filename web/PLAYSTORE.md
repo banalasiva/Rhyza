@@ -10,6 +10,14 @@ is the website.
 
 ---
 
+## Accounts (fill these in once)
+
+- **Owner / admin Google account:** `siva1793@gmail.com` — sign into ThinkThru
+  with this, own the Play Console app with it, and set it as `ADMIN_EMAILS` in
+  Vercel (gates the `/api/admin/migrate` button to you).
+- **Tester:** your wife's Google account (whatever is signed in on the phone
+  that installs the app) — added under Internal testing → Testers.
+
 ## 0. One-time prerequisites
 
 - A **Google Play Developer account** — https://play.google.com/console — $25
