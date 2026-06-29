@@ -70,6 +70,26 @@ export const STAKE_DIMENSIONS = [
 export type StakeDimensionKey = (typeof STAKE_DIMENSIONS)[number]["key"];
 export const STAKE_DIMENSION_KEYS = STAKE_DIMENSIONS.map((d) => d.key) as StakeDimensionKey[];
 
+// ─────────────────────────────────────────────────────────────
+// Quorum v2 — the six dimensions people weigh in on. Each is one comparative
+// question; everyone ranks everyone (themselves included) by dragging the people
+// who most embody it to the top. `measurable` dims can be hardcoded by an admin
+// from a ground truth (e.g. equity %). `self` = "you know your own" (consequence
+// stake); the rest are read by the room. All are mandatory.
+// ─────────────────────────────────────────────────────────────
+export const QUORUM_DIMENSIONS = [
+  { key: "money", emoji: "💰", label: "Money", question: "Whose money is most on the line?", color: "#66BB6A", measurable: true },
+  { key: "effort", emoji: "⏳", label: "Time & Energy", question: "Who's doing the most of the actual work?", color: "#42A5F5", measurable: false },
+  { key: "emotions", emoji: "❤️", label: "Emotions", question: "Who's most emotionally invested in this?", color: "#EC407A", measurable: false },
+  { key: "judgement", emoji: "🧭", label: "Judgement", question: "Whose judgement do you trust most for this call?", color: "#26A69A", measurable: false },
+  { key: "capability", emoji: "🛠", label: "Capability", question: "Who's most proven to pull this off?", color: "#5C6BC0", measurable: false },
+  { key: "consequence", emoji: "⚖️", label: "Consequence", question: "Who has to live with the outcome the most?", color: "#FFA726", measurable: true },
+] as const;
+
+export type QuorumDimensionKey = (typeof QUORUM_DIMENSIONS)[number]["key"];
+export const QUORUM_DIMENSION_KEYS = QUORUM_DIMENSIONS.map((d) => d.key) as QuorumDimensionKey[];
+export const QUORUM_MAX_RANK = 10; // a rater can place at most this many people per dimension
+
 // A seed blooms (when its stake board is in use) once this share of the total
 // *stake* has voted to bloom — not this share of heads. A small headcount floor
 // (BLOOM_MIN_VOTERS) still applies so a single person can't bloom in silence.
