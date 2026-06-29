@@ -4,12 +4,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/client";
 
-export function CreateGardenForm() {
+// One-tap starting points so a newcomer never faces a blank form. Tuned for
+// real, human groups — not just work teams.
+const QUICK_STARTS: { emoji: string; name: string }[] = [
+  { emoji: "🏡", name: "Home & family" },
+  { emoji: "✈️", name: "A trip we're planning" },
+  { emoji: "🤝", name: "Friends" },
+  { emoji: "💼", name: "My team" },
+];
+
+export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🌱");
   const [description, setDescription] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "private">("public");
+  const [visibility, setVisibility] = useState<"public" | "private">(firstRun ? "private" : "public");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,6 +42,26 @@ export function CreateGardenForm() {
 
   return (
     <form onSubmit={submit} className="space-y-3">
+      {firstRun && (
+        <div>
+          <p className="mb-1.5 text-xs text-ink-soft">Quick start:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {QUICK_STARTS.map((q) => (
+              <button
+                key={q.name}
+                type="button"
+                onClick={() => {
+                  setEmoji(q.emoji);
+                  setName(q.name);
+                }}
+                className="rounded-full border border-[rgba(255,255,255,0.12)] px-3 py-1.5 text-xs text-ink-mid transition hover:border-[rgba(76,175,80,0.4)] hover:text-ink"
+              >
+                {q.emoji} {q.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex gap-2">
         <input
           className="input w-16 text-center"
@@ -43,7 +72,7 @@ export function CreateGardenForm() {
         />
         <input
           className="input flex-1"
-          placeholder="Garden name — e.g. Distributed Systems"
+          placeholder={firstRun ? "Name your space — e.g. Home & family" : "Garden name — e.g. Product decisions"}
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={80}
@@ -78,7 +107,7 @@ export function CreateGardenForm() {
       </div>
       {error && <p className="text-sm text-[#e57373]">{error}</p>}
       <button type="submit" className="btn-primary" disabled={busy || name.trim().length < 2}>
-        {busy ? "Planting…" : "Create garden"}
+        {busy ? "Planting…" : firstRun ? "Create my space →" : "Create garden"}
       </button>
     </form>
   );
