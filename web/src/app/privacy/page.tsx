@@ -2,9 +2,10 @@ import Link from "next/link";
 
 // Public privacy policy — required for the Play Store listing + Data Safety
 // form. Intentionally not behind auth (Google's crawler and reviewers must
-// reach it). Contact is an email so the operator's postal address stays off the
-// public web; the legal name/address live only in the Play Console developer
-// profile. Replace {LEGAL_NAME} once the account type is decided.
+// reach it). Operated by an independent developer (no legal entity needed);
+// contact is an email so the operator's real name and postal address stay off
+// the public web — those live only in the Play Console identity verification,
+// which Google keeps private.
 export const metadata = {
   title: "Privacy Policy · ThinkThru",
   description: "How ThinkThru collects, uses, and protects your information.",
@@ -12,7 +13,7 @@ export const metadata = {
 
 const UPDATED = "June 2026";
 const CONTACT = "siva1793@gmail.com";
-const OPERATOR = "{LEGAL_NAME}"; // filled in once the Play account type is chosen
+const OPERATOR = "an independent developer";
 
 export default function PrivacyPolicy() {
   return (
