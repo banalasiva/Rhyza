@@ -18,31 +18,44 @@ function href(
   return "/";
 }
 
-// Field list, with `anchorId` optional so the page survives even if the
-// anchor_id migration hasn't been applied yet (older DBs fall back below).
-const BASE_SELECT = {
-  id: true,
-  type: true,
-  title: true,
-  body: true,
-  entityType: true,
-  entityId: true,
-  readAt: true,
-  createdAt: true,
-} as const;
-
+// Inline queries (no shared/`as const` args) so Prisma infers orderBy/select —
+// and the return type — correctly. The try/catch lets the page survive a DB
+// where the anchor_id column hasn't been migrated yet (no deep-link then).
 async function loadNotifications(userId: string) {
-  const args = {
-    where: { recipientId: userId },
-    orderBy: [{ readAt: "asc" }, { createdAt: "desc" }] as const,
-    take: 50,
-  };
   try {
-    return await db.notification.findMany({ ...args, select: { ...BASE_SELECT, anchorId: true } });
+    return await db.notification.findMany({
+      where: { recipientId: userId },
+      orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
+      take: 50,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        body: true,
+        entityType: true,
+        entityId: true,
+        anchorId: true,
+        readAt: true,
+        createdAt: true,
+      },
+    });
   } catch {
-    // anchor_id column not present yet — load without it (no deep-link).
-    const rows = await db.notification.findMany({ ...args, select: BASE_SELECT });
-    return rows.map((r) => ({ ...r, anchorId: null as string | null }));
+    const rows = await db.notification.findMany({
+      where: { recipientId: userId },
+      orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
+      take: 50,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        body: true,
+        entityType: true,
+        entityId: true,
+        readAt: true,
+        createdAt: true,
+      },
+    });
+    return rows.map((r) => ({ ...r, anchorId: null }));
   }
 }
 

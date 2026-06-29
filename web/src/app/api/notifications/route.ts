@@ -2,35 +2,53 @@ import { handle, ok } from "@/lib/api";
 import { requireUserId } from "@/lib/authz";
 import { db } from "@/lib/db";
 
-// Explicit field list (anchorId added in a try below) so this survives even if
-// the anchor_id migration hasn't been applied to this database yet.
-const SELECT = {
-  id: true,
-  type: true,
-  title: true,
-  body: true,
-  entityType: true,
-  entityId: true,
-  readAt: true,
-  createdAt: true,
-  actor: { select: { name: true, image: true } },
-} as const;
+// Inline queries (no shared/`as const` args object) so Prisma infers the
+// orderBy/select literal types — and the return type — correctly. The try/catch
+// lets this survive a DB where the anchor_id column hasn't been migrated yet.
+async function loadRows(userId: string) {
+  try {
+    return await db.notification.findMany({
+      where: { recipientId: userId },
+      orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
+      take: 50,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        body: true,
+        entityType: true,
+        entityId: true,
+        anchorId: true,
+        readAt: true,
+        createdAt: true,
+        actor: { select: { name: true, image: true } },
+      },
+    });
+  } catch {
+    const base = await db.notification.findMany({
+      where: { recipientId: userId },
+      orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
+      take: 50,
+      select: {
+        id: true,
+        type: true,
+        title: true,
+        body: true,
+        entityType: true,
+        entityId: true,
+        readAt: true,
+        createdAt: true,
+        actor: { select: { name: true, image: true } },
+      },
+    });
+    return base.map((r) => ({ ...r, anchorId: null as string | null }));
+  }
+}
 
 // GET /api/notifications — recent notifications, unread first.
 export const GET = handle(async () => {
   const userId = await requireUserId();
-  const args = {
-    where: { recipientId: userId },
-    orderBy: [{ readAt: "asc" }, { createdAt: "desc" }] as const,
-    take: 50,
-  };
-  let rows;
-  try {
-    rows = await db.notification.findMany({ ...args, select: { ...SELECT, anchorId: true } });
-  } catch {
-    const base = await db.notification.findMany({ ...args, select: SELECT });
-    rows = base.map((r) => ({ ...r, anchorId: null as string | null }));
-  }
+  const rows = await loadRows(userId);
   return ok({
     notifications: rows.map((n) => ({
       id: n.id,
