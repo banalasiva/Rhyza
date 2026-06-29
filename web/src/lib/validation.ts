@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { DIMENSION_KEYS, STAGE_KEYS, STAKE_DIMENSION_KEYS } from "@/lib/constants";
+import {
+  DIMENSION_KEYS,
+  STAGE_KEYS,
+  STAKE_DIMENSION_KEYS,
+  QUORUM_DIMENSION_KEYS,
+  QUORUM_MAX_RANK,
+} from "@/lib/constants";
 
 export const createOrgSchema = z.object({
   name: z.string().min(2, "Organization name is too short").max(80),
@@ -158,4 +164,24 @@ export const aiActionSchema = z.object({
 export const seedMemberActionSchema = z.object({
   targetId: z.string().uuid(),
   action: z.enum(["promote", "demote", "remove"]),
+});
+
+// ── Quorum v2 ──
+const quorumDimEnum = z.enum(QUORUM_DIMENSION_KEYS as [string, ...string[]]);
+
+// Save/submit a weigh-in: dimension -> ordered list of people, best first.
+export const quorumWeighInSchema = z.object({
+  ballots: z.record(quorumDimEnum, z.array(z.string().uuid()).max(QUORUM_MAX_RANK)),
+  submit: z.boolean().optional().default(false),
+});
+
+// Admin hardcode of a measurable dimension: userId -> non-negative share.
+export const quorumHardcodeSchema = z.object({
+  dimension: quorumDimEnum,
+  shares: z.record(z.string().uuid(), z.number().min(0)).optional(),
+  clear: z.boolean().optional().default(false),
+});
+
+export const quorumPhaseSchema = z.object({
+  phase: z.enum(["collecting", "revealed", "locked"]),
 });

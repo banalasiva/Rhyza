@@ -101,6 +101,8 @@ model User {
   stakeRatingsReceived StakeRating[]     @relation("StakeRatee")
   pollsCreated         Poll[]
   pollVotes            PollVote[]
+  quorumBallots        QuorumBallot[]    @relation("QuorumRater")
+  quorumHardcodes      QuorumHardcode[]  @relation("QuorumHardcodedBy")
 
   @@map("users")
 }
@@ -204,6 +206,9 @@ model Seed {
   stakeState    SeedStake?
   stakeAdmissions StakeAdmission[]
   polls         Poll[]
+  quorumBallots   QuorumBallot[]
+  quorumHardcodes QuorumHardcode[]
+  quorumState     QuorumState?
 
   @@index([gardenId, stage])
   @@map("seeds")
@@ -365,6 +370,62 @@ model PollVote {
   @@id([pollId, userId])
   @@index([optionId])
   @@map("poll_votes")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Quorum v2 — "emotions → maths". Everyone ranks everyone (themselves
+// included) on six fixed dimensions (see lib/constants QUORUM_DIMENSIONS) by
+// dragging who most embodies each to the top, up to QUORUM_MAX_RANK. The pure
+// engine lives in lib/quorum.ts; these tables just hold the inputs and phase.
+// ─────────────────────────────────────────────────────────────
+
+// One rater's ordered ballot for one dimension. `ranking` is a JSON array of
+// rateeIds, best first (length ≤ QUORUM_MAX_RANK). `submitted` powers
+// blind-then-reveal: drafts don't fold into the result until committed.
+model QuorumBallot {
+  seedId    String   @map("seed_id") @db.Uuid
+  raterId   String   @map("rater_id") @db.Uuid
+  dimension String
+  ranking   Json     @default("[]")
+  submitted Boolean  @default(false)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  seed  Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
+  rater User @relation("QuorumRater", fields: [raterId], references: [id], onDelete: Cascade)
+
+  @@id([seedId, raterId, dimension])
+  @@index([seedId])
+  @@map("quorum_ballots")
+}
+
+// An admin's hardcode of a measurable dimension (e.g. money) from a ground
+// truth. `shares` is a JSON map userId -> positive number (normalised by the
+// engine). Attributed to the admin who set it, and shown openly.
+model QuorumHardcode {
+  seedId    String   @map("seed_id") @db.Uuid
+  dimension String
+  byId      String   @map("by_id") @db.Uuid
+  shares    Json     @default("{}")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
+  by   User @relation("QuorumHardcodedBy", fields: [byId], references: [id], onDelete: Cascade)
+
+  @@id([seedId, dimension])
+  @@index([seedId])
+  @@map("quorum_hardcodes")
+}
+
+// Per-seed quorum phase. collecting (people weigh in privately) → revealed (the
+// pies, weights, gaps and tensions are shown) → locked (frozen for the bloom).
+model QuorumState {
+  seedId    String   @id @map("seed_id") @db.Uuid
+  phase     String   @default("collecting") // collecting | revealed | locked
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
+
+  @@map("quorum_state")
 }
 
 // ─────────────────────────────────────────────────────────────
