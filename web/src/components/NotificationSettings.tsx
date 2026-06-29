@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { enablePush, disablePush, healPush, pushPermission, deviceSubscribed } from "@/lib/push-client";
+import {
+  enablePush,
+  disablePush,
+  healPush,
+  pushPermission,
+  deviceSubscribed,
+  showLocalNotification,
+} from "@/lib/push-client";
 
 type Prefs = { emailNotify: boolean; pushNotify: boolean; digestNotify: boolean };
 
@@ -133,23 +140,53 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
     }
   }
 
+  // The self-test: make sure THIS device is enabled, show a notification on it
+  // immediately (reliable, no push round-trip), and also exercise the real push
+  // pipeline to every subscribed device.
   async function sendTest() {
     setTesting(true);
     setTestMsg(null);
     try {
+      // Enable this device first if it isn't already (prompts permission).
+      if (!deviceOn) {
+        const r = await enablePush();
+        if (r === "denied") {
+          setPushDenied(true);
+          setTestMsg("Notifications are blocked — allow them for this site in your browser, then tap again.");
+          return;
+        }
+        if (r === "unsupported") {
+          setPushUnsupported(true);
+          return;
+        }
+        setDeviceOn(true);
+        setPushDenied(false);
+        await update({ pushNotify: true });
+      }
+
+      // Instant, local — proves this device shows notifications.
+      const shown = await showLocalNotification(
+        "ThinkThru 🔔",
+        "Your notifications are working on this device.",
+      );
+
+      // Also fire the real push pipeline (to all your devices).
       const res = await fetch("/api/push/test", { method: "POST" });
       const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        const failed = Array.isArray(data.failures) ? data.failures.length : 0;
+
+      if (shown) {
         setTestMsg(
-          `Sent to ${data.sent}/${data.devices} device${data.devices === 1 ? "" : "s"} — check your notifications.` +
-            (failed ? " (1 device was stale and has been refreshed — try again.)" : ""),
+          res.ok
+            ? `✓ Shown here — and pushed to ${data.sent}/${data.devices} device${data.devices === 1 ? "" : "s"}.`
+            : "✓ Shown on this device.",
         );
+      } else if (res.ok) {
+        setTestMsg(`Pushed to ${data.sent}/${data.devices} device${data.devices === 1 ? "" : "s"} — check notifications.`);
       } else {
-        setTestMsg(data?.error?.message ?? "Couldn't send a test.");
+        setTestMsg(data?.error?.message ?? "Couldn't show a test notification.");
       }
     } catch {
-      setTestMsg("Couldn't send a test.");
+      setTestMsg("Couldn't show a test notification.");
     } finally {
       setTesting(false);
     }
@@ -195,7 +232,7 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
         />
       </div>
 
-      {pushOn && (
+      {!pushUnsupported && (
         <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-[rgba(255,255,255,0.06)] pt-3">
           <button
             type="button"

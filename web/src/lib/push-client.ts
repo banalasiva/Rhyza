@@ -131,6 +131,26 @@ export async function disablePush(): Promise<void> {
   }
 }
 
+// Show a notification on THIS device immediately via the service worker — no
+// push round-trip. The reliable self-test: if permission is granted and the OS
+// allows it, you see it instantly. Returns whether it was shown.
+export async function showLocalNotification(title: string, body: string): Promise<boolean> {
+  if (!supported() || Notification.permission !== "granted") return false;
+  try {
+    await navigator.serviceWorker.register("/sw.js");
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification(title, {
+      body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      tag: "thinkthru-test",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // If permission is already granted, make sure a fresh, key-matched subscription
 // is saved (self-heals subscriptions bound to an old key). Safe to call on load.
 export async function healPush(): Promise<void> {
