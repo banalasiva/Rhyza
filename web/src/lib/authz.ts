@@ -44,8 +44,36 @@ export async function requireGardenAccess(userId: string, gardenId: string) {
 // first (so private gardens are enforced), then for a PRIVATE seed requires
 // being its creator or an explicit seed member. Private seeds are invisible to
 // everyone else — including garden stewards.
+// Load a seed row, tolerating a DB where the new `listed` / `last_activity_at`
+// columns haven't been migrated yet (treat listed as false). This keeps core
+// seed access working in the window between deploying this code and applying
+// the explore migration.
+async function loadSeedRow(seedId: string) {
+  try {
+    return await db.seed.findUnique({ where: { id: seedId } });
+  } catch {
+    const s = await db.seed.findUnique({
+      where: { id: seedId },
+      select: {
+        id: true,
+        gardenId: true,
+        createdById: true,
+        title: true,
+        content: true,
+        stage: true,
+        visibility: true,
+        bloomId: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+      },
+    });
+    return s ? { ...s, listed: false } : null;
+  }
+}
+
 export async function requireSeedAccess(userId: string, seedId: string) {
-  const seed = await db.seed.findUnique({ where: { id: seedId } });
+  const seed = await loadSeedRow(seedId);
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
   // World-public (listed) seeds are readable by ANY signed-in user, across orgs
   // — that's the public square. Org/garden/private checks are skipped for them.

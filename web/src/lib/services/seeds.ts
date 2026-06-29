@@ -119,16 +119,44 @@ export async function stageDistribution(seedId: string) {
 
 export type SeedDetail = Awaited<ReturnType<typeof getSeedDetail>>;
 
-export async function getSeedDetail(userId: string, seedId: string) {
-  const seed = await db.seed.findUnique({
-    where: { id: seedId },
-    include: {
-      createdBy: { select: { id: true, name: true, image: true } },
-      garden: {
-        select: { id: true, name: true, emoji: true, orgId: true, createdById: true, visibility: true },
-      },
+// Load the seed + its relations, tolerating a DB where the new `listed` column
+// isn't migrated yet (so the seed page never 500s in the deploy→migrate window).
+async function loadSeedForDetail(seedId: string) {
+  const include = {
+    createdBy: { select: { id: true, name: true, image: true } },
+    garden: {
+      select: { id: true, name: true, emoji: true, orgId: true, createdById: true, visibility: true },
     },
-  });
+  } as const;
+  try {
+    return await db.seed.findUnique({ where: { id: seedId }, include });
+  } catch {
+    const s = await db.seed.findUnique({
+      where: { id: seedId },
+      select: {
+        id: true,
+        gardenId: true,
+        createdById: true,
+        title: true,
+        content: true,
+        stage: true,
+        visibility: true,
+        bloomId: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+        createdBy: { select: { id: true, name: true, image: true } },
+        garden: {
+          select: { id: true, name: true, emoji: true, orgId: true, createdById: true, visibility: true },
+        },
+      },
+    });
+    return s ? { ...s, listed: false } : null;
+  }
+}
+
+export async function getSeedDetail(userId: string, seedId: string) {
+  const seed = await loadSeedForDetail(seedId);
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
 
   // The pool of people who can be @-tagged: members who can actually see this
@@ -174,7 +202,8 @@ export async function getSeedDetail(userId: string, seedId: string) {
         },
       }),
       peoplePromise,
-      db.seedFollow.findUnique({ where: { seedId_userId: { seedId, userId } } }),
+      // Resilient: the seed_follows table may not be migrated yet.
+      db.seedFollow.findUnique({ where: { seedId_userId: { seedId, userId } } }).catch(() => null),
     ]);
   // World-public seeds are viewable across orgs; everyone else must be an org member.
   if (!orgMember && !(seed.listed && seed.visibility === "public")) {

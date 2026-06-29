@@ -24,7 +24,29 @@ import { deliver } from "@/lib/services/notify";
 import { getReactionTypes } from "@/lib/registry";
 
 async function seedOrThrow(seedId: string) {
-  const seed = await db.seed.findUnique({ where: { id: seedId } });
+  let seed;
+  try {
+    seed = await db.seed.findUnique({ where: { id: seedId } });
+  } catch {
+    // Tolerate a DB where the new `listed` column isn't migrated yet.
+    const s = await db.seed.findUnique({
+      where: { id: seedId },
+      select: {
+        id: true,
+        gardenId: true,
+        createdById: true,
+        title: true,
+        content: true,
+        stage: true,
+        visibility: true,
+        bloomId: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+      },
+    });
+    seed = s ? { ...s, listed: false } : null;
+  }
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
   return seed;
 }
