@@ -59,12 +59,58 @@ export type PushPayload = {
   tag?: string; // collapse key so duplicates replace instead of stack
 };
 
+type SubRow = { endpoint: string; p256dh: string; auth: string; userAgent: string | null };
+
+// Load a user's subscriptions with an explicit select — and a fallback for a DB
+// where the user_agent column hasn't been migrated yet, so adding that column
+// can't break sending.
+async function loadSubs(userId: string): Promise<SubRow[]> {
+  try {
+    return await db.pushSubscription.findMany({
+      where: { userId },
+      select: { endpoint: true, p256dh: true, auth: true, userAgent: true },
+    });
+  } catch {
+    const base = await db.pushSubscription.findMany({
+      where: { userId },
+      select: { endpoint: true, p256dh: true, auth: true },
+    });
+    return base.map((s: { endpoint: string; p256dh: string; auth: string }) => ({ ...s, userAgent: null }));
+  }
+}
+
+// A short, human-readable device label from a user-agent string.
+function deviceLabel(ua: string | null): string {
+  if (!ua) return "Unknown device";
+  const os = /Android/i.test(ua)
+    ? "Android"
+    : /iPhone|iPad|iOS/i.test(ua)
+      ? "iOS"
+      : /Windows/i.test(ua)
+        ? "Windows"
+        : /Macintosh|Mac OS/i.test(ua)
+          ? "Mac"
+          : /Linux/i.test(ua)
+            ? "Linux"
+            : "device";
+  const browser = /Edg\//i.test(ua)
+    ? "Edge"
+    : /Chrome\//i.test(ua)
+      ? "Chrome"
+      : /Firefox\//i.test(ua)
+        ? "Firefox"
+        : /Safari\//i.test(ua)
+          ? "Safari"
+          : "browser";
+  return `${os} · ${browser}`;
+}
+
 // Push a payload to every device a person has registered. Dead subscriptions
 // (the browser unsubscribed, or the endpoint 404/410s) are pruned so we don't
 // keep trying them. Best-effort: never throws to the caller.
 export async function sendPushToUser(userId: string, payload: PushPayload): Promise<number> {
   if (!pushConfigured()) return 0;
-  const subs = await db.pushSubscription.findMany({ where: { userId } });
+  const subs = await loadSubs(userId);
   if (subs.length === 0) return 0;
 
   const body = JSON.stringify(payload);
@@ -91,29 +137,41 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
   return sent;
 }
 
-// Like sendPushToUser, but returns per-device outcomes so a diagnostic can show
-// exactly why a push didn't arrive (e.g. 403 = the subscription is bound to a
-// different VAPID key and must be re-created). Also prunes 404/410 dead subs.
+// Like sendPushToUser, but returns per-device outcomes (with a device label) so
+// a diagnostic can show exactly which device accepted and which didn't — and
+// why (403 = stale key, 404/410 = dead). Also prunes 404/410 dead subs.
+export type PushDeviceResult = { device: string; ok: boolean; status: number | null };
+
 export async function sendPushDetailed(
   userId: string,
   payload: PushPayload,
-): Promise<{ configured: boolean; devices: number; sent: number; failures: { status: number | null; message: string }[] }> {
-  if (!pushConfigured()) return { configured: false, devices: 0, sent: 0, failures: [] };
-  const subs = await db.pushSubscription.findMany({ where: { userId } });
+): Promise<{
+  configured: boolean;
+  devices: number;
+  sent: number;
+  results: PushDeviceResult[];
+  failures: { status: number | null; message: string }[];
+}> {
+  if (!pushConfigured()) return { configured: false, devices: 0, sent: 0, results: [], failures: [] };
+  const subs = await loadSubs(userId);
   const body = JSON.stringify(payload);
   let sent = 0;
+  const results: PushDeviceResult[] = [];
   const failures: { status: number | null; message: string }[] = [];
   await Promise.all(
     subs.map(async (s) => {
+      const device = deviceLabel(s.userAgent);
       try {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           body,
         );
         sent++;
+        results.push({ device, ok: true, status: 201 });
       } catch (err: unknown) {
         const status = (err as { statusCode?: number })?.statusCode ?? null;
         const message = err instanceof Error ? err.message : String(err);
+        results.push({ device, ok: false, status });
         failures.push({ status, message: message.slice(0, 160) });
         if (status === 404 || status === 410) {
           await db.pushSubscription.delete({ where: { endpoint: s.endpoint } }).catch(() => {});
@@ -121,5 +179,5 @@ export async function sendPushDetailed(
       }
     }),
   );
-  return { configured: true, devices: subs.length, sent, failures };
+  return { configured: true, devices: subs.length, sent, results, failures };
 }

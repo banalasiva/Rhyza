@@ -67,4 +67,10 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
       PRIMARY KEY ("key")
     )`,
   },
+
+  // 20260629160000_push_user_agent
+  {
+    label: "push_subscriptions.user_agent",
+    sql: `ALTER TABLE "push_subscriptions" ADD COLUMN IF NOT EXISTS "user_agent" TEXT`,
+  },
 ];

@@ -16,12 +16,22 @@ export const POST = handle(async (req) => {
   const parsed = subSchema.safeParse(await req.json());
   if (!parsed.success) throw new ApiError("BAD_REQUEST", "Invalid subscription");
   const { endpoint, keys } = parsed.data;
+  const userAgent = (req.headers.get("user-agent") || "").slice(0, 300) || null;
 
-  await db.pushSubscription.upsert({
-    where: { endpoint },
-    update: { userId, p256dh: keys.p256dh, auth: keys.auth },
-    create: { userId, endpoint, p256dh: keys.p256dh, auth: keys.auth },
-  });
+  // The user_agent column may not be migrated yet — fall back without it.
+  try {
+    await db.pushSubscription.upsert({
+      where: { endpoint },
+      update: { userId, p256dh: keys.p256dh, auth: keys.auth, userAgent },
+      create: { userId, endpoint, p256dh: keys.p256dh, auth: keys.auth, userAgent },
+    });
+  } catch {
+    await db.pushSubscription.upsert({
+      where: { endpoint },
+      update: { userId, p256dh: keys.p256dh, auth: keys.auth },
+      create: { userId, endpoint, p256dh: keys.p256dh, auth: keys.auth },
+    });
+  }
   await db.user.update({ where: { id: userId }, data: { pushNotify: true } });
   return ok({ subscribed: true });
 });
