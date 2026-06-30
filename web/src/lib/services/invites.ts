@@ -9,7 +9,7 @@ import {
 } from "@/lib/authz";
 import { appUrl, sendEmail, inviteEmailHtml, emailConfigured } from "@/lib/email";
 
-const INVITE_TTL_DAYS = 14;
+const INVITE_TTL_DAYS = 30;
 
 function inviteLink(token: string) {
   return `${appUrl()}/invite/${token}`;
@@ -170,8 +170,11 @@ export async function getInviteByToken(token: string) {
 export async function acceptInvite(userId: string, userEmail: string, token: string) {
   const invite = await db.invite.findUnique({ where: { token } });
   if (!invite) throw new ApiError("NOT_FOUND", "Invite not found");
-  if (invite.status !== "pending") throw new ApiError("CONFLICT", "This invite has already been used");
-  if (invite.expiresAt.getTime() < Date.now()) throw new ApiError("CONFLICT", "This invite has expired");
+  // Invites are reusable links — many people can join from one shared link, and
+  // re-clicking is harmless (memberships upsert below). Only a turned-off
+  // (revoked) or expired link is refused.
+  if (invite.status === "revoked") throw new ApiError("CONFLICT", "This invite was turned off.");
+  if (invite.expiresAt.getTime() < Date.now()) throw new ApiError("CONFLICT", "This invite link has expired.");
   if (invite.email && invite.email !== userEmail.toLowerCase()) {
     throw new ApiError("FORBIDDEN", `This invite is for ${invite.email}`);
   }
@@ -203,4 +206,40 @@ export async function acceptInvite(userId: string, userEmail: string, token: str
   });
 
   return { gardenId: invite.gardenId, seedId: invite.seedId, orgId: invite.orgId };
+}
+
+// If the signed-in viewer already has access to what this invite points to,
+// return where to send them (the seed, or the garden) — so re-opening an invite
+// they've already accepted just takes them in, never shows an "expired" wall.
+export async function inviteMemberDestination(
+  userId: string,
+  token: string,
+): Promise<string | null> {
+  const invite = await db.invite.findUnique({
+    where: { token },
+    select: { seedId: true, gardenId: true },
+  });
+  if (!invite) return null;
+  // Seed invite: only send them in once they're actually a member of the seed
+  // (so a private seed never lands them on an access-denied page). Otherwise let
+  // them accept it.
+  if (invite.seedId) {
+    const sm = await db.seedMember
+      .findUnique({
+        where: { seedId_userId: { seedId: invite.seedId, userId } },
+        select: { userId: true },
+      })
+      .catch(() => null);
+    return sm ? `/seeds/${invite.seedId}` : null;
+  }
+  if (invite.gardenId) {
+    const gm = await db.gardenMember
+      .findUnique({
+        where: { gardenId_userId: { gardenId: invite.gardenId, userId } },
+        select: { userId: true },
+      })
+      .catch(() => null);
+    if (gm) return `/gardens/${invite.gardenId}`;
+  }
+  return null;
 }

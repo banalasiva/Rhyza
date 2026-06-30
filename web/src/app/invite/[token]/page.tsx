@@ -1,7 +1,8 @@
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
 import { getViewer } from "@/lib/session";
-import { getInviteByToken } from "@/lib/services/invites";
+import { getInviteByToken, inviteMemberDestination } from "@/lib/services/invites";
 import { AcceptInviteButton } from "@/components/AcceptInviteButton";
 
 const BEATS = [
@@ -20,7 +21,16 @@ export default async function InvitePage({
     getInviteByToken(params.token),
   ]);
 
-  const invalid = !invite || invite.status !== "pending" || invite.expired;
+  // Already in? Don't show an invite (or worse, an "expired" wall) — just take
+  // them where they're going.
+  if (viewer) {
+    const dest = await inviteMemberDestination(viewer.userId, params.token);
+    if (dest) redirect(dest);
+  }
+
+  // A link is only dead if it was turned off or has run out — being "used"
+  // before doesn't kill it (invites are reusable, shareable links).
+  const invalid = !invite || invite.status === "revoked" || invite.expired;
 
   if (invalid || !invite) {
     return (
@@ -29,10 +39,10 @@ export default async function InvitePage({
         <h1 className="serif-lg mb-2">Invite unavailable</h1>
         <p className="text-sm text-ink-mid">
           {invite?.expired
-            ? "This invite has expired — ask whoever sent it for a fresh link."
-            : invite?.status === "accepted"
-              ? "This invite has already been used. If it was you, just sign in."
-              : "We couldn't find this invite."}
+            ? "This invite link has expired — ask whoever sent it for a fresh one."
+            : invite?.status === "revoked"
+              ? "This invite was turned off. Ask whoever sent it for a new link."
+              : "We couldn’t find this invite. Double-check the link, or ask for a new one."}
         </p>
       </Shell>
     );
