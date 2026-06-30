@@ -10,6 +10,30 @@ is the website.
 
 ---
 
+## Waiting on Google identity verification? Do everything else now.
+
+Google's identity verification only gates the **final "Start rollout" button** —
+i.e. actually publishing a release. Everything that gets you *to* that button is
+in your control and can be finished today, so the moment you're verified it's a
+one-click publish:
+
+- ✅ **Package the app** — run PWABuilder (step 1) or Bubblewrap (step 1b). This
+  produces the `.aab` *and* the signing key's SHA-256 fingerprint. No Google
+  account state needed.
+- ✅ **Wire Digital Asset Links** — paste that fingerprint into
+  `assetlinks.json` and deploy (step 3). This is purely on our own website.
+- ✅ **Write the store listing** — see `STORE-LISTING.md` (title, descriptions,
+  data-safety answers, content rating). Draftable without verification.
+- ✅ **Create the app + upload the `.aab` as a draft** to Internal testing — you
+  can fill the release in; you just can't press rollout until verified.
+- ⏳ **Blocked until verified:** pressing **Start rollout** (and the tester
+  opt-in link going live).
+
+So: get the package + fingerprint + asset links done now (steps 1–3). The only
+thing left for "after verification" is the final click.
+
+---
+
 ## Accounts (fill these in once)
 
 - **Owner / admin Google account:** `siva1793@gmail.com` — sign into ThinkThru
@@ -43,6 +67,35 @@ is the website.
      the app. Store it somewhere safe (password manager).
 4. Download the generated `.zip`. Inside you get an **`.aab`** (the upload
    bundle) and the signing assets.
+
+## 1b. (Alternative) Package locally with Bubblewrap — config is pre-pinned
+
+This repo ships `web/twa-manifest.json` — the exact Bubblewrap config for the
+app (package id `app.thinkthru.twa`, brand colors, the maskable icon, the three
+app shortcuts, and **`enableNotifications: true`** so web push is delegated to
+Android). Use this if you'd rather build from the command line and keep the
+package reproducible.
+
+```bash
+# one-time: needs Node + a JDK; Bubblewrap fetches the Android SDK itself
+npm install -g @bubblewrap/cli
+
+cd web
+bubblewrap init --manifest ./twa-manifest.json   # creates the Android project
+bubblewrap build                                  # produces app-release-bundle.aab
+```
+
+- On first `build`, Bubblewrap creates a signing keystore (`android.keystore`,
+  alias `thinkthru` — as referenced in `twa-manifest.json`). **Back it up; losing
+  it means you can never update the app.** Never commit it.
+- Get the SHA-256 fingerprint for `assetlinks.json` with:
+  ```bash
+  keytool -list -v -keystore android.keystore -alias thinkthru | grep SHA256
+  ```
+  (Or, if you use Play App Signing, take the fingerprint from the Play Console —
+  see step 3. Listing both upload-key and Play-signing-key fingerprints is fine.)
+- Bump `appVersionCode`/`appVersionName` in `twa-manifest.json` for each update,
+  then `bubblewrap build` again.
 
 ## 2. Create the app in Play Console
 

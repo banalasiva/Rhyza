@@ -26,3 +26,12 @@ yarn-debug.log*
 yarn-error.log*
 .vercel
 *.tsbuildinfo
+
+# Android / TWA packaging (Bubblewrap) — NEVER commit the signing keystore
+*.keystore
+*.jks
+/app
+*.aab
+*.apk
+android.keystore
+twa-manifest-*.json

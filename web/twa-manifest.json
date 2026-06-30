@@ -1,0 +1,38 @@
+{
+  "packageId": "app.thinkthru.twa",
+  "host": "thinkthru.app",
+  "name": "ThinkThru",
+  "launcherName": "ThinkThru",
+  "display": "standalone",
+  "orientation": "portrait",
+  "themeColor": "#070D07",
+  "themeColorDark": "#070D07",
+  "navigationColor": "#070D07",
+  "navigationColorDark": "#070D07",
+  "navigationDividerColor": "#070D07",
+  "navigationDividerColorDark": "#070D07",
+  "backgroundColor": "#070D07",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://thinkthru.app/icon-512.png",
+  "maskableIconUrl": "https://thinkthru.app/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "thinkthru"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [
+    { "name": "Your gardens", "shortName": "Gardens", "url": "/", "chosenIconUrl": "https://thinkthru.app/icon-192.png" },
+    { "name": "Explore the world", "shortName": "Explore", "url": "/explore", "chosenIconUrl": "https://thinkthru.app/icon-192.png" },
+    { "name": "Notifications", "shortName": "Alerts", "url": "/notifications", "chosenIconUrl": "https://thinkthru.app/icon-192.png" }
+  ],
+  "fallbackType": "customtabs",
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://thinkthru.app/",
+  "minSdkVersion": 23,
+  "webManifestUrl": "https://thinkthru.app/manifest.webmanifest"
+}

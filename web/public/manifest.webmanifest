@@ -20,6 +20,7 @@
   ],
   "shortcuts": [
     { "name": "Your gardens", "short_name": "Gardens", "url": "/" },
+    { "name": "Explore the world", "short_name": "Explore", "url": "/explore" },
     { "name": "Notifications", "short_name": "Alerts", "url": "/notifications" }
   ]
 }
