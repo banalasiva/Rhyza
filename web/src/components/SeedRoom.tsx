@@ -198,7 +198,15 @@ export function SeedRoom({
   // the exact message and pulse it so it's easy to spot.
   useEffect(() => {
     const m = typeof window !== "undefined" && window.location.hash.match(/^#c-([0-9a-fA-F-]{36})$/);
-    if (!m) return;
+    if (!m) {
+      // No specific anchor — drop the arriver straight into the conversation
+      // (past the title/plant hero) instead of stranding them at the top.
+      const t = setTimeout(
+        () => tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        400,
+      );
+      return () => clearTimeout(t);
+    }
     const id = m[1];
     const t = setTimeout(() => {
       const el = document.getElementById(`c-${id}`);
@@ -904,12 +912,22 @@ export function SeedRoom({
                   setTab(nt.key);
                   requestAnimationFrame(() => document.getElementById(`tab-${nt.key}`)?.focus());
                 }}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 transition"
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full px-2.5 py-1.5 transition"
                 style={{
                   background: active ? "rgba(76,175,80,0.18)" : "transparent",
                   color: active ? "#E8E4DC" : "#828B79",
                 }}
               >
+                <span
+                  aria-hidden
+                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold"
+                  style={{
+                    background: active ? "#4CAF50" : "rgba(255,255,255,0.08)",
+                    color: active ? "#06120A" : "#828B79",
+                  }}
+                >
+                  {idx + 1}
+                </span>
                 <Icon name={t.icon} size={16} muted={!active} />
                 {t.label}
                 {t.key === "decide" && stakeBoard && stakeBoard.pendingAdmissions.length > 0 && (

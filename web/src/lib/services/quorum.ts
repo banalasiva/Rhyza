@@ -269,7 +269,33 @@ export async function saveWeighIn(
       }),
     ),
   );
-  return { ok: true, submitted: submit };
+
+  // Auto-reveal: the moment the last participant commits, flip to revealed — no
+  // admin approval needed. (An admin can still reveal early via the admin bar.)
+  let revealed = false;
+  if (submit && state.phase === "collecting" && people.length > 0) {
+    const submitters = await db.quorumBallot.findMany({
+      where: { seedId, submitted: true },
+      distinct: ["raterId"],
+      select: { raterId: true },
+    });
+    if (submitters.length >= people.length) {
+      await db.quorumState.upsert({
+        where: { seedId },
+        update: { phase: "revealed" },
+        create: { seedId, phase: "revealed", template: state.template },
+      });
+      revealed = true;
+      if (state.template === "understand") {
+        try {
+          await generateObservations(seedId);
+        } catch (err) {
+          console.error("[quorum] auto-reveal observations failed", err);
+        }
+      }
+    }
+  }
+  return { ok: true, submitted: submit, revealed };
 }
 
 // Admin pins a measurable dimension (money / consequence) to a ground truth.

@@ -69,6 +69,9 @@ export function NavSidebar({ signOut }: { signOut?: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const priv = gardens?.filter((g) => g.visibility === "private") ?? [];
+  const pub = gardens?.filter((g) => g.visibility === "public") ?? [];
+
   return (
     <>
       <button
@@ -93,58 +96,35 @@ export function NavSidebar({ signOut }: { signOut?: () => void }) {
           <aside
             className="absolute left-0 top-0 h-full w-[300px] max-w-[85vw] overflow-auto border-r border-[rgba(76,175,80,0.18)] bg-[rgba(8,13,8,0.98)] p-4 backdrop-blur animate-[fadeUp_0.25s_ease-out]"
           >
-            <div className="mb-3 flex items-center justify-between">
-              <Link href="/" onClick={() => setOpenPersist(false)} className="eyebrow">
-                🌱 Your gardens
-              </Link>
+            <div className="mb-4 flex items-center justify-between">
+              <span className="eyebrow">🌱 Your gardens</span>
               <button onClick={() => setOpenPersist(false)} className="text-ink-soft hover:text-ink">
                 ✕
               </button>
             </div>
 
+            {/* Quick create — plant a whole new garden, or jump into one below to
+                plant a seed inside it. */}
+            <Link
+              href="/"
+              onClick={() => setOpenPersist(false)}
+              className="mb-5 flex items-center justify-center gap-1.5 rounded-xl border border-[rgba(76,175,80,0.45)] bg-[rgba(76,175,80,0.12)] px-3 py-2.5 text-sm font-medium text-ink transition hover:border-accent"
+            >
+              ✚ New garden
+            </Link>
+
             {loading && gardens === null && <p className="text-sm text-ink-soft">Loading…</p>}
             {gardens?.length === 0 && !loading && (
-              <p className="text-sm text-ink-soft">No gardens yet.</p>
+              <p className="text-sm text-ink-soft">No gardens yet — plant your first one above.</p>
             )}
 
-            <div className="space-y-4">
-              {gardens?.map((g) => {
-                const blooms = g.seeds.filter((s) => s.bloomed).length;
-                return (
-                  <div key={g.id}>
-                    <Link
-                      href={`/gardens/${g.id}`}
-                      onClick={() => setOpenPersist(false)}
-                      className="flex items-center gap-2 text-sm font-medium text-ink transition hover:text-accent"
-                    >
-                      <span>{g.emoji}</span>
-                      <span className="flex-1 truncate">{g.name}</span>
-                      {blooms > 0 && <span className="text-[10px] text-bloom">🌸 {blooms}</span>}
-                      <span className="text-[10px] text-ink-soft">
-                        {g.visibility === "private" ? "🔒" : "🌍"}
-                      </span>
-                    </Link>
-                    {g.seeds.length > 0 && (
-                      <ul className="mt-1 space-y-0.5 border-l border-[rgba(76,175,80,0.15)] pl-3">
-                        {g.seeds.map((s) => (
-                          <li key={s.id}>
-                            <Link
-                              href={`/seeds/${s.id}`}
-                              onClick={() => setOpenPersist(false)}
-                              className="flex items-center gap-1.5 py-0.5 text-xs text-ink-mid transition hover:text-ink"
-                            >
-                              <span className="shrink-0 text-[10px]">
-                                {s.bloomed ? "🌸" : s.visibility === "private" ? "🔒" : "🌱"}
-                              </span>
-                              <span className="truncate">{s.title}</span>
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })}
+            <div className="space-y-6">
+              {priv.length > 0 && (
+                <GardenSection title="Private" glyph="🔒" gardens={priv} close={() => setOpenPersist(false)} />
+              )}
+              {pub.length > 0 && (
+                <GardenSection title="Public" glyph="🌍" gardens={pub} close={() => setOpenPersist(false)} />
+              )}
             </div>
 
             {/* Account actions pinned at the bottom of the panel */}
@@ -171,5 +151,71 @@ export function NavSidebar({ signOut }: { signOut?: () => void }) {
         </div>
       )}
     </>
+  );
+}
+
+// One labelled group of gardens (Private or Public) with its seeds nested and a
+// per-garden shortcut to plant a new seed inside it.
+function GardenSection({
+  title,
+  glyph,
+  gardens,
+  close,
+}: {
+  title: string;
+  glyph: string;
+  gardens: GardenNode[];
+  close: () => void;
+}) {
+  return (
+    <section>
+      <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">
+        {glyph} {title} gardens
+      </p>
+      <div className="space-y-3">
+        {gardens.map((g) => {
+          const blooms = g.seeds.filter((s) => s.bloomed).length;
+          return (
+            <div key={g.id}>
+              <Link
+                href={`/gardens/${g.id}`}
+                onClick={close}
+                className="flex items-center gap-2 text-sm font-medium text-ink transition hover:text-accent"
+              >
+                <span>{g.emoji}</span>
+                <span className="flex-1 truncate">{g.name}</span>
+                {blooms > 0 && <span className="text-[10px] text-bloom">🌸 {blooms}</span>}
+              </Link>
+              <ul className="mt-1 space-y-0.5 border-l border-[rgba(76,175,80,0.15)] pl-3">
+                {g.seeds.map((s) => (
+                  <li key={s.id}>
+                    <Link
+                      href={`/seeds/${s.id}`}
+                      onClick={close}
+                      className="flex items-center gap-1.5 py-0.5 text-xs text-ink-mid transition hover:text-ink"
+                    >
+                      <span className="shrink-0 text-[10px]">
+                        {s.bloomed ? "🌸" : s.visibility === "private" ? "🔒" : "🌱"}
+                      </span>
+                      <span className="truncate">{s.title}</span>
+                    </Link>
+                  </li>
+                ))}
+                <li>
+                  <Link
+                    href={`/gardens/${g.id}`}
+                    onClick={close}
+                    className="flex items-center gap-1.5 py-0.5 text-xs text-ink-soft transition hover:text-accent"
+                  >
+                    <span className="shrink-0 text-[10px]">✚</span>
+                    <span>Plant a seed</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
