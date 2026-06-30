@@ -48,21 +48,27 @@ export async function deleteGarden(userId: string, gardenId: string) {
 // Gardens the viewer can see in their org: public gardens, plus private gardens
 // they created or belong to. With seed/member/bloom counts for the list view.
 export async function listGardens(userId: string, orgId: string) {
-  await requireOrgMember(userId, orgId);
-  const gardens = await db.garden.findMany({
-    where: {
-      orgId,
-      OR: [
-        { visibility: "public" },
-        { createdById: userId },
-        { members: { some: { userId } } },
-      ],
-    },
-    orderBy: { createdAt: "desc" },
-    include: {
-      _count: { select: { members: true, seeds: true, blooms: true } },
-    },
-  });
+  // Run the membership check in parallel with the listing instead of serially
+  // before it — one fewer round-trip on the critical path (this is the home
+  // page's first paint). If the user isn't a member we throw and the fetched
+  // rows are simply discarded.
+  const [, gardens] = await Promise.all([
+    requireOrgMember(userId, orgId),
+    db.garden.findMany({
+      where: {
+        orgId,
+        OR: [
+          { visibility: "public" },
+          { createdById: userId },
+          { members: { some: { userId } } },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: { select: { members: true, seeds: true, blooms: true } },
+      },
+    }),
+  ]);
   return gardens.map((g) => ({
     id: g.id,
     name: g.name,
