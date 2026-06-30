@@ -357,33 +357,16 @@ export async function addContribution(
   });
 
   const snippet = previewSnippet(input.text);
+  const mentionedIds = extractMentionIds(input.text).filter((id) => id !== userId);
 
-  // Notify the seed's author (unless they're the contributor) — with a taste of
-  // the message and a link straight to it. Best-effort: a notification hiccup
-  // (or a not-yet-applied migration) must never block posting.
-  if (seed.createdById !== userId) {
-    await db.notification
-      .create({
-        data: {
-          recipientId: seed.createdById,
-          actorId: userId,
-          type: "contribution",
-          title: "New contribution on your seed",
-          body: snippet ? `“${snippet}” · ${seed.title}` : seed.title,
-          entityType: "seed",
-          entityId: seedId,
-          anchorId: contribution.id,
-        },
-      })
-      .catch((err) => console.error("seed-author notification failed", err));
-  }
-
-  // Notify anyone @-mentioned (in-app + email), as long as they can see the seed.
+  // @-mentions get their own richer notification (+ email). Done first so the
+  // activity ping below can skip them — nobody gets pinged twice for one message.
   await notifyMentions(userId, seed, input.text, contribution.id, snippet);
 
-  // Notify followers of this seed (the public-square re-engagement hook), and
-  // bump its activity so a world-public seed rises on /explore.
-  await notifyFollowers(userId, seed, contribution.id, snippet);
+  // The core re-engagement loop: ping EVERYONE involved in this seed — its
+  // creator, anyone who's contributed, followers, and (private) members — that
+  // the conversation moved. Push now, rolls into the digest. Best-effort.
+  await notifySeedActivity(userId, seed, contribution.id, snippet, mentionedIds);
   if (seed.listed) {
     await db.seed
       .update({ where: { id: seedId }, data: { lastActivityAt: new Date() } })
@@ -397,50 +380,79 @@ export async function addContribution(
   return contribution;
 }
 
-// Notify everyone following a seed when it gets new activity — push only (email
-// stays reserved for the big moments). Best-effort; never blocks posting.
-async function notifyFollowers(
+// Notify everyone INVOLVED in a seed when it gets new activity — its creator,
+// anyone who's contributed, followers, and (private) seed members. Push now,
+// email rolls into the digest (type "contribution" isn't a BIG_MOMENT). Excludes
+// the actor and anyone already @-mentioned (they got the mention ping instead).
+// Best-effort; never blocks posting. Uses createMany + one read-back so a busy
+// seed doesn't fan out into one INSERT per person.
+async function notifySeedActivity(
   actorId: string,
-  seed: { id: string; title: string },
+  seed: { id: string; title: string; createdById: string },
   contributionId: string,
   snippet: string,
+  mentionedIds: string[],
 ) {
   try {
-    const follows = await db.seedFollow.findMany({
-      where: { seedId: seed.id, userId: { not: actorId } },
-      select: { userId: true },
-    });
-    if (follows.length === 0) return;
+    const [participants, follows, members] = await Promise.all([
+      db.contribution.findMany({
+        where: { seedId: seed.id, deletedAt: null },
+        distinct: ["authorId"],
+        select: { authorId: true },
+      }),
+      db.seedFollow.findMany({ where: { seedId: seed.id }, select: { userId: true } }),
+      db.seedMember.findMany({ where: { seedId: seed.id }, select: { userId: true } }),
+    ]);
+
+    const exclude = new Set<string>([actorId, ...mentionedIds]);
+    const recipients = new Set<string>();
+    const add = (id?: string | null) => {
+      if (id && !exclude.has(id)) recipients.add(id);
+    };
+    add(seed.createdById);
+    for (const p of participants as { authorId: string }[]) add(p.authorId);
+    for (const f of follows as { userId: string }[]) add(f.userId);
+    for (const m of members as { userId: string }[]) add(m.userId);
+    if (recipients.size === 0) return;
+
     const actor = await db.user.findUnique({ where: { id: actorId }, select: { name: true } });
     const actorName = actor?.name || "Someone";
-    const rows = await Promise.all(
-      follows.map((f: { userId: string }) =>
-        db.notification.create({
-          data: {
-            recipientId: f.userId,
-            actorId,
-            type: "follow",
-            title: `New activity in “${seed.title}”`,
-            body: snippet ? `“${snippet}”` : `${actorName} added to a seed you follow`,
-            entityType: "seed",
-            entityId: seed.id,
-            anchorId: contributionId,
-          },
-          select: { id: true, recipientId: true },
-        }),
-      ),
-    );
+    const ids = [...recipients];
+
+    await db.notification.createMany({
+      data: ids.map((rid) => ({
+        recipientId: rid,
+        actorId,
+        type: "contribution",
+        title: `New thought in “${seed.title}”`,
+        body: snippet ? `“${snippet}”` : `${actorName} added to the conversation`,
+        entityType: "seed",
+        entityId: seed.id,
+        anchorId: contributionId,
+      })),
+    });
+
+    // Read back the rows we just made (same anchor + type) for push delivery.
+    const rows = await db.notification.findMany({
+      where: {
+        type: "contribution",
+        entityId: seed.id,
+        anchorId: contributionId,
+        recipientId: { in: ids },
+      },
+      select: { id: true, recipientId: true },
+    });
     await deliver(
-      rows.map((r: { id: string; recipientId: string }) => ({
+      (rows as { id: string; recipientId: string }[]).map((r) => ({
         notificationId: r.id,
         recipientId: r.recipientId,
-        type: "follow",
+        type: "contribution",
         push: { title: `New in “${seed.title}”`, body: snippet || `${actorName} added a thought` },
         link: `/seeds/${seed.id}#c-${contributionId}`,
       })),
     );
   } catch (err) {
-    console.error("notifyFollowers failed", err);
+    console.error("notifySeedActivity failed", err);
   }
 }
 
