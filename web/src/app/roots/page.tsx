@@ -3,6 +3,7 @@ import { requireViewer } from "@/lib/session";
 import { getMyRoots } from "@/lib/services/roots";
 import { NavBar } from "@/components/NavBar";
 import { ProfilePhoto } from "@/components/ProfilePhoto";
+import { DisplayNameEditor } from "@/components/DisplayNameEditor";
 import { STAGES } from "@/lib/constants";
 
 export default async function RootsPage() {
@@ -10,8 +11,6 @@ export default async function RootsPage() {
   const roots = await getMyRoots(viewer.userId);
   const { stats } = roots;
 
-  const raw = (viewer.name || "you").split(" ")[0];
-  const firstName = raw.charAt(0).toUpperCase() + raw.slice(1);
   const uploadsEnabled = !!process.env.BLOB_READ_WRITE_TOKEN;
   const nothingYet =
     stats.contributions === 0 && stats.bloomsHelped === 0 && stats.seedsPlanted === 0;
@@ -29,7 +28,7 @@ export default async function RootsPage() {
           <ProfilePhoto name={viewer.name || "You"} image={viewer.avatarUrl} uploadsEnabled={uploadsEnabled} />
           <div className="min-w-0">
             <p className="eyebrow mb-1">🌳 Your roots</p>
-            <h1 className="serif-xl">Hey {firstName} 👋</h1>
+            <DisplayNameEditor name={viewer.name || "You"} />
             <p className="mt-1 text-sm text-ink-mid">
               {nothingYet
                 ? "Your thinking will live here — every point you raise, every decision you help bloom."
