@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiPost } from "@/lib/client";
+import { apiPost, apiGet } from "@/lib/client";
+
+type NetworkPerson = { id: string; name: string; email: string };
 
 // "Invite to this seed" affordance. Posts a seed-scoped invite — accepting joins
 // the org, the garden, and (for private seeds) the seed itself. Sharing the URL
@@ -25,6 +27,7 @@ export function SeedInvite({
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
   const [canPick, setCanPick] = useState(false);
+  const [people, setPeople] = useState<NetworkPerson[]>([]);
 
   useEffect(() => {
     setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
@@ -33,6 +36,9 @@ export function SeedInvite({
         "contacts" in navigator &&
         typeof (navigator as { contacts?: { select?: unknown } }).contacts?.select === "function",
     );
+    apiGet<{ people: NetworkPerson[] }>("/api/me/network")
+      .then((r) => setPeople(r.people ?? []))
+      .catch(() => {});
   }, []);
 
   async function pickContact() {
@@ -104,10 +110,20 @@ export function SeedInvite({
             name="email"
             autoComplete="email"
             inputMode="email"
+            list="invite-network-seed"
             placeholder="teammate@email.com (or leave blank for a link)"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
+          {people.length > 0 && (
+            <datalist id="invite-network-seed">
+              {people.map((p) => (
+                <option key={p.id} value={p.email}>
+                  {p.name}
+                </option>
+              ))}
+            </datalist>
+          )}
           {canPick && (
             <button
               type="button"

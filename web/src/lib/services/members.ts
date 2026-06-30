@@ -150,3 +150,32 @@ export async function leaveSeed(userId: string, seedId: string) {
   await db.seedMember.deleteMany({ where: { seedId, userId } });
   return { ok: true };
 }
+
+export type NetworkPerson = { id: string; name: string; email: string; image: string | null };
+
+// People the viewer has already collaborated with — anyone who shares a garden
+// with them. Powers invite autocomplete: you mostly re-invite the same circle,
+// and re-inviting them into new gardens is the network-effect flywheel.
+export async function listMyNetwork(userId: string): Promise<NetworkPerson[]> {
+  const myGardens = await db.gardenMember.findMany({
+    where: { userId },
+    select: { gardenId: true },
+  });
+  const gardenIds = myGardens.map((g: { gardenId: string }) => g.gardenId);
+  if (gardenIds.length === 0) return [];
+
+  const members = await db.gardenMember.findMany({
+    where: { gardenId: { in: gardenIds }, userId: { not: userId } },
+    select: { user: { select: { id: true, name: true, email: true, image: true } } },
+    take: 1000,
+  });
+
+  const seen = new Map<string, NetworkPerson>();
+  for (const m of members as { user: { id: string; name: string | null; email: string | null; image: string | null } }[]) {
+    const u = m.user;
+    if (u?.email && !seen.has(u.id)) {
+      seen.set(u.id, { id: u.id, name: u.name || u.email, email: u.email, image: u.image });
+    }
+  }
+  return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+}

@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiPost } from "@/lib/client";
+import { apiPost, apiGet } from "@/lib/client";
+
+type NetworkPerson = { id: string; name: string; email: string };
 
 export function InviteForm({ gardenId }: { gardenId: string }) {
   const [email, setEmail] = useState("");
@@ -12,6 +14,7 @@ export function InviteForm({ gardenId }: { gardenId: string }) {
   // Feature-detect the browser capabilities (client-only).
   const [canShare, setCanShare] = useState(false);
   const [canPick, setCanPick] = useState(false);
+  const [people, setPeople] = useState<NetworkPerson[]>([]);
 
   useEffect(() => {
     setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
@@ -20,6 +23,9 @@ export function InviteForm({ gardenId }: { gardenId: string }) {
         "contacts" in navigator &&
         typeof (navigator as { contacts?: { select?: unknown } }).contacts?.select === "function",
     );
+    apiGet<{ people: NetworkPerson[] }>("/api/me/network")
+      .then((r) => setPeople(r.people ?? []))
+      .catch(() => {});
   }, []);
 
   async function submit(e: React.FormEvent) {
@@ -87,10 +93,20 @@ export function InviteForm({ gardenId }: { gardenId: string }) {
             name="email"
             autoComplete="email"
             inputMode="email"
+            list="invite-network-garden"
             placeholder="teammate@email.com (or leave blank for a link)"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
+          {people.length > 0 && (
+            <datalist id="invite-network-garden">
+              {people.map((p) => (
+                <option key={p.id} value={p.email}>
+                  {p.name}
+                </option>
+              ))}
+            </datalist>
+          )}
           {canPick && (
             <button
               type="button"
