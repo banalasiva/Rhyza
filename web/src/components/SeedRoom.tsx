@@ -124,6 +124,7 @@ export function SeedRoom({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null); // scroll target when switching tabs
+  const threadEndRef = useRef<HTMLDivElement>(null); // scroll target for the latest message
   const tabsMounted = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -200,10 +201,10 @@ export function SeedRoom({
   useEffect(() => {
     const m = typeof window !== "undefined" && window.location.hash.match(/^#c-([0-9a-fA-F-]{36})$/);
     if (!m) {
-      // No specific anchor — drop the arriver straight into the conversation
-      // (past the title/plant hero) instead of stranding them at the top.
+      // No specific anchor — drop the arriver on the latest message so they land
+      // where the conversation actually is, not at the top hero.
       const t = setTimeout(
-        () => tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        () => threadEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }),
         400,
       );
       return () => clearTimeout(t);
@@ -1324,6 +1325,8 @@ export function SeedRoom({
               {thinkingWho} {thinkingWho.includes("and") ? "are" : "is"} thinking…
             </div>
           )}
+          {/* Scroll anchor: arrivals without a deep-link land on the latest message. */}
+          <div ref={threadEndRef} />
         </div>
 
         {/* Compose — hidden once you've committed your bloom vote */}

@@ -106,7 +106,7 @@ export function NavSidebar({ signOut }: { signOut?: () => void }) {
             {/* Quick create — plant a whole new garden, or jump into one below to
                 plant a seed inside it. */}
             <Link
-              href="/"
+              href="/#new-garden"
               onClick={() => setOpenPersist(false)}
               className="mb-5 flex items-center justify-center gap-1.5 rounded-xl border border-[rgba(76,175,80,0.45)] bg-[rgba(76,175,80,0.12)] px-3 py-2.5 text-sm font-medium text-ink transition hover:border-accent active:scale-[0.98] active:border-accent active:bg-[rgba(76,175,80,0.3)]"
             >
@@ -203,7 +203,7 @@ function GardenSection({
                 ))}
                 <li>
                   <Link
-                    href={`/gardens/${g.id}`}
+                    href={`/gardens/${g.id}#plant-seed`}
                     onClick={close}
                     className="-ml-1.5 flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs text-ink-soft transition hover:text-accent active:bg-[rgba(76,175,80,0.16)] active:text-accent"
                   >

@@ -5,6 +5,7 @@ import { NavBar } from "@/components/NavBar";
 import { PlantSeedForm } from "@/components/PlantSeedForm";
 import { InviteForm } from "@/components/InviteForm";
 import { GardenSettings } from "@/components/GardenSettings";
+import { HashFocus } from "@/components/HashFocus";
 import { STAGES } from "@/lib/constants";
 
 function stageBadge(stage: string) {
@@ -18,6 +19,7 @@ export default async function GardenPage({ params }: { params: { id: string } })
 
   return (
     <div className="relative min-h-screen">
+      <HashFocus />
       <div className="garden-bg" />
       <NavBar name={viewer.name} />
       <main id="main" className="relative z-10 mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
@@ -109,7 +111,7 @@ export default async function GardenPage({ params }: { params: { id: string } })
         )}
 
         {/* Produce actions — below the content a reader has just scrolled. */}
-        <div className="card mb-4 p-5">
+        <div id="plant-seed" className="card mb-4 p-5">
           <p className="eyebrow mb-3">Plant a seed</p>
           <PlantSeedForm gardenId={garden.id} />
         </div>
