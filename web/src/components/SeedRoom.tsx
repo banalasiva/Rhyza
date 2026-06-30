@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { SeedDetail } from "@/lib/services/seeds";
 import {
@@ -159,14 +159,26 @@ export function SeedRoom({
       .catch(() => {});
   }, [seed.id]);
 
-  // Load polls once — they render inline in the Discuss thread.
+  // Polls render inline in the Discuss thread. Load them, then keep them live on
+  // the same cadence as the thread so other people's votes/closes appear without
+  // a refresh — but skip a refresh briefly after the viewer's own action so an
+  // in-flight optimistic vote isn't reverted.
+  const pollTouchedRef = useRef<number>(0);
   useEffect(() => {
-    apiGet<Poll[]>(`/api/seeds/${seed.id}/polls`)
-      .then(setPolls)
-      .catch(() => {});
+    let alive = true;
+    const refresh = () => {
+      if (Date.now() - pollTouchedRef.current < 6000) return;
+      apiGet<Poll[]>(`/api/seeds/${seed.id}/polls`)
+        .then((p) => { if (alive) setPolls(p); })
+        .catch(() => {});
+    };
+    refresh();
+    const t = setInterval(refresh, 4000);
+    return () => { alive = false; clearInterval(t); };
   }, [seed.id]);
 
   async function votePoll(pollId: string, optionId: string) {
+    pollTouchedRef.current = Date.now();
     setPolls((prev) => prev.map((p) => (p.id === pollId ? { ...p, myVote: optionId } : p)));
     playNatureSound("drop");
     try {
@@ -176,6 +188,7 @@ export function SeedRoom({
     }
   }
   async function closePoll(pollId: string, closed: boolean) {
+    pollTouchedRef.current = Date.now();
     try {
       const res = await fetch(`/api/polls/${pollId}`, {
         method: "PATCH",
@@ -189,6 +202,7 @@ export function SeedRoom({
   }
   async function deletePoll(pollId: string) {
     if (!confirm("Delete this poll?")) return;
+    pollTouchedRef.current = Date.now();
     try {
       const res = await fetch(`/api/polls/${pollId}`, { method: "DELETE" });
       setPolls(await res.json());
@@ -268,40 +282,66 @@ export function SeedRoom({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, blooming, seed.id]);
 
-  // Live thread: poll for messages other people post so they appear on everyone's
-  // screen within a couple seconds (no websocket needed). We only ask for what's
-  // newer than the latest *server-confirmed* message we hold, and merge by id.
-  const latestAtRef = useRef<string>("");
-  useEffect(() => {
-    let max = "";
-    for (const c of contributions) {
-      if (!c.id.startsWith("temp-") && c.createdAt > max) max = c.createdAt;
-    }
-    latestAtRef.current = max;
-  }, [contributions]);
+  // Live room: every few seconds pull the whole current snapshot so reactions,
+  // edits, deletes, endorsements AND the readiness votes of *other* people show
+  // up without a refresh (no websocket needed on Vercel serverless). Two things
+  // are protected from the poll so it never fights an in-flight optimistic
+  // update: messages still being sent (temp-…), and anything the viewer just
+  // touched — tracked in pendingRef (reactions/edits/votes) and removedRef
+  // (deletes) with a short time window.
+  const pendingRef = useRef<Map<string, number>>(new Map());
+  const removedRef = useRef<Map<string, number>>(new Map());
+  const markPending = useCallback((id: string) => {
+    pendingRef.current.set(id, Date.now());
+  }, []);
   useEffect(() => {
     const t = setInterval(async () => {
       try {
-        const since = latestAtRef.current;
-        const qs = since ? `?since=${encodeURIComponent(since)}` : "";
-        const res = await fetch(`/api/seeds/${seed.id}/contributions${qs}`, { cache: "no-store" });
+        const res = await fetch(`/api/seeds/${seed.id}/sync`, { cache: "no-store" });
         if (!res.ok) return;
         const json = await res.json();
-        const fresh: ContributionResponse[] = json?.data?.contributions ?? [];
-        if (fresh.length === 0) return;
+        const snap = json?.data as
+          | {
+              contributions: Contribution[];
+              distribution: typeof distribution;
+              stage: string;
+              myVote: string | null;
+            }
+          | undefined;
+        if (!snap) return;
+
+        const now = Date.now();
+        for (const [id, t0] of pendingRef.current) if (now - t0 > 8000) pendingRef.current.delete(id);
+        for (const [id, t0] of removedRef.current) if (now - t0 > 8000) removedRef.current.delete(id);
+
         setContributions((prev) => {
-          const have = new Set(prev.map((c) => c.id));
-          const adds = fresh.filter((c) => !have.has(c.id)).map((c) => hydrate(c));
-          if (adds.length === 0) return prev;
-          const next = [...prev, ...adds];
+          const prevById = new Map(prev.map((c) => [c.id, c]));
+          const temps = prev.filter((c) => c.id.startsWith("temp-"));
+          const merged: Contribution[] = [];
+          for (const s of snap.contributions) {
+            if (removedRef.current.has(s.id)) continue; // viewer just deleted it
+            // Keep the local copy for anything the viewer just acted on, so a
+            // mid-flight reaction/edit isn't briefly reverted by the poll.
+            const local = prevById.get(s.id);
+            merged.push(local && pendingRef.current.has(s.id) ? local : s);
+          }
+          const next = [...merged, ...temps];
           next.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
           return next;
         });
+
+        setDistribution(snap.distribution);
+        // Don't yank the plant/vote out from under a vote the viewer just cast.
+        if (!pendingRef.current.has("__vote__")) {
+          setStage(snap.stage);
+          setMyVote(snap.myVote);
+        }
       } catch {
         /* transient — keep polling */
       }
     }, 4000);
     return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed.id]);
 
   const isBloomed = stage === "bloomed";
@@ -696,6 +736,7 @@ export function SeedRoom({
   async function react(contributionId: string, key: string, el?: HTMLElement) {
     const current = contributions.find((c) => c.id === contributionId);
     const willAdd = current ? !current.myReactions.includes(key) : true;
+    markPending(contributionId);
     // Update the UI first so the click feels instant, then play the sound.
     setContributions((prev) =>
       prev.map((c) => {
@@ -733,6 +774,7 @@ export function SeedRoom({
   }
 
   async function endorse(contributionId: string) {
+    markPending(contributionId);
     setGlowing((g) => new Set(g).add(contributionId));
     setTimeout(() => setGlowing((g) => { const n = new Set(g); n.delete(contributionId); return n; }), 900);
     setContributions((prev) =>
@@ -751,6 +793,7 @@ export function SeedRoom({
     if (!display) return;
     // Editor works in "@Name" form; store the @[Name](id) token form.
     const text = serializeMentions(display, seed.people);
+    markPending(id);
     setContributions((prev) => prev.map((c) => (c.id === id ? { ...c, text } : c)));
     setEditingId(null);
     try {
@@ -767,6 +810,9 @@ export function SeedRoom({
 
   async function removeContribution(id: string) {
     if (!confirm("Delete this contribution?")) return;
+    // Remember the delete so the live poll doesn't briefly re-add it before the
+    // server has processed the DELETE.
+    removedRef.current.set(id, Date.now());
     setContributions((prev) => prev.filter((c) => c.id !== id));
     try {
       await fetch(`/api/contributions/${id}`, { method: "DELETE" });
@@ -833,6 +879,7 @@ export function SeedRoom({
   async function castVote(targetStage: string) {
     if (isBloomed) return;
     setError(null);
+    markPending("__vote__");
 
     // Optimistic: move the bars immediately so the click feels instant.
     const prevVote = myVote;

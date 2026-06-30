@@ -1,7 +1,61 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
-import { ensureGardenMember, requireSeedManager } from "@/lib/authz";
+import { ensureGardenMember, requireSeedManager, requireSeedAccess } from "@/lib/authz";
 import { STAGE_KEYS, type StageKey } from "@/lib/constants";
+
+// What a contribution carries for the room view — author, reactions (with the
+// reactor's name, so we can show *who* reacted), and endorsements.
+const CONTRIB_INCLUDE = {
+  author: { select: { id: true, name: true, image: true } },
+  reactions: { include: { user: { select: { name: true } } } },
+  endorsements: true,
+} as const;
+
+type ContribRow = {
+  id: string;
+  dimension: string;
+  parentId: string | null;
+  content: unknown;
+  createdAt: Date;
+  author: { id: string; name: string; image: string | null };
+  reactions: { reactionKey: string; userId: string; user: { name: string } | null }[];
+  endorsements: { endorserId: string }[];
+};
+
+// Shared shape for the seed room — the initial load (getSeedDetail) and the
+// live sync (getSeedSync) map contributions identically so polling never drifts
+// from the first render.
+function mapContribs(rows: ContribRow[], userId: string) {
+  return rows.map((c) => {
+    const reactionCounts: Record<string, number> = {};
+    const reactionPeople: Record<string, string[]> = {};
+    const myReactions: string[] = [];
+    for (const r of c.reactions) {
+      reactionCounts[r.reactionKey] = (reactionCounts[r.reactionKey] ?? 0) + 1;
+      (reactionPeople[r.reactionKey] ??= []).push(
+        r.userId === userId ? "You" : r.user?.name || "Someone",
+      );
+      if (r.userId === userId) myReactions.push(r.reactionKey);
+    }
+    const content = c.content as
+      | { text?: string; attachments?: { url: string; type: "image" | "video" | "file"; name?: string }[] }
+      | null;
+    return {
+      id: c.id,
+      dimension: c.dimension,
+      parentId: c.parentId,
+      text: content?.text ?? "",
+      attachments: content?.attachments ?? [],
+      author: c.author,
+      createdAt: c.createdAt.toISOString(),
+      reactionCounts,
+      reactionPeople,
+      myReactions,
+      endorsementCount: c.endorsements.length,
+      iEndorsed: c.endorsements.some((e) => e.endorserId === userId),
+    };
+  });
+}
 
 export async function plantSeed(
   userId: string,
@@ -195,11 +249,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
       db.contribution.findMany({
         where: { seedId, deletedAt: null },
         orderBy: { createdAt: "asc" },
-        include: {
-          author: { select: { id: true, name: true, image: true } },
-          reactions: { include: { user: { select: { name: true } } } },
-          endorsements: true,
-        },
+        include: CONTRIB_INCLUDE,
       }),
       peoplePromise,
       // Resilient: the seed_follows table may not be migrated yet.
@@ -243,35 +293,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
   }
   const people = [...peopleMap.values()];
 
-  const contribs = contributions.map((c) => {
-    const reactionCounts: Record<string, number> = {};
-    const reactionPeople: Record<string, string[]> = {};
-    const myReactions: string[] = [];
-    for (const r of c.reactions) {
-      reactionCounts[r.reactionKey] = (reactionCounts[r.reactionKey] ?? 0) + 1;
-      (reactionPeople[r.reactionKey] ??= []).push(
-        r.userId === userId ? "You" : r.user?.name || "Someone",
-      );
-      if (r.userId === userId) myReactions.push(r.reactionKey);
-    }
-    const content = c.content as
-      | { text?: string; attachments?: { url: string; type: "image" | "video" | "file"; name?: string }[] }
-      | null;
-    return {
-      id: c.id,
-      dimension: c.dimension,
-      parentId: c.parentId,
-      text: content?.text ?? "",
-      attachments: content?.attachments ?? [],
-      author: c.author,
-      createdAt: c.createdAt.toISOString(),
-      reactionCounts,
-      reactionPeople,
-      myReactions,
-      endorsementCount: c.endorsements.length,
-      iEndorsed: c.endorsements.some((e) => e.endorserId === userId),
-    };
-  });
+  const contribs = mapContribs(contributions as ContribRow[], userId);
 
   return {
     id: seed.id,
@@ -292,5 +314,33 @@ export async function getSeedDetail(userId: string, seedId: string) {
     distribution,
     myVote: myVote?.stage ?? null,
     contributions: contribs,
+  };
+}
+
+export type SeedSync = Awaited<ReturnType<typeof getSeedSync>>;
+
+// Lean live snapshot for polling the open room — the full current contributions
+// (so reactions, edits, deletes and endorsements by *other* people show up
+// without a refresh) plus the readiness distribution and the viewer's own vote.
+// Authorization only: no garden roster, no people pool — those don't change mid
+// conversation, so the poll stays cheap.
+export async function getSeedSync(userId: string, seedId: string) {
+  await requireSeedAccess(userId, seedId);
+  const [rows, distribution, myVote, seed] = await Promise.all([
+    db.contribution.findMany({
+      where: { seedId, deletedAt: null },
+      orderBy: { createdAt: "asc" },
+      include: CONTRIB_INCLUDE,
+    }),
+    stageDistribution(seedId),
+    db.seedStageVote.findUnique({ where: { seedId_userId: { seedId, userId } } }),
+    db.seed.findUnique({ where: { id: seedId }, select: { stage: true, bloomId: true } }),
+  ]);
+  const stage = (seed?.stage === "bloomed" && !seed.bloomId ? "growing" : seed?.stage ?? "seed") as StageKey;
+  return {
+    contributions: mapContribs(rows as ContribRow[], userId),
+    distribution,
+    stage,
+    myVote: myVote?.stage ?? null,
   };
 }
