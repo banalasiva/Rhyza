@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiPost, apiGet } from "@/lib/client";
+import { toWhatsAppNumber } from "@/lib/phone";
 
 type NetworkPerson = { id: string; name: string; email: string };
 
@@ -72,7 +73,7 @@ export function SeedInvite({
         {},
       );
       setResult(res);
-      const digits = tel.replace(/[^\d]/g, "");
+      const digits = toWhatsAppNumber(tel);
       const msg = `Come think this through with me on ThinkThru 🌱\n${res.link}`;
       window.location.href = `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
     } catch (err) {

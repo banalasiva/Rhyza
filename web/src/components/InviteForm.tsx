@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiPost, apiGet } from "@/lib/client";
+import { toWhatsAppNumber } from "@/lib/phone";
 
 type NetworkPerson = { id: string; name: string; email: string };
 
@@ -81,7 +82,7 @@ export function InviteForm({ gardenId }: { gardenId: string }) {
         {},
       );
       setResult(res);
-      const digits = tel.replace(/[^\d]/g, "");
+      const digits = toWhatsAppNumber(tel);
       const msg = `Come think this through with me on ThinkThru 🌱\n${res.link}`;
       // location.href (not window.open) so it isn't popup-blocked after the await;
       // on mobile this opens the WhatsApp app via the wa.me deep link.
