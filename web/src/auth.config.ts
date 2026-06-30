@@ -29,7 +29,7 @@ const PUBLIC_PREFIXES = ["/login", "/api/auth", "/invite"];
 
 export const authConfig = {
   providers,
-  pages: { signIn: "/login" },
+  pages: { signIn: "/login", verifyRequest: "/login/check-email" },
   session: { strategy: "jwt" },
   callbacks: {
     // Edge-evaluated gate used by middleware.

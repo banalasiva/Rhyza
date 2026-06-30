@@ -3,6 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import Resend from "next-auth/providers/resend";
 import { db } from "@/lib/db";
 import { authConfig } from "@/auth.config";
+import { sendEmail, magicLinkEmailHtml } from "@/lib/email";
 
 // Passwordless email sign-in (magic link) — a no-Google way in, with no new
 // vendor: it reuses our existing Resend setup. Added ONLY here (the Node
@@ -16,6 +17,16 @@ const emailProviders = process.env.RESEND_API_KEY
         apiKey: process.env.RESEND_API_KEY.trim(),
         from: (process.env.RESEND_FROM || "ThinkThru <onboarding@resend.dev>").trim(),
         name: "Email",
+        // Send our own branded magic-link email instead of Auth.js's plain
+        // default, reusing the same garden-themed shell as every other email.
+        async sendVerificationRequest({ identifier, url }) {
+          const ok = await sendEmail({
+            to: identifier,
+            subject: "Your ThinkThru sign-in link 🌿",
+            html: magicLinkEmailHtml({ link: url }),
+          });
+          if (!ok) throw new Error("Failed to send sign-in email");
+        },
       }),
     ]
   : [];

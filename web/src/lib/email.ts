@@ -150,6 +150,21 @@ export function inviteEmailHtml(args: {
   });
 }
 
+// Passwordless sign-in — the magic link that signs someone into ThinkThru.
+export function magicLinkEmailHtml(args: { link: string }): string {
+  return emailShell({
+    preview: "Your ThinkThru sign-in link",
+    glyph: "🌿",
+    heading: "Sign in to ThinkThru",
+    bodyHtml:
+      "Tap the button below to sign in — no password needed. This link works once and expires soon. " +
+      "If you didn't request it, you can safely ignore this email.",
+    ctaText: "Sign in to ThinkThru",
+    ctaLink: args.link,
+    reason: "You're getting this because someone entered this email to sign in to ThinkThru.",
+  });
+}
+
 export function mentionEmailHtml(args: {
   actorName: string;
   recipientName: string;
