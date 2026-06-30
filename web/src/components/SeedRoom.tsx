@@ -18,6 +18,7 @@ import { PlantSvg } from "@/components/PlantSvg";
 import { HowItWorks } from "@/components/HowItWorks";
 import { RichEditor } from "@/components/RichEditor";
 import { InlineText } from "@/components/InlineText";
+import { serializeMentions, deserializeMentions } from "@/lib/mentions";
 import { CollapsibleText } from "@/components/CollapsibleText";
 import { Avatar } from "@/components/Avatar";
 import { Attachments, type Attachment } from "@/components/Attachments";
@@ -385,8 +386,9 @@ export function SeedRoom({
         setThinking(true);
       }
       // No dimension sent — people just write; Claude labels it after posting.
+      // Convert "@Name" back into the stored @[Name](id) token here, at the edge.
       const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/contributions`, {
-        text,
+        text: serializeMentions(text, seed.people),
         attachments: sentAttachments,
       });
       const replies = c.aiReplies ?? [];
@@ -690,8 +692,10 @@ export function SeedRoom({
   }
 
   async function saveEdit(id: string) {
-    const text = editDraft.trim();
-    if (!text) return;
+    const display = editDraft.trim();
+    if (!display) return;
+    // Editor works in "@Name" form; store the @[Name](id) token form.
+    const text = serializeMentions(display, seed.people);
     setContributions((prev) => prev.map((c) => (c.id === id ? { ...c, text } : c)));
     setEditingId(null);
     try {
@@ -1660,7 +1664,7 @@ export function SeedRoom({
                 <button
                   onClick={() => {
                     setEditingId(sheetC.id);
-                    setEditDraft(sheetC.text);
+                    setEditDraft(deserializeMentions(sheetC.text));
                     setSheetForId(null);
                   }}
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"

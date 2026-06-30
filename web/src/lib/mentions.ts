@@ -26,3 +26,34 @@ export function mentionToken(name: string, userId: string): string {
   const safe = (name || "Someone").replace(/[\]()]/g, "").trim();
   return `@[${safe}](${userId})`;
 }
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Editor ↔ storage bridge. People are SHOWN as plain "@Display Name" while typing
+// (no ugly id), and converted to the stored "@[Name](id)" token only on submit.
+//
+// serializeMentions: "@Display Name" → "@[Display Name](id)" for known people.
+// Longest names first so "@Sam" never eats into "@Samuel"; a name is only matched
+// as a whole token (followed by end/space/punctuation), and existing tokens are
+// left untouched.
+export function serializeMentions(text: string, people: { id: string; name: string }[]): string {
+  let out = text;
+  const sorted = [...people]
+    .filter((p) => p.name && p.name.trim())
+    .sort((a, b) => b.name.length - a.name.length);
+  for (const p of sorted) {
+    const safe = p.name.replace(/[\]()]/g, "").trim();
+    if (!safe) continue;
+    const re = new RegExp(`@${escapeRegExp(safe)}(?!\\]\\()(?=$|[\\s.,!?;:'")\\]])`, "g");
+    out = out.replace(re, `@[${safe}](${p.id})`);
+  }
+  return out;
+}
+
+// deserializeMentions: "@[Name](id)" → "@Name", so an existing message reads
+// cleanly when reopened in the editor.
+export function deserializeMentions(text: string): string {
+  return text.replace(mentionRegex(), (_full, name) => `@${name}`);
+}

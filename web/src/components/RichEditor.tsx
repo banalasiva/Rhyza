@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { mentionToken } from "@/lib/mentions";
 import { Avatar } from "@/components/Avatar";
 
 type Person = { id: string; name: string; image: string | null };
@@ -62,7 +61,9 @@ export function RichEditor({
       label: p.name,
       image: p.image,
       ai: false,
-      insert: mentionToken(p.name, p.id),
+      // Insert the readable "@Display Name" — the id-bearing token is built at
+      // submit time (serializeMentions), so the editor never shows a raw UUID.
+      insert: `@${p.name}`,
     })),
   ];
   const matches = menu
