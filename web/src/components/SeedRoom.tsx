@@ -267,6 +267,42 @@ export function SeedRoom({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, blooming, seed.id]);
 
+  // Live thread: poll for messages other people post so they appear on everyone's
+  // screen within a couple seconds (no websocket needed). We only ask for what's
+  // newer than the latest *server-confirmed* message we hold, and merge by id.
+  const latestAtRef = useRef<string>("");
+  useEffect(() => {
+    let max = "";
+    for (const c of contributions) {
+      if (!c.id.startsWith("temp-") && c.createdAt > max) max = c.createdAt;
+    }
+    latestAtRef.current = max;
+  }, [contributions]);
+  useEffect(() => {
+    const t = setInterval(async () => {
+      try {
+        const since = latestAtRef.current;
+        const qs = since ? `?since=${encodeURIComponent(since)}` : "";
+        const res = await fetch(`/api/seeds/${seed.id}/contributions${qs}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const json = await res.json();
+        const fresh: ContributionResponse[] = json?.data?.contributions ?? [];
+        if (fresh.length === 0) return;
+        setContributions((prev) => {
+          const have = new Set(prev.map((c) => c.id));
+          const adds = fresh.filter((c) => !have.has(c.id)).map((c) => hydrate(c));
+          if (adds.length === 0) return prev;
+          const next = [...prev, ...adds];
+          next.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          return next;
+        });
+      } catch {
+        /* transient — keep polling */
+      }
+    }, 4000);
+    return () => clearInterval(t);
+  }, [seed.id]);
+
   const isBloomed = stage === "bloomed";
   const stageIdx = stageIndex(stage);
   const stageMeta = STAGES[stageIdx];

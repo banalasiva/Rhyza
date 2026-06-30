@@ -4,6 +4,7 @@ import { enforceAiRateLimit } from "@/lib/ratelimit";
 import { createContributionSchema } from "@/lib/validation";
 import {
   addContribution,
+  listContributions,
   respondAsClaude,
   respondAsChatGpt,
 } from "@/lib/services/contributions";
@@ -31,6 +32,18 @@ function toDTO(c: {
     createdAt: c.createdAt.toISOString(),
   };
 }
+
+// GET /api/seeds/:id/contributions?since=<iso> — the thread, or just the
+// messages newer than `since`. Powers live polling so everyone sees new
+// contributions appear without a manual refresh.
+export const GET = handle(async (req, ctx: { params: { id: string } }) => {
+  const userId = await requireUserId();
+  const sinceRaw = new URL(req.url).searchParams.get("since");
+  const since = sinceRaw ? new Date(sinceRaw) : undefined;
+  const valid = since && !Number.isNaN(since.getTime()) ? since : undefined;
+  const rows = await listContributions(userId, ctx.params.id, valid);
+  return ok({ contributions: rows.map(toDTO) });
+});
 
 // POST /api/seeds/:id/contributions — add a contribution in a dimension.
 // If it tags @claude, Claude replies inline (returned as `aiReply`).

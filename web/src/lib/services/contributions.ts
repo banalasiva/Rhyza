@@ -380,6 +380,23 @@ export async function addContribution(
   return contribution;
 }
 
+// Live thread: fetch a seed's contributions, optionally only those newer than
+// `since` (for cheap polling — everyone on a shared screen sees a new message
+// appear within a couple seconds without a websocket). Read access required.
+export async function listContributions(userId: string, seedId: string, since?: Date) {
+  await requireSeedAccess(userId, seedId);
+  return db.contribution.findMany({
+    where: {
+      seedId,
+      deletedAt: null,
+      ...(since ? { createdAt: { gt: since } } : {}),
+    },
+    orderBy: { createdAt: "asc" },
+    take: 200,
+    include: { author: { select: { id: true, name: true, image: true } } },
+  });
+}
+
 // Notify everyone INVOLVED in a seed when it gets new activity — its creator,
 // anyone who's contributed, followers, and (private) seed members. Push now,
 // email rolls into the digest (type "contribution" isn't a BIG_MOMENT). Excludes
