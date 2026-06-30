@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPost, apiPut } from "@/lib/client";
 import { Avatar } from "@/components/Avatar";
 import { QUORUM_TEMPLATES } from "@/lib/constants";
@@ -54,6 +54,8 @@ export function QuorumV2({ seedId }: { seedId: string }) {
   const [view, setView] = useState<View | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const phaseRef = useRef<string>("collecting");
+  phaseRef.current = view?.phase ?? "collecting";
 
   async function load() {
     try {
@@ -64,6 +66,14 @@ export function QuorumV2({ seedId }: { seedId: string }) {
   }
   useEffect(() => {
     load();
+    // Live: poll so the "answered" count climbs and the reveal flips on
+    // everyone's screen as people submit — no refresh, no websocket. (Your own
+    // in-progress weigh-in keeps its local state; this only refreshes the shared
+    // view.) Stops once the quorum is locked.
+    const t = setInterval(() => {
+      if (phaseRef.current !== "locked") load();
+    }, 4000);
+    return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seedId]);
 

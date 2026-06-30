@@ -984,7 +984,18 @@ export function SeedRoom({
 
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "decide" ? (
-          <QuorumV2 seedId={seed.id} />
+          <div className="space-y-4">
+            {/* Always show WHAT is being decided, so the vote connects to the
+                question people raised in Discuss. */}
+            <div className="rounded-2xl border border-[rgba(76,175,80,0.25)] bg-[rgba(76,175,80,0.06)] p-4">
+              <p className="eyebrow mb-1">⚖️ Deciding together</p>
+              <p className="serif-lg leading-snug">{seed.title}</p>
+              <p className="mt-1 text-xs text-ink-soft">
+                Everyone gives their honest read below — it adds up to one fair group answer.
+              </p>
+            </div>
+            <QuorumV2 seedId={seed.id} />
+          </div>
         ) : tab === "bloom" ? (
           <div className="space-y-4">
             {isBloomed ? (
@@ -1384,7 +1395,7 @@ export function SeedRoom({
         )}
         {!isBloomed && !committedToBloom && (
           <div className="card mt-6 p-5">
-            <p className="eyebrow mb-3">💬 Share your thought · Claude will label it</p>
+            <p className="eyebrow mb-3">💬 Add your thought</p>
             <input
               ref={fileInputRef}
               type="file"
@@ -1490,6 +1501,27 @@ export function SeedRoom({
         )}
         </>
         )}
+
+        {/* Guided journey — gently point to the next step so nobody needs it
+            explained on a call. */}
+        {!isBloomed && tab === "discuss" && (
+          <StepNudge
+            emoji="⚖️"
+            title="Talked it through?"
+            sub="When you're ready, decide it together — everyone gives their honest read and it adds up to one fair answer."
+            cta="Go to Decide →"
+            onClick={() => setTab("decide")}
+          />
+        )}
+        {!isBloomed && tab === "decide" && (
+          <StepNudge
+            emoji="🌸"
+            title="Reached a decision?"
+            sub="Turn it into a Bloom — a permanent record of what you decided and why, saved for your group forever."
+            cta="Go to Bloom →"
+            onClick={() => setTab("bloom")}
+          />
+        )}
         </div>
       </div>
 
@@ -1513,15 +1545,19 @@ export function SeedRoom({
 
           <div className="p-4">
             {/* Stage status */}
-            <div className="mb-4 text-center">
+            <div className="mb-2 text-center">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] px-3 py-1 text-xs" style={{ color: isBloomed ? "#FFB300" : "#66BB6A" }}>
                 {stageMeta.emoji} {stageMeta.label}
               </span>
             </div>
+            <p className="mx-auto mb-4 max-w-sm text-center text-xs text-ink-soft">
+              The plant grows as the group feels this conversation maturing — it’s everyone’s
+              shared sense of how ready it is. Tell us where you think it’s at:
+            </p>
 
             {/* Community feels */}
             <p className="eyebrow mb-3">
-              Community feels · <span className="text-ink-soft">{totalVotes}/{participants}</span>
+              How ready does this feel? · <span className="text-ink-soft">{totalVotes}/{participants} voted</span>
             </p>
             <div className="space-y-2">
               {STAGES.map((s) => {
@@ -2070,6 +2106,33 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
           Enter the Sacred Tree →
         </button>
       </div>
+    </div>
+  );
+}
+
+// A friendly "here's your next step" card — the guided Discuss → Decide → Bloom
+// journey, so the flow explains itself.
+function StepNudge({
+  emoji,
+  title,
+  sub,
+  cta,
+  onClick,
+}: {
+  emoji: string;
+  title: string;
+  sub: string;
+  cta: string;
+  onClick: () => void;
+}) {
+  return (
+    <div className="mt-6 rounded-2xl border border-[rgba(76,175,80,0.25)] bg-[rgba(76,175,80,0.06)] p-4 text-center">
+      <div className="text-2xl" aria-hidden>{emoji}</div>
+      <p className="serif-lg mt-1">{title}</p>
+      <p className="mx-auto mt-1 max-w-md text-sm text-ink-mid">{sub}</p>
+      <button onClick={onClick} className="btn-primary mt-3 text-sm">
+        {cta}
+      </button>
     </div>
   );
 }
