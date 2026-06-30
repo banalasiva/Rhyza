@@ -66,6 +66,7 @@ function hydrate(c: Omit<ContributionResponse, "aiReplies">): Contribution {
     author: c.author,
     createdAt: c.createdAt,
     reactionCounts: {},
+    reactionPeople: {},
     myReactions: [],
     endorsementCount: 0,
     iEndorsed: false,
@@ -696,7 +697,17 @@ export function SeedRoom({
         const counts = { ...c.reactionCounts };
         counts[key] = (counts[key] ?? 0) + (has ? -1 : 1);
         if (counts[key] <= 0) delete counts[key];
-        return { ...c, reactionCounts: counts, myReactions: has ? c.myReactions.filter((k) => k !== key) : [...c.myReactions, key] };
+        // Keep the "who reacted" list in sync so the hover updates instantly.
+        const people = { ...c.reactionPeople };
+        const list = (people[key] ?? []).filter((n) => n !== "You");
+        people[key] = has ? list : [...list, "You"];
+        if (people[key].length === 0) delete people[key];
+        return {
+          ...c,
+          reactionCounts: counts,
+          reactionPeople: people,
+          myReactions: has ? c.myReactions.filter((k) => k !== key) : [...c.myReactions, key],
+        };
       }),
     );
     playNatureSound("chirp");
@@ -1334,19 +1345,30 @@ export function SeedRoom({
                     >
                       {reactions
                         .filter((r) => (c.reactionCounts[r.key] ?? 0) > 0)
-                        .map((r) => (
-                          <span
-                            key={r.key}
-                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-sm ${
-                              c.myReactions.includes(r.key)
-                                ? "border-accent text-accent"
-                                : "border-[rgba(255,255,255,0.18)] text-ink-mid"
-                            }`}
-                          >
-                            <span aria-hidden>{r.emoji}</span>
-                            <span>{c.reactionCounts[r.key]}</span>
-                          </span>
-                        ))}
+                        .map((r) => {
+                          const who = (c.reactionPeople[r.key] ?? []).join(", ");
+                          return (
+                            <span
+                              key={r.key}
+                              title={`${r.label}: ${who}`}
+                              className={`group/react relative inline-flex items-center gap-1 rounded-full border px-2 py-1 text-sm ${
+                                c.myReactions.includes(r.key)
+                                  ? "border-accent text-accent"
+                                  : "border-[rgba(255,255,255,0.18)] text-ink-mid"
+                              }`}
+                            >
+                              <span aria-hidden>{r.emoji}</span>
+                              <span>{c.reactionCounts[r.key]}</span>
+                              {/* Instant hover tooltip — native title is too slow.
+                                  Pointer-events-none so it never blocks the tap. */}
+                              {who && (
+                                <span className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-[rgba(255,255,255,0.12)] bg-[#0B120B] px-2 py-1 text-[11px] text-ink shadow-lg group-hover/react:block">
+                                  {r.label} · {who}
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })}
                     </button>
                   )}
                   {c.endorsementCount > 0 && (
@@ -1720,6 +1742,23 @@ export function SeedRoom({
                 );
               })}
             </div>
+
+            {/* Who reacted — so it's clear on touch (where hover doesn't exist)
+                exactly who left each reaction. */}
+            {reactions.some((r) => (sheetC.reactionPeople[r.key]?.length ?? 0) > 0) && (
+              <div className="mb-3 space-y-1 border-t border-[rgba(255,255,255,0.06)] pt-3 text-xs text-ink-soft">
+                {reactions
+                  .filter((r) => (sheetC.reactionPeople[r.key]?.length ?? 0) > 0)
+                  .map((r) => (
+                    <div key={r.key} className="flex items-start gap-2">
+                      <span aria-hidden>{r.emoji}</span>
+                      <span className="text-ink-mid">
+                        {(sheetC.reactionPeople[r.key] ?? []).join(", ")}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )}
 
             {/* Actions — fixed 2-col layout:
                   Copy · Edit

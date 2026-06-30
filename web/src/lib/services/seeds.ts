@@ -197,7 +197,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
         orderBy: { createdAt: "asc" },
         include: {
           author: { select: { id: true, name: true, image: true } },
-          reactions: true,
+          reactions: { include: { user: { select: { name: true } } } },
           endorsements: true,
         },
       }),
@@ -245,9 +245,13 @@ export async function getSeedDetail(userId: string, seedId: string) {
 
   const contribs = contributions.map((c) => {
     const reactionCounts: Record<string, number> = {};
+    const reactionPeople: Record<string, string[]> = {};
     const myReactions: string[] = [];
     for (const r of c.reactions) {
       reactionCounts[r.reactionKey] = (reactionCounts[r.reactionKey] ?? 0) + 1;
+      (reactionPeople[r.reactionKey] ??= []).push(
+        r.userId === userId ? "You" : r.user?.name || "Someone",
+      );
       if (r.userId === userId) myReactions.push(r.reactionKey);
     }
     const content = c.content as
@@ -262,6 +266,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
       author: c.author,
       createdAt: c.createdAt.toISOString(),
       reactionCounts,
+      reactionPeople,
       myReactions,
       endorsementCount: c.endorsements.length,
       iEndorsed: c.endorsements.some((e) => e.endorserId === userId),
