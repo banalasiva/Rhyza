@@ -15,6 +15,7 @@ export default async function LoginPage() {
 
   const ssoEnabled = !!process.env.AUTH_SSO_ISSUER;
   const ssoName = process.env.AUTH_SSO_NAME || "SSO";
+  const emailEnabled = !!process.env.RESEND_API_KEY;
 
   return (
     <main id="main" className="relative flex min-h-screen items-center justify-center px-6 py-10">
@@ -79,6 +80,40 @@ export default async function LoginPage() {
                   Continue with {ssoName}
                 </button>
               </form>
+            )}
+
+            {emailEnabled && (
+              <>
+                <div className="my-4 flex items-center gap-3 text-[11px] text-ink-soft">
+                  <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
+                  or use your email
+                  <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
+                </div>
+                <form
+                  action={async (formData: FormData) => {
+                    "use server";
+                    const email = String(formData.get("email") || "").trim();
+                    if (!email) return;
+                    await signIn("resend", { email, redirectTo: "/" });
+                  }}
+                  className="space-y-2"
+                >
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder="you@email.com"
+                    className="w-full rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-sm text-ink outline-none focus:border-accent"
+                  />
+                  <button type="submit" className="btn-ghost w-full">
+                    Email me a sign-in link
+                  </button>
+                </form>
+                <p className="mt-2 text-[11px] text-ink-soft">
+                  No password — we’ll send a one-tap link to your inbox.
+                </p>
+              </>
             )}
 
             <p className="mt-5 text-xs text-ink-soft">
