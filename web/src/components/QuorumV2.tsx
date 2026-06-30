@@ -90,22 +90,10 @@ export function QuorumV2({ seedId }: { seedId: string }) {
         <h2 className="serif-lg">
           {understand ? "Who helped it click?" : "Who's really carrying this one?"}
         </h2>
-        <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-ink-mid">
-          {understand ? (
-            <>
-              This one was about understanding it together — so let&apos;s notice the people who
-              got us there. Whose question cracked it open? Who explained it so it finally made
-              sense? Read everyone honestly, you included, and we&apos;ll show the group what it
-              saw in each of you.
-            </>
-          ) : (
-            <>
-              Before we land on an answer, let&apos;s be honest with each other about who has the
-              most at stake here — the money, the effort, the heart, the call to make. Read the
-              room, yourself included, and we&apos;ll turn all those honest reads into one fair
-              weight. No one counts for more than they truly carry.
-            </>
-          )}
+        <p className="mx-auto mt-1 max-w-md text-sm leading-relaxed text-ink-mid">
+          {understand
+            ? "Rate everyone — yourself too — on who helped the group understand this. We'll turn all the honest reads into one fair picture."
+            : "Rate everyone — yourself too — on who has the most at stake here. We'll turn all the honest reads into one fair result."}
         </p>
       </header>
 
@@ -218,7 +206,31 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
   }
 
   return (
-    <div className="card overflow-hidden">
+    <div className="space-y-3">
+      {/* Plain-language "how this works" — three boxed steps so a first-timer
+          never has to guess what the ranking UI below is for. */}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {[
+          { n: "1", t: "Pick", d: "For each question, tap the people it fits." },
+          { n: "2", t: "Order", d: "Drag them so the best fit is on top." },
+          { n: "3", t: "Send", d: "When everyone’s in, we blend it into one fair answer." },
+        ].map((s) => (
+          <div
+            key={s.n}
+            className="flex items-start gap-2 rounded-xl border border-[rgba(76,175,80,0.18)] bg-[rgba(76,175,80,0.05)] p-3"
+          >
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[rgba(76,175,80,0.25)] text-[11px] font-semibold text-accent">
+              {s.n}
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-ink">{s.t}</p>
+              <p className="text-[11px] leading-snug text-ink-soft">{s.d}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="card overflow-hidden">
       {/* progress dots */}
       <div className="flex items-center justify-center gap-1.5 border-b border-[rgba(255,255,255,0.06)] px-4 py-3">
         {dims.map((d, i) => (
@@ -367,6 +379,7 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
             Next →
           </button>
         )}
+      </div>
       </div>
     </div>
   );
