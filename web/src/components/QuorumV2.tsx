@@ -187,7 +187,8 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
     }
   }
 
-  const allRanked = dims.every((d) => (ranks[d.key]?.length ?? 0) > 0);
+  const doneCount = dims.filter((d) => (ranks[d.key]?.length ?? 0) > 0).length;
+  const allRanked = doneCount === dims.length;
   const isLast = step === dims.length - 1;
 
   if (done) {
@@ -227,30 +228,30 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
       <div className="p-4">
         <div className="mb-1 flex items-center gap-2">
           <span className="text-xl">{dim.emoji}</span>
-          <span className="text-[11px] uppercase tracking-wide text-ink-soft">
-            {dim.label} · {step + 1} of {dims.length}
+          <span className="text-xs uppercase tracking-wide text-ink-soft">
+            {dim.label} · step {step + 1} of {dims.length}
           </span>
         </div>
         <p className="serif-lg mb-1">{dim.question}</p>
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <p className="text-[11px] text-ink-soft">
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <p className="text-sm leading-relaxed text-ink-mid">
             {isEqual
-              ? "Everyone you add counts the same — order doesn’t matter."
-              : `Rank who most embodies this — drag, or tap to add then use ↑↓. Up to ${view.maxRank}.`}
+              ? "Everyone you add counts the same here — order doesn’t matter."
+              : `Tap the people this fits, then drag them (or use the ↑ ↓ arrows) so the one it fits most is on top. Up to ${view.maxRank}.`}
           </p>
           <button
             type="button"
             onClick={toggleEqual}
             aria-pressed={isEqual}
             className={
-              "shrink-0 rounded-full border px-2.5 py-1 text-[11px] transition " +
+              "shrink-0 rounded-full border px-3 py-1.5 text-xs transition " +
               (isEqual
                 ? "border-accent bg-[rgba(76,175,80,0.16)] text-ink"
-                : "border-[rgba(255,255,255,0.14)] text-ink-soft hover:border-[rgba(76,175,80,0.4)] hover:text-ink")
+                : "border-[rgba(255,255,255,0.18)] text-ink-mid hover:border-[rgba(76,175,80,0.4)] hover:text-ink")
             }
-            title="Everyone counts the same on this dimension"
+            title="Make everyone you added count the same, instead of ranking them"
           >
-            ⚖️ {isEqual ? "Equal" : "Spread equally"}
+            {isEqual ? "✓ Everyone equal" : "⚖️ Make all equal"}
           </button>
         </div>
 
@@ -269,23 +270,31 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
                     if (!isEqual && drag !== null && drag !== i) move(drag, i);
                     setDrag(null);
                   }}
-                  className="flex items-center gap-2 rounded-xl border border-[rgba(76,175,80,0.25)] bg-[rgba(76,175,80,0.06)] px-2 py-1.5"
+                  className={
+                    "flex items-center gap-2 rounded-xl border border-[rgba(76,175,80,0.25)] bg-[rgba(76,175,80,0.06)] px-2 py-2 " +
+                    (isEqual ? "" : "cursor-grab active:cursor-grabbing")
+                  }
                 >
-                  <span className="w-5 shrink-0 text-center text-xs font-semibold text-accent">
+                  {!isEqual && (
+                    <span aria-hidden className="shrink-0 select-none text-ink-soft" title="Drag to reorder">
+                      ⠿
+                    </span>
+                  )}
+                  <span className="w-5 shrink-0 text-center text-sm font-semibold text-accent">
                     {isEqual ? "=" : i + 1}
                   </span>
-                  <Avatar name={p?.name ?? "?"} image={p?.image ?? null} size={26} />
+                  <Avatar name={p?.name ?? "?"} image={p?.image ?? null} size={28} />
                   <span className="min-w-0 flex-1 truncate text-sm text-ink">
                     {p?.name ?? "Someone"} {p?.isYou && <span className="text-ink-soft">(you)</span>}
                   </span>
                   <div className="flex shrink-0 items-center gap-0.5">
                     {!isEqual && (
                       <>
-                        <button onClick={() => move(i, i - 1)} disabled={i === 0} aria-label="Move up" className="rounded px-1.5 py-0.5 text-ink-soft transition hover:text-ink disabled:opacity-30">↑</button>
-                        <button onClick={() => move(i, i + 1)} disabled={i === ranked.length - 1} aria-label="Move down" className="rounded px-1.5 py-0.5 text-ink-soft transition hover:text-ink disabled:opacity-30">↓</button>
+                        <button onClick={() => move(i, i - 1)} disabled={i === 0} aria-label="Move up" className="rounded-md px-2 py-1.5 text-base text-ink-mid transition hover:text-ink disabled:opacity-30">↑</button>
+                        <button onClick={() => move(i, i + 1)} disabled={i === ranked.length - 1} aria-label="Move down" className="rounded-md px-2 py-1.5 text-base text-ink-mid transition hover:text-ink disabled:opacity-30">↓</button>
                       </>
                     )}
-                    <button onClick={() => remove(id)} aria-label="Remove" className="rounded px-1.5 py-0.5 text-ink-soft transition hover:text-[#e57373]">✕</button>
+                    <button onClick={() => remove(id)} aria-label="Remove" className="rounded-md px-2 py-1.5 text-base text-ink-mid transition hover:text-[#e57373]">✕</button>
                   </div>
                 </li>
               );
@@ -318,16 +327,22 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
         )}
       </div>
 
-      {error && <p className="px-4 pb-2 text-xs text-[#e57373]">{error}</p>}
+      {error && <p className="px-4 pb-2 text-sm text-[#e57373]">{error}</p>}
+
+      {/* progress + reassurance */}
+      <p className="px-4 pt-1 text-xs text-ink-soft">
+        {doneCount} of {dims.length} questions answered
+        {isLast && " · you can change anything until everyone’s in"}
+      </p>
 
       {/* nav */}
       <div className="flex items-center justify-between gap-2 border-t border-[rgba(255,255,255,0.06)] px-4 py-3">
         <button
           onClick={() => (step === 0 ? save(false) : setStep(step - 1))}
           disabled={busy}
-          className="btn-ghost text-xs disabled:opacity-50"
+          className="btn-ghost text-sm disabled:opacity-50"
         >
-          {step === 0 ? "Save draft" : "← Back"}
+          {step === 0 ? "Save & finish later" : "← Back"}
         </button>
         {isLast ? (
           <button
@@ -335,7 +350,7 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
             disabled={busy || !allRanked}
             className="btn-primary text-sm disabled:opacity-50"
           >
-            {busy ? "Submitting…" : allRanked ? "Submit my read" : "Rank every dimension"}
+            {busy ? "Sending…" : allRanked ? "Send my answers" : "Answer every question first"}
           </button>
         ) : (
           <button onClick={() => setStep(step + 1)} className="btn-primary text-sm">
@@ -366,8 +381,8 @@ function Reveal({ view, result }: { view: View; result: Result }) {
     <div className="space-y-4">
       {/* Layer 1 — who carries */}
       <section className="card p-4">
-        <h3 className="mb-0.5 text-sm font-semibold text-ink">⚖️ How the weight settled</h3>
-        <p className="mb-3 text-[11px] text-ink-soft">Each person&apos;s share of the decision, read by the whole room.</p>
+        <h3 className="mb-0.5 text-sm font-semibold text-ink">⚖️ Who has the biggest say</h3>
+        <p className="mb-3 text-xs text-ink-soft">How much each person’s voice counts in this decision, based on how the whole group rated everyone.</p>
         <ul className="space-y-2">
           {ordered.map((p) => {
             const w = result.weights[p.id] ?? 0;
@@ -379,7 +394,7 @@ function Reveal({ view, result }: { view: View; result: Result }) {
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <span className="truncate text-sm text-ink">
                       {p.name} {p.isYou && <span className="text-ink-soft">(you)</span>}
-                      {lead && <span className="ml-1 text-[10px] text-accent">carries most</span>}
+                      {lead && <span className="ml-1 text-xs text-accent">biggest say</span>}
                     </span>
                     <span className="shrink-0 text-xs font-semibold text-ink">{pct(w)}</span>
                   </div>
@@ -442,9 +457,9 @@ function Reveal({ view, result }: { view: View; result: Result }) {
           <h3 className="mb-1 text-sm font-semibold text-ink">📌 What an admin pinned</h3>
           <ul className="space-y-1">
             {hardcodedDims.map((d) => (
-              <li key={d.key} className="text-xs text-ink-mid">
-                {d.emoji} <span className="text-ink">{d.label}</span> was set from a ground truth by{" "}
-                <span className="text-accent">{result.hardcodedBy[d.key]}</span> — not read by the room.
+              <li key={d.key} className="text-sm text-ink-mid">
+                {d.emoji} <span className="text-ink">{d.label}</span> was set to a fixed number by{" "}
+                <span className="text-accent">{result.hardcodedBy[d.key]}</span> based on real facts — the group didn’t vote on this one.
               </li>
             ))}
           </ul>
@@ -595,8 +610,8 @@ function AdminBar({
 
       <div className="flex flex-wrap gap-2">
         {view.phase === "collecting" && (
-          <button onClick={() => phase("revealed")} disabled={busy} className="btn-primary text-xs disabled:opacity-50">
-            Reveal the quorum ({view.submittedCount}/{view.totalPeople} in)
+          <button onClick={() => phase("revealed")} disabled={busy} className="btn-primary text-sm disabled:opacity-50">
+            Show everyone the result ({view.submittedCount}/{view.totalPeople} answered)
           </button>
         )}
         {view.phase === "revealed" && (

@@ -50,13 +50,13 @@ export function HowItWorks({ onClose }: { onClose: () => void }) {
         <div className="mt-3 grid grid-cols-3 gap-2 text-center">
           {[
             { e: "💬", t: "Discuss", d: "Bring a question and talk it through together." },
-            { e: "⚖️", t: "Decide", d: "Everyone weighs in; the Quorum finds one fair call." },
+            { e: "⚖️", t: "Decide", d: "Everyone rates who matters most, and we add it up fairly." },
             { e: "🌸", t: "Bloom", d: "It settles into a decision, remembered forever." },
           ].map((s) => (
             <div key={s.t} className="rounded-xl border border-[rgba(76,175,80,0.15)] bg-[rgba(7,13,7,0.4)] p-3">
               <div className="text-2xl" aria-hidden>{s.e}</div>
               <p className="mt-1 text-sm font-medium text-ink">{s.t}</p>
-              <p className="mt-0.5 text-[11px] leading-snug text-ink-soft">{s.d}</p>
+              <p className="mt-0.5 text-xs leading-snug text-ink-soft">{s.d}</p>
             </div>
           ))}
         </div>

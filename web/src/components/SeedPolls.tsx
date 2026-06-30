@@ -160,7 +160,7 @@ export function PollCard({
       <div className="mb-1 flex items-start justify-between gap-2">
         <h3 className="text-sm font-medium text-ink">{poll.question}</h3>
         <span
-          className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
+          className="shrink-0 rounded-full px-2 py-0.5 text-xs"
           style={{
             color: poll.weightMode === "stake" ? "#FFB300" : "#66BB6A",
             background: poll.weightMode === "stake" ? "rgba(255,179,0,0.12)" : "rgba(76,175,80,0.12)",
@@ -168,15 +168,15 @@ export function PollCard({
           title={
             poll.weightMode === "stake"
               ? poll.stakeActive
-                ? "Votes weighted by decision-maker stake"
-                : "Stake-weighted — falls back to equal until the stake map exists"
-              : "Each person, one vote"
+                ? "Votes count more for those with more at stake"
+                : "Weighted by stake — counts everyone equally until the stake map exists"
+              : "Each person gets one vote"
           }
         >
-          {poll.weightMode === "stake" ? "⚖️ Stake-weighted" : "👤 Equal"}
+          {poll.weightMode === "stake" ? "⚖️ Weighted" : "👤 1 vote each"}
         </span>
       </div>
-      <p className="mb-3 flex items-center gap-1.5 text-[11px] text-ink-soft">
+      <p className="mb-3 flex items-center gap-1.5 text-xs text-ink-soft">
         <Avatar name={poll.author.name} image={poll.author.image} size={16} />
         {poll.author.name} · {timeAgo(poll.createdAt)} · {poll.totalVotes} vote
         {poll.totalVotes === 1 ? "" : "s"}

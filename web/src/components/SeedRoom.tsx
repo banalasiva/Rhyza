@@ -1289,10 +1289,10 @@ export function SeedRoom({
                         .map((r) => (
                           <span
                             key={r.key}
-                            className={`inline-flex items-center gap-0.5 rounded-full border px-1.5 py-0.5 ${
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-sm ${
                               c.myReactions.includes(r.key)
                                 ? "border-accent text-accent"
-                                : "border-[rgba(255,255,255,0.08)]"
+                                : "border-[rgba(255,255,255,0.18)] text-ink-mid"
                             }`}
                           >
                             <span aria-hidden>{r.emoji}</span>

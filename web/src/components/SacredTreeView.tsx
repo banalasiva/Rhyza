@@ -69,11 +69,11 @@ export function SacredTreeView({ blooms }: { blooms: Bloom[] }) {
                   <div className="relative" style={{ fontSize: isSel ? 32 : 26, filter: "drop-shadow(0 0 12px rgba(255,213,79,0.8))", lineHeight: 1 }}>
                     🌸
                   </div>
-                  <span className="absolute -right-3.5 -top-2.5 rounded-full bg-[rgba(255,179,0,0.95)] px-1.5 py-0.5 text-[9.5px] font-bold text-[#0A0500]">
+                  <span className="absolute -right-3.5 -top-2.5 rounded-full bg-[rgba(255,179,0,0.95)] px-1.5 py-0.5 text-[11px] font-bold text-[#0A0500]">
                     v{b.version}
                   </span>
                   {!isSel && (
-                    <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/60 px-2 py-0.5 text-[10px] text-white/85 backdrop-blur">
+                    <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/60 px-2 py-0.5 text-[11px] text-white/85 backdrop-blur">
                       {b.title}
                     </span>
                   )}

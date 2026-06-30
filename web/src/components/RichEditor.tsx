@@ -206,7 +206,7 @@ export function RichEditor({
               )}
               <span>{it.label}</span>
               {it.ai && (
-                <span className="ml-auto rounded-full bg-[rgba(76,175,80,0.12)] px-1.5 py-0.5 text-[9px] text-accent">
+                <span className="ml-auto rounded-full bg-[rgba(76,175,80,0.12)] px-1.5 py-0.5 text-[11px] text-accent">
                   AI
                 </span>
               )}
