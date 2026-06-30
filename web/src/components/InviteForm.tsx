@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import { apiPost, apiGet } from "@/lib/client";
 import { toWhatsAppNumber } from "@/lib/phone";
+import { inviteMessage } from "@/lib/invite";
 
 type NetworkPerson = { id: string; name: string; email: string };
 
-export function InviteForm({ gardenId }: { gardenId: string }) {
+export function InviteForm({ gardenId, gardenName }: { gardenId: string; gardenName?: string }) {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,7 +84,7 @@ export function InviteForm({ gardenId }: { gardenId: string }) {
       );
       setResult(res);
       const digits = toWhatsAppNumber(tel);
-      const msg = `Come think this through with me on ThinkThru 🌱\n${res.link}`;
+      const msg = inviteMessage({ place: gardenName, link: res.link });
       // location.href (not window.open) so it isn't popup-blocked after the await;
       // on mobile this opens the WhatsApp app via the wa.me deep link.
       window.location.href = `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
@@ -94,22 +95,24 @@ export function InviteForm({ gardenId }: { gardenId: string }) {
     }
   }
 
+  // Everything we hand off (copy / share / WhatsApp) is this warm message, not a
+  // bare link.
+  function message() {
+    return inviteMessage({ place: gardenName, link: result!.link, email: email || undefined });
+  }
+
   async function copy() {
     if (!result) return;
-    await navigator.clipboard.writeText(result.link);
+    await navigator.clipboard.writeText(message());
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
 
-  // One-tap native share sheet (WhatsApp, SMS, email…) with the link preloaded.
+  // One-tap native share sheet (WhatsApp, SMS, email…) with the warm invite.
   async function share() {
     if (!result) return;
     try {
-      await navigator.share({
-        title: "Join me on ThinkThru 🌱",
-        text: "I'd love your take — come think this through with me:",
-        url: result.link,
-      });
+      await navigator.share({ title: "Join me on ThinkThru 🌱", text: message() });
     } catch {
       /* user dismissed the share sheet */
     }
@@ -162,8 +165,8 @@ export function InviteForm({ gardenId }: { gardenId: string }) {
         <div className="mt-3 rounded-xl border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.4)] p-3">
           <p className="mb-2 text-xs text-ink-mid">
             {result.emailed
-              ? "✉️ Invite emailed. You can also share this link:"
-              : "🔗 Invite link created — share it:"}
+              ? "✉️ A warm invite is on its way to their inbox. Share or copy it too:"
+              : "🔗 Invite ready — Share or Copy sends a warm message, not just a link:"}
           </p>
           <div className="flex items-center gap-2">
             <code className="flex-1 truncate text-xs text-ink-soft">{result.link}</code>

@@ -118,7 +118,7 @@ export default async function GardenPage({ params }: { params: { id: string } })
 
         <div className="card p-5">
           <p className="eyebrow mb-3">Invite people</p>
-          <InviteForm gardenId={garden.id} />
+          <InviteForm gardenId={garden.id} gardenName={garden.name} />
         </div>
       </main>
     </div>
