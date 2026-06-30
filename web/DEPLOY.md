@@ -196,3 +196,44 @@ everything else works normally. Uploads go straight from the browser to Blob
 ## Environment variables reference
 
 See [`.env.example`](.env.example) for the complete, commented list.
+
+---
+
+## Performance: why the first load can be slow (and the fixes)
+
+The first page after sign-in (`/`) waits on the database before it can paint —
+that's the pulsing emblem ("splash"). On a warm function this is fast; the slow
+case is a **cold start**, and almost all of it is the database, in this order of
+impact:
+
+1. **Neon compute auto-suspend (biggest).** On Neon's free/launch tier the
+   Postgres compute suspends after ~5 min idle. The first visitor after a quiet
+   spell waits for Postgres itself to boot (often 1–3 s). Fix in the Neon
+   dashboard → your project → **Compute** → either raise the *Suspend timeout*
+   (or disable it) on a paid plan, or accept the first-hit cost. This single
+   setting usually explains a multi-second splash.
+
+2. **Vercel ↔ Neon region mismatch.** If the Vercel function region isn't the
+   same as the Neon region, every query crosses the continent — and the home
+   page does two of them in series. Check Neon (project → **Settings** → region)
+   and Vercel (Project → **Settings** → **Functions** → region), then pin them
+   to match by adding to `vercel.json`:
+
+   ```json
+   { "regions": ["<neon-region, e.g. bom1 / iad1 / sin1>"] }
+   ```
+
+   Use the Vercel region code closest to your Neon region. This is free and can
+   be the largest win if they're currently mismatched.
+
+3. **Cold connection handshake → Neon serverless driver.** Classic Prisma opens
+   a fresh TCP+TLS connection on every cold invocation. The Neon serverless
+   driver connects over a WebSocket proxy instead, which is faster to establish.
+   It's already wired and ships **off** by default. To turn it on safely:
+   - Set `NEON_SERVERLESS=1` as an env var on a **Preview** environment first.
+   - Open a preview deploy, confirm pages load normally.
+   - Then add the same var to **Production** and redeploy.
+   (`DATABASE_URL` must be a Neon connection string — it is.)
+
+Already shipped in code: the home page now issues two serial DB round-trips
+instead of three before first paint.

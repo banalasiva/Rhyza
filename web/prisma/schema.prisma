@@ -5,7 +5,10 @@
 // spec are deferred to phase 2 and intentionally not modelled here yet.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // driverAdapters lets us run on the Neon serverless driver (WebSocket proxy)
+  // instead of a cold TCP+TLS connection — opt-in via NEON_SERVERLESS=1 (see db.ts).
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
