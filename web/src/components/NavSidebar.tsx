@@ -108,7 +108,7 @@ export function NavSidebar({ signOut }: { signOut?: () => void }) {
             <Link
               href="/"
               onClick={() => setOpenPersist(false)}
-              className="mb-5 flex items-center justify-center gap-1.5 rounded-xl border border-[rgba(76,175,80,0.45)] bg-[rgba(76,175,80,0.12)] px-3 py-2.5 text-sm font-medium text-ink transition hover:border-accent"
+              className="mb-5 flex items-center justify-center gap-1.5 rounded-xl border border-[rgba(76,175,80,0.45)] bg-[rgba(76,175,80,0.12)] px-3 py-2.5 text-sm font-medium text-ink transition hover:border-accent active:scale-[0.98] active:border-accent active:bg-[rgba(76,175,80,0.3)]"
             >
               ✚ New garden
             </Link>
@@ -205,7 +205,7 @@ function GardenSection({
                   <Link
                     href={`/gardens/${g.id}`}
                     onClick={close}
-                    className="flex items-center gap-1.5 py-0.5 text-xs text-ink-soft transition hover:text-accent"
+                    className="-ml-1.5 flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs text-ink-soft transition hover:text-accent active:bg-[rgba(76,175,80,0.16)] active:text-accent"
                   >
                     <span className="shrink-0 text-[10px]">✚</span>
                     <span>Plant a seed</span>
