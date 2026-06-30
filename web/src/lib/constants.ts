@@ -90,6 +90,64 @@ export type QuorumDimensionKey = (typeof QUORUM_DIMENSIONS)[number]["key"];
 export const QUORUM_DIMENSION_KEYS = QUORUM_DIMENSIONS.map((d) => d.key) as QuorumDimensionKey[];
 export const QUORUM_MAX_RANK = 10; // a rater can place at most this many people per dimension
 
+// ── Quorum templates ────────────────────────────────────────────────────────
+// The same engine (everyone rates everyone → fair aggregate → mirror) serves
+// more than decisions. A Quorum has a *purpose*, and each purpose is a curated,
+// designed set of dimensions — never free-text, so the framework, the math, and
+// the measurable/hardcode logic all stay sound. Owners PICK a template; they
+// don't author one.
+export type QuorumDimension = {
+  key: string;
+  emoji: string;
+  label: string;
+  question: string;
+  color: string;
+  measurable: boolean;
+};
+
+// "Understand together" — for people yearning to learn and get feedback. Every
+// dimension is strength-based and a judgement call (none measurable/hardcodable).
+export const QUORUM_UNDERSTAND_DIMENSIONS: readonly QuorumDimension[] = [
+  { key: "opened_up", emoji: "🔍", label: "Opened it up", question: "Whose questions cracked the topic open?", color: "#42A5F5", measurable: false },
+  { key: "made_click", emoji: "💡", label: "Made it click", question: "Who explained it so it finally made sense?", color: "#FFB300", measurable: false },
+  { key: "gets_it", emoji: "🧭", label: "Really gets it", question: "Who showed the deepest understanding?", color: "#26A69A", measurable: false },
+  { key: "leveling_up", emoji: "🌱", label: "Leveling up", question: "Who's growing the fastest here?", color: "#66BB6A", measurable: false },
+  { key: "lifted_others", emoji: "🤝", label: "Lifted others", question: "Who helped the group understand together?", color: "#EC407A", measurable: false },
+];
+
+export type QuorumTemplateKey = "decide" | "understand";
+export const QUORUM_TEMPLATES: Record<
+  QuorumTemplateKey,
+  { key: QuorumTemplateKey; label: string; emoji: string; blurb: string; dimensions: readonly QuorumDimension[] }
+> = {
+  decide: {
+    key: "decide",
+    label: "Decide",
+    emoji: "⚖️",
+    blurb: "Weigh a real decision — whose stake, judgement and consequence run deepest.",
+    dimensions: QUORUM_DIMENSIONS,
+  },
+  understand: {
+    key: "understand",
+    label: "Understand together",
+    emoji: "🌱",
+    blurb: "See how the group learned together — who opened it up, who made it click, who's growing.",
+    dimensions: QUORUM_UNDERSTAND_DIMENSIONS,
+  },
+};
+
+export const QUORUM_TEMPLATE_KEYS = Object.keys(QUORUM_TEMPLATES) as QuorumTemplateKey[];
+
+// Resolve a stored template key to its definition, defaulting to "decide".
+export function quorumTemplate(key: string | null | undefined) {
+  return QUORUM_TEMPLATES[(key as QuorumTemplateKey)] ?? QUORUM_TEMPLATES.decide;
+}
+
+// Every dimension key across all templates — the universe for validation enums.
+export const ALL_QUORUM_DIMENSION_KEYS = Array.from(
+  new Set(Object.values(QUORUM_TEMPLATES).flatMap((t) => t.dimensions.map((d) => d.key))),
+);
+
 // A seed blooms (when its stake board is in use) once this share of the total
 // *stake* has voted to bloom — not this share of heads. A small headcount floor
 // (BLOOM_MIN_VOTERS) still applies so a single person can't bloom in silence.

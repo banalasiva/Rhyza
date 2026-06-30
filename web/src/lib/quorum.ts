@@ -75,8 +75,9 @@ export function computeQuorum(
   rankings: Rankings,
   hardcodes: Hardcodes = {},
   equalMap: EqualMap = {},
+  dimensionKeys: readonly string[] = QUORUM_DIMENSION_KEYS,
 ): QuorumResult {
-  const dims = QUORUM_DIMENSION_KEYS as readonly string[];
+  const dims = dimensionKeys;
   const dimensionPies: Record<string, Record<string, number>> = {};
   const hardcodedBy: Record<string, string | null> = {};
 

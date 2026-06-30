@@ -128,6 +128,12 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     sql: `ALTER TABLE "notifications" ADD COLUMN IF NOT EXISTS "nudged_at" TIMESTAMP(3)`,
   },
 
+  // 20260630060000_quorum_template
+  {
+    label: "quorum_state.template",
+    sql: `ALTER TABLE "quorum_state" ADD COLUMN IF NOT EXISTS "template" TEXT NOT NULL DEFAULT 'decide'`,
+  },
+
   // 20260630050000_perf_indexes
   {
     label: "notifications_emailed_at_created_at_idx",

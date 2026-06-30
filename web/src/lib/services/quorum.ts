@@ -1,13 +1,33 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { ensureSeedParticipant, requireSeedManager } from "@/lib/authz";
-import { QUORUM_DIMENSION_KEYS, QUORUM_DIMENSIONS, QUORUM_MAX_RANK } from "@/lib/constants";
+import {
+  QUORUM_MAX_RANK,
+  QUORUM_TEMPLATES,
+  quorumTemplate,
+  type QuorumDimension,
+} from "@/lib/constants";
 import { computeQuorum, type EqualMap, type Gap, type Hardcodes, type Rankings } from "@/lib/quorum";
 import { listSeedPeople, type SeedPerson } from "./members";
 
-const DIM_SET = new Set<string>(QUORUM_DIMENSION_KEYS);
-const MEASURABLE = new Set<string>(QUORUM_DIMENSIONS.filter((d) => d.measurable).map((d) => d.key));
 type Phase = "collecting" | "revealed" | "locked";
+
+// Resolve a seed's Quorum purpose (dimension set). Resilient to the template
+// column not existing yet (pre-migration) — falls back to "decide".
+async function loadQuorumState(seedId: string): Promise<{ phase: Phase; template: string }> {
+  try {
+    const row = await db.quorumState.findUnique({
+      where: { seedId },
+      select: { phase: true, template: true },
+    });
+    return { phase: (row?.phase as Phase) ?? "collecting", template: row?.template ?? "decide" };
+  } catch {
+    const row = await db.quorumState
+      .findUnique({ where: { seedId }, select: { phase: true } })
+      .catch(() => null);
+    return { phase: (row?.phase as Phase) ?? "collecting", template: "decide" };
+  }
+}
 
 // JSON columns come back loosely typed; coerce defensively against bad data.
 // A ballot is stored either as a bare ordered array (ranked) or, when the rater
@@ -34,8 +54,13 @@ function asShares(v: unknown): Record<string, number> {
 
 // Validate one ballot: a dimension we know, an ordered list of distinct people
 // who are all participants, no longer than the cap, and not ranking nobody.
-function cleanRanking(dimension: string, ranking: unknown, validIds: Set<string>): string[] {
-  if (!DIM_SET.has(dimension)) throw new ApiError("BAD_REQUEST", "Unknown dimension.");
+function cleanRanking(
+  dimension: string,
+  ranking: unknown,
+  validIds: Set<string>,
+  dimSet: Set<string>,
+): string[] {
+  if (!dimSet.has(dimension)) throw new ApiError("BAD_REQUEST", "Unknown dimension.");
   const list = asIdList(ranking);
   const seen = new Set<string>();
   const out: string[] = [];
@@ -56,7 +81,9 @@ export type QuorumView = {
   canManage: boolean;
   ownerId: string;
   people: SeedPerson[];
-  dimensions: typeof QUORUM_DIMENSIONS;
+  template: string;
+  templateLabel: string;
+  dimensions: readonly QuorumDimension[];
   maxRank: number;
   // your own draft/submitted ballots, dimension -> ordered ids
   mine: Record<string, string[]>;
@@ -86,8 +113,8 @@ export async function getQuorumView(userId: string, seedId: string): Promise<Quo
   const { people, canManage, ownerId } = await listSeedPeople(userId, seedId);
   const peopleIds = people.map((p) => p.id);
 
-  const [stateRow, myRows, submittedRows, hardcodeRows] = await Promise.all([
-    db.quorumState.findUnique({ where: { seedId } }),
+  const [state, myRows, submittedRows, hardcodeRows] = await Promise.all([
+    loadQuorumState(seedId),
     db.quorumBallot.findMany({ where: { seedId, raterId: userId } }),
     db.quorumBallot.findMany({ where: { seedId, submitted: true } }),
     db.quorumHardcode.findMany({
@@ -96,7 +123,9 @@ export async function getQuorumView(userId: string, seedId: string): Promise<Quo
     }),
   ]);
 
-  const phase: Phase = (stateRow?.phase as Phase) ?? "collecting";
+  const phase: Phase = state.phase;
+  const tmpl = quorumTemplate(state.template);
+  const dimKeys = tmpl.dimensions.map((d) => d.key);
 
   const mine: Record<string, string[]> = {};
   const mineEqual: Record<string, boolean> = {};
@@ -127,7 +156,7 @@ export async function getQuorumView(userId: string, seedId: string): Promise<Quo
       (rankings[b.raterId] ??= {})[b.dimension] = asIdList(b.ranking);
       (equalMap[b.raterId] ??= {})[b.dimension] = asEqual(b.ranking);
     }
-    const full = computeQuorum(peopleIds, rankings, engineHardcodes, equalMap);
+    const full = computeQuorum(peopleIds, rankings, engineHardcodes, equalMap, dimKeys);
     result = {
       weights: full.weights,
       dimensionPies: full.dimensionPies,
@@ -144,7 +173,9 @@ export async function getQuorumView(userId: string, seedId: string): Promise<Quo
     canManage,
     ownerId,
     people,
-    dimensions: QUORUM_DIMENSIONS,
+    template: tmpl.key,
+    templateLabel: tmpl.label,
+    dimensions: tmpl.dimensions,
     maxRank: QUORUM_MAX_RANK,
     mine,
     mineEqual,
@@ -166,10 +197,12 @@ export async function saveWeighIn(
   submit: boolean,
 ) {
   await ensureSeedParticipant(userId, seedId);
-  const state = await db.quorumState.findUnique({ where: { seedId } });
-  if (state?.phase === "locked") {
+  const state = await loadQuorumState(seedId);
+  if (state.phase === "locked") {
     throw new ApiError("BAD_REQUEST", "This quorum is locked — weigh-in is closed.");
   }
+  const dimKeys = quorumTemplate(state.template).dimensions.map((d) => d.key);
+  const dimSet = new Set<string>(dimKeys);
 
   const { people } = await listSeedPeople(userId, seedId);
   const validIds = new Set(people.map((p) => p.id));
@@ -178,17 +211,17 @@ export async function saveWeighIn(
   // `equal` rides along: when set, we store { equal: true, ids } instead of a
   // bare array so the engine flattens that dimension's weights.
   const cleaned: { dimension: string; ids: string[]; equal: boolean }[] = [];
-  for (const dim of QUORUM_DIMENSION_KEYS) {
+  for (const dim of dimKeys) {
     if (!(dim in ballots)) continue;
     cleaned.push({
       dimension: dim,
-      ids: cleanRanking(dim, ballots[dim], validIds),
+      ids: cleanRanking(dim, ballots[dim], validIds, dimSet),
       equal: asEqual(ballots[dim]),
     });
   }
   if (submit) {
     const ranked = new Set(cleaned.filter((c) => c.ids.length > 0).map((c) => c.dimension));
-    const missing = QUORUM_DIMENSION_KEYS.filter((d) => !ranked.has(d));
+    const missing = dimKeys.filter((d) => !ranked.has(d));
     if (missing.length > 0) {
       throw new ApiError("BAD_REQUEST", "Rank at least one person in every dimension before submitting.");
     }
@@ -219,7 +252,11 @@ export async function setHardcode(
   shares: Record<string, unknown>,
 ) {
   await requireSeedManager(userId, seedId);
-  if (!MEASURABLE.has(dimension)) {
+  const state = await loadQuorumState(seedId);
+  const measurable = new Set(
+    quorumTemplate(state.template).dimensions.filter((d) => d.measurable).map((d) => d.key),
+  );
+  if (!measurable.has(dimension)) {
     throw new ApiError("BAD_REQUEST", "Only measurable dimensions can be hardcoded.");
   }
   const { people } = await listSeedPeople(userId, seedId);
@@ -257,4 +294,30 @@ export async function setPhase(userId: string, seedId: string, phase: string) {
     create: { seedId, phase },
   });
   return { ok: true, phase };
+}
+
+// Choose the Quorum's purpose (dimension set). Manager-only, and only while
+// still collecting — switching purpose changes the dimensions, so we reset the
+// weigh-in (ballots + hardcodes) for a clean start rather than orphan them.
+export async function setQuorumTemplate(userId: string, seedId: string, template: string) {
+  await requireSeedManager(userId, seedId);
+  if (!(template in QUORUM_TEMPLATES)) {
+    throw new ApiError("BAD_REQUEST", "Unknown template.");
+  }
+  const state = await loadQuorumState(seedId);
+  if (state.phase !== "collecting") {
+    throw new ApiError("BAD_REQUEST", "Change the purpose before revealing the quorum.");
+  }
+  if (state.template === template) return { ok: true, template };
+
+  await db.$transaction([
+    db.quorumBallot.deleteMany({ where: { seedId } }),
+    db.quorumHardcode.deleteMany({ where: { seedId } }),
+    db.quorumState.upsert({
+      where: { seedId },
+      update: { template },
+      create: { seedId, template, phase: "collecting" },
+    }),
+  ]);
+  return { ok: true, template };
 }

@@ -4,6 +4,7 @@ import {
   quorumWeighInSchema,
   quorumHardcodeSchema,
   quorumPhaseSchema,
+  quorumTemplateSchema,
 } from "@/lib/validation";
 import {
   getQuorumView,
@@ -11,6 +12,7 @@ import {
   setHardcode,
   clearHardcode,
   setPhase,
+  setQuorumTemplate,
 } from "@/lib/services/quorum";
 
 // GET /api/seeds/:id/quorum — the board for the viewer (roster, your ballots,
@@ -32,6 +34,10 @@ export const PUT = handle(async (req, ctx: { params: { id: string } }) => {
 export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   const userId = await requireUserId();
   const body = await req.json();
+  if (body && typeof body === "object" && "template" in body) {
+    const { template } = quorumTemplateSchema.parse(body);
+    return ok(await setQuorumTemplate(userId, ctx.params.id, template));
+  }
   if (body && typeof body === "object" && "phase" in body) {
     const { phase } = quorumPhaseSchema.parse(body);
     return ok(await setPhase(userId, ctx.params.id, phase));

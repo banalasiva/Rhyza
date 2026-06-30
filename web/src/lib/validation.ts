@@ -3,7 +3,8 @@ import {
   DIMENSION_KEYS,
   STAGE_KEYS,
   STAKE_DIMENSION_KEYS,
-  QUORUM_DIMENSION_KEYS,
+  ALL_QUORUM_DIMENSION_KEYS,
+  QUORUM_TEMPLATE_KEYS,
   QUORUM_MAX_RANK,
 } from "@/lib/constants";
 
@@ -167,7 +168,7 @@ export const seedMemberActionSchema = z.object({
 });
 
 // ── Quorum v2 ──
-const quorumDimEnum = z.enum(QUORUM_DIMENSION_KEYS as [string, ...string[]]);
+const quorumDimEnum = z.enum(ALL_QUORUM_DIMENSION_KEYS as [string, ...string[]]);
 
 // Save/submit a weigh-in: dimension -> ordered list of people, best first.
 // A dimension's ballot: either an ordered array (ranked), or { equal, ids } when
@@ -194,6 +195,10 @@ export const quorumHardcodeSchema = z.object({
 
 export const quorumPhaseSchema = z.object({
   phase: z.enum(["collecting", "revealed", "locked"]),
+});
+
+export const quorumTemplateSchema = z.object({
+  template: z.enum(QUORUM_TEMPLATE_KEYS as [string, ...string[]]),
 });
 
 // ── Explore / public square ──

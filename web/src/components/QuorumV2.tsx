@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiGet, apiPost, apiPut } from "@/lib/client";
 import { Avatar } from "@/components/Avatar";
+import { QUORUM_TEMPLATES } from "@/lib/constants";
 
 type Person = { id: string; name: string; image: string | null; role: string; isYou: boolean };
 type Dimension = {
@@ -33,6 +34,8 @@ type View = {
   canManage: boolean;
   ownerId: string;
   people: Person[];
+  template: string;
+  templateLabel: string;
   dimensions: Dimension[];
   maxRank: number;
   mine: Record<string, string[]>;
@@ -486,6 +489,21 @@ function AdminBar({
 }) {
   const [hardcodeDim, setHardcodeDim] = useState<string | null>(null);
   const measurable = view.dimensions.filter((d) => d.measurable);
+  const templates = Object.values(QUORUM_TEMPLATES);
+
+  async function changeTemplate(next: string) {
+    if (next === view.template) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiPost(`/api/seeds/${seedId}/quorum`, { template: next });
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't change the purpose");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function phase(next: "collecting" | "revealed" | "locked") {
     setBusy(true);
@@ -503,6 +521,35 @@ function AdminBar({
   return (
     <div className="rounded-xl border border-[rgba(255,179,0,0.25)] bg-[rgba(255,179,0,0.05)] p-3">
       <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">Admin · {view.phase}</p>
+
+      {view.phase === "collecting" && (
+        <div className="mb-3">
+          <p className="mb-1.5 text-[11px] text-ink-soft">Purpose of this quorum:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {templates.map((t) => {
+              const on = view.template === t.key;
+              return (
+                <button
+                  key={t.key}
+                  onClick={() => changeTemplate(t.key)}
+                  disabled={busy}
+                  title={t.blurb}
+                  className={
+                    "rounded-full border px-2.5 py-1 text-[11px] transition disabled:opacity-50 " +
+                    (on
+                      ? "border-accent bg-[rgba(76,175,80,0.16)] text-ink"
+                      : "border-[rgba(255,255,255,0.14)] text-ink-soft hover:border-[rgba(76,175,80,0.4)] hover:text-ink")
+                  }
+                >
+                  {t.emoji} {t.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-[10px] text-ink-soft">Switching purpose resets the weigh-in.</p>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {view.phase === "collecting" && (
           <button onClick={() => phase("revealed")} disabled={busy} className="btn-primary text-xs disabled:opacity-50">
