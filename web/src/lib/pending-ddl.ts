@@ -128,6 +128,20 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     sql: `ALTER TABLE "notifications" ADD COLUMN IF NOT EXISTS "nudged_at" TIMESTAMP(3)`,
   },
 
+  // 20260630050000_perf_indexes
+  {
+    label: "notifications_emailed_at_created_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "notifications_emailed_at_created_at_idx" ON "notifications" ("emailed_at", "created_at")`,
+  },
+  {
+    label: "notifications_read_at_nudged_at_created_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "notifications_read_at_nudged_at_created_at_idx" ON "notifications" ("read_at", "nudged_at", "created_at")`,
+  },
+  {
+    label: "contributions_seed_id_author_id_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "contributions_seed_id_author_id_idx" ON "contributions" ("seed_id", "author_id")`,
+  },
+
   // 20260629230000_explore_topics_interests
   {
     label: "seed_topics",

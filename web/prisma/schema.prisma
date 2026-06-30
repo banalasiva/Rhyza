@@ -541,6 +541,9 @@ model Contribution {
 
   @@index([seedId, dimension])
   @@index([parentId])
+  // Distinct-author lookups (participant lists, quorum roster) filter by seed
+  // and group by author — this keeps that off a per-seed contribution scan.
+  @@index([seedId, authorId])
   @@map("contributions")
 }
 
@@ -687,6 +690,11 @@ model Notification {
   actor     User? @relation("NotificationActor", fields: [actorId], references: [id])
 
   @@index([recipientId, createdAt])
+  // Support the cron fan-outs: the digest scans un-emailed rows by recency, the
+  // nudge scans un-read/un-nudged rows by recency. Without these, both crons
+  // table-scan as notification volume grows.
+  @@index([emailedAt, createdAt])
+  @@index([readAt, nudgedAt, createdAt])
   @@map("notifications")
 }
 

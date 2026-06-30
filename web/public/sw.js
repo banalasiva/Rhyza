@@ -1,16 +1,88 @@
-/* ThinkThru service worker — Web Push receiver + click handler.
-   Kept tiny and dependency-free so it loads instantly. */
+/* ThinkThru service worker — Web Push receiver + static-asset cache.
+   Kept dependency-free so it loads instantly. */
 
-// Take control immediately on install/activate so the PWA (and the Play Store
-// TWA wrapper) sees an active SW right away.
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+// Bump this to invalidate old caches on deploy.
+const CACHE = "thinkthru-static-v1";
 
-// A pass-through fetch handler. We don't cache (the app is online-first), but
-// having a fetch listener is what makes the PWA pass installability checks —
-// the precondition for wrapping it as an Android app.
-self.addEventListener("fetch", () => {
-  // Intentionally no-op: let the network handle every request normally.
+// The brand visuals that make the launch/splash feel instant — precached so the
+// emblem and icons paint from cache the moment the app opens.
+const PRECACHE = [
+  "/emblem.png",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/favicon-32.png",
+  "/manifest.webmanifest",
+];
+
+self.addEventListener("install", (event) => {
+  self.skipWaiting();
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).catch(() => {}));
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    (async () => {
+      // Drop caches from older SW versions.
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
+      await self.clients.claim();
+    })(),
+  );
+});
+
+// What we cache: immutable build assets and our own static files (cache-first),
+// plus Google Fonts (stale-while-revalidate). We deliberately DON'T cache HTML
+// navigations or /api responses — those stay network-only so pages are always
+// fresh and never leak a previous user's authenticated view on a shared device.
+function isImmutableAsset(url) {
+  return (
+    url.origin === self.location.origin &&
+    (url.pathname.startsWith("/_next/static/") ||
+      /\.(?:png|svg|ico|webmanifest|woff2?|mp3|wav)$/.test(url.pathname))
+  );
+}
+function isGoogleFonts(url) {
+  return url.host === "fonts.googleapis.com" || url.host === "fonts.gstatic.com";
+}
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+  const res = await fetch(request);
+  if (res && (res.ok || res.type === "opaque")) {
+    const cache = await caches.open(CACHE);
+    cache.put(request, res.clone()).catch(() => {});
+  }
+  return res;
+}
+
+async function staleWhileRevalidate(request) {
+  const cache = await caches.open(CACHE);
+  const cached = await cache.match(request);
+  const network = fetch(request)
+    .then((res) => {
+      if (res && (res.ok || res.type === "opaque")) cache.put(request, res.clone()).catch(() => {});
+      return res;
+    })
+    .catch(() => cached);
+  return cached || network;
+}
+
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  if (request.method !== "GET") return;
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return;
+  }
+  if (isImmutableAsset(url)) {
+    event.respondWith(cacheFirst(request));
+  } else if (isGoogleFonts(url)) {
+    event.respondWith(staleWhileRevalidate(request));
+  }
+  // Everything else (HTML navigations, /api, data): let the network handle it.
 });
 
 self.addEventListener("push", (event) => {

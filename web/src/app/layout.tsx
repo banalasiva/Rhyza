@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 export const metadata: Metadata = {
   title: "ThinkThru — The Learning Garden",
@@ -50,6 +51,7 @@ export default function RootLayout({
           Skip to main content
         </a>
         {children}
+        <ServiceWorkerRegister />
       </body>
     </html>
   );
