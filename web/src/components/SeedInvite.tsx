@@ -46,13 +46,39 @@ export function SeedInvite({
       const nav = navigator as {
         contacts?: { select?: (p: string[], o: { multiple: boolean }) => Promise<unknown[]> };
       };
-      const picked = (await nav.contacts?.select?.(["email"], { multiple: false })) as
-        | { email?: string[] }[]
+      const picked = (await nav.contacts?.select?.(["name", "email", "tel"], { multiple: false })) as
+        | { email?: string[]; tel?: string[] }[]
         | undefined;
-      const found = picked?.[0]?.email?.[0];
-      if (found) setEmail(found);
+      const c = picked?.[0];
+      const foundEmail = c?.email?.[0];
+      const foundTel = c?.tel?.[0];
+      if (foundEmail) {
+        setEmail(foundEmail);
+        return;
+      }
+      if (foundTel) await inviteViaWhatsApp(foundTel);
     } catch {
       /* user cancelled */
+    }
+  }
+
+  // Phone-only contact → create a link invite and open WhatsApp to that number.
+  async function inviteViaWhatsApp(tel: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await apiPost<{ link: string; emailed: boolean }>(
+        `/api/seeds/${seedId}/invites`,
+        {},
+      );
+      setResult(res);
+      const digits = tel.replace(/[^\d]/g, "");
+      const msg = `Come think this through with me on ThinkThru 🌱\n${res.link}`;
+      window.location.href = `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't create the invite");
+    } finally {
+      setBusy(false);
     }
   }
 

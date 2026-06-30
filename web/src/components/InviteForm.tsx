@@ -46,19 +46,50 @@ export function InviteForm({ gardenId }: { gardenId: string }) {
     }
   }
 
-  // Pick an email straight from the phone's address book (Chrome/Android, TWA).
+  // Pick a contact from the phone's address book (Chrome/Android, TWA). We ask
+  // for email AND phone so phone-only contacts (e.g. parents on WhatsApp) aren't
+  // missing. Email → fills the field; phone-only → create a link and hand it to
+  // them over WhatsApp.
   async function pickContact() {
     try {
       const nav = navigator as {
         contacts?: { select?: (p: string[], o: { multiple: boolean }) => Promise<unknown[]> };
       };
-      const picked = (await nav.contacts?.select?.(["email"], { multiple: false })) as
-        | { email?: string[] }[]
+      const picked = (await nav.contacts?.select?.(["name", "email", "tel"], { multiple: false })) as
+        | { email?: string[]; tel?: string[] }[]
         | undefined;
-      const found = picked?.[0]?.email?.[0];
-      if (found) setEmail(found);
+      const c = picked?.[0];
+      const foundEmail = c?.email?.[0];
+      const foundTel = c?.tel?.[0];
+      if (foundEmail) {
+        setEmail(foundEmail);
+        return;
+      }
+      if (foundTel) await inviteViaWhatsApp(foundTel);
     } catch {
       /* user cancelled the picker */
+    }
+  }
+
+  // Create a link invite and open WhatsApp to a phone number with it preloaded.
+  async function inviteViaWhatsApp(tel: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await apiPost<{ link: string; emailed: boolean }>(
+        `/api/gardens/${gardenId}/invites`,
+        {},
+      );
+      setResult(res);
+      const digits = tel.replace(/[^\d]/g, "");
+      const msg = `Come think this through with me on ThinkThru 🌱\n${res.link}`;
+      // location.href (not window.open) so it isn't popup-blocked after the await;
+      // on mobile this opens the WhatsApp app via the wa.me deep link.
+      window.location.href = `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't create the invite");
+    } finally {
+      setBusy(false);
     }
   }
 
