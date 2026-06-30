@@ -72,14 +72,30 @@ export function QuorumV2({ seedId }: { seedId: string }) {
 
   const showWeighIn = view.phase === "collecting";
 
+  const understand = view.template === "understand";
+
   return (
     <div className="space-y-4">
       <header className="text-center">
-        <h2 className="serif-lg">The Quorum</h2>
-        <p className="mx-auto mt-1 max-w-md text-xs text-ink-mid">
-          Everyone reads everyone — who carries the money, the effort, the heart, the
-          call. We turn those reads into one fair weight. You&apos;re one voice, yourself
-          included.
+        <h2 className="serif-lg">
+          {understand ? "Who helped it click?" : "Who's really carrying this one?"}
+        </h2>
+        <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-ink-mid">
+          {understand ? (
+            <>
+              This one was about understanding it together — so let&apos;s notice the people who
+              got us there. Whose question cracked it open? Who explained it so it finally made
+              sense? Read everyone honestly, you included, and we&apos;ll show the group what it
+              saw in each of you.
+            </>
+          ) : (
+            <>
+              Before we land on an answer, let&apos;s be honest with each other about who has the
+              most at stake here — the money, the effort, the heart, the call to make. Read the
+              room, yourself included, and we&apos;ll turn all those honest reads into one fair
+              weight. No one counts for more than they truly carry.
+            </>
+          )}
         </p>
       </header>
 
