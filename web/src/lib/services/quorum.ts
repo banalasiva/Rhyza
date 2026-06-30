@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { ensureSeedParticipant, requireSeedManager } from "@/lib/authz";
 import { QUORUM_DIMENSION_KEYS, QUORUM_DIMENSIONS, QUORUM_MAX_RANK } from "@/lib/constants";
-import { computeQuorum, type Gap, type Hardcodes, type Rankings } from "@/lib/quorum";
+import { computeQuorum, type EqualMap, type Gap, type Hardcodes, type Rankings } from "@/lib/quorum";
 import { listSeedPeople, type SeedPerson } from "./members";
 
 const DIM_SET = new Set<string>(QUORUM_DIMENSION_KEYS);
@@ -10,8 +10,17 @@ const MEASURABLE = new Set<string>(QUORUM_DIMENSIONS.filter((d) => d.measurable)
 type Phase = "collecting" | "revealed" | "locked";
 
 // JSON columns come back loosely typed; coerce defensively against bad data.
+// A ballot is stored either as a bare ordered array (ranked) or, when the rater
+// chose "spread equally", as { equal: true, ids: [...] } — handle both.
 function asIdList(v: unknown): string[] {
-  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string");
+  if (v && typeof v === "object" && Array.isArray((v as { ids?: unknown }).ids)) {
+    return (v as { ids: unknown[] }).ids.filter((x): x is string => typeof x === "string");
+  }
+  return [];
+}
+function asEqual(v: unknown): boolean {
+  return !!(v && typeof v === "object" && !Array.isArray(v) && (v as { equal?: unknown }).equal === true);
 }
 function asShares(v: unknown): Record<string, number> {
   const out: Record<string, number> = {};
@@ -51,6 +60,8 @@ export type QuorumView = {
   maxRank: number;
   // your own draft/submitted ballots, dimension -> ordered ids
   mine: Record<string, string[]>;
+  // which of your dimensions are in "spread equally" mode
+  mineEqual: Record<string, boolean>;
   youSubmitted: boolean;
   submittedCount: number; // how many people have committed their weigh-in
   totalPeople: number;
@@ -88,9 +99,11 @@ export async function getQuorumView(userId: string, seedId: string): Promise<Quo
   const phase: Phase = (stateRow?.phase as Phase) ?? "collecting";
 
   const mine: Record<string, string[]> = {};
+  const mineEqual: Record<string, boolean> = {};
   let youSubmitted = false;
   for (const b of myRows) {
     mine[b.dimension] = asIdList(b.ranking);
+    mineEqual[b.dimension] = asEqual(b.ranking);
     if (b.submitted) youSubmitted = true;
   }
 
@@ -109,10 +122,12 @@ export async function getQuorumView(userId: string, seedId: string): Promise<Quo
   let result: QuorumView["result"] = null;
   if (phase === "revealed" || phase === "locked") {
     const rankings: Rankings = {};
+    const equalMap: EqualMap = {};
     for (const b of submittedRows) {
       (rankings[b.raterId] ??= {})[b.dimension] = asIdList(b.ranking);
+      (equalMap[b.raterId] ??= {})[b.dimension] = asEqual(b.ranking);
     }
-    const full = computeQuorum(peopleIds, rankings, engineHardcodes);
+    const full = computeQuorum(peopleIds, rankings, engineHardcodes, equalMap);
     result = {
       weights: full.weights,
       dimensionPies: full.dimensionPies,
@@ -132,6 +147,7 @@ export async function getQuorumView(userId: string, seedId: string): Promise<Quo
     dimensions: QUORUM_DIMENSIONS,
     maxRank: QUORUM_MAX_RANK,
     mine,
+    mineEqual,
     youSubmitted,
     submittedCount: submittedRaters.size,
     totalPeople: peopleIds.length,
@@ -159,25 +175,35 @@ export async function saveWeighIn(
   const validIds = new Set(people.map((p) => p.id));
 
   // Clean every dimension up front so a bad one fails the whole save atomically.
-  const cleaned: { dimension: string; ranking: string[] }[] = [];
+  // `equal` rides along: when set, we store { equal: true, ids } instead of a
+  // bare array so the engine flattens that dimension's weights.
+  const cleaned: { dimension: string; ids: string[]; equal: boolean }[] = [];
   for (const dim of QUORUM_DIMENSION_KEYS) {
     if (!(dim in ballots)) continue;
-    cleaned.push({ dimension: dim, ranking: cleanRanking(dim, ballots[dim], validIds) });
+    cleaned.push({
+      dimension: dim,
+      ids: cleanRanking(dim, ballots[dim], validIds),
+      equal: asEqual(ballots[dim]),
+    });
   }
   if (submit) {
-    const ranked = new Set(cleaned.filter((c) => c.ranking.length > 0).map((c) => c.dimension));
+    const ranked = new Set(cleaned.filter((c) => c.ids.length > 0).map((c) => c.dimension));
     const missing = QUORUM_DIMENSION_KEYS.filter((d) => !ranked.has(d));
     if (missing.length > 0) {
       throw new ApiError("BAD_REQUEST", "Rank at least one person in every dimension before submitting.");
     }
   }
 
+  // The JSON we persist: equal dimensions as { equal, ids }, ranked as a plain array.
+  const stored = (c: { ids: string[]; equal: boolean }) =>
+    c.equal ? { equal: true, ids: c.ids } : c.ids;
+
   await db.$transaction(
     cleaned.map((c) =>
       db.quorumBallot.upsert({
         where: { seedId_raterId_dimension: { seedId, raterId: userId, dimension: c.dimension } },
-        update: { ranking: c.ranking, submitted: submit },
-        create: { seedId, raterId: userId, dimension: c.dimension, ranking: c.ranking, submitted: submit },
+        update: { ranking: stored(c), submitted: submit },
+        create: { seedId, raterId: userId, dimension: c.dimension, ranking: stored(c), submitted: submit },
       }),
     ),
   );

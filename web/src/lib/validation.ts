@@ -170,8 +170,18 @@ export const seedMemberActionSchema = z.object({
 const quorumDimEnum = z.enum(QUORUM_DIMENSION_KEYS as [string, ...string[]]);
 
 // Save/submit a weigh-in: dimension -> ordered list of people, best first.
+// A dimension's ballot: either an ordered array (ranked), or { equal, ids } when
+// the rater chose "spread equally" (everyone listed counts the same).
+const quorumBallotValue = z.union([
+  z.array(z.string().uuid()).max(QUORUM_MAX_RANK),
+  z.object({
+    equal: z.literal(true),
+    ids: z.array(z.string().uuid()).max(QUORUM_MAX_RANK),
+  }),
+]);
+
 export const quorumWeighInSchema = z.object({
-  ballots: z.record(quorumDimEnum, z.array(z.string().uuid()).max(QUORUM_MAX_RANK)),
+  ballots: z.record(quorumDimEnum, quorumBallotValue),
   submit: z.boolean().optional().default(false),
 });
 

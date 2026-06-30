@@ -36,6 +36,7 @@ type View = {
   dimensions: Dimension[];
   maxRank: number;
   mine: Record<string, string[]>;
+  mineEqual: Record<string, boolean>;
   youSubmitted: boolean;
   submittedCount: number;
   totalPeople: number;
@@ -102,6 +103,11 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
     for (const d of dims) init[d.key] = [...(view.mine[d.key] ?? [])];
     return init;
   });
+  const [equal, setEqual] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    for (const d of dims) init[d.key] = !!view.mineEqual[d.key];
+    return init;
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -116,6 +122,11 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
   const ranked = ranks[dim.key] ?? [];
   const pool = view.people.filter((p) => !ranked.includes(p.id));
   const atCap = ranked.length >= view.maxRank;
+  const isEqual = !!equal[dim.key];
+
+  function toggleEqual() {
+    setEqual((e) => ({ ...e, [dim.key]: !e[dim.key] }));
+  }
 
   function setDimRanks(next: string[]) {
     setRanks((r) => ({ ...r, [dim.key]: next }));
@@ -139,7 +150,12 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
     setBusy(true);
     setError(null);
     try {
-      await apiPut(`/api/seeds/${seedId}/quorum`, { ballots: ranks, submit });
+      const ballots: Record<string, string[] | { equal: true; ids: string[] }> = {};
+      for (const d of dims) {
+        const ids = ranks[d.key] ?? [];
+        ballots[d.key] = equal[d.key] ? { equal: true, ids } : ids;
+      }
+      await apiPut(`/api/seeds/${seedId}/quorum`, { ballots, submit });
       if (submit) {
         setDone(true);
         await reload();
@@ -196,9 +212,27 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
           </span>
         </div>
         <p className="serif-lg mb-1">{dim.question}</p>
-        <p className="mb-3 text-[11px] text-ink-soft">
-          Rank who most embodies this — drag, or tap to add then use ↑↓. Up to {view.maxRank}.
-        </p>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p className="text-[11px] text-ink-soft">
+            {isEqual
+              ? "Everyone you add counts the same — order doesn’t matter."
+              : `Rank who most embodies this — drag, or tap to add then use ↑↓. Up to ${view.maxRank}.`}
+          </p>
+          <button
+            type="button"
+            onClick={toggleEqual}
+            aria-pressed={isEqual}
+            className={
+              "shrink-0 rounded-full border px-2.5 py-1 text-[11px] transition " +
+              (isEqual
+                ? "border-accent bg-[rgba(76,175,80,0.16)] text-ink"
+                : "border-[rgba(255,255,255,0.14)] text-ink-soft hover:border-[rgba(76,175,80,0.4)] hover:text-ink")
+            }
+            title="Everyone counts the same on this dimension"
+          >
+            ⚖️ {isEqual ? "Equal" : "Spread equally"}
+          </button>
+        </div>
 
         {/* ranked list */}
         {ranked.length > 0 ? (
@@ -208,23 +242,29 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
               return (
                 <li
                   key={id}
-                  draggable
-                  onDragStart={() => setDrag(i)}
+                  draggable={!isEqual}
+                  onDragStart={() => !isEqual && setDrag(i)}
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={() => {
-                    if (drag !== null && drag !== i) move(drag, i);
+                    if (!isEqual && drag !== null && drag !== i) move(drag, i);
                     setDrag(null);
                   }}
                   className="flex items-center gap-2 rounded-xl border border-[rgba(76,175,80,0.25)] bg-[rgba(76,175,80,0.06)] px-2 py-1.5"
                 >
-                  <span className="w-5 shrink-0 text-center text-xs font-semibold text-accent">{i + 1}</span>
+                  <span className="w-5 shrink-0 text-center text-xs font-semibold text-accent">
+                    {isEqual ? "=" : i + 1}
+                  </span>
                   <Avatar name={p?.name ?? "?"} image={p?.image ?? null} size={26} />
                   <span className="min-w-0 flex-1 truncate text-sm text-ink">
                     {p?.name ?? "Someone"} {p?.isYou && <span className="text-ink-soft">(you)</span>}
                   </span>
                   <div className="flex shrink-0 items-center gap-0.5">
-                    <button onClick={() => move(i, i - 1)} disabled={i === 0} aria-label="Move up" className="rounded px-1.5 py-0.5 text-ink-soft transition hover:text-ink disabled:opacity-30">↑</button>
-                    <button onClick={() => move(i, i + 1)} disabled={i === ranked.length - 1} aria-label="Move down" className="rounded px-1.5 py-0.5 text-ink-soft transition hover:text-ink disabled:opacity-30">↓</button>
+                    {!isEqual && (
+                      <>
+                        <button onClick={() => move(i, i - 1)} disabled={i === 0} aria-label="Move up" className="rounded px-1.5 py-0.5 text-ink-soft transition hover:text-ink disabled:opacity-30">↑</button>
+                        <button onClick={() => move(i, i + 1)} disabled={i === ranked.length - 1} aria-label="Move down" className="rounded px-1.5 py-0.5 text-ink-soft transition hover:text-ink disabled:opacity-30">↓</button>
+                      </>
+                    )}
                     <button onClick={() => remove(id)} aria-label="Remove" className="rounded px-1.5 py-0.5 text-ink-soft transition hover:text-[#e57373]">✕</button>
                   </div>
                 </li>

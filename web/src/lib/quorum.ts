@@ -16,6 +16,9 @@ import { QUORUM_DIMENSION_KEYS, QUORUM_DIMENSIONS } from "./constants";
 
 // raterId -> dimensionKey -> ordered rateeIds (best first), length ≤ QUORUM_MAX_RANK
 export type Rankings = Record<string, Record<string, string[]>>;
+// raterId -> dimensionKey -> true when the rater chose "spread equally" for that
+// dimension (everyone they listed counts the same, no ordering).
+export type EqualMap = Record<string, Record<string, boolean>>;
 // An admin override for a measurable dimension: shares by userId (any positive scale).
 export type Hardcode = { byId: string; byName: string; shares: Record<string, number> };
 export type Hardcodes = Record<string, Hardcode | undefined>;
@@ -39,12 +42,20 @@ export type QuorumResult = {
 };
 
 // A ranking of length k gives the person at index i (best first) a weight that
-// sums to 1 across the ranking: linear, top-heavy.
-function positionWeights(ranking: string[]): Record<string, number> {
+// sums to 1 across the ranking: linear, top-heavy. When `equal` is set the rater
+// said "spread equally" — everyone listed gets the same 1/k, order ignored. The
+// per-rater total is 1 either way, so it stays one equal voice.
+function positionWeights(ranking: string[], equal = false): Record<string, number> {
   const k = ranking.length;
   if (k === 0) return {};
-  const denom = (k * (k + 1)) / 2;
   const out: Record<string, number> = {};
+  if (equal) {
+    ranking.forEach((id) => {
+      out[id] = 1 / k;
+    });
+    return out;
+  }
+  const denom = (k * (k + 1)) / 2;
   ranking.forEach((id, i) => {
     out[id] = (k - i) / denom;
   });
@@ -63,6 +74,7 @@ export function computeQuorum(
   peopleIds: string[],
   rankings: Rankings,
   hardcodes: Hardcodes = {},
+  equalMap: EqualMap = {},
 ): QuorumResult {
   const dims = QUORUM_DIMENSION_KEYS as readonly string[];
   const dimensionPies: Record<string, Record<string, number>> = {};
@@ -80,7 +92,7 @@ export function computeQuorum(
     for (const raterId of Object.keys(rankings)) {
       const ranking = rankings[raterId]?.[dim];
       if (!ranking || ranking.length === 0) continue;
-      const w = positionWeights(ranking);
+      const w = positionWeights(ranking, equalMap[raterId]?.[dim]);
       for (const [rateeId, wt] of Object.entries(w)) raw[rateeId] = (raw[rateeId] ?? 0) + wt;
     }
     dimensionPies[dim] = normalize(raw);
@@ -124,7 +136,9 @@ export function computeQuorum(
       if (hardcodes[dim]) continue; // hardcoded dims have no self/room gap
       const myRanking = rankings[P]?.[dim];
       const self: number | null =
-        myRanking && myRanking.length > 0 ? positionWeights(myRanking)[P] ?? 0 : null;
+        myRanking && myRanking.length > 0
+          ? positionWeights(myRanking, equalMap[P]?.[dim])[P] ?? 0
+          : null;
 
       let roomSum = 0;
       let roomCount = 0;
@@ -132,7 +146,7 @@ export function computeQuorum(
         if (raterId === P) continue;
         const r = rankings[raterId]?.[dim];
         if (!r || r.length === 0) continue;
-        roomSum += positionWeights(r)[P] ?? 0; // ranked others but not you → 0
+        roomSum += positionWeights(r, equalMap[raterId]?.[dim])[P] ?? 0; // ranked others but not you → 0
         roomCount += 1;
       }
       const room = roomCount > 0 ? roomSum / roomCount : 0;
