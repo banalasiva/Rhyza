@@ -328,6 +328,79 @@ export async function classifyDimension(input: {
   }
 }
 
+// One grounded observation about a person's thinking in an "Understand together"
+// thread — Claude as a *spotter* of real human contribution, not an explainer.
+export type LearningMoment = {
+  person: string; // an actual participant's name
+  kind: string; // which strength it shows, e.g. "Opened it up"
+  quote: string; // a short, real quote/paraphrase from their contribution
+  note: string; // one line on why it mattered
+};
+
+// Read an Understand-together thread and surface the human moments that opened
+// it up / made it click / showed real understanding — attributed by name and
+// grounded in what was ACTUALLY said. Deliberately NOT an explainer (that's a
+// commodity) and deliberately NOT a flatterer: it must quote real text, and it's
+// told to return fewer — or none — rather than manufacture praise. Best-effort:
+// returns [] if AI is off, nothing genuine stands out, or anything fails.
+export async function spotLearningMoments(input: {
+  title: string;
+  content: string;
+  contributions: ContribForAI[];
+  participants: string[];
+}): Promise<LearningMoment[]> {
+  if (!aiConfigured() || input.contributions.length === 0) return [];
+  try {
+    const prompt = [
+      `TOPIC: ${input.title}`,
+      input.content.trim() ? `FRAMING: ${input.content.trim().slice(0, 600)}` : "",
+      `\nPARTICIPANTS (attribute only to these exact names): ${input.participants.join(", ")}`,
+      `\nTHE THREAD:\n${renderThread(input.contributions)}`,
+      `\nReturn the genuine standout moments as a JSON array (max 5), each:`,
+      `{"person":"<exact name>","kind":"Opened it up|Made it click|Really gets it|Leveling up|Lifted others","quote":"<short real quote or close paraphrase from their words>","note":"<one line on why it moved the group's understanding>"}`,
+      `Return ONLY the JSON array. If nothing genuinely stands out, return [].`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const out = await complete(
+      "You are a careful observer of how a group thinks together — you spot the people whose " +
+        "contributions actually moved everyone's understanding. You are NOT here to explain the " +
+        "topic, and you are NOT here to make anyone feel good: empty praise is worse than silence. " +
+        "Every moment you surface MUST be anchored to something the person really said (quote or close " +
+        "paraphrase). Prefer fewer, truer moments over many. If a contribution was ordinary, leave it " +
+        "out. Never invent a quote, never attribute to someone not listed. Output only a JSON array.",
+      prompt,
+      1024,
+    );
+    const start = out.indexOf("[");
+    const end = out.lastIndexOf("]");
+    if (start === -1 || end === -1 || end < start) return [];
+    const parsed: unknown = JSON.parse(out.slice(start, end + 1));
+    if (!Array.isArray(parsed)) return [];
+    const valid = new Set(input.participants);
+    return parsed
+      .filter(
+        (m): m is LearningMoment =>
+          !!m &&
+          typeof m === "object" &&
+          typeof (m as LearningMoment).person === "string" &&
+          valid.has((m as LearningMoment).person) &&
+          typeof (m as LearningMoment).quote === "string" &&
+          (m as LearningMoment).quote.trim().length > 0,
+      )
+      .slice(0, 5)
+      .map((m) => ({
+        person: m.person,
+        kind: typeof m.kind === "string" ? m.kind : "Stood out",
+        quote: m.quote.trim().slice(0, 240),
+        note: typeof m.note === "string" ? m.note.trim().slice(0, 200) : "",
+      }));
+  } catch (err) {
+    console.error("spotLearningMoments failed", err);
+    return [];
+  }
+}
+
 // Infer 1–3 Explore topics for a seed being shared to the world, from the fixed
 // EXPLORE_TOPICS taxonomy. Best-effort: returns [] if AI is off or anything
 // fails — Explore still works untagged, just without personalisation for it.

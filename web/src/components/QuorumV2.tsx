@@ -28,6 +28,7 @@ type Result = {
   carriesId: string | null;
   tensions: { text: string }[];
   myGap: Gap[];
+  observations: { person: string; kind: string; quote: string; note: string }[];
 };
 type View = {
   phase: "collecting" | "revealed" | "locked";
@@ -461,6 +462,32 @@ function Reveal({ view, result }: { view: View; result: Result }) {
           <ul className="space-y-1.5">
             {result.tensions.map((t, i) => (
               <li key={i} className="text-xs text-ink-mid">{t.text}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* What Claude noticed — kept deliberately separate from the peer vote
+          above, and grounded in real quotes (no hollow praise). */}
+      {result.observations.length > 0 && (
+        <section className="card border-[rgba(66,165,245,0.3)] bg-[rgba(66,165,245,0.05)] p-4">
+          <h3 className="text-sm font-semibold text-ink">🔍 What Claude noticed</h3>
+          <p className="mb-3 mt-0.5 text-[11px] text-ink-soft">
+            The vote above is what your peers saw. This is what Claude spotted in the thread —
+            grounded in what people actually said.
+          </p>
+          <ul className="space-y-2.5">
+            {result.observations.map((o, i) => (
+              <li key={i} className="rounded-xl border border-[rgba(66,165,245,0.18)] bg-[rgba(7,13,7,0.4)] p-3">
+                <p className="text-sm text-ink">
+                  <span className="font-medium">{o.person}</span>
+                  <span className="text-ink-soft"> · {o.kind}</span>
+                </p>
+                <blockquote className="mt-1 border-l-2 border-[rgba(66,165,245,0.5)] pl-2.5 text-xs italic text-ink-mid">
+                  “{o.quote}”
+                </blockquote>
+                {o.note && <p className="mt-1 text-[11px] text-ink-soft">{o.note}</p>}
+              </li>
             ))}
           </ul>
         </section>

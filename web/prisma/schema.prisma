@@ -495,10 +495,13 @@ model QuorumHardcode {
 // Per-seed quorum phase. collecting (people weigh in privately) → revealed (the
 // pies, weights, gaps and tensions are shown) → locked (frozen for the bloom).
 model QuorumState {
-  seedId    String   @id @map("seed_id") @db.Uuid
-  phase     String   @default("collecting") // collecting | revealed | locked
-  template  String   @default("decide") // which dimension set: decide | understand
-  updatedAt DateTime @updatedAt @map("updated_at")
+  seedId       String   @id @map("seed_id") @db.Uuid
+  phase        String   @default("collecting") // collecting | revealed | locked
+  template     String   @default("decide") // which dimension set: decide | understand
+  // "What Claude noticed" — grounded learning-moment observations, generated once
+  // at reveal for Understand-together quorums. JSON array of LearningMoment.
+  observations Json?    @map("observations")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
 

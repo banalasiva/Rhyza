@@ -133,6 +133,11 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "quorum_state.template",
     sql: `ALTER TABLE "quorum_state" ADD COLUMN IF NOT EXISTS "template" TEXT NOT NULL DEFAULT 'decide'`,
   },
+  // 20260630070000_quorum_observations
+  {
+    label: "quorum_state.observations",
+    sql: `ALTER TABLE "quorum_state" ADD COLUMN IF NOT EXISTS "observations" JSONB`,
+  },
 
   // 20260630050000_perf_indexes
   {

@@ -8,25 +8,51 @@ import {
   type QuorumDimension,
 } from "@/lib/constants";
 import { computeQuorum, type EqualMap, type Gap, type Hardcodes, type Rankings } from "@/lib/quorum";
+import { spotLearningMoments, type ContribForAI, type LearningMoment } from "@/lib/ai";
 import { listSeedPeople, type SeedPerson } from "./members";
 
 type Phase = "collecting" | "revealed" | "locked";
 
-// Resolve a seed's Quorum purpose (dimension set). Resilient to the template
-// column not existing yet (pre-migration) — falls back to "decide".
-async function loadQuorumState(seedId: string): Promise<{ phase: Phase; template: string }> {
+// Resolve a seed's Quorum purpose + cached observations. Progressive fallback so
+// any subset of the newer columns (template, observations) not being migrated
+// yet never breaks the read — it just degrades to defaults.
+type QuorumStateLite = { phase: Phase; template: string; observations: unknown };
+async function loadQuorumState(seedId: string): Promise<QuorumStateLite> {
+  try {
+    const row = await db.quorumState.findUnique({
+      where: { seedId },
+      select: { phase: true, template: true, observations: true },
+    });
+    return {
+      phase: (row?.phase as Phase) ?? "collecting",
+      template: row?.template ?? "decide",
+      observations: row?.observations ?? null,
+    };
+  } catch {
+    /* observations column not migrated yet */
+  }
   try {
     const row = await db.quorumState.findUnique({
       where: { seedId },
       select: { phase: true, template: true },
     });
-    return { phase: (row?.phase as Phase) ?? "collecting", template: row?.template ?? "decide" };
+    return { phase: (row?.phase as Phase) ?? "collecting", template: row?.template ?? "decide", observations: null };
   } catch {
-    const row = await db.quorumState
-      .findUnique({ where: { seedId }, select: { phase: true } })
-      .catch(() => null);
-    return { phase: (row?.phase as Phase) ?? "collecting", template: "decide" };
+    /* template column not migrated yet */
   }
+  const row = await db.quorumState
+    .findUnique({ where: { seedId }, select: { phase: true } })
+    .catch(() => null);
+  return { phase: (row?.phase as Phase) ?? "collecting", template: "decide", observations: null };
+}
+
+// Coerce stored JSON into LearningMoment[] defensively.
+function asMoments(v: unknown): LearningMoment[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter(
+    (m): m is LearningMoment =>
+      !!m && typeof m === "object" && typeof (m as LearningMoment).person === "string",
+  );
 }
 
 // JSON columns come back loosely typed; coerce defensively against bad data.
@@ -102,6 +128,8 @@ export type QuorumView = {
     carriesId: string | null;
     tensions: { text: string }[];
     myGap: Gap[];
+    // "What Claude noticed" — only for Understand-together quorums.
+    observations: LearningMoment[];
   };
 };
 
@@ -165,6 +193,7 @@ export async function getQuorumView(userId: string, seedId: string): Promise<Quo
       carriesId: full.carriesId,
       tensions: full.tensions,
       myGap: full.gaps[userId] ?? [],
+      observations: tmpl.key === "understand" ? asMoments(state.observations) : [],
     };
   }
 
@@ -282,6 +311,42 @@ export async function clearHardcode(userId: string, seedId: string, dimension: s
   return { ok: true };
 }
 
+// "What Claude noticed" — read the whole thread and surface grounded, attributed
+// learning moments, cached on the quorum. Best-effort: generated at reveal for
+// Understand-together quorums, never blocks the reveal on failure.
+async function generateObservations(seedId: string): Promise<void> {
+  const seed = await db.seed.findUnique({
+    where: { id: seedId },
+    select: {
+      title: true,
+      content: true,
+      contributions: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        take: 300,
+        select: { dimension: true, content: true, author: { select: { name: true } } },
+      },
+    },
+  });
+  if (!seed) return;
+  const contributions: ContribForAI[] = seed.contributions
+    .map((c: { dimension: string; content: unknown; author: { name: string | null } }) => ({
+      dimension: c.dimension,
+      author: c.author.name || "A member",
+      text: (c.content as { text?: string } | null)?.text ?? "",
+    }))
+    .filter((c: ContribForAI) => c.text.trim().length > 0);
+  if (contributions.length === 0) return;
+  const participants = Array.from(new Set(contributions.map((c) => c.author)));
+  const moments = await spotLearningMoments({
+    title: seed.title,
+    content: seed.content,
+    contributions,
+    participants,
+  });
+  await db.quorumState.update({ where: { seedId }, data: { observations: moments } }).catch(() => {});
+}
+
 // Move the board between collecting -> revealed -> locked. Manager-only.
 export async function setPhase(userId: string, seedId: string, phase: string) {
   await requireSeedManager(userId, seedId);
@@ -293,6 +358,17 @@ export async function setPhase(userId: string, seedId: string, phase: string) {
     update: { phase },
     create: { seedId, phase },
   });
+  // On reveal of an Understand-together quorum, spot the human moments Claude saw.
+  if (phase === "revealed") {
+    const state = await loadQuorumState(seedId);
+    if (state.template === "understand") {
+      try {
+        await generateObservations(seedId);
+      } catch (err) {
+        console.error("[quorum] generateObservations failed", err);
+      }
+    }
+  }
   return { ok: true, phase };
 }
 
