@@ -320,6 +320,13 @@ export function SeedRoom({
     return Math.max(ids.size, 1);
   }, [contributions, seed.author]);
 
+  // The readiness bars are read against the whole quorum (everyone in the
+  // conversation, AI included), NOT just the people who've voted — so two
+  // votes out of six reads as 33%, not 50%, and the rest shows as "not yet."
+  const quorumSize = Math.max(participants, totalVotes, 1);
+  const notVoted = Math.max(0, quorumSize - totalVotes);
+  const pctOfQuorum = (votes: number) => Math.round((votes / quorumSize) * 100);
+
   const dimsWithContribs = useMemo(
     () => new Set(contributions.map((c) => c.dimension)).size,
     [contributions],
@@ -1573,39 +1580,50 @@ export function SeedRoom({
               </span>
             </div>
             <p className="mx-auto mb-4 max-w-sm text-center text-xs text-ink-soft">
-              The plant grows as the group feels this conversation maturing — it’s everyone’s
-              shared sense of how ready it is. Tell us where you think it’s at:
+              Voting shares your read with everyone here — it’s how the group sees whether
+              we’re converging or still finding our way. The plant grows to match where most
+              people feel it stands.
             </p>
 
             {/* Community feels */}
-            <p className="eyebrow mb-3">
-              How ready does this feel? · <span className="text-ink-soft">{totalVotes}/{participants} voted</span>
+            <p className="eyebrow mb-1">
+              How ready does this feel?
+            </p>
+            <p className="mb-3 text-[11px] text-ink-soft">
+              {totalVotes} of {quorumSize} {quorumSize === 1 ? "member" : "members"} voted
+              {notVoted > 0 && ` · ${notVoted} not yet`}
             </p>
             <div className="space-y-2">
               {STAGES.map((s) => {
                 const d = distribution.find((x) => x.stage === s.key)!;
                 const mine = myVote === s.key;
+                const pct = pctOfQuorum(d.votes);
                 return (
                   <button
                     key={s.key}
                     onClick={() => vote(s.key)}
                     disabled={busy || isBloomed}
                     aria-pressed={mine}
-                    aria-label={`Vote this seed is at: ${s.label} (${d.pct}%)`}
+                    aria-label={`Vote this seed is at: ${s.label} (${d.votes} of ${quorumSize})`}
                     className="block w-full rounded-xl border p-2 text-left transition disabled:cursor-default"
                     style={{ borderColor: mine ? "rgba(76,175,80,0.4)" : "rgba(255,255,255,0.06)" }}
                   >
                     <div className="mb-1 flex items-center justify-between text-xs">
                       <span style={{ color: mine ? "#66BB6A" : "#C8C4BC" }}>{s.emoji} {s.label}</span>
-                      <span className="text-ink-soft">{d.pct}%</span>
+                      <span className="text-ink-soft">{pct}%</span>
                     </div>
                     <div className="h-1.5 overflow-hidden rounded-full bg-[rgba(255,255,255,0.05)]">
-                      <div className="h-full rounded-full" style={{ width: `${d.pct}%`, background: s.key === "bloomed" ? "linear-gradient(to right,#FFD54F,#FF8F00)" : "#4CAF50", transition: "width 0.6s" }} />
+                      <div className="h-full rounded-full" style={{ width: `${pct}%`, background: s.key === "bloomed" ? "linear-gradient(to right,#FFD54F,#FF8F00)" : "#4CAF50", transition: "width 0.6s" }} />
                     </div>
                   </button>
                 );
               })}
             </div>
+            {notVoted > 0 && !isBloomed && (
+              <p className="mt-2 text-center text-[11px] text-ink-soft">
+                {notVoted} {notVoted === 1 ? "person hasn’t" : "people haven’t"} weighed in yet — percentages are out of all {quorumSize}.
+              </p>
+            )}
             {myVote === null && !isBloomed && (
               <p className="mt-2 text-center text-xs italic text-ink-soft">Tap a stage to vote → watch the plant respond</p>
             )}
