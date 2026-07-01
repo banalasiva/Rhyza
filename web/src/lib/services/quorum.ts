@@ -294,6 +294,8 @@ export async function saveWeighIn(
           console.error("[quorum] auto-reveal observations failed", err);
         }
       }
+      // Everyone's in — announce the result (the actor is the last submitter).
+      await announceQuorumReveal(seedId, userId, state.template);
     }
   }
   return { ok: true, submitted: submit, revealed };
@@ -401,28 +403,35 @@ export async function setPhase(userId: string, seedId: string, phase: string) {
       }
     }
     // Tell everyone in the seed the result is in — this is the payoff moment.
+    // Only on the first reveal (not a reopen-then-reveal).
     if (prev?.phase !== "revealed") {
-      const seed = await db.seed.findUnique({
-        where: { id: seedId },
-        select: { id: true, title: true, createdById: true },
-      });
-      if (seed) {
-        const understand = state.template === "understand";
-        await notifySeedAudience({
-          actorId: userId,
-          seed,
-          type: "stage_change",
-          title: understand
-            ? `See who helped it click — “${seed.title}”`
-            : `The result is in — “${seed.title}”`,
-          body: understand
-            ? "The recognition is in. See what the group noticed in each of you 🌱"
-            : "The group's read is ready — see who's really carrying this one.",
-        });
-      }
+      await announceQuorumReveal(seedId, userId, state.template);
     }
   }
   return { ok: true, phase };
+}
+
+// The result is in — announce it to everyone in the seed, over push. Shared by
+// the admin's manual reveal and the automatic reveal when the last person
+// submits, so the payoff moment is never silent whichever way it happens.
+async function announceQuorumReveal(seedId: string, actorId: string, template: string) {
+  const seed = await db.seed.findUnique({
+    where: { id: seedId },
+    select: { id: true, title: true, createdById: true },
+  });
+  if (!seed) return;
+  const understand = template === "understand";
+  await notifySeedAudience({
+    actorId,
+    seed,
+    type: "stage_change",
+    title: understand
+      ? `See who helped it click — “${seed.title}”`
+      : `The result is in — “${seed.title}”`,
+    body: understand
+      ? "The recognition is in. See what the group noticed in each of you 🌱"
+      : "Everyone's read is in — see who's really carrying this one.",
+  });
 }
 
 // Choose the Quorum's purpose (dimension set). Manager-only, and only while
