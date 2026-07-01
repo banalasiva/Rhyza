@@ -10,6 +10,7 @@ import {
 import { computeQuorum, type EqualMap, type Gap, type Hardcodes, type Rankings } from "@/lib/quorum";
 import { spotLearningMoments, type ContribForAI, type LearningMoment } from "@/lib/ai";
 import { listSeedPeople, type SeedPerson } from "./members";
+import { notifySeedAudience } from "@/lib/services/seed-notify";
 
 type Phase = "collecting" | "revealed" | "locked";
 
@@ -379,6 +380,11 @@ export async function setPhase(userId: string, seedId: string, phase: string) {
   if (phase !== "collecting" && phase !== "revealed" && phase !== "locked") {
     throw new ApiError("BAD_REQUEST", "Unknown phase.");
   }
+  // Was it already revealed? So we only announce the *first* reveal, not a
+  // reopen-then-reveal.
+  const prev = await db.quorumState
+    .findUnique({ where: { seedId }, select: { phase: true } })
+    .catch(() => null);
   await db.quorumState.upsert({
     where: { seedId },
     update: { phase },
@@ -392,6 +398,27 @@ export async function setPhase(userId: string, seedId: string, phase: string) {
         await generateObservations(seedId);
       } catch (err) {
         console.error("[quorum] generateObservations failed", err);
+      }
+    }
+    // Tell everyone in the seed the result is in — this is the payoff moment.
+    if (prev?.phase !== "revealed") {
+      const seed = await db.seed.findUnique({
+        where: { id: seedId },
+        select: { id: true, title: true, createdById: true },
+      });
+      if (seed) {
+        const understand = state.template === "understand";
+        await notifySeedAudience({
+          actorId: userId,
+          seed,
+          type: "stage_change",
+          title: understand
+            ? `See who helped it click — “${seed.title}”`
+            : `The result is in — “${seed.title}”`,
+          body: understand
+            ? "The recognition is in. See what the group noticed in each of you 🌱"
+            : "The group's read is ready — see who's really carrying this one.",
+        });
       }
     }
   }
