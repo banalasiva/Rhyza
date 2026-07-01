@@ -1955,7 +1955,7 @@ export function SeedRoom({
                 aria-expanded={inviteOpen}
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
               >
-                🔗 Invite people
+                ➕ Add members
               </button>
               {seed.canManage && (
                 <button
