@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { requireViewer } from "@/lib/session";
 import { listGardens } from "@/lib/services/gardens";
 import { NavBar } from "@/components/NavBar";
@@ -7,6 +6,7 @@ import { HashFocus } from "@/components/HashFocus";
 import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 import { MorningQuote } from "@/components/MorningQuote";
 import { WaitingForThem } from "@/components/WaitingForThem";
+import { Feed } from "@/components/Feed";
 
 export default async function GardensHome() {
   const viewer = await requireViewer();
@@ -37,30 +37,16 @@ export default async function GardensHome() {
           </>
         ) : (
           <>
-            <p className="eyebrow mb-2">Your gardens</p>
-            <h1 className="serif-xl mb-8">What will the community grow today?</h1>
-            <div className="mb-10 grid gap-4 sm:grid-cols-2">
-              {gardens.map((g) => (
-                <Link key={g.id} href={`/gardens/${g.id}`} className="card block p-5 transition hover:border-accent">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="text-xl">{g.emoji}</span>
-                    <span className="font-serif text-lg text-ink">{g.name}</span>
-                  </div>
-                  {g.description && (
-                    <p className="mb-3 line-clamp-2 text-sm text-ink-mid">{g.description}</p>
-                  )}
-                  <div className="flex gap-4 text-xs text-ink-soft">
-                    <span>🌱 {g.seedCount} seeds</span>
-                    <span>🌸 {g.bloomCount} blooms</span>
-                    <span>👥 {g.memberCount}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-            <div id="new-garden" className="card p-5">
+            <h1 className="serif-xl mb-4">What will the community grow today?</h1>
+            {/* Start-something composer (also the target of the side panel's
+                "New garden") — kept at the top, feed below, like a social home. */}
+            <div id="new-garden" className="card mb-6 p-4">
               <p className="eyebrow mb-3">Plant a new garden</p>
               <CreateGardenForm />
             </div>
+            {/* The feed — an infinite, private-first river of seeds worth your
+                thought. Your gardens live in the side panel. */}
+            <Feed />
           </>
         )}
       </main>
