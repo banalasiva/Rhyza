@@ -291,6 +291,10 @@ export function SeedRoom({
   // (deletes) with a short time window.
   const pendingRef = useRef<Map<string, number>>(new Map());
   const removedRef = useRef<Map<string, number>>(new Map());
+  // How many of the viewer's own posts are in flight. While > 0 the live poll
+  // leaves the thread alone, so the server's copy of a just-sent message can't
+  // appear alongside its optimistic twin (the "two then one" flash).
+  const postingRef = useRef(0);
   const markPending = useCallback((id: string) => {
     pendingRef.current.set(id, Date.now());
   }, []);
@@ -315,6 +319,9 @@ export function SeedRoom({
         for (const [id, t0] of removedRef.current) if (now - t0 > 8000) removedRef.current.delete(id);
 
         setContributions((prev) => {
+          // Don't reconcile while the viewer is mid-post — otherwise the
+          // server's freshly-saved copy shows next to the optimistic temp.
+          if (postingRef.current > 0) return prev;
           const prevById = new Map(prev.map((c) => [c.id, c]));
           const temps = prev.filter((c) => c.id.startsWith("temp-"));
           const merged: Contribution[] = [];
@@ -439,6 +446,7 @@ export function SeedRoom({
     if (text.length === 0 && draftAttachments.length === 0) return;
     setBusy(true);
     setError(null);
+    postingRef.current += 1; // pause the live poll until this post settles
     const tagsClaude = /(^|[^a-zA-Z0-9])@claude\b/i.test(text);
     const tagsChatGpt = /(^|[^a-zA-Z0-9])@(chatgpt|openai|gpt)\b/i.test(text);
     const tagsAI = tagsClaude || tagsChatGpt;
@@ -477,10 +485,20 @@ export function SeedRoom({
         attachments: sentAttachments,
       });
       const replies = c.aiReplies ?? [];
-      // Swap the optimistic copy for the server's record, then append AI replies.
+      // Swap the optimistic copy for the server's record, then append AI replies
+      // — de-duping in case a live poll already slipped the server's copy in.
       setContributions((prev) => {
-        const next = prev.map((x) => (x.id === tempId ? hydrate(c) : x));
-        for (const r of replies) next.push(hydrate(r));
+        const next = prev.filter((x) => x.id !== tempId);
+        const ids = new Set(next.map((x) => x.id));
+        if (!ids.has(c.id)) {
+          next.push(hydrate(c));
+          ids.add(c.id);
+        }
+        for (const r of replies)
+          if (!ids.has(r.id)) {
+            next.push(hydrate(r));
+            ids.add(r.id);
+          }
         return next;
       });
       if (replies.length) playNatureSound("chirp");
@@ -502,6 +520,7 @@ export function SeedRoom({
     } finally {
       setThinking(false);
       setBusy(false);
+      postingRef.current = Math.max(0, postingRef.current - 1);
     }
   }
 
