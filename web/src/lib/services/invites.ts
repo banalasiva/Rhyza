@@ -25,22 +25,65 @@ export async function listPendingInvites(userId: string) {
       status: "pending",
       expiresAt: { gt: new Date() },
     },
-    orderBy: { createdAt: "desc" },
-    take: 50,
+    orderBy: { createdAt: "desc" }, // newest first, so dedupe keeps the freshest
+    take: 200,
     include: {
       seed: { select: { id: true, title: true } },
       garden: { select: { name: true } },
     },
   });
-  return invites.map((i) => ({
-    id: i.id,
-    email: i.email,
-    // What they were invited into, for the warm message ("…on <place>").
-    place: i.seed?.title ?? i.garden?.name ?? null,
-    seedId: i.seedId,
-    link: inviteLink(i.token),
-    invitedAt: i.createdAt.toISOString(),
-  }));
+
+  // Someone can have several pending invites to the same place (each Copy/Share
+  // makes a fresh link), and can join through one while the others stay
+  // "pending". So: (1) hide anyone whose invited email is already a member of
+  // that invite's org, and (2) collapse duplicates to one row per person.
+  const emails = [...new Set(invites.map((i) => i.email?.toLowerCase()).filter(Boolean))] as string[];
+  const joined = new Set<string>(); // "orgId:email" for people already in
+  if (emails.length) {
+    const users = await db.user.findMany({
+      where: { email: { in: emails } },
+      select: { id: true, email: true },
+    });
+    if (users.length) {
+      const orgIds = [...new Set(invites.map((i) => i.orgId))];
+      const members = await db.orgMember.findMany({
+        where: { userId: { in: users.map((u) => u.id) }, orgId: { in: orgIds } },
+        select: { userId: true, orgId: true },
+      });
+      const emailById = new Map(users.map((u) => [u.id, u.email.toLowerCase()]));
+      for (const m of members) {
+        const e = emailById.get(m.userId);
+        if (e) joined.add(`${m.orgId}:${e}`);
+      }
+    }
+  }
+
+  const seen = new Set<string>();
+  const out: {
+    id: string;
+    email: string | null;
+    place: string | null;
+    seedId: string | null;
+    link: string;
+    invitedAt: string;
+  }[] = [];
+  for (const i of invites) {
+    const email = i.email?.toLowerCase() ?? null;
+    if (email && joined.has(`${i.orgId}:${email}`)) continue; // already joined
+    // One row per person: by email, or by scope for anonymous link invites.
+    const key = email ?? `link:${i.seedId ?? i.gardenId ?? i.orgId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      id: i.id,
+      email: i.email,
+      place: i.seed?.title ?? i.garden?.name ?? null,
+      seedId: i.seedId,
+      link: inviteLink(i.token),
+      invitedAt: i.createdAt.toISOString(),
+    });
+  }
+  return out;
 }
 
 // Create an invite to a garden (which also grants org membership on accept),
@@ -61,19 +104,34 @@ export async function createGardenInvite(
     select: { name: true },
   });
 
-  const token = randomBytes(24).toString("base64url");
-  const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
-
-  await db.invite.create({
-    data: {
-      orgId: garden.orgId,
-      gardenId: garden.id,
-      email: email?.toLowerCase() || null,
-      token,
+  // Reuse an existing pending invite for the same garden + person instead of
+  // piling up duplicate rows every time you re-share the link.
+  const normEmail = email?.toLowerCase() || null;
+  const existing = await db.invite.findFirst({
+    where: {
       invitedById: userId,
-      expiresAt,
+      gardenId: garden.id,
+      seedId: null,
+      email: normEmail,
+      status: "pending",
+      expiresAt: { gt: new Date() },
     },
+    orderBy: { createdAt: "desc" },
+    select: { token: true },
   });
+  const token = existing?.token ?? randomBytes(24).toString("base64url");
+  if (!existing) {
+    await db.invite.create({
+      data: {
+        orgId: garden.orgId,
+        gardenId: garden.id,
+        email: normEmail,
+        token,
+        invitedById: userId,
+        expiresAt: new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
 
   const org = await db.organization.findUnique({
     where: { id: garden.orgId },
@@ -122,20 +180,34 @@ export async function createSeedInvite(
     select: { name: true },
   });
 
-  const token = randomBytes(24).toString("base64url");
-  const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
-
-  await db.invite.create({
-    data: {
-      orgId: garden.orgId,
-      gardenId: seed.gardenId,
-      seedId: seed.id,
-      email: email?.toLowerCase() || null,
-      token,
+  // Reuse an existing pending invite for the same seed + person instead of
+  // creating a duplicate row on every re-share.
+  const normEmail = email?.toLowerCase() || null;
+  const existing = await db.invite.findFirst({
+    where: {
       invitedById: userId,
-      expiresAt,
+      seedId: seed.id,
+      email: normEmail,
+      status: "pending",
+      expiresAt: { gt: new Date() },
     },
+    orderBy: { createdAt: "desc" },
+    select: { token: true },
   });
+  const token = existing?.token ?? randomBytes(24).toString("base64url");
+  if (!existing) {
+    await db.invite.create({
+      data: {
+        orgId: garden.orgId,
+        gardenId: seed.gardenId,
+        seedId: seed.id,
+        email: normEmail,
+        token,
+        invitedById: userId,
+        expiresAt: new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
 
   const link = inviteLink(token);
   let emailed = false;
