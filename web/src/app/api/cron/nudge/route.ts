@@ -2,14 +2,20 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { appUrl } from "@/lib/email";
 import { pushConfigured, sendPushToUser } from "@/lib/push";
+import { sendGoodMorning, summarise } from "@/lib/services/morning";
 
 export const dynamic = "force-dynamic";
 
-// A twice-daily re-engagement push (morning + evening, see vercel.json). This is
-// the gentle "come back" nudge — but it is strictly CONTENT-DRIVEN: a person is
-// only pinged when they have genuinely unseen activity waiting (unread, not yet
-// rolled into a previous nudge). Empty queue → no push at all, so the cadence
-// never becomes the kind of hollow "we miss you!" spam that gets apps deleted.
+// A twice-daily re-engagement push (morning + evening, see vercel.json).
+//
+// Morning slot (02:30 UTC ≈ 08:00 IST): a daily "Good morning 🌱" to everyone
+// who wants push — never an empty ping, because people with unseen activity get
+// the news and everyone else gets the quote of the day (see sendGoodMorning).
+//
+// Evening slot: strictly CONTENT-DRIVEN — a person is only pinged when they
+// have genuinely unseen activity waiting (unread, not yet rolled into a previous
+// nudge). Empty queue → no push, so the evening never becomes hollow "we miss
+// you!" spam.
 //
 // Instant per-event push still happens in lib/services/notify.ts; this only
 // re-surfaces what was missed, summarised into a single tap-through.
@@ -18,22 +24,6 @@ export const dynamic = "force-dynamic";
 // a 24h window means a missed morning item can still be caught in the evening,
 // but nudgedAt stamping guarantees it's summarised at most once.
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
-
-// Turn a bag of unread notifications into one friendly summary line.
-function summarise(types: string[]): string {
-  const n = types.length;
-  const has = (t: string) => types.includes(t);
-  if (has("mention")) {
-    const others = n - 1;
-    return others > 0
-      ? `Someone mentioned you — and ${others} more thing${others > 1 ? "s" : ""} waiting 🌿`
-      : `Someone mentioned you 🌿`;
-  }
-  if (has("bloom")) return `A seed you're in just bloomed 🌸`;
-  if (has("endorsement")) return `Your thinking was found valuable ✦`;
-  if (n === 1) return `1 new thing in your gardens 🌿`;
-  return `${n} new things in your gardens 🌿`;
-}
 
 // GET /api/cron/nudge — protected by CRON_SECRET so only the scheduler runs it.
 export async function GET(req: Request) {
@@ -45,8 +35,14 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: true, sent: 0, note: "push not configured" });
   }
 
+  // Morning → daily good-morning to everyone who wants push.
+  if (new Date().getUTCHours() < 6) {
+    const r = await sendGoodMorning();
+    return NextResponse.json({ ok: true, slot: "morning", ...r });
+  }
+
+  // Evening → content-driven only.
   const cutoff = new Date(Date.now() - LOOKBACK_MS);
-  // Unseen (unread), not-yet-nudged activity for people who still want push.
   const pending = await db.notification.findMany({
     where: {
       readAt: null,
@@ -59,7 +55,6 @@ export async function GET(req: Request) {
     select: { id: true, type: true, recipientId: true },
   });
 
-  // Group by recipient.
   const groups = new Map<string, { ids: string[]; types: string[] }>();
   for (const n of pending) {
     const g = groups.get(n.recipientId) ?? { ids: [], types: [] };
@@ -69,15 +64,10 @@ export async function GET(req: Request) {
   }
 
   const url = `${appUrl()}/notifications`;
-  // The morning slot (02:30 UTC ≈ 08:00 IST) opens with a warm "Good morning"
-  // so the daily catch-up feels like a friendly hello, not a system ping. The
-  // evening slot stays neutral.
-  const morning = new Date().getUTCHours() < 6;
-  const title = morning ? "Good morning 🌱" : "ThinkThru";
   let sent = 0;
   for (const [recipientId, g] of groups) {
     const delivered = await sendPushToUser(recipientId, {
-      title,
+      title: "ThinkThru",
       body: summarise(g.types),
       url,
       tag: "nudge", // collapses with any previous nudge on the device
@@ -90,5 +80,5 @@ export async function GET(req: Request) {
     if (delivered > 0) sent++;
   }
 
-  return NextResponse.json({ ok: true, recipients: groups.size, sent });
+  return NextResponse.json({ ok: true, slot: "evening", recipients: groups.size, sent });
 }
