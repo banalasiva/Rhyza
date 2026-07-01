@@ -6,6 +6,7 @@ import { CreateGardenForm } from "@/components/CreateGardenForm";
 import { HashFocus } from "@/components/HashFocus";
 import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 import { MorningQuote } from "@/components/MorningQuote";
+import { WaitingForThem } from "@/components/WaitingForThem";
 
 export default async function GardensHome() {
   const viewer = await requireViewer();
@@ -19,6 +20,7 @@ export default async function GardensHome() {
       <NavBar name={viewer.name} />
       <main id="main" className="relative z-10 mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
         <MorningQuote name={viewer.name} />
+        <WaitingForThem />
         {gardens.length === 0 ? (
           // First run: warm, personal, and one concrete next step.
           <>

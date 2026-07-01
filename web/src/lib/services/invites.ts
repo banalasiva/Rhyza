@@ -15,6 +15,34 @@ function inviteLink(token: string) {
   return `${appUrl()}/invite/${token}`;
 }
 
+// People you invited who still haven't joined — the raw material for the
+// "Waiting for them" nudge. Only your own pending, unexpired invites, newest
+// first, with the seed/garden they were invited into and a ready-to-send link.
+export async function listPendingInvites(userId: string) {
+  const invites = await db.invite.findMany({
+    where: {
+      invitedById: userId,
+      status: "pending",
+      expiresAt: { gt: new Date() },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    include: {
+      seed: { select: { id: true, title: true } },
+      garden: { select: { name: true } },
+    },
+  });
+  return invites.map((i) => ({
+    id: i.id,
+    email: i.email,
+    // What they were invited into, for the warm message ("…on <place>").
+    place: i.seed?.title ?? i.garden?.name ?? null,
+    seedId: i.seedId,
+    link: inviteLink(i.token),
+    invitedAt: i.createdAt.toISOString(),
+  }));
+}
+
 // Create an invite to a garden (which also grants org membership on accept),
 // optionally scoped to a specific email, and email it if Resend is configured.
 export async function createGardenInvite(
