@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiPost, apiGet } from "@/lib/client";
 import { toWhatsAppNumber } from "@/lib/phone";
 import { inviteMessage } from "@/lib/invite";
+import { Avatar } from "@/components/Avatar";
 
 type NetworkPerson = { id: string; name: string; email: string };
+type Addable = { id: string; name: string; email: string; image: string | null };
 
 // "Invite to this seed" affordance. Posts a seed-scoped invite — accepting joins
 // the org, the garden, and (for private seeds) the seed itself. Sharing the URL
@@ -30,6 +33,14 @@ export function SeedInvite({
   const [canShare, setCanShare] = useState(false);
   const [canPick, setCanPick] = useState(false);
   const [people, setPeople] = useState<NetworkPerson[]>([]);
+  // "Add someone already on ThinkThru" — search the org roster and drop them in
+  // directly (no invite link).
+  const router = useRouter();
+  const [q, setQ] = useState("");
+  const [addable, setAddable] = useState<Addable[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
@@ -42,6 +53,33 @@ export function SeedInvite({
       .then((r) => setPeople(r.people ?? []))
       .catch(() => {});
   }, []);
+
+  // Debounced search of people already on ThinkThru (in this seed's org).
+  useEffect(() => {
+    if (!open) return;
+    setSearching(true);
+    const t = setTimeout(() => {
+      apiGet<{ people: Addable[] }>(`/api/seeds/${seedId}/addable?q=${encodeURIComponent(q)}`)
+        .then((r) => setAddable(r.people ?? []))
+        .catch(() => setAddable([]))
+        .finally(() => setSearching(false));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [q, seedId, open]);
+
+  async function addPerson(id: string) {
+    setAddingId(id);
+    setError(null);
+    try {
+      await apiPost(`/api/seeds/${seedId}/members`, { targetId: id, action: "add" });
+      setAddedIds((s) => new Set(s).add(id));
+      router.refresh(); // so they're immediately taggable
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't add them");
+    } finally {
+      setAddingId(null);
+    }
+  }
 
   async function pickContact() {
     try {
@@ -124,7 +162,50 @@ export function SeedInvite({
 
   const inner = (
     <>
-      <p className="mb-1 text-sm font-medium text-ink">🔗 Invite someone</p>
+      {/* Already on ThinkThru → add them straight in, no invite link. */}
+      <div className="mb-4">
+        <p className="mb-1 text-sm font-medium text-ink">➕ Add someone already here</p>
+        <p className="mb-2 text-xs text-ink-soft">
+          No invite needed — add them straight in and you can tag them right away.
+        </p>
+        <input
+          className="input w-full"
+          placeholder="Search people by name or email"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        {addable.length > 0 && (
+          <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+            {addable.map((p) => (
+              <li
+                key={p.id}
+                className="flex items-center justify-between gap-2 rounded-lg border border-[rgba(255,255,255,0.06)] px-2 py-1.5"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <Avatar name={p.name} image={p.image} size={22} />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-ink">{p.name}</p>
+                    <p className="truncate text-[11px] text-ink-soft">{p.email}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => addPerson(p.id)}
+                  disabled={addingId === p.id || addedIds.has(p.id)}
+                  className="btn-primary shrink-0 px-3 py-1 text-xs disabled:opacity-60"
+                >
+                  {addedIds.has(p.id) ? "✓ Added" : addingId === p.id ? "Adding…" : "Add"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {q && !searching && addable.length === 0 && (
+          <p className="mt-2 text-xs text-ink-soft">Not here yet — invite them below.</p>
+        )}
+      </div>
+      <div className="mb-3 border-t border-[rgba(255,255,255,0.08)]" />
+
+      <p className="mb-1 text-sm font-medium text-ink">🔗 Invite someone new</p>
       <p className="mb-3 text-xs text-ink-soft">
         They&apos;ll join <strong className="text-ink-mid">{gardenName}</strong>
         {isPrivate ? " and this private discussion" : ""} and can open this seed.{" "}

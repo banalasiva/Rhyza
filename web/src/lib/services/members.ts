@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { requireSeedAccess, requireSeedManager } from "@/lib/authz";
+import { deliver } from "@/lib/services/notify";
 
 export type SeedRole = "owner" | "admin" | "member" | "contributor";
 
@@ -178,4 +179,112 @@ export async function listMyNetwork(userId: string): Promise<NetworkPerson[]> {
     }
   }
   return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Who can add people to a seed: the same rule as inviting — anyone with access
+// to a public seed, only a manager for a private one.
+async function assertCanAdd(actorId: string, seedId: string) {
+  const seed = await requireSeedAccess(actorId, seedId);
+  if (seed.visibility === "private") await requireSeedManager(actorId, seedId);
+  return seed;
+}
+
+// People already on ThinkThru (in this seed's org) you can drop straight into
+// the seed — no invite link needed. Excludes anyone already in the seed, the
+// AI users, and yourself. Optional `q` filters by name/email.
+export async function listAddablePeople(actorId: string, seedId: string, q?: string) {
+  const seed = await assertCanAdd(actorId, seedId);
+  const garden = await db.garden.findUnique({
+    where: { id: seed.gardenId },
+    select: { orgId: true },
+  });
+  if (!garden) return [];
+
+  const [orgMembers, seedMembers, contributors] = await Promise.all([
+    db.orgMember.findMany({
+      where: { orgId: garden.orgId },
+      select: { user: { select: { id: true, name: true, email: true, image: true } } },
+      take: 1000,
+    }),
+    db.seedMember.findMany({ where: { seedId }, select: { userId: true } }),
+    db.contribution.findMany({
+      where: { seedId, deletedAt: null },
+      distinct: ["authorId"],
+      select: { authorId: true },
+    }),
+  ]);
+
+  const exclude = new Set<string>([
+    actorId,
+    seed.createdById,
+    ...(seedMembers as { userId: string }[]).map((m) => m.userId),
+    ...(contributors as { authorId: string }[]).map((c) => c.authorId),
+  ]);
+  const needle = (q ?? "").trim().toLowerCase();
+
+  return (orgMembers as { user: { id: string; name: string | null; email: string | null; image: string | null } }[])
+    .map((m) => m.user)
+    .filter((u) => u && u.email && !exclude.has(u.id) && u.name !== "Claude" && u.name !== "ChatGPT")
+    .filter(
+      (u) =>
+        !needle ||
+        (u.name ?? "").toLowerCase().includes(needle) ||
+        (u.email ?? "").toLowerCase().includes(needle),
+    )
+    .slice(0, 20)
+    .map((u) => ({ id: u.id, name: u.name || (u.email as string), email: u.email as string, image: u.image }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Add an existing org member straight into the seed (member role) and let them
+// know — the "they're already here, no invite" path. They must already belong
+// to the seed's org; otherwise send an invite instead.
+export async function addExistingMember(actorId: string, seedId: string, targetId: string) {
+  const seed = await assertCanAdd(actorId, seedId);
+  const garden = await db.garden.findUnique({
+    where: { id: seed.gardenId },
+    select: { id: true, orgId: true },
+  });
+  if (!garden) throw new ApiError("NOT_FOUND", "Garden not found");
+
+  const inOrg = await db.orgMember.findUnique({
+    where: { orgId_userId: { orgId: garden.orgId, userId: targetId } },
+    select: { userId: true },
+  });
+  if (!inOrg) {
+    throw new ApiError("BAD_REQUEST", "They're not in this space yet — send them an invite instead.");
+  }
+
+  await db.$transaction([
+    db.gardenMember.upsert({
+      where: { gardenId_userId: { gardenId: garden.id, userId: targetId } },
+      update: {},
+      create: { gardenId: garden.id, userId: targetId },
+    }),
+    db.seedMember.upsert({
+      where: { seedId_userId: { seedId, userId: targetId } },
+      update: {},
+      create: { seedId, userId: targetId, role: "member" },
+    }),
+  ]);
+
+  // Tell the person they were added.
+  try {
+    const [seedRow, actor] = await Promise.all([
+      db.seed.findUnique({ where: { id: seedId }, select: { title: true } }),
+      db.user.findUnique({ where: { id: actorId }, select: { name: true } }),
+    ]);
+    const title = `You were added to “${seedRow?.title ?? "a seed"}”`;
+    const body = `${actor?.name || "Someone"} added you to think this through together 🌱`;
+    const notif = await db.notification.create({
+      data: { recipientId: targetId, actorId, type: "member_joined", title, body, entityType: "seed", entityId: seedId },
+    });
+    await deliver([
+      { notificationId: notif.id, recipientId: targetId, type: "member_joined", push: { title, body }, link: `/seeds/${seedId}` },
+    ]);
+  } catch (err) {
+    console.error("addExistingMember notify failed", err);
+  }
+
+  return { ok: true };
 }

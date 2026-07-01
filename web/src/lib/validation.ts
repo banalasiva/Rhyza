@@ -164,7 +164,7 @@ export const aiActionSchema = z.object({
 
 export const seedMemberActionSchema = z.object({
   targetId: z.string().uuid(),
-  action: z.enum(["promote", "demote", "remove"]),
+  action: z.enum(["promote", "demote", "remove", "add"]),
 });
 
 // ── Quorum v2 ──

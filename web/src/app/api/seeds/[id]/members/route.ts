@@ -6,6 +6,7 @@ import {
   setSeedAdmin,
   removeSeedMember,
   leaveSeed,
+  addExistingMember,
 } from "@/lib/services/members";
 
 // GET /api/seeds/:id/members — the roster with roles + whether you can manage.
@@ -19,6 +20,9 @@ export const GET = handle(async (_req, ctx: { params: { id: string } }) => {
 export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   const userId = await requireUserId();
   const { targetId, action } = seedMemberActionSchema.parse(await req.json());
+  if (action === "add") {
+    return ok(await addExistingMember(userId, ctx.params.id, targetId));
+  }
   if (action === "remove") {
     return ok(await removeSeedMember(userId, ctx.params.id, targetId));
   }
