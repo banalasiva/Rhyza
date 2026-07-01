@@ -230,3 +230,51 @@ export function sanitizeTopics(keys: string[], cap = 5): TopicKey[] {
   }
   return [...seen];
 }
+
+// ─────────────────────────────────────────────────────────────
+// Daily warmth — a small, curated set of quotes for the morning "good
+// morning" greeting. Kept in code on purpose: no external API to fail, no
+// vendor, no cost, and nothing that can return something off-tone. Chosen to
+// be gentle and human — encouragement, not hustle.
+// ─────────────────────────────────────────────────────────────
+export const LIFE_QUOTES: { text: string; author: string }[] = [
+  { text: "The best way out is always through.", author: "Robert Frost" },
+  { text: "What you do every day matters more than what you do once in a while.", author: "Gretchen Rubin" },
+  { text: "No one has ever become poor by giving.", author: "Anne Frank" },
+  { text: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe" },
+  { text: "Little by little, one travels far.", author: "J.R.R. Tolkien" },
+  { text: "You are enough just as you are.", author: "Meghan Markle" },
+  { text: "The people who are crazy enough to think they can change the world are the ones who do.", author: "Rob Siltanen" },
+  { text: "Be kind, for everyone you meet is fighting a hard battle.", author: "Ian Maclaren" },
+  { text: "It always seems impossible until it's done.", author: "Nelson Mandela" },
+  { text: "Wherever you go, go with all your heart.", author: "Confucius" },
+  { text: "A ship in harbor is safe, but that is not what ships are built for.", author: "John A. Shedd" },
+  { text: "You miss 100% of the shots you don't take.", author: "Wayne Gretzky" },
+  { text: "The quieter you become, the more you can hear.", author: "Ram Dass" },
+  { text: "Do what you can, with what you have, where you are.", author: "Theodore Roosevelt" },
+  { text: "Turn your wounds into wisdom.", author: "Oprah Winfrey" },
+  { text: "Fall seven times, stand up eight.", author: "Japanese proverb" },
+  { text: "The best time to plant a tree was 20 years ago. The second best time is now.", author: "Chinese proverb" },
+  { text: "Everything you can imagine is real.", author: "Pablo Picasso" },
+  { text: "Happiness is not something ready made. It comes from your own actions.", author: "Dalai Lama" },
+  { text: "What we think, we become.", author: "Buddha" },
+  { text: "Keep your face always toward the sunshine, and shadows will fall behind you.", author: "Walt Whitman" },
+  { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+  { text: "Courage doesn't always roar. Sometimes it's the quiet voice saying 'I will try again tomorrow.'", author: "Mary Anne Radmacher" },
+  { text: "In the middle of difficulty lies opportunity.", author: "Albert Einstein" },
+  { text: "You don't have to see the whole staircase, just take the first step.", author: "Martin Luther King Jr." },
+  { text: "How wonderful it is that nobody need wait a single moment before starting to improve the world.", author: "Anne Frank" },
+  { text: "Act as if what you do makes a difference. It does.", author: "William James" },
+  { text: "The smallest act of kindness is worth more than the grandest intention.", author: "Oscar Wilde" },
+  { text: "Where there is love there is life.", author: "Mahatma Gandhi" },
+  { text: "Nothing is impossible. The word itself says 'I'm possible!'", author: "Audrey Hepburn" },
+];
+
+// A stable quote for a given calendar day, so the whole community shares the
+// same one — a tiny daily ritual. Deterministic: same day → same quote.
+export function quoteOfTheDay(now = new Date()): { text: string; author: string } {
+  const dayNumber = Math.floor(
+    Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000,
+  );
+  return LIFE_QUOTES[((dayNumber % LIFE_QUOTES.length) + LIFE_QUOTES.length) % LIFE_QUOTES.length];
+}
