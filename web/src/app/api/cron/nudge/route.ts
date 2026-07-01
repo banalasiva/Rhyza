@@ -69,10 +69,15 @@ export async function GET(req: Request) {
   }
 
   const url = `${appUrl()}/notifications`;
+  // The morning slot (02:30 UTC ≈ 08:00 IST) opens with a warm "Good morning"
+  // so the daily catch-up feels like a friendly hello, not a system ping. The
+  // evening slot stays neutral.
+  const morning = new Date().getUTCHours() < 6;
+  const title = morning ? "Good morning 🌱" : "ThinkThru";
   let sent = 0;
   for (const [recipientId, g] of groups) {
     const delivered = await sendPushToUser(recipientId, {
-      title: "ThinkThru",
+      title,
       body: summarise(g.types),
       url,
       tag: "nudge", // collapses with any previous nudge on the device
