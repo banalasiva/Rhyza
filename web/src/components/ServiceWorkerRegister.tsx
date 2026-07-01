@@ -9,11 +9,23 @@ import { useEffect } from "react";
 export function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    // When a new service worker takes control (a fresh deploy), reload once so
+    // the page runs the new assets instead of a stale cached bundle.
+    let reloaded = false;
+    const onControllerChange = () => {
+      if (reloaded) return;
+      reloaded = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
     // Defer past first paint so registration never competes with rendering.
     const id = window.setTimeout(() => {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
     }, 0);
-    return () => window.clearTimeout(id);
+    return () => {
+      window.clearTimeout(id);
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+    };
   }, []);
   return null;
 }

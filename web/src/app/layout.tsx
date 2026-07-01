@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { VersionWatcher } from "@/components/VersionWatcher";
 
 export const metadata: Metadata = {
   title: "ThinkThru — The Learning Garden",
@@ -53,6 +54,7 @@ export default function RootLayout({
         </a>
         {children}
         <ServiceWorkerRegister />
+        <VersionWatcher />
         <InstallPrompt />
       </body>
     </html>

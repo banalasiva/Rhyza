@@ -2,7 +2,7 @@
    Kept dependency-free so it loads instantly. */
 
 // Bump this to invalidate old caches on deploy.
-const CACHE = "thinkthru-static-v1";
+const CACHE = "thinkthru-static-v2";
 
 // The brand visuals that make the launch/splash feel instant — precached so the
 // emblem and icons paint from cache the moment the app opens.
