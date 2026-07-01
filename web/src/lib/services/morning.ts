@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { appUrl } from "@/lib/email";
 import { pushConfigured, sendPushToUser } from "@/lib/push";
-import { quoteOfTheDay } from "@/lib/constants";
+import { messageOfTheDay } from "@/lib/daily-messages";
 
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
@@ -32,7 +32,8 @@ export async function sendGoodMorning(): Promise<{ sent: number; recipients: num
   if (!pushConfigured()) return { sent: 0, recipients: 0 };
 
   const url = `${appUrl()}/notifications`;
-  const quote = quoteOfTheDay();
+  const msg = messageOfTheDay();
+  const quoteLine = msg.author ? `“${msg.text}” — ${msg.author}` : msg.text;
   const cutoff = new Date(Date.now() - LOOKBACK_MS);
 
   // Unseen (unread), not-yet-nudged activity, grouped by recipient.
@@ -65,7 +66,7 @@ export async function sendGoodMorning(): Promise<{ sent: number; recipients: num
   let sent = 0;
   for (const p of people) {
     const g = groups.get(p.id);
-    const body = g ? summarise(g.types) : `“${quote.text}” — ${quote.author}`;
+    const body = g ? summarise(g.types) : quoteLine;
     const delivered = await sendPushToUser(p.id, {
       title: "Good morning 🌱",
       body,

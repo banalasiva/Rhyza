@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { quoteOfTheDay } from "@/lib/constants";
+import { messageOfTheDay, type DailyMessage } from "@/lib/daily-messages";
 
 // A gentle daily greeting on the home screen — "Good morning 🌱" plus a shared
 // quote of the day. Warmth without a notification: it asks nothing, and it can
@@ -23,7 +23,7 @@ export function MorningQuote({ name }: { name?: string }) {
   // greeting and the "already dismissed today" check both depend on the
   // viewer's local clock, which only exists in the browser).
   const [show, setShow] = useState(false);
-  const [data, setData] = useState<{ greet: string; quote: { text: string; author: string }; key: string } | null>(null);
+  const [data, setData] = useState<{ greet: string; quote: DailyMessage; key: string } | null>(null);
 
   useEffect(() => {
     const now = new Date();
@@ -33,7 +33,7 @@ export function MorningQuote({ name }: { name?: string }) {
     } catch {
       /* private mode — just show it */
     }
-    setData({ greet: greeting(now.getHours()), quote: quoteOfTheDay(now), key });
+    setData({ greet: greeting(now.getHours()), quote: messageOfTheDay(now), key });
     setShow(true);
   }, []);
 
@@ -58,7 +58,7 @@ export function MorningQuote({ name }: { name?: string }) {
           {first ? `, ${first}` : ""} 🌱
         </p>
         <p className="mt-1 text-sm italic leading-relaxed text-ink-mid">“{data.quote.text}”</p>
-        <p className="mt-0.5 text-xs text-ink-soft">— {data.quote.author}</p>
+        {data.quote.author && <p className="mt-0.5 text-xs text-ink-soft">— {data.quote.author}</p>}
       </div>
       <button
         onClick={dismiss}
