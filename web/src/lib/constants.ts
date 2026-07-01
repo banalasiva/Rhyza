@@ -78,12 +78,12 @@ export const STAKE_DIMENSION_KEYS = STAKE_DIMENSIONS.map((d) => d.key) as StakeD
 // stake); the rest are read by the room. All are mandatory.
 // ─────────────────────────────────────────────────────────────
 export const QUORUM_DIMENSIONS = [
-  { key: "money", emoji: "💰", label: "Money", question: "Whose money is most on the line?", color: "#66BB6A", measurable: true },
-  { key: "effort", emoji: "⏳", label: "Time & Energy", question: "Who's doing the most of the actual work?", color: "#42A5F5", measurable: false },
-  { key: "emotions", emoji: "❤️", label: "Emotions", question: "Who's most emotionally invested in this?", color: "#EC407A", measurable: false },
-  { key: "judgement", emoji: "🧭", label: "Judgement", question: "Whose judgement do you trust most for this call?", color: "#26A69A", measurable: false },
-  { key: "capability", emoji: "🛠", label: "Capability", question: "Who's most proven to pull this off?", color: "#5C6BC0", measurable: false },
-  { key: "consequence", emoji: "⚖️", label: "Consequence", question: "Who has to live with the outcome the most?", color: "#FFA726", measurable: true },
+  { key: "money", emoji: "💰", label: "Money", question: "Who is spending or risking the most money?", color: "#66BB6A", measurable: true },
+  { key: "effort", emoji: "⏳", label: "Work", question: "Who will do most of the work?", color: "#42A5F5", measurable: false },
+  { key: "emotions", emoji: "❤️", label: "Feelings", question: "Who cares about this the most?", color: "#EC407A", measurable: false },
+  { key: "judgement", emoji: "🧭", label: "Judgement", question: "Whose opinion do you trust most here?", color: "#26A69A", measurable: false },
+  { key: "capability", emoji: "🛠", label: "Skill", question: "Who can do this well?", color: "#5C6BC0", measurable: false },
+  { key: "consequence", emoji: "⚖️", label: "Impact", question: "Who will this affect the most?", color: "#FFA726", measurable: true },
 ] as const;
 
 export type QuorumDimensionKey = (typeof QUORUM_DIMENSIONS)[number]["key"];
@@ -108,11 +108,11 @@ export type QuorumDimension = {
 // "Understand together" — for people yearning to learn and get feedback. Every
 // dimension is strength-based and a judgement call (none measurable/hardcodable).
 export const QUORUM_UNDERSTAND_DIMENSIONS: readonly QuorumDimension[] = [
-  { key: "opened_up", emoji: "🔍", label: "Opened it up", question: "Whose questions cracked the topic open?", color: "#42A5F5", measurable: false },
-  { key: "made_click", emoji: "💡", label: "Made it click", question: "Who explained it so it finally made sense?", color: "#FFB300", measurable: false },
-  { key: "gets_it", emoji: "🧭", label: "Really gets it", question: "Who showed the deepest understanding?", color: "#26A69A", measurable: false },
-  { key: "leveling_up", emoji: "🌱", label: "Leveling up", question: "Who's growing the fastest here?", color: "#66BB6A", measurable: false },
-  { key: "lifted_others", emoji: "🤝", label: "Lifted others", question: "Who helped the group understand together?", color: "#EC407A", measurable: false },
+  { key: "opened_up", emoji: "🔍", label: "Good questions", question: "Whose questions opened up the topic?", color: "#42A5F5", measurable: false },
+  { key: "made_click", emoji: "💡", label: "Made it clear", question: "Who explained it so it made sense?", color: "#FFB300", measurable: false },
+  { key: "gets_it", emoji: "🧭", label: "Understands best", question: "Who understands it most deeply?", color: "#26A69A", measurable: false },
+  { key: "leveling_up", emoji: "🌱", label: "Learning fast", question: "Who is learning the fastest here?", color: "#66BB6A", measurable: false },
+  { key: "lifted_others", emoji: "🤝", label: "Helped everyone", question: "Who helped the whole group understand?", color: "#EC407A", measurable: false },
 ];
 
 export type QuorumTemplateKey = "decide" | "understand";

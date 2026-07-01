@@ -88,12 +88,12 @@ export function QuorumV2({ seedId }: { seedId: string }) {
     <div className="space-y-4">
       <header>
         <h2 className="serif-lg">
-          {understand ? "Who helped it click?" : "Who's really carrying this one?"}
+          {understand ? "Who helped everyone learn?" : "Who should have the biggest say?"}
         </h2>
         <p className="mt-1 text-sm leading-relaxed text-ink-mid">
           {understand
-            ? "Rate everyone — yourself too — on who helped the group understand this. We'll turn all the honest reads into one fair picture."
-            : "Rate everyone — yourself too — on who has the most at stake here. We'll turn all the honest reads into one fair result."}
+            ? "Answer each question below about everyone — including yourself. We'll add it all up and show the group what it saw in each of you."
+            : "Answer each question below about everyone — including yourself. We'll add it all up into one fair answer for the group."}
         </p>
       </header>
 
