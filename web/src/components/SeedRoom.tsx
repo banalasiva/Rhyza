@@ -273,7 +273,7 @@ export function SeedRoom({
         const res = await fetch(`/api/seeds/${seed.id}/status`, { cache: "no-store" });
         if (!res.ok) return;
         const json = await res.json();
-        if (json?.data?.stage === "bloomed") triggerBloom();
+        if (json?.stage === "bloomed") triggerBloom();
       } catch {
         /* transient — keep polling */
       }
@@ -300,7 +300,7 @@ export function SeedRoom({
         const res = await fetch(`/api/seeds/${seed.id}/sync`, { cache: "no-store" });
         if (!res.ok) return;
         const json = await res.json();
-        const snap = json?.data as
+        const snap = json as
           | {
               contributions: Contribution[];
               distribution: typeof distribution;
