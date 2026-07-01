@@ -111,6 +111,7 @@ export async function respondAsChatGpt(
   dimension: string,
   mentionText: string,
   parentId: string,
+  invokerId?: string,
 ) {
   const data = await threadForSeed(seedId);
   if (!data) return null;
@@ -124,10 +125,21 @@ export async function respondAsChatGpt(
   if (!reply) return null;
 
   const bot = await getOrCreateChatGptUser();
-  return db.contribution.create({
+  const contribution = await db.contribution.create({
     data: { seedId, authorId: bot.id, dimension, parentId, content: { text: reply } },
     include: { author: { select: { id: true, name: true, image: true } } },
   });
+  // Tell the thread ChatGPT replied — so the person who started the seed hears
+  // back even if they've since left the app. The invoker (who's watching live)
+  // is excluded.
+  await notifySeedActivity(
+    bot.id,
+    { id: data.seed.id, title: data.seed.title, createdById: data.seed.createdById },
+    contribution.id,
+    `ChatGPT replied: ${reply.slice(0, 120)}`,
+    invokerId ? [invokerId] : [],
+  );
+  return contribution;
 }
 
 // When a contribution tags @claude, generate Claude's reply and post it as a
@@ -138,6 +150,7 @@ export async function respondAsClaude(
   dimension: string,
   mentionText: string,
   parentId: string,
+  invokerId?: string,
 ) {
   const seed = await db.seed.findUnique({
     where: { id: seedId },
@@ -186,6 +199,16 @@ export async function respondAsClaude(
     },
     include: { author: { select: { id: true, name: true, image: true } } },
   });
+  // Tell the thread Claude replied — so the seed's people (the person who asked
+  // especially) hear back even after they've left the app. The invoker, who's
+  // watching live, is excluded.
+  await notifySeedActivity(
+    claude.id,
+    { id: seed.id, title: seed.title, createdById: seed.createdById },
+    contribution.id,
+    `Claude replied: ${reply.slice(0, 120)}`,
+    invokerId ? [invokerId] : [],
+  );
   return contribution;
 }
 
@@ -241,6 +264,17 @@ export async function aiVoteOnSeed(
   // Settle the consequences (display stage + maybe bloom), attributed to the
   // human who asked, since they hold seed access for createBloom.
   const result = await settleStage(seedId, invokerId);
+
+  // Tell the thread the AI weighed in — the invoker (watching live) excluded.
+  const botLabel = provider === "chatgpt" ? "ChatGPT" : "Claude";
+  await notifySeedActivity(
+    bot.id,
+    { id: data.seed.id, title: data.seed.title, createdById: data.seed.createdById },
+    contribution.id,
+    `${botLabel} weighed in: ${stageMeta.emoji} ${stageMeta.label}`,
+    [invokerId],
+  );
+
   return { contribution, result };
 }
 

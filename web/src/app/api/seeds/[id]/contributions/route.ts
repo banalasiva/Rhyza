@@ -67,7 +67,7 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
     if (!aiConfigured()) aiError = "not_configured";
     else {
       try {
-        const reply = await respondAsClaude(ctx.params.id, body.dimension, body.text, c.id);
+        const reply = await respondAsClaude(ctx.params.id, body.dimension, body.text, c.id, userId);
         if (reply) aiReplies.push(toDTO(reply));
         else aiError = aiError ?? "Claude couldn't reply just now.";
       } catch (err) {
@@ -81,7 +81,7 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
     if (!openaiConfigured()) aiError = aiError ?? "not_configured";
     else {
       try {
-        const reply = await respondAsChatGpt(ctx.params.id, body.dimension, body.text, c.id);
+        const reply = await respondAsChatGpt(ctx.params.id, body.dimension, body.text, c.id, userId);
         if (reply) aiReplies.push(toDTO(reply));
         else aiError = aiError ?? "ChatGPT couldn't reply just now.";
       } catch (err) {
