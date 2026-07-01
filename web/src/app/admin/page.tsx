@@ -29,6 +29,16 @@ export default async function AdminPage() {
         </Link>
         <h1 className="serif-xl mb-6">🛠 Admin</h1>
         <AdminPanel />
+        <Link
+          href="/admin/messages"
+          className="card mt-4 flex items-center justify-between p-4 transition hover:border-accent"
+        >
+          <span>
+            <span className="block text-sm text-ink">🌅 Daily messages</span>
+            <span className="block text-xs text-ink-soft">Curate the morning good-morning library</span>
+          </span>
+          <span className="text-ink-soft">→</span>
+        </Link>
       </main>
     </div>
   );

@@ -178,4 +178,21 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "user_interests_topic_idx",
     sql: `CREATE INDEX IF NOT EXISTS "user_interests_topic_idx" ON "user_interests" ("topic")`,
   },
+
+  // 20260701120000_daily_quotes
+  {
+    label: "daily_quotes",
+    sql: `CREATE TABLE IF NOT EXISTS "daily_quotes" (
+      "id"         UUID NOT NULL,
+      "text"       TEXT NOT NULL,
+      "author"     TEXT,
+      "active"     BOOLEAN NOT NULL DEFAULT true,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "daily_quotes_pkey" PRIMARY KEY ("id")
+    )`,
+  },
+  {
+    label: "daily_quotes_active_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "daily_quotes_active_idx" ON "daily_quotes" ("active")`,
+  },
 ];

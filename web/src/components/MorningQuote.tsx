@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiGet } from "@/lib/client";
 import { messageOfTheDay, type DailyMessage } from "@/lib/daily-messages";
 
 // A gentle daily greeting on the home screen — "Good morning 🌱" plus a shared
@@ -33,8 +34,22 @@ export function MorningQuote({ name }: { name?: string }) {
     } catch {
       /* private mode — just show it */
     }
-    setData({ greet: greeting(now.getHours()), quote: messageOfTheDay(now), key });
-    setShow(true);
+    // Prefer the owner-curated message from the server; fall back instantly to
+    // the built-in library if the request fails.
+    let alive = true;
+    apiGet<DailyMessage>("/api/daily-message")
+      .then((m) => {
+        if (alive) setData({ greet: greeting(now.getHours()), quote: m, key });
+      })
+      .catch(() => {
+        if (alive) setData({ greet: greeting(now.getHours()), quote: messageOfTheDay(now), key });
+      })
+      .finally(() => {
+        if (alive) setShow(true);
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   if (!show || !data) return null;

@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { appUrl } from "@/lib/email";
 import { pushConfigured, sendPushToUser } from "@/lib/push";
-import { messageOfTheDay } from "@/lib/daily-messages";
+import { resolveMessageOfTheDay } from "@/lib/services/daily";
 
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
@@ -32,7 +32,7 @@ export async function sendGoodMorning(): Promise<{ sent: number; recipients: num
   if (!pushConfigured()) return { sent: 0, recipients: 0 };
 
   const url = `${appUrl()}/notifications`;
-  const msg = messageOfTheDay();
+  const msg = await resolveMessageOfTheDay();
   const quoteLine = msg.author ? `“${msg.text}” — ${msg.author}` : msg.text;
   const cutoff = new Date(Date.now() - LOOKBACK_MS);
 

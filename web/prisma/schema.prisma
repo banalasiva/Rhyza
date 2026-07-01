@@ -750,3 +750,18 @@ model Invite {
   @@index([orgId])
   @@map("invites")
 }
+
+// The daily "good morning" message library — editable by the owner from the
+// admin screen (a calm yearly curation). When this table has active rows they
+// drive the daily message; otherwise the app falls back to the built-in set in
+// lib/daily-messages.ts, so nothing ever breaks.
+model DailyQuote {
+  id        String   @id @default(uuid()) @db.Uuid
+  text      String
+  author    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([active])
+  @@map("daily_quotes")
+}
