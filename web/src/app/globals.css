@@ -4,13 +4,43 @@
 
 :root {
   --bg: #070d07;
+  --bg-mid: #0d160d;
+  --bg-surface: #111a11;
   --ink: #e8e4dc;
   --ink-mid: #a0a890;
   /* WCAG 2.2 AA: lifted from #5a6456 (~3.1:1) to ~5.5:1 on the dark bg so the
      faintest secondary text still meets the 4.5:1 contrast minimum. */
   --ink-soft: #828b79;
+  --ink-muted: #3a4438;
   --accent: #4caf50;
+  --accent-bright: #66bb6a;
   --bloom: #ffb300;
+  --seed: #8d6e63;
+  /* Semantic surfaces so cards/inputs/buttons switch with the theme. */
+  --surface: rgba(15, 22, 15, 0.6);
+  --surface-2: rgba(7, 13, 7, 0.5);
+  --border: rgba(76, 175, 80, 0.18);
+  --border-strong: rgba(76, 175, 80, 0.4);
+}
+
+/* Light theme — a warm, paper-toned garden in daylight. Set by adding `light`
+   to <html> (see the no-flash script in layout + the toggle in the nav). */
+html.light {
+  --bg: #f5f6f0;
+  --bg-mid: #eceee6;
+  --bg-surface: #ffffff;
+  --ink: #1b2318;
+  --ink-mid: #49523f;
+  --ink-soft: #63705c;
+  --ink-muted: #aab3a2;
+  --accent: #2e7d32;
+  --accent-bright: #388e3c;
+  --bloom: #b26a00;
+  --seed: #8d6e63;
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-2: #ffffff;
+  --border: rgba(46, 125, 50, 0.22);
+  --border-strong: rgba(46, 125, 50, 0.45);
 }
 
 /* WCAG 2.4.7 / 2.4.11 — a clearly visible keyboard focus indicator everywhere. */
@@ -91,28 +121,31 @@ body {
     text-transform: uppercase;
   }
   .card {
-    @apply rounded-2xl border bg-[rgba(15,22,15,0.6)] backdrop-blur;
-    border-color: rgba(76, 175, 80, 0.18);
+    @apply rounded-2xl border backdrop-blur;
+    background: var(--surface);
+    border-color: var(--border);
   }
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-bg transition;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium transition;
     background: var(--accent);
+    color: #ffffff;
   }
   .btn-primary:hover {
-    background: #66bb6a;
+    background: var(--accent-bright);
   }
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 rounded-full border px-4 py-2 text-sm text-ink-mid transition;
-    border-color: rgba(76, 175, 80, 0.2);
-    background: rgba(7, 13, 7, 0.6);
+    border-color: var(--border-strong);
+    background: var(--surface-2);
   }
   .btn-ghost:hover {
-    border-color: rgba(76, 175, 80, 0.45);
+    border-color: var(--border-strong);
     color: var(--ink);
   }
   .input {
-    @apply w-full rounded-xl border bg-[rgba(7,13,7,0.5)] px-4 py-3 text-ink outline-none transition placeholder:text-ink-soft;
-    border-color: rgba(76, 175, 80, 0.2);
+    @apply w-full rounded-xl border px-4 py-3 text-ink outline-none transition placeholder:text-ink-soft;
+    background: var(--surface-2);
+    border-color: var(--border-strong);
   }
   .input:focus {
     border-color: rgba(76, 175, 80, 0.5);
@@ -440,4 +473,40 @@ body {
 }
 .quorum-bird {
   animation: quorumBird 9s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Light-theme retrofit. The app was built dark-first with many hardcoded
+   colors; rather than edit hundreds of component lines, flip whole color
+   families at once via substring matches on the class attribute. This covers
+   the common cases — inline style={} colors and a few deep spots may still
+   need per-component polish.
+   ───────────────────────────────────────────────────────────── */
+html.light .garden-bg {
+  background:
+    radial-gradient(1200px 800px at 50% -10%, rgba(76, 175, 80, 0.12), transparent 60%),
+    radial-gradient(900px 600px at 80% 110%, rgba(255, 179, 0, 0.1), transparent 60%),
+    var(--bg);
+}
+
+/* Translucent white overlays (surfaces / borders / dividers) → dark overlays. */
+html.light [class*="bg-[rgba(255,255,255,"] {
+  background-color: rgba(20, 30, 18, 0.05) !important;
+}
+html.light [class*="border-[rgba(255,255,255,"] {
+  border-color: rgba(20, 30, 18, 0.12) !important;
+}
+html.light [class*="text-[rgba(255,255,255,"] {
+  color: rgba(20, 30, 18, 0.6) !important;
+}
+
+/* Near-black solid / translucent surfaces → light surfaces. */
+html.light [class*="bg-[rgba(7,13,7,"],
+html.light [class*="bg-[rgba(15,22,15,"],
+html.light [class*="bg-[rgba(11,18,11,"] {
+  background-color: rgba(255, 255, 255, 0.88) !important;
+}
+html.light [class*="bg-[#0B120B]"],
+html.light [class*="bg-[#0b120b]"] {
+  background-color: #ffffff !important;
 }

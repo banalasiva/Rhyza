@@ -32,6 +32,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* Apply the saved theme before first paint so there's no flash of the
+            wrong colours. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "try{if(localStorage.getItem('tt-theme')==='light')document.documentElement.classList.add('light')}catch(e){}",
+          }}
+        />
         {/*
           Fonts are loaded at runtime in the browser (not at build time) so the
           build never depends on outbound network access. System fonts are the

@@ -6,24 +6,26 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: "#070D07",
-        "bg-mid": "#0D160D",
-        "bg-surface": "#111A11",
-        ink: "#E8E4DC",
-        "ink-mid": "#A0A890",
-        "ink-soft": "#5A6456",
-        "ink-muted": "#3A4438",
-        accent: "#4CAF50",
-        "accent-bright": "#66BB6A",
-        bloom: "#FFB300",
-        seed: "#8D6E63",
+        // Wired to CSS variables so the whole palette can switch (dark ⇄ light)
+        // by re-defining the variables under `html.light` in globals.css.
+        bg: "var(--bg)",
+        "bg-mid": "var(--bg-mid)",
+        "bg-surface": "var(--bg-surface)",
+        ink: "var(--ink)",
+        "ink-mid": "var(--ink-mid)",
+        "ink-soft": "var(--ink-soft)",
+        "ink-muted": "var(--ink-muted)",
+        accent: "var(--accent)",
+        "accent-bright": "var(--accent-bright)",
+        bloom: "var(--bloom)",
+        seed: "var(--seed)",
       },
       fontFamily: {
         serif: ["Fraunces", "Georgia", "serif"],
         sans: ["Inter", "system-ui", "sans-serif"],
       },
       borderColor: {
-        DEFAULT: "rgba(76,175,80,0.18)",
+        DEFAULT: "var(--border)",
       },
     },
   },
