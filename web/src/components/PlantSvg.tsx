@@ -45,7 +45,7 @@ export function PlantSvg({ stage }: { stage: number }) {
       </defs>
 
       {/* Soil */}
-      <rect x={0} y={soilY} width={300} height={125} fill="url(#soilGr)" />
+      <rect x={0} y={soilY} width={300} height={125} fill="url(#soilGr)" className="plant-soil" />
       <line x1={55} y1={soilY + 14} x2={100} y2={soilY + 11} stroke="#3D2A16" strokeWidth={1} opacity={0.5} />
       <line x1={185} y1={soilY + 18} x2={235} y2={soilY + 14} stroke="#3D2A16" strokeWidth={1} opacity={0.4} />
 

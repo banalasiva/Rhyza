@@ -26,7 +26,7 @@ export async function NavBar({ name }: { name?: string }) {
           href="/"
           title="Back to your gardens"
           className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-serif text-[15px] text-ink backdrop-blur transition hover:border-accent"
-          style={{ background: "rgba(7,13,7,0.82)" }}
+          style={{ background: "var(--surface)" }}
         >
           <Image src="/emblem.png" alt="" width={22} height={22} className="h-[22px] w-[22px]" />
           ThinkThru
@@ -35,14 +35,6 @@ export async function NavBar({ name }: { name?: string }) {
 
       <div className="flex items-center gap-3">
         <ThemeToggle />
-        {/* Public square */}
-        <Link
-          href="/explore"
-          title="Explore public seeds"
-          className="rounded-full border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.6)] px-2.5 py-1.5 text-sm text-ink-mid transition hover:text-ink"
-        >
-          <span aria-hidden>🌍</span> <span className="hidden sm:inline">Explore</span>
-        </Link>
         {/* Notifications bell with unread badge */}
         <Link
           href="/notifications"

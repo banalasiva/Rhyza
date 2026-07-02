@@ -502,11 +502,19 @@ html.light [class*="text-[rgba(255,255,255,"] {
 
 /* Near-black solid / translucent surfaces → light surfaces. */
 html.light [class*="bg-[rgba(7,13,7,"],
-html.light [class*="bg-[rgba(15,22,15,"],
-html.light [class*="bg-[rgba(11,18,11,"] {
-  background-color: rgba(255, 255, 255, 0.88) !important;
+html.light [class*="bg-[rgba(8,13,8,"],
+html.light [class*="bg-[rgba(10,16,10,"],
+html.light [class*="bg-[rgba(11,18,11,"],
+html.light [class*="bg-[rgba(15,22,15,"] {
+  background-color: rgba(255, 255, 255, 0.95) !important;
 }
 html.light [class*="bg-[#0B120B]"],
 html.light [class*="bg-[#0b120b]"] {
   background-color: #ffffff !important;
+}
+
+/* The plant's soil box — a dark earth gradient that reads as a black box on a
+   light card. In light mode, paint it a soft sandy tone instead. */
+html.light .plant-soil {
+  fill: #e7dcc6 !important;
 }
