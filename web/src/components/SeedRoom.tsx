@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { SeedDetail } from "@/lib/services/seeds";
 import {
@@ -1331,7 +1332,13 @@ export function SeedRoom({
                     <Avatar name={c.author?.name} image={c.author?.image} size={32} />
                     <div>
                       <p className="flex items-center gap-1.5 text-sm font-medium text-ink">
-                        {c.author?.name || "Someone"}
+                        {c.author?.id && !isAI ? (
+                          <Link href={`/u/${c.author.id}`} className="transition hover:text-accent hover:underline">
+                            {c.author?.name || "Someone"}
+                          </Link>
+                        ) : (
+                          c.author?.name || "Someone"
+                        )}
                         {isAI && (
                           <span className="rounded-full bg-[rgba(76,175,80,0.15)] px-1.5 py-0.5 text-[10px] font-normal text-accent">
                             ✦ AI
@@ -1930,7 +1937,16 @@ export function SeedRoom({
                   {participants} member{participants === 1 ? "" : "s"}
                 </p>
                 <h2 className="serif-lg mt-0.5 break-words">{seedTitle}</h2>
-                <p className="mt-0.5 text-xs text-ink-soft">by {seed.author?.name || "someone"}</p>
+                <p className="mt-0.5 text-xs text-ink-soft">
+                  by{" "}
+                  {seed.author?.id ? (
+                    <Link href={`/u/${seed.author.id}`} className="transition hover:text-accent hover:underline">
+                      {seed.author?.name || "someone"}
+                    </Link>
+                  ) : (
+                    seed.author?.name || "someone"
+                  )}
+                </p>
               </div>
               <button
                 onClick={() => setSeedMenu(false)}
