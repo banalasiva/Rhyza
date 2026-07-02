@@ -1512,7 +1512,7 @@ export function SeedRoom({
             <RichEditor
               value={draft}
               onChange={setDraft}
-              placeholder={`What's your take? (**bold**, *italic*, \`code\` · @ to tag, @claude or @chatgpt to ask)`}
+              placeholder="What's your say?"
               disabled={busy}
               people={seed.people}
               onSubmit={() => {

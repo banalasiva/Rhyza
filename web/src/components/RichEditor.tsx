@@ -152,15 +152,8 @@ export function RichEditor({
   return (
     <div className="relative">
       <div className="mb-2 flex gap-1">
-        <ToolbarButton label="Bold (⌘B)" onClick={() => wrap("**")} disabled={disabled}>
-          <strong>B</strong>
-        </ToolbarButton>
-        <ToolbarButton label="Italic (⌘I)" onClick={() => wrap("*")} disabled={disabled}>
-          <em>I</em>
-        </ToolbarButton>
-        <ToolbarButton label="Code (⌘E)" onClick={() => wrap("`")} disabled={disabled}>
-          <span className="font-mono text-xs">{"</>"}</span>
-        </ToolbarButton>
+        {/* No bold/italic/code buttons — kept plain and simple for everyone.
+            (⌘B/I/E still work for anyone who wants them.) */}
         {toolbarExtra}
         {/* Submission is owned by the parent's single "Contribute" button, so
             the editor shows no Send of its own — just a desktop keyboard hint. */}
@@ -215,31 +208,5 @@ export function RichEditor({
         </div>
       )}
     </div>
-  );
-}
-
-function ToolbarButton({
-  children,
-  label,
-  onClick,
-  disabled,
-}: {
-  children: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-      className="h-7 w-8 rounded-md border text-sm text-ink-mid transition hover:text-ink disabled:opacity-40"
-      style={{ borderColor: "rgba(76,175,80,0.2)" }}
-    >
-      {children}
-    </button>
   );
 }
