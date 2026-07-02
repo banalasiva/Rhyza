@@ -59,24 +59,41 @@ export default async function GardenPage({ params }: { params: { id: string } })
         ) : (
           <ul className="mb-8 space-y-3">
             {seeds.map((s) => (
-              <li key={s.id}>
-                <Link href={`/seeds/${s.id}`} className="card block p-4 transition hover:border-accent">
-                  <div className="mb-1 flex items-center justify-between gap-3">
-                    <span className="flex items-center gap-2 font-serif text-lg text-ink">
-                      {s.visibility === "private" && (
-                        <span title="Private — only invited members" className="text-sm">🔒</span>
-                      )}
-                      {s.title}
-                    </span>
-                    <span className="shrink-0 text-xs text-accent">{stageBadge(s.stage)}</span>
+              <li key={s.id} className="relative">
+                <div className="card p-4 transition hover:border-accent">
+                  {/* Whole-card link as an overlay, so the author name below can be
+                      its own link without nesting anchors. */}
+                  <Link
+                    href={`/seeds/${s.id}`}
+                    aria-label={s.title}
+                    className="absolute inset-0 z-[1] rounded-2xl"
+                  />
+                  <div className="pointer-events-none relative z-[2]">
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <span className="flex items-center gap-2 font-serif text-lg text-ink">
+                        {s.visibility === "private" && (
+                          <span title="Private — only invited members" className="text-sm">🔒</span>
+                        )}
+                        {s.title}
+                      </span>
+                      <span className="shrink-0 text-xs text-accent">{stageBadge(s.stage)}</span>
+                    </div>
+                    {s.content && <p className="line-clamp-2 text-sm text-ink-mid">{s.content}</p>}
+                    <p className="mt-2 text-xs text-ink-soft">
+                      {s.author?.id ? (
+                        <Link
+                          href={`/u/${s.author.id}`}
+                          className="pointer-events-auto relative transition hover:text-accent hover:underline"
+                        >
+                          {s.author?.name || "Someone"}
+                        </Link>
+                      ) : (
+                        s.author?.name || "Someone"
+                      )}{" "}
+                      · {s.contributionCount} contributions
+                    </p>
                   </div>
-                  {s.content && (
-                    <p className="line-clamp-2 text-sm text-ink-mid">{s.content}</p>
-                  )}
-                  <p className="mt-2 text-xs text-ink-soft">
-                    {s.author?.name || "Someone"} · {s.contributionCount} contributions
-                  </p>
-                </Link>
+                </div>
               </li>
             ))}
           </ul>
