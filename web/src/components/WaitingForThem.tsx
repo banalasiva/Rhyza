@@ -19,6 +19,7 @@ type Pending = {
 // than any automated reminder. No vendor needed (wa.me opens WhatsApp for you to
 // pick the person); a WhatsApp Business / Exotel auto-send can layer on later.
 const HIDDEN_KEY = "tt-waiting-hidden";
+const COLLAPSE_KEY = "tt-waiting-collapsed";
 
 function loadHidden(): Set<string> {
   try {
@@ -35,10 +36,19 @@ export function WaitingForThem() {
   // Locally hidden rows — "cross off" people you're done with, restorable in
   // case you hid someone by mistake. Kept on the device (no backend needed).
   const [hidden, setHidden] = useState<Set<string>>(new Set());
+  // Whether the whole card is folded away. `null` = the user hasn't chosen, so
+  // we fall back to a sensible default (collapsed once you're all caught up).
+  const [collapsed, setCollapsed] = useState<boolean | null>(null);
 
   useEffect(() => {
     setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
     setHidden(loadHidden());
+    try {
+      const c = localStorage.getItem(COLLAPSE_KEY);
+      if (c !== null) setCollapsed(c === "1");
+    } catch {
+      /* ignore */
+    }
     apiGet<{ invites: Pending[] }>("/api/invites/pending")
       .then((r) => setInvites(r.invites))
       .catch(() => setInvites([]));
@@ -61,6 +71,19 @@ export function WaitingForThem() {
   const hiddenCount = invites.length - visible.length;
   // Nothing left to show and nothing hidden → collapse entirely.
   if (visible.length === 0 && hiddenCount === 0) return null;
+
+  // Default to folded once there's no one actively waiting on you; otherwise
+  // stay open. A tap remembers the choice for next time.
+  const isCollapsed = collapsed ?? visible.length === 0;
+  function toggleCollapsed() {
+    const next = !isCollapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }
 
   const message = (p: Pending) =>
     inviteMessage({ place: p.place ?? undefined, link: p.link, email: p.email ?? undefined });
@@ -96,8 +119,19 @@ export function WaitingForThem() {
   return (
     <div className="mb-5 rounded-2xl border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.05)] p-4">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-medium text-ink">🕊️ Waiting for them</p>
-        {hiddenCount > 0 && (
+        <button
+          onClick={toggleCollapsed}
+          aria-expanded={!isCollapsed}
+          className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink transition hover:text-accent"
+          title={isCollapsed ? "Expand" : "Collapse"}
+        >
+          <span aria-hidden className="text-[10px] text-ink-soft">{isCollapsed ? "▸" : "▾"}</span>
+          🕊️ Waiting for them
+          {isCollapsed && visible.length > 0 && (
+            <span className="text-[11px] font-normal text-ink-soft">({visible.length})</span>
+          )}
+        </button>
+        {!isCollapsed && hiddenCount > 0 && (
           <button
             onClick={restoreAll}
             className="shrink-0 text-[11px] text-ink-soft transition hover:text-ink"
@@ -107,6 +141,8 @@ export function WaitingForThem() {
           </button>
         )}
       </div>
+      {isCollapsed ? null : (
+      <>
       <p className="mb-3 mt-0.5 text-xs text-ink-soft">
         People you invited who haven’t joined yet. A hello from you means far more than any reminder.
       </p>
@@ -151,6 +187,8 @@ export function WaitingForThem() {
             </li>
           ))}
         </ul>
+      )}
+      </>
       )}
     </div>
   );
