@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { STAGES } from "@/lib/constants";
+import { deserializeMentions } from "@/lib/mentions";
 
 // The home feed — an infinite, private-first river of seeds worth your thought,
 // with a never-empty tail of blooms (finished decisions are evergreen).
@@ -71,7 +72,9 @@ const seedSelect = {
 const stageEmojiOf = (stage: string) => STAGES.find((s) => s.key === stage)?.emoji ?? "🌱";
 
 function snippet(text: string): string {
-  const t = (text ?? "").replace(/\s+/g, " ").trim();
+  // Turn @[Name](uuid) mention tokens into a plain "@Name" so the raw id never
+  // leaks into a card preview; then collapse whitespace and cap the length.
+  const t = deserializeMentions(text ?? "").replace(/\s+/g, " ").trim();
   return t.length > 140 ? `${t.slice(0, 140)}…` : t;
 }
 const textOf = (content: unknown) => snippet((content as { text?: string } | null)?.text ?? "");
