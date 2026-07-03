@@ -21,6 +21,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // The browser-chrome colour (address bar / status bar) is set at runtime by
+  // the inline script below so it matches the user's saved light/dark choice —
+  // which lives in localStorage and can't be known by a static value here.
   themeColor: "#070D07",
 };
 
@@ -37,7 +40,7 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              "try{if(localStorage.getItem('tt-theme')==='light')document.documentElement.classList.add('light')}catch(e){}",
+              "try{var l=localStorage.getItem('tt-theme')==='light';if(l)document.documentElement.classList.add('light');var m=document.querySelector('meta[name=\"theme-color\"]');if(m)m.setAttribute('content',l?'#f5f6f0':'#070D07');}catch(e){}",
           }}
         />
         {/*

@@ -17,6 +17,9 @@ export function ThemeToggle() {
     setLight(next);
     const root = document.documentElement;
     root.classList.toggle("light", next);
+    // Keep the browser chrome (address bar / status bar) in step with the theme.
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", next ? "#f5f6f0" : "#070D07");
     try {
       localStorage.setItem("tt-theme", next ? "light" : "dark");
     } catch {
