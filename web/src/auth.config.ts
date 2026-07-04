@@ -29,7 +29,18 @@ if (process.env.AUTH_SSO_ISSUER && process.env.AUTH_SSO_CLIENT_ID) {
 //                    without an account, or the store listing is rejected.
 //   /.well-known   — Digital Asset Links (assetlinks.json) must be publicly
 //                    fetchable so the Android TWA can verify it owns this domain.
-const PUBLIC_PREFIXES = ["/login", "/api/auth", "/invite", "/privacy", "/.well-known"];
+//   /manifest.webmanifest, /sw.js — the PWA manifest and service worker must be
+//                    fetchable without a session, or install/packaging tools
+//                    (PWABuilder, Play's TWA) can't read them ("manifest not found").
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/api/auth",
+  "/invite",
+  "/privacy",
+  "/.well-known",
+  "/manifest.webmanifest",
+  "/sw.js",
+];
 
 export const authConfig = {
   providers,
