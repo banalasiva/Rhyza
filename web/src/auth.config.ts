@@ -27,6 +27,8 @@ if (process.env.AUTH_SSO_ISSUER && process.env.AUTH_SSO_CLIENT_ID) {
 // Routes that don't require an authenticated session.
 //   /privacy       — Google's Play reviewers and crawlers must reach the policy
 //                    without an account, or the store listing is rejected.
+//   /delete-account — Google Play's account-deletion policy requires a public
+//                    URL, reachable without signing in, describing how to delete.
 //   /.well-known   — Digital Asset Links (assetlinks.json) must be publicly
 //                    fetchable so the Android TWA can verify it owns this domain.
 //   /manifest.webmanifest, /sw.js — the PWA manifest and service worker must be
@@ -37,6 +39,7 @@ const PUBLIC_PREFIXES = [
   "/api/auth",
   "/invite",
   "/privacy",
+  "/delete-account",
   "/.well-known",
   "/manifest.webmanifest",
   "/sw.js",
