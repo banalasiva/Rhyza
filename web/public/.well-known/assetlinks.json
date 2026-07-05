@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "app.thinkthru.twa",
       "sha256_cert_fingerprints": [
-        "F7:58:05:EA:F9:30:F1:DC:44:70:AE:A5:1C:21:AE:36:82:16:31:77:7F:2F:53:A3:CC:3F:08:91:DA:AB:D0:EE"
+        "F7:58:05:EA:F9:30:F1:DC:44:70:AE:A5:1C:21:AE:36:82:16:31:77:7F:2F:53:A3:CC:3F:08:91:DA:AB:D0:EE",
+        "E5:C2:D0:01:7F:47:84:2C:57:B8:75:6A:D2:E8:7A:B2:CD:35:D4:63:8D:C3:F1:93:89:5A:3E:49:E3:DD:55:07"
       ]
     }
   }
