@@ -43,7 +43,8 @@ export default function PrivacyPolicy() {
               </li>
               <li>
                 <strong className="text-ink">Your content</strong> — the seeds (questions),
-                messages, votes, rankings, and reactions you create in the app.
+                messages, votes, rankings, and reactions you create in the app, including any
+                photos, videos, or files you choose to attach.
               </li>
               <li>
                 <strong className="text-ink">Preferences</strong> — your notification settings.
