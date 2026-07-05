@@ -12,7 +12,7 @@ export const metadata = {
 };
 
 const UPDATED = "June 2026";
-const CONTACT = "siva1793@gmail.com";
+const CONTACT = "thinkthru.app@gmail.com";
 const OPERATOR = "an independent developer";
 
 export default function PrivacyPolicy() {

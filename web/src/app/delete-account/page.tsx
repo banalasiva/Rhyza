@@ -9,7 +9,7 @@ export const metadata = {
   description: "How to delete your ThinkThru account and the data associated with it.",
 };
 
-const CONTACT = "siva1793@gmail.com";
+const CONTACT = "thinkthru.app@gmail.com";
 const OPERATOR = "an independent developer";
 const SUBJECT = encodeURIComponent("Delete my ThinkThru account");
 const BODY = encodeURIComponent(
