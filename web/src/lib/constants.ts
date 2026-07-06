@@ -149,8 +149,8 @@ export const ALL_QUORUM_DIMENSION_KEYS = Array.from(
 );
 
 // A seed blooms (when its stake board is in use) once this share of the total
-// *stake* has voted to bloom — not this share of heads. A small headcount floor
-// (BLOOM_MIN_VOTERS) still applies so a single person can't bloom in silence.
+// *stake* has voted to bloom — not this share of heads. There is no minimum
+// headcount: a single person carrying more than half the say can bloom it alone.
 export const STAKE_BLOOM_THRESHOLD_PCT = 50;
 
 // Seed growth stages, in order.
@@ -170,13 +170,14 @@ export function stageIndex(stage: string): number {
   return i === -1 ? 0 : i;
 }
 
-// A seed blooms when the number of "bloomed" votes reaches the target: at least
-// BLOOM_MIN_VOTERS, or half of the participants — whichever is higher.
+// A seed blooms when the "bloomed" votes reach the target: a simple majority of
+// the participants, with no fixed two-person minimum (so a two-person seed can
+// bloom on one decisive voice).
 export const BLOOM_VOTE_THRESHOLD_PCT = 50;
-export const BLOOM_MIN_VOTERS = 2;
+export const BLOOM_MIN_VOTERS = 1;
 
 // How many "bloomed" votes a seed needs given how many people are participating.
-// e.g. 1–4 participants → 2 votes; 5–6 → 3; 7–8 → 4; …
+// e.g. 1–2 participants → 1 vote; 3–4 → 2; 5–6 → 3; …
 export function bloomTargetFor(participants: number): number {
   return Math.max(
     BLOOM_MIN_VOTERS,

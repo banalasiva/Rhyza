@@ -536,11 +536,10 @@ export async function evaluateStakeBloom(seedId: string): Promise<{
   );
   const { pct, yesVoters } = stakeYesShare(profiles, yesIds);
 
-  // Headcount floor: normally needs ≥2 yes voters, but a sole non-opted carrier
-  // can bloom alone (floor can't exceed the number of people who carry weight).
-  const eligible = parts.filter((id) => !optOuts.includes(id)).length;
-  const floor = Math.min(BLOOM_MIN_VOTERS, Math.max(1, eligible));
-  const reached = pct >= STAKE_BLOOM_THRESHOLD_PCT && yesVoters >= floor;
+  // No minimum head-count: a single person carrying more than half the say can
+  // bloom it alone. We still require at least one actual yes-voter so a seed
+  // can't bloom with nobody having voted.
+  const reached = pct >= STAKE_BLOOM_THRESHOLD_PCT && yesVoters >= BLOOM_MIN_VOTERS;
 
   return { configured: true, reached, pct, yesVoters, threshold: STAKE_BLOOM_THRESHOLD_PCT };
 }
