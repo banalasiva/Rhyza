@@ -4,6 +4,7 @@ import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { NavSidebar } from "@/components/NavSidebar";
 import { BottomNav } from "@/components/BottomNav";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export async function NavBar({ name }: { name?: string }) {
   const session = await auth();
@@ -34,6 +35,9 @@ export async function NavBar({ name }: { name?: string }) {
             ThinkThru
           </Link>
         </div>
+        {/* Light/dark toggle — now that the top bar is uncluttered, it lives
+            here where it's easy to find. */}
+        <ThemeToggle />
       </header>
       <BottomNav unread={unread} />
     </>

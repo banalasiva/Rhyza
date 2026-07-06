@@ -97,6 +97,15 @@ export function QuorumV2({ seedId }: { seedId: string }) {
         </p>
       </header>
 
+      {!understand && (
+        <p className="rounded-xl border border-[rgba(76,175,80,0.2)] bg-[rgba(76,175,80,0.06)] p-3 text-xs leading-relaxed text-ink-mid">
+          💡 Not every voice should count the same on every decision — and that&apos;s okay. Here
+          the group gently agrees whose voice should weigh most on each part — money, judgement,
+          who&apos;s most affected — so the final choice feels fair. It&apos;s only about this one
+          decision, never about ranking anyone as a person.
+        </p>
+      )}
+
       {view.canManage && <AdminBar view={view} seedId={seedId} busy={busy} setBusy={setBusy} reload={load} setError={setError} />}
 
       {showWeighIn ? (
