@@ -18,7 +18,9 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🌱");
   const [description, setDescription] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "private">(firstRun ? "private" : "public");
+  // Private by default — families expect their space to be just theirs; they can
+  // still flip a garden to Public to share it with the wider circle.
+  const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

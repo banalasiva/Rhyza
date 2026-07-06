@@ -16,7 +16,7 @@ export const createGardenSchema = z.object({
   name: z.string().min(2, "Garden name is too short").max(80),
   description: z.string().max(500).optional(),
   emoji: z.string().max(8).optional(),
-  visibility: z.enum(["public", "private"]).optional().default("public"),
+  visibility: z.enum(["public", "private"]).optional().default("private"),
 });
 
 export const visibilityEnum = z.enum(["public", "private"]);
@@ -24,7 +24,7 @@ export const visibilityEnum = z.enum(["public", "private"]);
 export const createSeedSchema = z.object({
   title: z.string().min(4, "Give your seed a clear question").max(200),
   content: z.string().max(5000).optional().default(""),
-  visibility: visibilityEnum.optional().default("public"),
+  visibility: visibilityEnum.optional().default("private"),
 });
 
 export const setSeedVisibilitySchema = z.object({

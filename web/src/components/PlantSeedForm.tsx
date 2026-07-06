@@ -8,7 +8,7 @@ export function PlantSeedForm({ gardenId }: { gardenId: string }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "private">("public");
+  const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
