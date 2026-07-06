@@ -76,19 +76,28 @@ async function getOrCreateChatGptUser() {
 }
 
 // Build the thread (with images) an AI participant sees for this seed.
+// Cap how much of a thread we feed the AI. The most recent messages carry the
+// live context for a reply; sending the entire history just slows every call
+// and runs up token cost as a discussion grows.
+const AI_CONTEXT_LIMIT = 24;
+
 async function threadForSeed(seedId: string) {
   const seed = await db.seed.findUnique({
     where: { id: seedId },
     include: {
       contributions: {
         where: { deletedAt: null },
-        orderBy: { createdAt: "asc" },
+        // Newest first so `take` keeps the most recent; we re-sort to ascending
+        // below so the AI reads the thread in natural order.
+        orderBy: { createdAt: "desc" },
+        take: AI_CONTEXT_LIMIT,
         include: { author: { select: { name: true } } },
       },
     },
   });
   if (!seed) return null;
-  const thread: ContribForAI[] = seed.contributions.map((c) => {
+  const ordered = [...seed.contributions].reverse();
+  const thread: ContribForAI[] = ordered.map((c) => {
     const content = c.content as
       | { text?: string; attachments?: { url: string; type: string }[] }
       | null;
@@ -152,32 +161,10 @@ export async function respondAsClaude(
   parentId: string,
   invokerId?: string,
 ) {
-  const seed = await db.seed.findUnique({
-    where: { id: seedId },
-    include: {
-      contributions: {
-        where: { deletedAt: null },
-        orderBy: { createdAt: "asc" },
-        include: { author: { select: { name: true } } },
-      },
-    },
-  });
-  if (!seed) return null;
-
-  const thread: ContribForAI[] = seed.contributions.map((c) => {
-    const content = c.content as
-      | { text?: string; attachments?: { url: string; type: string }[] }
-      | null;
-    const images = (content?.attachments ?? [])
-      .filter((a) => a.type === "image")
-      .map((a) => a.url);
-    return {
-      dimension: c.dimension,
-      author: c.author.name || "A member",
-      text: content?.text ?? "",
-      images: images.length ? images : undefined,
-    };
-  });
+  // Same capped, recent-first-then-ordered context the other AI paths use.
+  const data = await threadForSeed(seedId);
+  if (!data) return null;
+  const { seed, thread } = data;
 
   const reply = await claudeReply({
     title: seed.title,
