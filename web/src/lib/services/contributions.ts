@@ -222,6 +222,26 @@ export async function respondAsClaude(
   if (!data) return null;
   const { seed, thread } = data;
 
+  // Claude has no image model — so when asked to draw, politely hand off to
+  // ChatGPT rather than burning a completion trying (or pretending it can).
+  if (wantsImage(mentionText)) {
+    const claudeBot = await getOrCreateClaudeUser();
+    const msg =
+      "I can't make images myself — but @chatgpt can! Tag @chatgpt with what you'd like drawn and it'll create it for you.";
+    const contribution = await db.contribution.create({
+      data: { seedId, authorId: claudeBot.id, dimension, parentId, content: { text: msg } },
+      include: { author: { select: { id: true, name: true, image: true } } },
+    });
+    await notifySeedActivity(
+      claudeBot.id,
+      { id: seed.id, title: seed.title, createdById: seed.createdById },
+      contribution.id,
+      "Claude replied",
+      invokerId ? [invokerId] : [],
+    );
+    return contribution;
+  }
+
   const reply = await claudeReply({
     title: seed.title,
     content: seed.content,
