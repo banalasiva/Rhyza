@@ -11,7 +11,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { STAGE_KEYS, EXPLORE_TOPICS, sanitizeTopics } from "@/lib/constants";
 
-const MODEL = "claude-opus-4-8";
+// Claude model — Sonnet 4.6 is the cost-effective default for these
+// conversational, mediation, and classification tasks (~40% cheaper than Opus,
+// with a small quality gap on this kind of work). Overridable via env so
+// switching back to Opus is a config change, not a code edit.
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 // ChatGPT model — overridable via env so the exact OpenAI model is a config
 // choice, not a hardcode that can drift out of date.
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
