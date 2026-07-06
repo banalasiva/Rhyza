@@ -9,7 +9,7 @@ async function loadRows(userId: string) {
   try {
     return await db.notification.findMany({
       where: { recipientId: userId },
-      orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
+      orderBy: { createdAt: "desc" },
       take: 50,
       select: {
         id: true,
@@ -27,7 +27,7 @@ async function loadRows(userId: string) {
   } catch {
     const base = await db.notification.findMany({
       where: { recipientId: userId },
-      orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
+      orderBy: { createdAt: "desc" },
       take: 50,
       select: {
         id: true,

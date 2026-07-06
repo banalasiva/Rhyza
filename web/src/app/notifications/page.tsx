@@ -3,6 +3,7 @@ import { requireViewer } from "@/lib/session";
 import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
 import { NotificationSettings } from "@/components/NotificationSettings";
+import { NotificationList } from "@/components/NotificationList";
 
 function href(
   entityType: string | null,
@@ -25,7 +26,7 @@ async function loadNotifications(userId: string) {
   try {
     return await db.notification.findMany({
       where: { recipientId: userId },
-      orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
+      orderBy: { createdAt: "desc" },
       take: 50,
       select: {
         id: true,
@@ -42,7 +43,7 @@ async function loadNotifications(userId: string) {
   } catch {
     const rows = await db.notification.findMany({
       where: { recipientId: userId },
-      orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
+      orderBy: { createdAt: "desc" },
       take: 50,
       select: {
         id: true,
@@ -89,19 +90,16 @@ export default async function NotificationsPage() {
         {notifications.length === 0 ? (
           <p className="text-sm text-ink-soft">Nothing yet. Go plant something. 🌱</p>
         ) : (
-          <ul className="space-y-2">
-            {notifications.map((n) => (
-              <li key={n.id}>
-                <Link
-                  href={href(n.entityType, n.entityId, n.anchorId)}
-                  className={`card block p-4 ${n.readAt ? "opacity-60" : ""}`}
-                >
-                  <p className="text-sm text-ink">{n.title}</p>
-                  {n.body && <p className="mt-0.5 text-xs text-ink-mid">{n.body}</p>}
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <NotificationList
+            items={notifications.map((n) => ({
+              id: n.id,
+              type: n.type,
+              title: n.title,
+              body: n.body,
+              href: href(n.entityType, n.entityId, n.anchorId),
+              unread: !n.readAt,
+            }))}
+          />
         )}
       </main>
     </div>
