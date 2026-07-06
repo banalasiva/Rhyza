@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { STAGES } from "@/lib/constants";
 import { deserializeMentions } from "@/lib/mentions";
@@ -37,8 +38,52 @@ function snip(t: string, n = 140): string {
   const clean = t.replace(/\s+/g, " ").trim();
   return clean.length > n ? `${clean.slice(0, n)}…` : clean;
 }
-const textOf = (content: unknown) =>
-  deserializeMentions((content as { text?: string } | null)?.text ?? "");
+// Message search via Postgres full-text: case-insensitive, word-stemmed, and
+// relevance-ranked over the GIN index on contributions.content->>'text'.
+// Authorisation stays in Prisma — we resolve the seed ids the viewer may see
+// first, then rank messages within them. Any raw-query failure degrades to [],
+// so one bad group never breaks the whole search.
+async function searchMessages(
+  userId: string,
+  orgId: string,
+  q: string,
+): Promise<SearchResults["messages"]> {
+  const accessible = await db.seed.findMany({
+    where: { deletedAt: null, garden: { orgId }, OR: seedVisibleOr(userId) },
+    select: { id: true },
+    take: 2000,
+  });
+  const ids = accessible.map((s) => s.id);
+  if (ids.length === 0) return [];
+  try {
+    const rows = await db.$queryRaw<
+      { id: string; seed_id: string; text: string | null; author: string | null; seed_title: string }[]
+    >(Prisma.sql`
+      SELECT c."id", c."seed_id", c."content"->>'text' AS text, u."name" AS author, s."title" AS seed_title
+      FROM "contributions" c
+      JOIN "users" u ON u."id" = c."author_id"
+      JOIN "seeds" s ON s."id" = c."seed_id"
+      WHERE c."deleted_at" IS NULL
+        AND c."seed_id"::text IN (${Prisma.join(ids)})
+        AND to_tsvector('english', coalesce(c."content"->>'text', '')) @@ websearch_to_tsquery('english', ${q})
+      ORDER BY ts_rank(
+        to_tsvector('english', coalesce(c."content"->>'text', '')),
+        websearch_to_tsquery('english', ${q})
+      ) DESC, c."created_at" DESC
+      LIMIT 8
+    `);
+    return rows.map((r) => ({
+      id: r.id,
+      seedId: r.seed_id,
+      seedTitle: r.seed_title ?? "",
+      author: r.author ?? "Someone",
+      snippet: snip(deserializeMentions(r.text ?? "")),
+    }));
+  } catch (err) {
+    console.error("[search] message full-text query failed", err);
+    return [];
+  }
+}
 
 export async function search(userId: string, orgId: string, raw: string): Promise<SearchResults> {
   const q = raw.trim();
@@ -59,24 +104,8 @@ export async function search(userId: string, orgId: string, raw: string): Promis
       take: 8,
       select: { id: true, title: true, stage: true, content: true, garden: { select: { name: true } } },
     }),
-    // Messages inside seeds the viewer can access. (JSON body match is
-    // case-sensitive — a full-text index is the planned upgrade.)
-    db.contribution.findMany({
-      where: {
-        deletedAt: null,
-        content: { path: ["text"], string_contains: q },
-        seed: { deletedAt: null, garden: { orgId }, OR: seedVisibleOr(userId) },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 8,
-      select: {
-        id: true,
-        seedId: true,
-        content: true,
-        author: { select: { name: true } },
-        seed: { select: { title: true } },
-      },
-    }),
+    // Messages by body — full-text, case-insensitive, relevance-ranked.
+    searchMessages(userId, orgId, q),
     // Gardens by name.
     db.garden.findMany({
       where: { orgId, AND: [{ OR: gardenVisibleOr(userId) }, { name: ci }] },
@@ -102,13 +131,7 @@ export async function search(userId: string, orgId: string, raw: string): Promis
     gardenName: s.garden?.name ?? "",
     snippet: s.content ? snip(s.content) : null,
   }));
-  const messageResults = messages.map((m) => ({
-    id: m.id,
-    seedId: m.seedId,
-    seedTitle: m.seed?.title ?? "",
-    author: m.author?.name ?? "Someone",
-    snippet: snip(textOf(m.content)),
-  }));
+  const messageResults = messages; // already the final shape from searchMessages
   const gardenResults = gardens.map((g) => ({ id: g.id, name: g.name, emoji: g.emoji }));
   const peopleResults = people.map((p) => p.user).filter((u): u is NonNullable<typeof u> => !!u);
 

@@ -195,4 +195,10 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "daily_quotes_active_idx",
     sql: `CREATE INDEX IF NOT EXISTS "daily_quotes_active_idx" ON "daily_quotes" ("active")`,
   },
+
+  // 20260703120000_search_fts
+  {
+    label: "contributions_text_fts",
+    sql: `CREATE INDEX IF NOT EXISTS "contributions_text_fts" ON "contributions" USING GIN (to_tsvector('english', coalesce("content"->>'text', '')))`,
+  },
 ];
