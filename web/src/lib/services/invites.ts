@@ -1,12 +1,7 @@
 import { randomBytes } from "crypto";
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
-import {
-  ensureGardenMember,
-  requireSeedAccess,
-  requireSeedManager,
-  requireGardenSteward,
-} from "@/lib/authz";
+import { ensureGardenMember, requireSeedAccess } from "@/lib/authz";
 import { appUrl, sendEmail, inviteEmailHtml, emailConfigured } from "@/lib/email";
 
 const INVITE_TTL_DAYS = 30;
@@ -93,12 +88,10 @@ export async function createGardenInvite(
   gardenId: string,
   email: string | undefined,
 ) {
+  // Any member of the garden can bring others in — a family/group member
+  // shouldn't have to be a steward to add someone to the circle. (Removing
+  // people is still steward-only.)
   const garden = await ensureGardenMember(userId, gardenId);
-  // A private garden's roster is the access boundary — only a steward may widen
-  // it. Public gardens are open to org members, so any member may invite.
-  if (garden.visibility === "private") {
-    await requireGardenSteward(userId, gardenId);
-  }
   const inviter = await db.user.findUnique({
     where: { id: userId },
     select: { name: true },
@@ -166,10 +159,9 @@ export async function createSeedInvite(
   seedId: string,
   email: string | undefined,
 ) {
+  // Any member with access to the seed can invite others in — not just the
+  // creator/steward. (Removing people stays steward-only.)
   const seed = await requireSeedAccess(userId, seedId);
-  if (seed.visibility === "private") {
-    await requireSeedManager(userId, seedId);
-  }
   const [garden, inviter] = await Promise.all([
     db.garden.findUnique({ where: { id: seed.gardenId }, select: { name: true, orgId: true } }),
     db.user.findUnique({ where: { id: userId }, select: { name: true } }),

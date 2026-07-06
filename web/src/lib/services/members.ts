@@ -158,21 +158,39 @@ export type NetworkPerson = { id: string; name: string; email: string; image: st
 // with them. Powers invite autocomplete: you mostly re-invite the same circle,
 // and re-inviting them into new gardens is the network-effect flywheel.
 export async function listMyNetwork(userId: string): Promise<NetworkPerson[]> {
-  const myGardens = await db.gardenMember.findMany({
-    where: { userId },
-    select: { gardenId: true },
-  });
+  // Everyone you've collaborated with — co-members of any garden OR seed you're
+  // in — so the "add existing" picker shows the whole family/group, not only
+  // people who happen to share a garden.
+  const [myGardens, mySeeds] = await Promise.all([
+    db.gardenMember.findMany({ where: { userId }, select: { gardenId: true } }),
+    db.seedMember.findMany({ where: { userId }, select: { seedId: true } }),
+  ]);
   const gardenIds = myGardens.map((g: { gardenId: string }) => g.gardenId);
-  if (gardenIds.length === 0) return [];
+  const seedIds = mySeeds.map((s: { seedId: string }) => s.seedId);
+  if (gardenIds.length === 0 && seedIds.length === 0) return [];
 
-  const members = await db.gardenMember.findMany({
-    where: { gardenId: { in: gardenIds }, userId: { not: userId } },
-    select: { user: { select: { id: true, name: true, email: true, image: true } } },
-    take: 1000,
-  });
+  const userSel = { user: { select: { id: true, name: true, email: true, image: true } } };
+  const [gardenPeople, seedPeople] = await Promise.all([
+    gardenIds.length
+      ? db.gardenMember.findMany({
+          where: { gardenId: { in: gardenIds }, userId: { not: userId } },
+          select: userSel,
+          take: 1000,
+        })
+      : Promise.resolve([]),
+    seedIds.length
+      ? db.seedMember.findMany({
+          where: { seedId: { in: seedIds }, userId: { not: userId } },
+          select: userSel,
+          take: 1000,
+        })
+      : Promise.resolve([]),
+  ]);
 
   const seen = new Map<string, NetworkPerson>();
-  for (const m of members as { user: { id: string; name: string | null; email: string | null; image: string | null } }[]) {
+  for (const m of [...gardenPeople, ...seedPeople] as {
+    user: { id: string; name: string | null; email: string | null; image: string | null };
+  }[]) {
     const u = m.user;
     if (u?.email && !seen.has(u.id)) {
       seen.set(u.id, { id: u.id, name: u.name || u.email, email: u.email, image: u.image });
@@ -182,11 +200,11 @@ export async function listMyNetwork(userId: string): Promise<NetworkPerson[]> {
 }
 
 // Who can add people to a seed: the same rule as inviting — anyone with access
-// to a public seed, only a manager for a private one.
+// Any member with access to the seed (public or private) can add existing
+// people — so anyone in the group can bring others in. (Removing/promoting is
+// still manager-only, elsewhere.)
 async function assertCanAdd(actorId: string, seedId: string) {
-  const seed = await requireSeedAccess(actorId, seedId);
-  if (seed.visibility === "private") await requireSeedManager(actorId, seedId);
-  return seed;
+  return await requireSeedAccess(actorId, seedId);
 }
 
 // People already on ThinkThru (in this seed's org) you can drop straight into
