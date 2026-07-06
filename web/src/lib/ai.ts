@@ -63,9 +63,11 @@ export type Source = { url: string; title: string };
 const WEB_SEARCH_TOOL: Anthropic.WebSearchTool20260209 = {
   type: "web_search_20260209",
   name: "web_search",
-  // Capped low: thread text is user-controlled and could try to steer the model
-  // into many searches. Two is enough for a real answer and bounds cost/abuse.
-  max_uses: 2,
+  // Capped: thread text is user-controlled and could try to steer the model into
+  // many searches. Four gives a real answer room to breathe (a couple of refining
+  // searches) while still bounding cost/abuse — and, paired with the prompt only
+  // searching when genuinely needed, keeps most replies search-free and fast.
+  max_uses: 4,
 };
 
 // Collect the unique web pages Claude cited, in first-seen order, capped.
@@ -230,11 +232,14 @@ export async function claudeReply(input: {
       "collaborative knowledge garden where members explore a topic together. Someone " +
       "tagged you with @claude. Answer their question or add genuinely useful, specific " +
       "insight grounded in the discussion so far (including any images shown). Don't just " +
-      "repeat what's been said. You have a web_search tool: whenever the question is about " +
-      "specific places, shops, businesses, prices, products, availability, addresses, or " +
-      "anything local, recent, or real-world (e.g. 'names and locations of stores near X'), " +
-      "you MUST search the web first and answer with concrete specifics — real names, " +
-      "neighbourhoods, and links — not generic advice like 'try Google Maps'. Be concise " +
+      "repeat what's been said. You have a web_search tool — use it ONLY when the question " +
+      "genuinely needs current, local, or real-world facts you can't answer well on your own " +
+      "(today's prices, what's open near a specific place, recent events, real shop names and " +
+      "addresses). For advice, reasoning, or discussion, answer directly WITHOUT searching. When " +
+      "you do search, give concrete specifics — real names, neighbourhoods, and links — not " +
+      "generic advice like 'try Google Maps'. Never mention searching, the search tool, search " +
+      "limits, or any 'budget' in your reply; if you can't find something, just answer as best " +
+      "you can. Be concise " +
       "(1–3 short paragraphs), warm, and direct. Output only your reply — no greeting like " +
       "'Sure!', no sign-off, and don't refer to yourself in the third person.",
     userMessage(prompt, collectImages(input.contributions)),
@@ -551,11 +556,14 @@ export async function chatgptReply(input: {
     "collaborative knowledge garden where members explore a topic together. Someone tagged " +
     "you with @chatgpt. Answer their question or add genuinely useful, specific insight " +
     "grounded in the discussion so far (including any images shown). Don't just repeat what's " +
-    "been said. You have a web search tool: whenever the question is about specific places, " +
-    "shops, businesses, prices, products, availability, addresses, or anything local, recent, " +
-    "or real-world (e.g. 'names and locations of stores near X'), you MUST search the web first " +
-    "and answer with concrete specifics — real names, neighbourhoods, and links — not generic " +
-    "advice like 'try Google Maps'. Be concise (1–3 short paragraphs), warm, and direct. Output " +
+    "been said. You have a web search tool — use it ONLY when the question genuinely needs " +
+    "current, local, or real-world facts you can't answer well on your own (today's prices, " +
+    "what's open near a specific place, recent events, real shop names and addresses). For " +
+    "advice, reasoning, or discussion, answer directly WITHOUT searching. When you do search, " +
+    "give concrete specifics — real names, neighbourhoods, and links — not generic advice like " +
+    "'try Google Maps'. Never mention searching, the search tool, search limits, or any 'budget' " +
+    "in your reply; if you can't find something, just answer as best you can. Be concise " +
+    "(1–3 short paragraphs), warm, and direct. Output " +
     "only your reply — no greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.";
   const images = collectImages(input.contributions);
 
