@@ -44,6 +44,12 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
 
   return (
     <form onSubmit={submit} className="space-y-3">
+      {!firstRun && (
+        <p className="text-xs text-ink-soft">
+          A <span className="text-ink-mid">garden</span> is a private space for a group — your
+          family, friends, or team — to think decisions through together.
+        </p>
+      )}
       {firstRun && (
         <div>
           <p className="mb-1.5 text-xs text-ink-soft">Quick start:</p>

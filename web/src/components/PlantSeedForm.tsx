@@ -30,6 +30,10 @@ export function PlantSeedForm({ gardenId }: { gardenId: string }) {
 
   return (
     <form onSubmit={submit} className="space-y-3">
+      <p className="text-xs text-ink-soft">
+        A <span className="text-ink-mid">seed</span> is a question your group thinks through
+        together — like “Where should we go this holiday?”
+      </p>
       <input
         className="input"
         placeholder="Ask a question worth exploring…"

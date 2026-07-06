@@ -1,7 +1,9 @@
 import { requireViewer } from "@/lib/session";
 import { listGardens } from "@/lib/services/gardens";
+import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
 import { CreateGardenForm } from "@/components/CreateGardenForm";
+import { GettingStarted } from "@/components/GettingStarted";
 import { HashFocus } from "@/components/HashFocus";
 import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 import { MorningQuote } from "@/components/MorningQuote";
@@ -12,6 +14,21 @@ import { Feed } from "@/components/Feed";
 export default async function GardensHome() {
   const viewer = await requireViewer();
   const gardens = await listGardens(viewer.userId, viewer.orgId);
+
+  // Progress for the "getting started" guide: has the viewer planted a seed,
+  // and has anyone else joined a garden they're in? (Cheap counts; only the
+  // presence matters.)
+  const [seedCount, otherMembers] = gardens.length
+    ? await Promise.all([
+        db.seed.count({ where: { deletedAt: null, createdById: viewer.userId } }),
+        db.gardenMember.count({
+          where: {
+            userId: { not: viewer.userId },
+            garden: { members: { some: { userId: viewer.userId } } },
+          },
+        }),
+      ])
+    : [0, 0];
 
   return (
     <div className="relative min-h-screen">
@@ -39,6 +56,11 @@ export default async function GardensHome() {
           </>
         ) : (
           <>
+            <GettingStarted
+              hasSeed={seedCount > 0}
+              hasInvited={otherMembers > 0}
+              firstGardenId={gardens[0]?.id}
+            />
             <h1 className="serif-xl mb-4">What will the community grow today?</h1>
             {/* Start-something composer (also the target of the side panel's
                 "New garden") — kept at the top, feed below, like a social home. */}
