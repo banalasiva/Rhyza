@@ -68,10 +68,10 @@ const WEB_SEARCH_TOOL: Anthropic.WebSearchTool20260209 = {
   type: "web_search_20260209",
   name: "web_search",
   // Capped: thread text is user-controlled and could try to steer the model into
-  // many searches. Four gives a real answer room to breathe (a couple of refining
-  // searches) while still bounding cost/abuse — and, paired with the prompt only
-  // searching when genuinely needed, keeps most replies search-free and fast.
-  max_uses: 4,
+  // many searches. Two keeps a searching reply reasonably fast (each Anthropic
+  // search is a slow round-trip) while still answering real-world questions with
+  // real links; pure-discussion replies don't search at all and stay fast.
+  max_uses: 2,
 };
 
 // Collect the unique web pages Claude cited, in first-seen order, capped.
@@ -236,14 +236,14 @@ export async function claudeReply(input: {
       "collaborative knowledge garden where members explore a topic together. Someone " +
       "tagged you with @claude. Answer their question or add genuinely useful, specific " +
       "insight grounded in the discussion so far (including any images shown). Don't just " +
-      "repeat what's been said. You have a web_search tool — use it ONLY when the question " +
-      "genuinely needs current, local, or real-world facts you can't answer well on your own " +
-      "(today's prices, what's open near a specific place, recent events, real shop names and " +
-      "addresses). For advice, reasoning, or discussion, answer directly WITHOUT searching. When " +
-      "you do search, give concrete specifics — real names, neighbourhoods, and links — not " +
-      "generic advice like 'try Google Maps'. Never mention searching, the search tool, search " +
-      "limits, or any 'budget' in your reply; if you can't find something, just answer as best " +
-      "you can. Be concise " +
+      "repeat what's been said. You have a web_search tool — use it whenever a good answer needs " +
+      "real, current, or specific outside facts the reader would actually want: products and " +
+      "where to buy them, gift ideas, prices, shops or businesses and their locations, recent " +
+      "events, or anything local or up-to-date. In those cases search and answer with concrete " +
+      "specifics — real names, neighbourhoods, and clickable links — never vague advice like " +
+      "'try Google Maps'. Skip searching only for pure discussion, opinions, or reasoning that " +
+      "needs no outside facts. Never mention searching, the tool, or any limits in your reply; " +
+      "if a search finds nothing, just answer as best you can. Be concise " +
       "(1–3 short paragraphs), warm, and direct. Output only your reply — no greeting like " +
       "'Sure!', no sign-off, and don't refer to yourself in the third person.",
     userMessage(prompt, collectImages(input.contributions)),
@@ -468,6 +468,45 @@ function getOpenAI(): OpenAI {
   return openaiClient;
 }
 
+// Image model. dall-e-3 is the default because it works on any OpenAI account
+// with no extra setup; gpt-image-1 (what the ChatGPT app uses — better quality)
+// needs organisation verification, so switch to it via env once verified.
+const OPENAI_IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || "dall-e-3";
+
+// Does this message ask an AI to *make* a picture (rather than discuss one)?
+// A verb of creation near an image noun — deliberately broad but anchored so a
+// mention like "what do you think of this image" doesn't trigger a generation.
+export function wantsImage(text: string): boolean {
+  return /\b(draw|sketch|illustrate|generate|create|make|design|render|paint|imagine|show me)\b[^.?!\n]{0,40}\b(image|picture|photo|drawing|illustration|logo|art|artwork|design|visual|poster|icon|mockup|graphic|scene|wallpaper)\b/i.test(
+    text,
+  );
+}
+
+// Generate an image from a prompt. Returns a PNG buffer (uploadable to Blob) or
+// null on failure — model-agnostic: reads b64 for gpt-image-1, or fetches the
+// URL dall-e returns. THROWS are caught and logged, never surfaced raw.
+export async function generateImage(prompt: string): Promise<Buffer | null> {
+  if (!openaiConfigured() || !prompt.trim()) return null;
+  try {
+    const res = await getOpenAI().images.generate({
+      model: OPENAI_IMAGE_MODEL,
+      prompt: prompt.trim().slice(0, 900),
+      size: "1024x1024",
+      n: 1,
+    });
+    const item = res.data?.[0];
+    if (item?.b64_json) return Buffer.from(item.b64_json, "base64");
+    if (item?.url) {
+      const r = await fetch(item.url);
+      if (r.ok) return Buffer.from(await r.arrayBuffer());
+    }
+    return null;
+  } catch (err) {
+    console.error("[ai] image generation failed", err);
+    return null;
+  }
+}
+
 // Does this text tag ChatGPT? Matches @chatgpt / @openai / @gpt.
 export function mentionsChatGpt(text: string): boolean {
   return /(^|[^a-zA-Z0-9])@(chatgpt|openai|gpt)\b/i.test(text);
@@ -560,13 +599,14 @@ export async function chatgptReply(input: {
     "collaborative knowledge garden where members explore a topic together. Someone tagged " +
     "you with @chatgpt. Answer their question or add genuinely useful, specific insight " +
     "grounded in the discussion so far (including any images shown). Don't just repeat what's " +
-    "been said. You have a web search tool — use it ONLY when the question genuinely needs " +
-    "current, local, or real-world facts you can't answer well on your own (today's prices, " +
-    "what's open near a specific place, recent events, real shop names and addresses). For " +
-    "advice, reasoning, or discussion, answer directly WITHOUT searching. When you do search, " +
-    "give concrete specifics — real names, neighbourhoods, and links — not generic advice like " +
-    "'try Google Maps'. Never mention searching, the search tool, search limits, or any 'budget' " +
-    "in your reply; if you can't find something, just answer as best you can. Be concise " +
+    "been said. You have a web search tool — use it whenever a good answer needs real, current, " +
+    "or specific outside facts the reader would actually want: products and where to buy them, " +
+    "gift ideas, prices, shops or businesses and their locations, recent events, or anything " +
+    "local or up-to-date. In those cases search and answer with concrete specifics — real names, " +
+    "neighbourhoods, and clickable links — never vague advice like 'try Google Maps'. Skip " +
+    "searching only for pure discussion, opinions, or reasoning that needs no outside facts. " +
+    "Never mention searching, the tool, or any limits in your reply; if a search finds nothing, " +
+    "just answer as best you can. Be concise " +
     "(1–3 short paragraphs), warm, and direct. Output " +
     "only your reply — no greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.";
   const images = collectImages(input.contributions);

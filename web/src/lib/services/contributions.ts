@@ -14,9 +14,12 @@ import {
   aiStageVote,
   summarizeThread,
   mentionsClaude,
+  wantsImage,
+  generateImage,
   type ContribForAI,
 } from "@/lib/ai";
-import { extractMentionIds } from "@/lib/mentions";
+import { put } from "@vercel/blob";
+import { extractMentionIds, deserializeMentions } from "@/lib/mentions";
 import { requestAdmissionIfNeeded } from "@/lib/services/stake";
 import { settleStage } from "@/lib/services/voting";
 import { STAGES } from "@/lib/constants";
@@ -114,6 +117,51 @@ async function threadForSeed(seedId: string) {
   return { seed, thread };
 }
 
+// When someone asks ChatGPT to draw/generate a picture, produce an image and
+// post it as a ChatGPT contribution with an image attachment. Returns the new
+// contribution, or null if generation/upload failed (caller falls back to a
+// generic "couldn't reply" so the mention is never silently dropped).
+async function respondWithImage(
+  seedId: string,
+  dimension: string,
+  mentionText: string,
+  parentId: string,
+  seed: { id: string; title: string; createdById: string },
+  invokerId?: string,
+) {
+  // Strip the @mention token(s) so the prompt is just the drawing request.
+  const prompt = deserializeMentions(mentionText)
+    .replace(/@(chatgpt|openai|gpt|claude)\b/gi, "")
+    .trim();
+  const png = await generateImage(prompt);
+  if (!png) return null;
+
+  // Upload to Blob (BLOB_READ_WRITE_TOKEN is read from the environment).
+  const key = `ai/chatgpt/${seedId}-${Date.now()}.png`;
+  const blob = await put(key, png, { access: "public", contentType: "image/png" });
+
+  const bot = await getOrCreateChatGptUser();
+  const caption = prompt ? `Here's what I imagined for "${prompt.slice(0, 120)}":` : "Here's what I imagined:";
+  const contribution = await db.contribution.create({
+    data: {
+      seedId,
+      authorId: bot.id,
+      dimension,
+      parentId,
+      content: { text: caption, attachments: [{ url: blob.url, type: "image" }] },
+    },
+    include: { author: { select: { id: true, name: true, image: true } } },
+  });
+  await notifySeedActivity(
+    bot.id,
+    { id: seed.id, title: seed.title, createdById: seed.createdById },
+    contribution.id,
+    "ChatGPT shared an image",
+    invokerId ? [invokerId] : [],
+  );
+  return contribution;
+}
+
 // ChatGPT's reply to an @chatgpt mention, posted as the ChatGPT system user.
 export async function respondAsChatGpt(
   seedId: string,
@@ -124,6 +172,14 @@ export async function respondAsChatGpt(
 ) {
   const data = await threadForSeed(seedId);
   if (!data) return null;
+
+  // "@chatgpt draw me a …" → generate a picture instead of a text reply.
+  if (wantsImage(mentionText)) {
+    const img = await respondWithImage(seedId, dimension, mentionText, parentId, data.seed, invokerId);
+    if (img) return img;
+    // fall through to a normal text reply if image generation failed
+  }
+
   const reply = await chatgptReply({
     title: data.seed.title,
     content: data.seed.content,
