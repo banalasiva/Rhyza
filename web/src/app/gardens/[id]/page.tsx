@@ -5,6 +5,7 @@ import { NavBar } from "@/components/NavBar";
 import { PlantSeedForm } from "@/components/PlantSeedForm";
 import { InviteForm } from "@/components/InviteForm";
 import { GardenSettings } from "@/components/GardenSettings";
+import { ShareButton } from "@/components/ShareButton";
 import { HashFocus } from "@/components/HashFocus";
 import { STAGES } from "@/lib/constants";
 
@@ -41,6 +42,12 @@ export default async function GardenPage({ params }: { params: { id: string } })
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             {garden.canManage && <GardenSettings garden={{ id: garden.id, name: garden.name, description: garden.description, emoji: garden.emoji, visibility: garden.visibility }} />}
+            <ShareButton
+              path={`/gardens/${garden.id}`}
+              title={garden.name}
+              text={`Come think things through with us in “${garden.name}” on ThinkThru`}
+              className="btn-ghost"
+            />
             <Link href={`/gardens/${garden.id}/tree`} className="btn-ghost">
               🌸 Sacred Tree
             </Link>

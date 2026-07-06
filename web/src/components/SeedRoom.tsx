@@ -20,6 +20,7 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { RichEditor } from "@/components/RichEditor";
 import { InlineText } from "@/components/InlineText";
 import { serializeMentions, deserializeMentions } from "@/lib/mentions";
+import { shareOrCopy } from "@/lib/share-client";
 import { CollapsibleText } from "@/components/CollapsibleText";
 import { Avatar } from "@/components/Avatar";
 import { Attachments, type Attachment } from "@/components/Attachments";
@@ -1891,7 +1892,7 @@ export function SeedRoom({
                 <MessageActions
                   only="share"
                   text={sheetC.text}
-                  path={`/seeds/${seed.id}`}
+                  path={`/seeds/${seed.id}#c-${sheetC.id}`}
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
                 />
               )}
@@ -1972,6 +1973,19 @@ export function SeedRoom({
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
               >
                 ➕ Add members
+              </button>
+              <button
+                onClick={() => {
+                  setSeedMenu(false);
+                  void shareOrCopy({
+                    path: `/seeds/${seed.id}`,
+                    title: seedTitle,
+                    text: `On ThinkThru: ${seedTitle}`,
+                  });
+                }}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
+              >
+                📤 Share
               </button>
               {seed.canManage && (
                 <button
