@@ -3,7 +3,6 @@ import Image from "next/image";
 import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { NavSidebar } from "@/components/NavSidebar";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 export async function NavBar({ name }: { name?: string }) {
   const session = await auth();
@@ -42,7 +41,6 @@ export async function NavBar({ name }: { name?: string }) {
         >
           🔍
         </Link>
-        <ThemeToggle />
         {/* Notifications bell with unread badge */}
         <Link
           href="/notifications"

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type SeedNode = { id: string; title: string; visibility: "public" | "private"; bloomed: boolean };
 type GardenNode = {
@@ -130,6 +131,10 @@ export function NavSidebar({ signOut }: { signOut?: () => void }) {
             {/* Account actions pinned at the bottom of the panel */}
             {signOut && (
               <div className="mt-6 border-t border-[rgba(76,175,80,0.15)] pt-3">
+                <div className="mb-1 flex items-center justify-between px-1 py-1.5">
+                  <span className="text-sm text-ink-mid">Theme</span>
+                  <ThemeToggle />
+                </div>
                 <Link
                   href="/roots"
                   onClick={() => setOpenPersist(false)}
