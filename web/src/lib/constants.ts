@@ -185,52 +185,11 @@ export function bloomTargetFor(participants: number): number {
   );
 }
 
-// ── Explore topics (Phase 2) ───────────────────────────────────────────────
-// A small, curated taxonomy for the public square. Public seeds are tagged with
-// 1–3 of these (Claude infers them at share time); people choose the same set as
-// their interests, and we match the two to personalise Explore + notifications.
-// Keys are stable slugs — never rename one without a data migration.
-export const EXPLORE_TOPICS = [
-  { key: "family", emoji: "👪", label: "Parenting & Family" },
-  { key: "relationships", emoji: "❤️", label: "Relationships" },
-  { key: "money", emoji: "💰", label: "Money" },
-  { key: "career", emoji: "💼", label: "Work & Career" },
-  { key: "health", emoji: "🩺", label: "Health" },
-  { key: "wellbeing", emoji: "🌱", label: "Wellbeing" },
-  { key: "travel", emoji: "✈️", label: "Travel" },
-  { key: "food", emoji: "🍳", label: "Food" },
-  { key: "home", emoji: "🏡", label: "Home & Living" },
-  { key: "learning", emoji: "📚", label: "Learning" },
-  { key: "technology", emoji: "💻", label: "Technology" },
-  { key: "product", emoji: "🛠", label: "Product & Startups" },
-  { key: "creativity", emoji: "🎨", label: "Creativity" },
-  { key: "community", emoji: "🤝", label: "Community & Society" },
-] as const;
-
-export type TopicKey = (typeof EXPLORE_TOPICS)[number]["key"];
-export const TOPIC_KEYS = EXPLORE_TOPICS.map((t) => t.key) as TopicKey[];
-const TOPIC_BY_KEY = new Map(EXPLORE_TOPICS.map((t) => [t.key, t]));
-
-export function topicMeta(key: string) {
-  return TOPIC_BY_KEY.get(key as TopicKey) ?? null;
-}
-
-export function topicLabel(key: string): string {
-  const t = topicMeta(key);
-  return t ? `${t.emoji} ${t.label}` : key;
-}
-
-// Keep only valid topic keys, de-duplicated, capped — used to sanitise both
-// Claude's inferred tags and a user's chosen interests.
-export function sanitizeTopics(keys: string[], cap = 5): TopicKey[] {
-  const seen = new Set<TopicKey>();
-  for (const k of keys) {
-    const key = String(k).trim().toLowerCase();
-    if (TOPIC_BY_KEY.has(key as TopicKey)) seen.add(key as TopicKey);
-    if (seen.size >= cap) break;
-  }
-  return [...seen];
-}
+// Explore topics are no longer a fixed taxonomy. Claude tags each seed with
+// free-form topic labels (see inferSeedTopics), and Explore's filter chips are
+// derived from the topics that actually exist (see getExploreTopics). A person's
+// feed personalises off their own Claude-inferred profile topics. Nothing to
+// hardcode here.
 
 // The daily "good morning" message library lives in ./daily-messages. Re-export
 // the picker here so existing imports keep working.

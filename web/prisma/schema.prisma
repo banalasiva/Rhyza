@@ -269,7 +269,7 @@ model SeedReport {
 // row shape (no migration-lag breakage on seed loads).
 model SeedTopic {
   seedId String @map("seed_id") @db.Uuid
-  topic  String // a TopicKey slug, e.g. "family"
+  topic  String // a free-form label Claude tagged, e.g. "Weekend Travel"
 
   seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
 
@@ -278,13 +278,13 @@ model SeedTopic {
   @@map("seed_topics")
 }
 
-// A topic a person wants to hear about. Matched against SeedTopic to personalise
-// the Explore feed and to notify them when a new public seed fits an interest.
-// Own table (not a users column) so it can't disturb the Auth.js adapter's
-// default-select on users.
+// DEPRECATED: the old fixed-taxonomy "interests" a person picked by hand. Explore
+// personalisation now derives from a person's Claude-inferred profile topics
+// (UserTopic), so nothing writes here anymore. Table kept to avoid a destructive
+// migration; safe to drop later.
 model UserInterest {
   userId String @map("user_id") @db.Uuid
-  topic  String // a TopicKey slug
+  topic  String
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

@@ -9,7 +9,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { STAGE_KEYS, EXPLORE_TOPICS, sanitizeTopics } from "@/lib/constants";
+import { STAGE_KEYS } from "@/lib/constants";
 
 // Claude model — Sonnet 4.6 is the cost-effective default for these
 // conversational, mediation, and classification tasks (~40% cheaper than Opus,
@@ -418,39 +418,56 @@ export async function spotLearningMoments(input: {
   }
 }
 
-// Infer 1–3 Explore topics for a seed being shared to the world, from the fixed
-// EXPLORE_TOPICS taxonomy. Best-effort: returns [] if AI is off or anything
-// fails — Explore still works untagged, just without personalisation for it.
+// Parse Claude's newline list of topic labels into clean, de-duplicated,
+// capped strings — strips bullets/numbering and trailing punctuation.
+function parseTopicLines(out: string, cap: number): string[] {
+  const seen = new Set<string>();
+  const topics: string[] = [];
+  for (const raw of out.split(/\r?\n/)) {
+    const t = raw
+      .replace(/^[\s\-*•\d.)]+/, "")
+      .replace(/[.,;]+$/, "")
+      .trim()
+      .slice(0, 40);
+    if (!t) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    topics.push(t);
+    if (topics.length >= cap) break;
+  }
+  return topics;
+}
+
+// Infer the free-form topics a seed is about, so people browsing Explore can
+// discover it. Claude names them naturally (no fixed taxonomy), reusing common
+// wording so the same topic groups across seeds. Best-effort: returns [] if AI
+// is off or anything fails — Explore still works untagged.
 export async function inferSeedTopics(input: {
   title: string;
   content: string;
 }): Promise<string[]> {
   if (!aiConfigured()) return [];
   try {
-    const menu = EXPLORE_TOPICS.map((t) => `${t.key} — ${t.label}`).join("\n");
     const prompt = [
       `SEED (the question): ${input.title}`,
       input.content.trim() ? `FRAMING: ${input.content.trim().slice(0, 800)}` : "",
-      `\nTOPICS:\n${menu}`,
-      `\nWhich 1–3 topics best fit this seed? Reply with ONLY their keys, comma-separated.`,
+      `\nName the 1–4 topics this is about, as short labels people could browse by.`,
     ]
       .filter(Boolean)
       .join("\n");
     const out = await complete(
-      "You tag a community decision-thread with 1–3 topics from a fixed list, so " +
-        "people interested in those topics can discover it. Choose only clearly-relevant " +
-        "topics — fewer is better than a loose fit. Reply with ONLY the topic keys, " +
-        "comma-separated, nothing else.",
+      "You tag a community discussion with 1–4 topics so people browsing can discover it. " +
+        "Each topic is a short, natural label: 1–3 words, Title Case, concrete and human " +
+        "(e.g. 'Weekend Travel', 'Personal Finance', 'Parenting', 'Home Renovation', 'Cooking'). " +
+        "Choose only clearly-relevant topics — fewer is better than a loose fit. Reuse common, " +
+        "obvious wording so the same topic groups across seeds. Output ONLY the labels, one per " +
+        "line, no numbering, no extra text.",
       prompt,
-      24,
+      80,
       MODEL_FAST,
     );
-    const keys = out
-      .toLowerCase()
-      .split(/[,\s]+/)
-      .map((k) => k.trim())
-      .filter(Boolean);
-    return sanitizeTopics(keys, 3);
+    return parseTopicLines(out, 4);
   } catch (err) {
     console.error("inferSeedTopics failed", err);
     return [];
@@ -485,22 +502,7 @@ export async function inferPersonTopics(items: string[]): Promise<string[]> {
       400,
       MODEL_FAST,
     );
-    const seen = new Set<string>();
-    const topics: string[] = [];
-    for (const raw of out.split(/\r?\n/)) {
-      const t = raw
-        .replace(/^[\s\-*•\d.)]+/, "")
-        .replace(/[.,;]+$/, "")
-        .trim()
-        .slice(0, 40);
-      if (!t) continue;
-      const key = t.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      topics.push(t);
-      if (topics.length >= 20) break;
-    }
-    return topics;
+    return parseTopicLines(out, 20);
   } catch (err) {
     console.error("inferPersonTopics failed", err);
     return [];

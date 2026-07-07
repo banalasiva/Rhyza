@@ -1,8 +1,8 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { requireSeedAccess, requireSeedManager } from "@/lib/authz";
-import { sanitizeTopics, topicMeta } from "@/lib/constants";
 import { inferSeedTopics } from "@/lib/ai";
+import { getUserTopics } from "@/lib/services/profile";
 import { deliver } from "@/lib/services/notify";
 
 export type ExploreSeed = {
@@ -51,7 +51,7 @@ export async function listExplore(
   opts: { topic?: string; take?: number } = {},
 ): Promise<ExploreSeed[]> {
   const take = opts.take ?? 40;
-  const topic = opts.topic && topicMeta(opts.topic) ? opts.topic : undefined;
+  const topic = opts.topic?.trim() || undefined;
 
   const where = {
     listed: true,
@@ -80,7 +80,7 @@ export async function listExplore(
     })) as SeedRow[];
   }
 
-  const interests = await getInterestKeys(userId);
+  const interests = await getViewerTopicSet(userId);
   const ids = seeds.map((s) => s.id);
   const mine =
     ids.length > 0
@@ -105,7 +105,7 @@ export async function listExplore(
       followerCount: s._count.followers,
       following: followed.has(s.id),
       lastActivityAt: s.lastActivityAt.toISOString(),
-      _match: interests.size > 0 && topics.some((t) => interests.has(t)) ? 1 : 0,
+      _match: interests.size > 0 && topics.some((t) => interests.has(t.toLowerCase())) ? 1 : 0,
     };
   });
 
@@ -119,39 +119,32 @@ export async function listExplore(
   return mapped.slice(0, take).map(({ _match, ...rest }) => rest);
 }
 
-// ── Interests ───────────────────────────────────────────────────────────────
+// ── Personalisation & topic chips ─────────────────────────────────────────
 
-async function getInterestKeys(userId: string): Promise<Set<string>> {
+// The viewer's own areas of involvement (Claude-inferred profile topics),
+// lowercased, used to float matching public seeds to the top of Explore. No
+// fixed taxonomy, no manual interest-picking — it's derived from what they do.
+async function getViewerTopicSet(userId: string): Promise<Set<string>> {
+  const topics = await getUserTopics(userId).catch(() => [] as string[]);
+  return new Set(topics.map((t) => t.toLowerCase()));
+}
+
+// The topic chips to show on Explore — the most common free-form topics across
+// the seeds actually listed to the world. Purely data-driven; empty (so the
+// filter just shows "For you") if nothing's tagged yet.
+export async function getExploreTopics(limit = 18): Promise<string[]> {
   try {
-    const rows = await db.userInterest.findMany({ where: { userId }, select: { topic: true } });
-    return new Set(rows.map((r: { topic: string }) => r.topic));
-  } catch {
-    return new Set(); // table not migrated yet
-  }
-}
-
-export async function getUserInterests(userId: string): Promise<string[]> {
-  return [...(await getInterestKeys(userId))];
-}
-
-// Replace a person's interests with the given set (validated against the
-// taxonomy). Diff-based so we don't churn rows needlessly.
-export async function setUserInterests(userId: string, topics: string[]): Promise<string[]> {
-  const next = sanitizeTopics(topics, 14);
-  const current = await getInterestKeys(userId);
-  const toAdd = next.filter((t) => !current.has(t));
-  const toRemove = [...current].filter((t) => !next.includes(t as never));
-
-  if (toRemove.length > 0) {
-    await db.userInterest.deleteMany({ where: { userId, topic: { in: toRemove } } });
-  }
-  if (toAdd.length > 0) {
-    await db.userInterest.createMany({
-      data: toAdd.map((topic) => ({ userId, topic })),
-      skipDuplicates: true,
+    const grouped = await db.seedTopic.groupBy({
+      by: ["topic"],
+      where: { seed: { listed: true, visibility: "public", deletedAt: null } },
+      _count: { topic: true },
+      orderBy: { _count: { topic: "desc" } },
+      take: limit,
     });
+    return (grouped as { topic: string }[]).map((g) => g.topic);
+  } catch {
+    return []; // seed_topics not migrated yet
   }
-  return next;
 }
 
 // ── Listing to the world ──────────────────────────────────────────────────
@@ -223,25 +216,25 @@ export async function backfillSeedTopics(limit = 15): Promise<{ tagged: number; 
   return { tagged, remaining };
 }
 
-// Notify everyone (other than the author) who follows any of these topics that a
-// fresh public seed fits their interest. Push flows through the normal pipeline;
-// the nudge cron will also re-surface it if missed.
+// Notify everyone (other than the author) whose own areas of involvement overlap
+// this fresh public seed's topics — Claude-matched, no fixed taxonomy. Push flows
+// through the normal pipeline; the nudge cron will re-surface it if missed.
 async function notifyInterested(
   seedId: string,
   seedTitle: string,
   authorId: string,
   topics: string[],
 ) {
-  const interested = await db.userInterest.findMany({
+  const interested = await db.userTopic.findMany({
     where: { topic: { in: topics }, userId: { not: authorId } },
     select: { userId: true, topic: true },
     take: 2000,
   });
   if (interested.length === 0) return;
 
-  // One notification per person, labelled by the first interest they matched.
+  // One notification per person, labelled by the first topic they matched.
   const firstTopicByUser = new Map<string, string>();
-  for (const row of interested) {
+  for (const row of interested as { userId: string; topic: string }[]) {
     if (!firstTopicByUser.has(row.userId)) firstTopicByUser.set(row.userId, row.topic);
   }
 
@@ -253,7 +246,7 @@ async function notifyInterested(
             recipientId,
             actorId: authorId,
             type: "explore",
-            title: `New ${topicMeta(topic)?.label ?? "public"} seed 🌱`,
+            title: `New ${topic} seed 🌱`,
             body: seedTitle,
             entityType: "seed",
             entityId: seedId,

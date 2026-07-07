@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { requireViewer } from "@/lib/session";
-import { listExplore, getUserInterests } from "@/lib/services/explore";
+import { listExplore, getExploreTopics } from "@/lib/services/explore";
 import { NavBar } from "@/components/NavBar";
 import { Avatar } from "@/components/Avatar";
 import { FollowButton } from "@/components/FollowButton";
-import { InterestPicker } from "@/components/InterestPicker";
 import { TopicFilter } from "@/components/TopicFilter";
-import { STAGES, topicMeta, topicLabel } from "@/lib/constants";
+import { STAGES } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -21,14 +20,12 @@ export default async function ExplorePage({
   searchParams: { topic?: string };
 }) {
   const viewer = await requireViewer();
-  const topic = searchParams.topic && topicMeta(searchParams.topic) ? searchParams.topic : undefined;
+  const topic = searchParams.topic?.trim() || undefined;
 
-  const [seeds, interests] = await Promise.all([
+  const [seeds, topics] = await Promise.all([
     listExplore(viewer.userId, { topic }),
-    getUserInterests(viewer.userId),
+    getExploreTopics(),
   ]);
-
-  const activeMeta = topic ? topicMeta(topic) : null;
 
   return (
     <div className="relative min-h-screen">
@@ -37,23 +34,22 @@ export default async function ExplorePage({
       <main id="main" className="relative z-10 mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
         <p className="eyebrow mb-2">🌍 Explore</p>
         <h1 className="serif-xl mb-2">
-          {activeMeta ? `${activeMeta.emoji} ${activeMeta.label}` : "Questions the world is thinking through."}
+          {topic ? topic : "Questions the world is thinking through."}
         </h1>
         <p className="mb-6 max-w-xl text-sm text-ink-mid">
-          {activeMeta
-            ? `Public seeds about ${activeMeta.label.toLowerCase()}. Follow the ones you care about.`
-            : "Public seeds from communities everywhere. Follow the ones you care about — you’ll hear when they grow or bloom, and you can jump in any time."}
+          {topic
+            ? `Public seeds about ${topic.toLowerCase()}. Follow the ones you care about.`
+            : "Public seeds from communities everywhere. Follow the ones you care about — you’ll hear when they grow or bloom, and you can jump in any time. Your feed leans toward the areas you’re involved in."}
         </p>
 
-        <InterestPicker initial={interests} />
-        <TopicFilter active={topic} />
+        <TopicFilter topics={topics} active={topic} />
 
         {seeds.length === 0 ? (
           <div className="card p-8 text-center">
             <div className="mb-2 text-3xl">🌱</div>
             <p className="text-ink-mid">
-              {activeMeta
-                ? `No public seeds about ${activeMeta.label.toLowerCase()} yet.`
+              {topic
+                ? `No public seeds about ${topic.toLowerCase()} yet.`
                 : "Nothing public yet — be the first to share a seed with the world."}
             </p>
             <p className="mt-1 text-xs text-ink-soft">
@@ -84,10 +80,10 @@ export default async function ExplorePage({
                     {s.topics.map((t) => (
                       <Link
                         key={t}
-                        href={`/explore?topic=${t}`}
+                        href={`/explore?topic=${encodeURIComponent(t)}`}
                         className="rounded-full border border-[rgba(76,175,80,0.22)] px-2 py-0.5 text-[10px] text-ink-soft hover:border-accent hover:text-ink"
                       >
-                        {topicLabel(t)}
+                        {t}
                       </Link>
                     ))}
                   </div>
