@@ -155,6 +155,46 @@ export async function requireGardenSteward(userId: string, gardenId: string) {
   return garden;
 }
 
+// App owner(s) — the platform operators (ADMIN_EMAILS). Superadmin tier above
+// garden/seed owners; can moderate anywhere. Inlined (not imported) to keep
+// authz free of import cycles.
+async function viewerIsAppOwner(userId: string): Promise<boolean> {
+  const admins = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (!admins.length) return false;
+  const me = await db.user.findUnique({ where: { id: userId }, select: { email: true } });
+  return !!me?.email && admins.includes(me.email.toLowerCase());
+}
+
+// Can this user remove/manage a seed even if they didn't create it? True for the
+// seed's owner, the owner/steward of its garden, or the app owner — in public
+// and private seeds alike.
+export async function canModerateSeed(
+  userId: string,
+  seed: { createdById: string | null; gardenId: string },
+): Promise<boolean> {
+  if (seed.createdById && seed.createdById === userId) return true;
+  if (await viewerIsAppOwner(userId)) return true;
+  try {
+    await requireGardenSteward(userId, seed.gardenId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Can this user delete/manage a whole garden? Its owner/steward, or the app owner.
+export async function canManageGarden(userId: string, gardenId: string): Promise<boolean> {
+  try {
+    await requireGardenSteward(userId, gardenId);
+    return true;
+  } catch {
+    return viewerIsAppOwner(userId);
+  }
+}
+
 // The user's primary org (first joined). v1 assumes one org per user for the
 // happy path; the schema supports many.
 export async function primaryOrgId(userId: string): Promise<string | null> {

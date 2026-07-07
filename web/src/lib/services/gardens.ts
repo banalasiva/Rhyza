@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
-import { requireGardenAccess, requireOrgMember, requireGardenSteward } from "@/lib/authz";
+import { requireGardenAccess, requireOrgMember, requireGardenSteward, canManageGarden } from "@/lib/authz";
 import { uniqueSlug } from "@/lib/slug";
 
 // Which seeds a viewer may see: public seeds, their own, or private seeds they
@@ -40,7 +40,12 @@ export async function updateGarden(
 
 // Delete a garden and everything in it — steward/creator only.
 export async function deleteGarden(userId: string, gardenId: string) {
-  await requireGardenSteward(userId, gardenId);
+  // The garden's owner/steward or the app owner can delete it.
+  if (!(await canManageGarden(userId, gardenId))) {
+    throw new ApiError("FORBIDDEN", "You can't delete this garden");
+  }
+  const garden = await db.garden.findUnique({ where: { id: gardenId }, select: { id: true } });
+  if (!garden) throw new ApiError("NOT_FOUND", "Garden not found");
   await db.garden.delete({ where: { id: gardenId } });
   return { deleted: true };
 }

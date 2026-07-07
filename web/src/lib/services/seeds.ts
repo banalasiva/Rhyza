@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
-import { ensureGardenMember, requireSeedManager, requireSeedAccess } from "@/lib/authz";
+import { ensureGardenMember, requireSeedManager, requireSeedAccess, canModerateSeed } from "@/lib/authz";
 import { STAGE_KEYS, type StageKey } from "@/lib/constants";
 
 // What a contribution carries for the room view — author, reactions (with the
@@ -85,7 +85,16 @@ export async function plantSeed(
 // Soft-delete a seed — creator / seed steward (or garden steward for public
 // seeds). Keeps the row (deletedAt) so contributions/blooms aren't orphaned.
 export async function deleteSeed(userId: string, seedId: string) {
-  const seed = await requireSeedManager(userId, seedId);
+  const seed = await db.seed.findUnique({
+    where: { id: seedId },
+    select: { id: true, gardenId: true, createdById: true, deletedAt: true },
+  });
+  if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
+  // The seed's owner, its garden's owner/steward, or the app owner can delete —
+  // so a garden owner can remove a member's private seed in their own garden.
+  if (!(await canModerateSeed(userId, seed))) {
+    throw new ApiError("FORBIDDEN", "You can't delete this seed");
+  }
   await db.seed.update({
     where: { id: seedId },
     data: { deletedAt: new Date() },
@@ -275,8 +284,14 @@ export async function getSeedDetail(userId: string, seedId: string) {
     seed.garden.createdById === userId ||
     member?.role === "steward" ||
     seedMember?.role === "steward";
-  // Who can change visibility / invite to a private seed: creator or seed steward.
-  const canManage = isCreator || seedMember?.role === "steward";
+  // Who can manage the seed (edit, delete, moderate): its creator or seed
+  // steward, OR the owner/steward of the garden it lives in — so a garden owner
+  // can manage every seed in their own garden, not just ones they planted.
+  const canManage =
+    isCreator ||
+    seedMember?.role === "steward" ||
+    seed.garden.createdById === userId ||
+    member?.role === "steward";
 
   // Taggable people = seed-visible members + anyone who's contributed, minus
   // the viewer and the Claude system user (tagged via @claude, not the picker).
