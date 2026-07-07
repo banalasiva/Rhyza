@@ -1,4 +1,43 @@
 import { db } from "@/lib/db";
+import { EXPLORE_TOPICS } from "@/lib/constants";
+
+const TOPIC_BY_KEY = new Map(EXPLORE_TOPICS.map((t) => [t.key as string, t]));
+
+// The topics a person is involved in — inferred automatically by Claude (it
+// tags each seed with topics), then aggregated across every seed they created
+// or contributed to. Ranked by how often they show up, top 8.
+export async function getInvolvedTopics(
+  userId: string,
+): Promise<{ key: string; label: string; emoji: string }[]> {
+  const [created, contributed] = await Promise.all([
+    db.seed.findMany({ where: { createdById: userId, deletedAt: null }, select: { id: true }, take: 500 }),
+    db.contribution.findMany({
+      where: { authorId: userId, deletedAt: null },
+      distinct: ["seedId"],
+      select: { seedId: true },
+      take: 500,
+    }),
+  ]);
+  const ids = [
+    ...new Set([...created.map((s) => s.id), ...contributed.map((c) => c.seedId)]),
+  ];
+  if (ids.length === 0) return [];
+
+  const grouped = await db.seedTopic
+    .groupBy({
+      by: ["topic"],
+      where: { seedId: { in: ids } },
+      _count: { topic: true },
+      orderBy: { _count: { topic: "desc" } },
+      take: 8,
+    })
+    .catch(() => [] as { topic: string; _count: { topic: number } }[]);
+
+  return (grouped as { topic: string }[])
+    .map((g) => TOPIC_BY_KEY.get(g.topic))
+    .filter((t): t is (typeof EXPLORE_TOPICS)[number] => !!t)
+    .map((t) => ({ key: t.key, label: t.label, emoji: t.emoji }));
+}
 
 // A public profile — what anyone signed in can see about a person: their name,
 // photo, a short bio, a few safe activity counts, and the recognition the
@@ -11,13 +50,14 @@ export async function getPublicProfile(userId: string) {
   });
   if (!user || user.deletedAt || user.name === "Claude" || user.name === "ChatGPT") return null;
 
-  const [contributions, seedsPlanted, bloomsHelped, recognitions] = await Promise.all([
+  const [contributions, seedsPlanted, bloomsHelped, recognitions, topics] = await Promise.all([
     db.contribution.count({ where: { authorId: userId, deletedAt: null } }),
     db.seed.count({ where: { createdById: userId, deletedAt: null } }),
     db.seed.count({ where: { createdById: userId, deletedAt: null, bloomId: { not: null } } }),
     db.userRecognition
       .findMany({ where: { userId }, include: { label: true } })
       .catch(() => [] as { labelKey: string; label: { emoji: string | null; label: string | null } | null }[]),
+    getInvolvedTopics(userId).catch(() => [] as { key: string; label: string; emoji: string }[]),
   ]);
 
   // Aggregate recognitions by label (across gardens) — count, not garden names.
@@ -37,5 +77,6 @@ export async function getPublicProfile(userId: string) {
     joinedAt: user.createdAt.toISOString(),
     stats: { contributions, seedsPlanted, bloomsHelped },
     recognitions: [...byLabel.values()].sort((a, b) => b.count - a.count),
+    topics,
   };
 }

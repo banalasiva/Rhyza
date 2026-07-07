@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { ensureGardenMember, requireSeedManager, requireSeedAccess, canModerateSeed } from "@/lib/authz";
 import { STAGE_KEYS, type StageKey } from "@/lib/constants";
+import { inferSeedTopics } from "@/lib/ai";
 
 // What a contribution carries for the room view — author, reactions (with the
 // reactor's name, so we can show *who* reacted), and endorsements.
@@ -79,6 +80,22 @@ export async function plantSeed(
         : {}),
     },
   });
+
+  // Auto-tag the seed's topics (Claude, on the cheap fast model) so each
+  // person's "Explores" list on their profile builds up from what they take
+  // part in. Best-effort — never blocks a plant from succeeding.
+  try {
+    const topics = await inferSeedTopics({ title: seed.title, content: seed.content ?? "" });
+    if (topics.length) {
+      await db.seedTopic.createMany({
+        data: topics.map((topic) => ({ seedId: seed.id, topic })),
+        skipDuplicates: true,
+      });
+    }
+  } catch {
+    /* topic tagging is best-effort */
+  }
+
   return seed;
 }
 

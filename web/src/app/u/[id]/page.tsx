@@ -45,6 +45,24 @@ export default async function ProfilePage({ params }: { params: { id: string } }
 
           {profile.bio && <p className="mt-4 text-sm leading-relaxed text-ink-mid">{profile.bio}</p>}
 
+          {/* Topics they're involved in — auto-inferred by Claude from the seeds
+              they take part in. */}
+          {profile.topics.length > 0 && (
+            <div className="mt-4">
+              <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">Explores</p>
+              <div className="flex flex-wrap gap-2">
+                {profile.topics.map((t) => (
+                  <span
+                    key={t.key}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.2)] bg-[rgba(76,175,80,0.05)] px-3 py-1 text-xs text-ink-mid"
+                  >
+                    <span aria-hidden>{t.emoji}</span> {t.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Activity */}
           <div className="mt-5 flex flex-wrap gap-2">
             {chips.map((c) => (
