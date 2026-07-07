@@ -1,8 +1,27 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireViewer } from "@/lib/session";
+import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
 import { AdminPanel } from "@/components/AdminPanel";
+
+// AI-tag usage meter (best-effort — the table may not be migrated yet).
+async function aiTagStats() {
+  try {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const [total, thisMonth, claude, chatgpt, taggers] = await Promise.all([
+      db.aiTagEvent.count(),
+      db.aiTagEvent.count({ where: { createdAt: { gte: monthStart } } }),
+      db.aiTagEvent.count({ where: { provider: "claude" } }),
+      db.aiTagEvent.count({ where: { provider: "chatgpt" } }),
+      db.aiTagEvent.findMany({ distinct: ["userId"], select: { userId: true } }),
+    ]);
+    return { total, thisMonth, claude, chatgpt, people: taggers.length, ok: true as const };
+  } catch {
+    return { total: 0, thisMonth: 0, claude: 0, chatgpt: 0, people: 0, ok: false as const };
+  }
+}
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +38,8 @@ export default async function AdminPage() {
     notFound();
   }
 
+  const ai = await aiTagStats();
+
   return (
     <div className="relative min-h-screen">
       <div className="garden-bg" />
@@ -28,6 +49,27 @@ export default async function AdminPage() {
           ← Your gardens
         </Link>
         <h1 className="serif-xl mb-6">🛠 Admin</h1>
+
+        {/* AI-tag usage meter */}
+        <div className="card mb-4 p-4">
+          <p className="eyebrow mb-3">🤖 AI tags</p>
+          {ai.ok ? (
+            <>
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <Stat n={ai.thisMonth} label="this month" />
+                <Stat n={ai.total} label="all time" />
+                <Stat n={ai.claude} label="Claude" />
+                <Stat n={ai.chatgpt} label="ChatGPT" />
+              </div>
+              <p className="mt-3 text-center text-xs text-ink-soft">{ai.people} people have tagged AI</p>
+            </>
+          ) : (
+            <p className="text-xs text-ink-soft">
+              No data yet — apply the latest migration below to start metering AI tags.
+            </p>
+          )}
+        </div>
+
         <AdminPanel />
         <Link
           href="/admin/messages"
@@ -40,6 +82,15 @@ export default async function AdminPage() {
           <span className="text-ink-soft">→</span>
         </Link>
       </main>
+    </div>
+  );
+}
+
+function Stat({ n, label }: { n: number; label: string }) {
+  return (
+    <div className="rounded-xl border border-[rgba(76,175,80,0.15)] py-2">
+      <div className="serif-lg text-ink">{n}</div>
+      <div className="text-[11px] text-ink-soft">{label}</div>
     </div>
   );
 }

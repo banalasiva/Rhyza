@@ -747,25 +747,48 @@ export async function editContribution(userId: string, contributionId: string, t
 }
 
 // Soft-delete a contribution — author or a garden steward.
+// Who may remove *anyone's* message (for moderation): the seed's owner, the
+// owner/steward of its garden, or the app owner — in a public OR private seed.
+async function canModerateSeed(
+  userId: string,
+  seed: { createdById: string | null; gardenId: string },
+): Promise<boolean> {
+  if (seed.createdById && seed.createdById === userId) return true; // seed owner
+  // App owner (superadmin) — can moderate anywhere, even gardens they're not in.
+  const admins = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (admins.length) {
+    const me = await db.user.findUnique({ where: { id: userId }, select: { email: true } });
+    if (me?.email && admins.includes(me.email.toLowerCase())) return true;
+  }
+  // Garden owner / steward (requireGardenSteward throws when not one).
+  try {
+    await requireGardenSteward(userId, seed.gardenId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function deleteContribution(userId: string, contributionId: string) {
   const c = await db.contribution.findUnique({
     where: { id: contributionId },
     include: { seed: true },
   });
   if (!c || c.deletedAt) throw new ApiError("NOT_FOUND", "Contribution not found");
-  // The author can always delete their own. For a public seed a garden steward
-  // can moderate; private seeds aren't visible to garden stewards, so there
-  // requireSeedAccess throws unless the steward is actually a seed member.
-  if (c.authorId !== userId) {
+
+  if (c.authorId === userId) {
+    // Authors can always remove their own message.
     await requireSeedAccess(userId, c.seedId);
-    if (c.seed.visibility !== "private") {
-      await requireGardenSteward(userId, c.seed.gardenId);
-    } else {
-      throw new ApiError("FORBIDDEN", "Only the author can delete this");
-    }
   } else {
-    await requireSeedAccess(userId, c.seedId);
+    // Otherwise only a moderator (seed owner / garden owner or steward / app
+    // owner) can — in public and private seeds alike.
+    const canModerate = await canModerateSeed(userId, c.seed);
+    if (!canModerate) throw new ApiError("FORBIDDEN", "Only the author or an owner can delete this");
   }
+
   await db.contribution.update({
     where: { id: contributionId },
     data: { deletedAt: new Date() },

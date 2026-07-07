@@ -201,4 +201,24 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "contributions_text_fts",
     sql: `CREATE INDEX IF NOT EXISTS "contributions_text_fts" ON "contributions" USING GIN (to_tsvector('english', coalesce("content"->>'text', '')))`,
   },
+
+  // 20260703170000_ai_tag_events
+  {
+    label: "ai_tag_events",
+    sql: `CREATE TABLE IF NOT EXISTS "ai_tag_events" (
+      "id"         UUID NOT NULL,
+      "user_id"    UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "provider"   TEXT NOT NULL,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "ai_tag_events_pkey" PRIMARY KEY ("id")
+    )`,
+  },
+  {
+    label: "ai_tag_events_user_id_created_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "ai_tag_events_user_id_created_at_idx" ON "ai_tag_events" ("user_id", "created_at")`,
+  },
+  {
+    label: "ai_tag_events_created_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "ai_tag_events_created_at_idx" ON "ai_tag_events" ("created_at")`,
+  },
 ];

@@ -1,5 +1,6 @@
 import { handle, ok } from "@/lib/api";
 import { requireUserId } from "@/lib/authz";
+import { db } from "@/lib/db";
 import { enforceAiRateLimit } from "@/lib/ratelimit";
 import { createContributionSchema } from "@/lib/validation";
 import {
@@ -62,6 +63,14 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   const wantsChatGpt = mentionsChatGpt(body.text);
   // Tagging an AI triggers a paid completion — count it against the AI budget.
   if (wantsClaude || wantsChatGpt) await enforceAiRateLimit(userId);
+  // Silent usage meter (for stats now, a free monthly quota later). Must never
+  // block or fail a post.
+  try {
+    if (wantsClaude) await db.aiTagEvent.create({ data: { userId, provider: "claude" } });
+    if (wantsChatGpt) await db.aiTagEvent.create({ data: { userId, provider: "chatgpt" } });
+  } catch {
+    /* metering is best-effort */
+  }
 
   if (wantsClaude) {
     if (!aiConfigured()) aiError = "not_configured";

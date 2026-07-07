@@ -1901,7 +1901,7 @@ export function SeedRoom({
                   <ReadAloud text={sheetC.text} />
                 </div>
               )}
-              {sheetC.author?.id === currentUserId && (
+              {(sheetC.author?.id === currentUserId || seed.canManage) && (
                 <button
                   onClick={() => {
                     removeContribution(sheetC.id);
@@ -1909,7 +1909,8 @@ export function SeedRoom({
                   }}
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[#e57373] transition hover:bg-[rgba(229,115,115,0.08)]"
                 >
-                  <Icon name="delete" size={14} /> Delete
+                  <Icon name="delete" size={14} />{" "}
+                  {sheetC.author?.id === currentUserId ? "Delete" : "Remove"}
                 </button>
               )}
             </div>

@@ -765,3 +765,17 @@ model DailyQuote {
   @@index([active])
   @@map("daily_quotes")
 }
+
+// One row per @claude / @chatgpt tag — a silent usage meter for stats now and
+// for enforcing a free monthly quota later. No relation field (userId is a
+// plain column) so it needs no change to the User model.
+model AiTagEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  provider  String // claude | chatgpt
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("ai_tag_events")
+}
