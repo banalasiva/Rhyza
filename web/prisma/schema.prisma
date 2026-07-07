@@ -794,3 +794,15 @@ model UserTopic {
   @@index([userId])
   @@map("user_topics")
 }
+
+// A short, honest "how you show up in conversations" reflection Claude writes by
+// reading a person's own contributions — a mirror of what they actually bring to
+// the table. One per user; regenerated from their latest activity.
+model UserReflection {
+  userId    String   @id @map("user_id") @db.Uuid
+  summary   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("user_reflections")
+}

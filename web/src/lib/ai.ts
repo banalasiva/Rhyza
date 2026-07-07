@@ -509,6 +509,58 @@ export async function inferPersonTopics(items: string[]): Promise<string[]> {
   }
 }
 
+// One of a person's real messages, with just enough context to read how they
+// engage: which seed it was in, which dimension, and what they said.
+export type PersonMessage = { seedTitle: string; dimension: string; text: string };
+
+// Write an honest, grounded reflection of HOW a person shows up in conversations
+// — what they actually bring to the table — by reading their real messages. Not
+// flattery and not a résumé: a mirror. It should name their real patterns (e.g.
+// grounds discussions in concrete examples, asks the clarifying question, plays
+// devil's advocate, bridges disagreements, brings data, tells the story) using
+// what's actually in the text. Returns "" if AI is off, there's too little to go
+// on, or anything fails.
+export async function describeContributionStyle(
+  name: string,
+  messages: PersonMessage[],
+): Promise<string> {
+  const clean = messages.filter((m) => m.text.trim().length > 0).slice(0, 60);
+  if (!aiConfigured() || clean.length < 3) return "";
+  const first = (name || "This person").trim().split(/\s+/)[0];
+  try {
+    const body = clean
+      .map((m, i) => {
+        const dim = DIMENSION_LABEL[m.dimension] ?? m.dimension;
+        return `${i + 1}. [in "${m.seedTitle}" · ${dim}] ${m.text.trim().slice(0, 400)}`;
+      })
+      .join("\n");
+    const prompt = [
+      `Here are ${clean.length} real messages ${first} has written across ThinkThru discussions:`,
+      body,
+      `\nWrite the reflection of how ${first} shows up and what they bring to the table.`,
+    ].join("\n");
+    const text = await complete(
+      "You read a person's real messages across many group discussions and write a short, honest " +
+        "reflection of HOW they show up — a true mirror of what they actually bring to a " +
+        "conversation. Ground every observation in what's really in their messages: do they bring " +
+        "concrete examples and specifics, ask the clarifying question, challenge assumptions, find " +
+        "common ground, bring data or sources, tell the human story, push for a decision, add " +
+        "warmth? Name their genuine patterns and strengths, and if there's a clear tendency worth " +
+        `noticing, say it kindly. Do NOT flatter, do NOT invent traits the text doesn't support, ` +
+        `do NOT list topics (that's shown separately). Refer to the person as "${first}" (e.g. ` +
+        `"${first} tends to…"). Write 2–4 warm, specific sentences — no headings, no preamble, no ` +
+        "bullet points. Output only the reflection.",
+      prompt,
+      320,
+      MODEL_FAST,
+    );
+    return text.trim();
+  } catch (err) {
+    console.error("describeContributionStyle failed", err);
+    return "";
+  }
+}
+
 // Does this text tag Claude? Matches "@claude" as a whole word, case-insensitive.
 export function mentionsClaude(text: string): boolean {
   return /(^|[^a-zA-Z0-9])@claude\b/i.test(text);

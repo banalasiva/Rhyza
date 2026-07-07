@@ -3,6 +3,7 @@ import { requireUserId } from "@/lib/authz";
 import {
   getUserTopics,
   refreshUserTopics,
+  refreshUserReflection,
   addUserTopic,
   removeUserTopic,
 } from "@/lib/services/profile";
@@ -29,7 +30,15 @@ export const POST = handle(async (req) => {
   const userId = await requireUserId();
   const { action, topic } = schema.parse(await req.json());
 
-  if (action === "refresh") return ok({ topics: await refreshUserTopics(userId) });
+  if (action === "refresh") {
+    // Refresh both the areas-of-involvement topics and the "how you show up"
+    // reflection from the person's latest activity, in one go.
+    const [topics] = await Promise.all([
+      refreshUserTopics(userId),
+      refreshUserReflection(userId),
+    ]);
+    return ok({ topics });
+  }
   if (!topic || !topic.trim()) throw new ApiError("BAD_REQUEST", "A topic is required.");
   if (action === "add") return ok({ topics: await addUserTopic(userId, topic) });
   return ok({ topics: await removeUserTopic(userId, topic) });

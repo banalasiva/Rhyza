@@ -38,6 +38,17 @@ export default async function RootsPage() {
           </div>
         </div>
 
+        {/* How you show up — Claude's honest mirror of what you bring to a
+            conversation, read from your real messages. */}
+        {roots.reflection && (
+          <section className="mb-8">
+            <p className="eyebrow mb-3">🪞 How you show up</p>
+            <div className="card p-4">
+              <p className="text-sm leading-relaxed text-ink-mid">{roots.reflection}</p>
+            </div>
+          </section>
+        )}
+
         {/* Stat chips */}
         <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat n={stats.bloomsHelped} label="Blooms grown" accent="#FFB300" />

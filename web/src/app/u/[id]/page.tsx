@@ -70,6 +70,14 @@ export default async function ProfilePage({ params }: { params: { id: string } }
             </div>
           )}
 
+          {/* How they show up — Claude's honest mirror, read from real messages */}
+          {profile.reflection && (
+            <div className="mt-4">
+              <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">🪞 How they show up</p>
+              <p className="text-sm leading-relaxed text-ink-mid">{profile.reflection}</p>
+            </div>
+          )}
+
           {/* Activity */}
           <div className="mt-5 flex flex-wrap gap-2">
             {chips.map((c) => (

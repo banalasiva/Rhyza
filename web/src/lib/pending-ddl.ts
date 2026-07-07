@@ -237,4 +237,16 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "user_topics_user_id_idx",
     sql: `CREATE INDEX IF NOT EXISTS "user_topics_user_id_idx" ON "user_topics" ("user_id")`,
   },
+
+  // 20260707120000_user_reflections
+  {
+    label: "user_reflections",
+    sql: `CREATE TABLE IF NOT EXISTS "user_reflections" (
+      "user_id"    UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "summary"    TEXT NOT NULL,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "user_reflections_pkey" PRIMARY KEY ("user_id")
+    )`,
+  },
 ];

@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { inferPersonTopics } from "@/lib/ai";
+import { inferPersonTopics, describeContributionStyle, type PersonMessage } from "@/lib/ai";
 
 // A person shows at most this many topics on their profile.
 const MAX_TOPICS = 20;
@@ -145,6 +145,65 @@ export async function ensureUserTopics(userId: string, hasActivity: boolean): Pr
   return refreshUserTopics(userId);
 }
 
+// ── "How you show up" reflection ──────────────────────────────────────────
+
+// A person's own recent messages (most recent first), with the seed title and
+// dimension for context — the material Claude reads to mirror how they engage.
+async function personMessages(userId: string, cap = 60): Promise<PersonMessage[]> {
+  const rows = await db.contribution.findMany({
+    where: { authorId: userId, deletedAt: null },
+    select: { dimension: true, content: true, seed: { select: { title: true } } },
+    orderBy: { createdAt: "desc" },
+    take: cap,
+  });
+  return (rows as { dimension: string; content: unknown; seed: { title: string | null } | null }[])
+    .map((r) => ({
+      seedTitle: r.seed?.title ?? "a discussion",
+      dimension: r.dimension,
+      text: ((r.content as { text?: string } | null)?.text ?? "").trim(),
+    }))
+    .filter((m) => m.text.length > 0);
+}
+
+// Read the person's stored reflection ("" if none / table not migrated yet).
+export async function getUserReflection(userId: string): Promise<string> {
+  const row = await db.userReflection
+    .findUnique({ where: { userId }, select: { summary: true } })
+    .catch(() => null);
+  return row?.summary ?? "";
+}
+
+// Regenerate the reflection from the person's latest messages and store it.
+// Best-effort: on any AI/DB failure it leaves what's there and returns it.
+export async function refreshUserReflection(userId: string): Promise<string> {
+  try {
+    const [user, messages] = await Promise.all([
+      db.user.findUnique({ where: { id: userId }, select: { name: true } }),
+      personMessages(userId),
+    ]);
+    const summary = await describeContributionStyle(user?.name ?? "This person", messages);
+    if (summary) {
+      await db.userReflection.upsert({
+        where: { userId },
+        update: { summary },
+        create: { userId, summary },
+      });
+      return summary;
+    }
+  } catch (err) {
+    console.error("refreshUserReflection failed", err);
+  }
+  return getUserReflection(userId);
+}
+
+// Read the reflection; if there's none yet but the person has written enough,
+// generate it once (lazily) so a first visit isn't empty.
+export async function ensureUserReflection(userId: string, contributions: number): Promise<string> {
+  const existing = await getUserReflection(userId);
+  if (existing || contributions < 3) return existing;
+  return refreshUserReflection(userId);
+}
+
 // How many times a person has tagged each AI, shown on their profile. Reads the
 // ai_tag_events log. Resilient to the table not being migrated yet.
 export async function getAiTagCounts(userId: string): Promise<{ claude: number; chatgpt: number }> {
@@ -180,9 +239,10 @@ export async function getPublicProfile(userId: string) {
     getAiTagCounts(userId),
   ]);
 
-  const topics = await ensureUserTopics(userId, contributions > 0 || seedsPlanted > 0).catch(
-    () => [] as string[],
-  );
+  const [topics, reflection] = await Promise.all([
+    ensureUserTopics(userId, contributions > 0 || seedsPlanted > 0).catch(() => [] as string[]),
+    ensureUserReflection(userId, contributions).catch(() => ""),
+  ]);
 
   // Aggregate recognitions by label (across gardens) — count, not garden names.
   const byLabel = new Map<string, { emoji: string; label: string; count: number }>();
@@ -201,6 +261,7 @@ export async function getPublicProfile(userId: string) {
     joinedAt: user.createdAt.toISOString(),
     stats: { contributions, seedsPlanted, bloomsHelped },
     aiTags,
+    reflection,
     recognitions: [...byLabel.values()].sort((a, b) => b.count - a.count),
     topics,
   };
