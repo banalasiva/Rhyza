@@ -1,12 +1,13 @@
 import { handle, ok } from "@/lib/api";
 import { requireAdmin } from "@/lib/admin";
-import { backfillSeedTopics } from "@/lib/services/explore";
+import { backfillUserTopics } from "@/lib/services/profile";
 
 export const dynamic = "force-dynamic";
 
-// POST /api/admin/backfill-topics — tag a batch of untagged seeds (app owner
-// only). Returns how many were tagged and how many still remain.
+// POST /api/admin/backfill-topics — fill in profile topics for a batch of people
+// who don't have them yet (app owner only). Returns how many were filled and how
+// many still remain.
 export const POST = handle(async () => {
   await requireAdmin();
-  return ok(await backfillSeedTopics(15));
+  return ok(await backfillUserTopics(6));
 });

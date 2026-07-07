@@ -1,38 +1,34 @@
 "use client";
 
 import { useState } from "react";
-import { EXPLORE_TOPICS } from "@/lib/constants";
+import { apiPost } from "@/lib/client";
 
-// Lets a person curate the topics shown on their own profile — add ones Claude
-// missed, remove ones they'd rather not show. Saving writes the set to their
-// interests (which also tunes what they hear about); an empty set falls back to
-// Claude's auto-inferred topics.
-export function ProfileTopicsEditor({ initialKeys }: { initialKeys: string[] }) {
+// Lets a person curate the free-form topics on their own profile: remove ones
+// that don't fit, add their own, or ask Claude to re-read their activity and
+// name the areas fresh. Manual additions survive a refresh.
+export function ProfileTopicsEditor({ initial }: { initial: string[] }) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set(initialKeys));
-  const [saving, setSaving] = useState(false);
+  const [topics, setTopics] = useState<string[]>(initial);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState<string | null>(null); // which action is running
 
-  function toggle(key: string) {
-    setSelected((s) => {
-      const next = new Set(s);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+  async function run(body: { action: "refresh" | "add" | "remove"; topic?: string }, tag: string) {
+    setBusy(tag);
+    try {
+      const r = await apiPost<{ topics: string[] }>("/api/me/topics", body);
+      setTopics(r.topics);
+    } catch {
+      /* leave the list as-is on failure */
+    } finally {
+      setBusy(null);
+    }
   }
 
-  async function save() {
-    setSaving(true);
-    try {
-      await fetch("/api/me/interests", {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ topics: [...selected] }),
-      });
-      window.location.reload();
-    } catch {
-      setSaving(false);
-    }
+  function add() {
+    const t = draft.trim();
+    if (!t) return;
+    setDraft("");
+    run({ action: "add", topic: t }, "add");
   }
 
   if (!open) {
@@ -48,34 +44,68 @@ export function ProfileTopicsEditor({ initialKeys }: { initialKeys: string[] }) 
 
   return (
     <div className="mt-3 rounded-xl border border-[rgba(76,175,80,0.2)] p-3">
-      <p className="mb-2 text-xs text-ink-soft">Tap to add or remove the topics on your profile:</p>
-      <div className="flex flex-wrap gap-2">
-        {EXPLORE_TOPICS.map((t) => {
-          const on = selected.has(t.key);
-          return (
-            <button
-              key={t.key}
-              onClick={() => toggle(t.key)}
-              className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition"
-              style={
-                on
-                  ? { borderColor: "var(--accent)", background: "var(--accent)", color: "var(--bg)" }
-                  : { borderColor: "var(--border)", color: "var(--ink-soft)" }
-              }
+      <p className="mb-2 text-xs text-ink-soft">
+        These are the areas you&apos;re mostly involved in. Remove any that don&apos;t fit, add your
+        own, or refresh from your activity.
+      </p>
+
+      {topics.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {topics.map((t) => (
+            <span
+              key={t}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.2)] bg-[rgba(76,175,80,0.05)] px-3 py-1 text-xs text-ink-mid"
             >
-              <span aria-hidden>{t.emoji}</span> {t.label}
-            </button>
-          );
-        })}
-      </div>
+              {t}
+              <button
+                onClick={() => run({ action: "remove", topic: t }, `rm:${t}`)}
+                disabled={!!busy}
+                aria-label={`Remove ${t}`}
+                className="text-ink-soft transition hover:text-ink disabled:opacity-50"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-ink-soft">No topics yet — add one or refresh from your activity.</p>
+      )}
+
       <div className="mt-3 flex items-center gap-2">
-        <button onClick={save} disabled={saving} className="btn-primary text-xs disabled:opacity-50">
-          {saving ? "Saving…" : "Save"}
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+          placeholder="Add a topic…"
+          maxLength={40}
+          className="min-w-0 flex-1 rounded-full border border-[var(--border)] bg-transparent px-3 py-1.5 text-xs text-ink outline-none focus:border-accent"
+        />
+        <button
+          onClick={add}
+          disabled={!!busy || !draft.trim()}
+          className="btn-ghost text-xs disabled:opacity-50"
+        >
+          {busy === "add" ? "Adding…" : "Add"}
         </button>
-        <button onClick={() => setOpen(false)} className="btn-ghost text-xs">
-          Cancel
+      </div>
+
+      <div className="mt-3 flex items-center gap-3">
+        <button
+          onClick={() => run({ action: "refresh" }, "refresh")}
+          disabled={!!busy}
+          className="btn-ghost text-xs disabled:opacity-50"
+        >
+          {busy === "refresh" ? "Refreshing…" : "🔄 Refresh from my activity"}
         </button>
-        <span className="text-[11px] text-ink-soft">Clear all to use auto topics.</span>
+        <button onClick={() => setOpen(false)} className="text-xs text-ink-soft hover:text-ink">
+          Done
+        </button>
       </div>
     </div>
   );

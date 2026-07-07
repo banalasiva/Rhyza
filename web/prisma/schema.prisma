@@ -779,3 +779,18 @@ model AiTagEvent {
   @@index([createdAt])
   @@map("ai_tag_events")
 }
+
+// Free-form topics shown on a person's profile — Claude reads the seeds they're
+// involved in and groups their areas into concise tags (not limited to the 14
+// Explore buckets). `manual` marks topics the person added themselves, which a
+// refresh keeps; auto ones are regenerated.
+model UserTopic {
+  userId    String   @map("user_id") @db.Uuid
+  topic     String
+  manual    Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([userId, topic])
+  @@index([userId])
+  @@map("user_topics")
+}

@@ -46,26 +46,27 @@ export default async function ProfilePage({ params }: { params: { id: string } }
 
           {profile.bio && <p className="mt-4 text-sm leading-relaxed text-ink-mid">{profile.bio}</p>}
 
-          {/* Topics — auto-inferred by Claude from the seeds they take part in,
-              and editable by the person themselves. */}
+          {/* Topics — the areas this person is most involved in, named
+              automatically by Claude from the seeds they take part in, and
+              editable by the person themselves. */}
           {(profile.topics.length > 0 || isMe) && (
             <div className="mt-4">
-              <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">Explores</p>
+              <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">Mostly involved in</p>
               {profile.topics.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {profile.topics.map((t) => (
                     <span
-                      key={t.key}
+                      key={t}
                       className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.2)] bg-[rgba(76,175,80,0.05)] px-3 py-1 text-xs text-ink-mid"
                     >
-                      <span aria-hidden>{t.emoji}</span> {t.label}
+                      {t}
                     </span>
                   ))}
                 </div>
               ) : (
                 isMe && <p className="text-xs text-ink-soft">No topics yet — they&apos;ll appear as you take part, or add your own.</p>
               )}
-              {isMe && <ProfileTopicsEditor initialKeys={profile.topics.map((t) => t.key)} />}
+              {isMe && <ProfileTopicsEditor initial={profile.topics} />}
             </div>
           )}
 

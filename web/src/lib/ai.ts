@@ -457,6 +457,56 @@ export async function inferSeedTopics(input: {
   }
 }
 
+// Infer the free-form topics a *person* is most involved in, from the titles of
+// the seeds they've created and joined. Unlike inferSeedTopics (which maps to a
+// fixed 14-key taxonomy for Explore discovery), this lets Claude group and name
+// the areas naturally — the 10–20 concise topics that describe where someone
+// actually spends their thinking here. Best-effort: returns [] if AI is off,
+// there's nothing to read, or anything fails.
+export async function inferPersonTopics(items: string[]): Promise<string[]> {
+  const clean = items.map((s) => s.trim()).filter(Boolean).slice(0, 60);
+  if (!aiConfigured() || clean.length === 0) return [];
+  try {
+    const list = clean.map((s, i) => `${i + 1}. ${s.slice(0, 160)}`).join("\n");
+    const prompt = [
+      `Here are the questions/discussions this person has started or taken part in:`,
+      list,
+      `\nName the areas this person is most involved in, as short topic labels.`,
+    ].join("\n");
+    const out = await complete(
+      "You read the questions and discussions a person takes part in on ThinkThru and name " +
+        "the areas they're most involved in — as a person browsing their profile would want to " +
+        "see them. Group naturally and merge near-duplicates; each label is 1–3 words, Title " +
+        "Case, concrete and human (e.g. 'Family Trips', 'Home Renovation', 'Personal Finance', " +
+        "'Parenting', 'Career Moves', 'Health', 'Cooking'). Return between 10 and 20 labels when " +
+        "there's enough material, fewer if there genuinely isn't. Output ONLY the labels, one per " +
+        "line, no numbering, no extra text.",
+      prompt,
+      400,
+      MODEL_FAST,
+    );
+    const seen = new Set<string>();
+    const topics: string[] = [];
+    for (const raw of out.split(/\r?\n/)) {
+      const t = raw
+        .replace(/^[\s\-*•\d.)]+/, "")
+        .replace(/[.,;]+$/, "")
+        .trim()
+        .slice(0, 40);
+      if (!t) continue;
+      const key = t.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      topics.push(t);
+      if (topics.length >= 20) break;
+    }
+    return topics;
+  } catch (err) {
+    console.error("inferPersonTopics failed", err);
+    return [];
+  }
+}
+
 // Does this text tag Claude? Matches "@claude" as a whole word, case-insensitive.
 export function mentionsClaude(text: string): boolean {
   return /(^|[^a-zA-Z0-9])@claude\b/i.test(text);
