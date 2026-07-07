@@ -16,6 +16,11 @@ import { STAGE_KEYS, EXPLORE_TOPICS, sanitizeTopics } from "@/lib/constants";
 // with a small quality gap on this kind of work). Overridable via env so
 // switching back to Opus is a config change, not a code edit.
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+// A cheaper, faster model for the high-frequency, low-stakes internal tasks
+// (dimension classification on every message, topic tagging, quick
+// observations). ~5× cheaper than Sonnet with ample quality for these. The
+// user-facing reasoning (replies, mediation, blooms) stays on MODEL.
+const MODEL_FAST = process.env.ANTHROPIC_MODEL_FAST || "claude-haiku-4-5";
 // ChatGPT model — overridable via env so the exact OpenAI model is a config
 // choice, not a hardcode that can drift out of date.
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
@@ -47,9 +52,10 @@ async function complete(
   system: string,
   prompt: string | Anthropic.ContentBlockParam[],
   maxTokens = 1024,
+  model: string = MODEL,
 ): Promise<string> {
   const stream = getClient().messages.stream({
-    model: MODEL,
+    model,
     max_tokens: maxTokens,
     system,
     messages: [{ role: "user", content: prompt }],
@@ -326,6 +332,7 @@ export async function classifyDimension(input: {
         "Reply with ONLY one word: foundations, understanding, application, debate, or bloom.",
       prompt,
       12,
+      MODEL_FAST,
     );
     const k = out.trim().toLowerCase().replace(/[^a-z]/g, "");
     return ["foundations", "understanding", "application", "debate", "bloom"].includes(k)
@@ -380,6 +387,7 @@ export async function spotLearningMoments(input: {
         "out. Never invent a quote, never attribute to someone not listed. Output only a JSON array.",
       prompt,
       1024,
+      MODEL_FAST,
     );
     const start = out.indexOf("[");
     const end = out.lastIndexOf("]");
@@ -435,6 +443,7 @@ export async function inferSeedTopics(input: {
         "comma-separated, nothing else.",
       prompt,
       24,
+      MODEL_FAST,
     );
     const keys = out
       .toLowerCase()
