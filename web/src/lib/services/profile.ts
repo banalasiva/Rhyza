@@ -307,10 +307,21 @@ export async function setUserReflection(userId: string, text: string): Promise<s
 }
 
 // Read the reflection; if there's none yet but the person has written enough,
-// generate it once (lazily) so a first visit isn't empty.
+// generate it once (lazily) so a first visit isn't empty. Also upgrades a legacy
+// single-paragraph reflection into readable points in place (no AI call).
 export async function ensureUserReflection(userId: string, contributions: number): Promise<string> {
   const existing = await getUserReflection(userId);
-  if (existing || contributions < 3) return existing;
+  if (existing) {
+    const pointed = parseReflectionPoints(existing, 8);
+    if (pointed && pointed !== existing) {
+      await db.userReflection
+        .update({ where: { userId }, data: { summary: pointed } })
+        .catch(() => {});
+      return pointed;
+    }
+    return existing;
+  }
+  if (contributions < 3) return "";
   return refreshUserReflection(userId);
 }
 

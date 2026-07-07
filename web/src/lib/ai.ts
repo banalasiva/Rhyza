@@ -474,22 +474,34 @@ export async function inferSeedTopics(input: {
   }
 }
 
-// Parse Claude's newline list of reflection points into clean lines — strips
-// bullets/numbering, caps each point's length and the number of points. Stored
-// and rendered as one point per line.
+// Split a block of prose into sentence-sized points — the fallback for when the
+// model (or a legacy stored reflection) returns one paragraph instead of lines.
+function splitIntoSentences(s: string): string[] {
+  return s
+    .split(/(?<=[.!?])\s+(?=["'“(]?[A-Z0-9])/)
+    .map((x) => x.trim())
+    .filter((x) => x.length > 1);
+}
+
+// Parse a reflection into clean points, one per line — strips bullets/numbering,
+// and if it arrives as a single long paragraph (model didn't break it up, or a
+// legacy stored value), splits it into sentence-sized points. Caps each point's
+// length and the number of points.
 export function parseReflectionPoints(out: string, cap = 6): string {
-  const points: string[] = [];
-  for (const raw of out.split(/\r?\n/)) {
-    const t = raw
-      .replace(/^[\s\-*•·–]+/, "")
-      .replace(/^\d+[.)]\s*/, "")
-      .trim()
-      .slice(0, 240);
-    if (t.length < 2) continue;
-    points.push(t);
-    if (points.length >= cap) break;
+  let lines = out
+    .split(/\r?\n/)
+    .map((raw) => raw.replace(/^[\s\-*•·–]+/, "").replace(/^\d+[.)]\s*/, "").trim())
+    .filter((t) => t.length > 1);
+
+  // One long block → break it into sentences so it's readable as points.
+  if (lines.length <= 1) {
+    const whole = lines[0] ?? out.trim();
+    if (whole.length > 160) lines = splitIntoSentences(whole);
+    else if (whole) lines = [whole];
+    else lines = [];
   }
-  return points.join("\n");
+
+  return lines.map((t) => t.slice(0, 300)).slice(0, cap).join("\n");
 }
 
 // Infer the free-form topics a *person* is most involved in, from the titles of
