@@ -474,6 +474,24 @@ export async function inferSeedTopics(input: {
   }
 }
 
+// Parse Claude's newline list of reflection points into clean lines — strips
+// bullets/numbering, caps each point's length and the number of points. Stored
+// and rendered as one point per line.
+export function parseReflectionPoints(out: string, cap = 6): string {
+  const points: string[] = [];
+  for (const raw of out.split(/\r?\n/)) {
+    const t = raw
+      .replace(/^[\s\-*•·–]+/, "")
+      .replace(/^\d+[.)]\s*/, "")
+      .trim()
+      .slice(0, 240);
+    if (t.length < 2) continue;
+    points.push(t);
+    if (points.length >= cap) break;
+  }
+  return points.join("\n");
+}
+
 // Infer the free-form topics a *person* is most involved in, from the titles of
 // the seeds they've created and joined. Unlike inferSeedTopics (which maps to a
 // fixed 14-key taxonomy for Explore discovery), this lets Claude group and name
@@ -537,24 +555,20 @@ export async function describeContributionStyle(
     const prompt = [
       `Here are ${clean.length} real messages ${first} has written across ThinkThru discussions:`,
       body,
-      `\nWrite the reflection of how ${first} shows up and what they bring to the table.`,
+      `\nWrite the points on how ${first} shows up and what they bring to the table.`,
     ].join("\n");
-    const text = await complete(
-      "You read a person's real messages across many group discussions and write a short, honest " +
-        "reflection of HOW they show up — a true mirror of what they actually bring to a " +
-        "conversation. Ground every observation in what's really in their messages: do they bring " +
-        "concrete examples and specifics, ask the clarifying question, challenge assumptions, find " +
-        "common ground, bring data or sources, tell the human story, push for a decision, add " +
-        "warmth? Name their genuine patterns and strengths, and if there's a clear tendency worth " +
-        `noticing, say it kindly. Do NOT flatter, do NOT invent traits the text doesn't support, ` +
-        `do NOT list topics (that's shown separately). Refer to the person as "${first}" (e.g. ` +
-        `"${first} tends to…"). Write 2–4 warm, specific sentences — no headings, no preamble, no ` +
-        "bullet points. Output only the reflection.",
-      prompt,
-      320,
-      MODEL_FAST,
-    );
-    return text.trim();
+    const system =
+      "You read a person's real messages across many group discussions and mirror HOW they show " +
+      "up — what they actually bring to a conversation — as a short list of points. Ground every " +
+      "point in what's really in their messages: do they bring concrete examples and specifics, " +
+      "ask the clarifying question, challenge assumptions, find common ground, bring data or " +
+      "sources, tell the human story, push for a decision, add warmth? Name genuine patterns and " +
+      "strengths kindly. Do NOT flatter, do NOT invent traits the text doesn't support, do NOT " +
+      `list topics (shown separately). Refer to the person as "${first}" (e.g. "${first} tends to…"). ` +
+      "Write 3–5 short points, ONE PER LINE, each a single crisp sentence (~12–20 words). No " +
+      "numbering, no bullet characters, no heading, no preamble — output only the points, one per line.";
+    const text = await complete(system, prompt, 320, MODEL_FAST);
+    return parseReflectionPoints(text);
   } catch (err) {
     console.error("describeContributionStyle failed", err);
     return "";

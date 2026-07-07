@@ -5,6 +5,7 @@ import { NavBar } from "@/components/NavBar";
 import { ProfilePhoto } from "@/components/ProfilePhoto";
 import { DisplayNameEditor } from "@/components/DisplayNameEditor";
 import { ProfileTopicsEditor } from "@/components/ProfileTopicsEditor";
+import { ReflectionEditor } from "@/components/ReflectionEditor";
 import { STAGES } from "@/lib/constants";
 
 export default async function RootsPage() {
@@ -39,12 +40,12 @@ export default async function RootsPage() {
         </div>
 
         {/* How you show up — Claude's honest mirror of what you bring to a
-            conversation, read from your real messages. */}
-        {roots.reflection && (
+            conversation, read from your real messages. Yours to edit. */}
+        {(roots.reflection || !nothingYet) && (
           <section className="mb-8">
             <p className="eyebrow mb-3">🪞 How you show up</p>
             <div className="card p-4">
-              <p className="text-sm leading-relaxed text-ink-mid">{roots.reflection}</p>
+              <ReflectionEditor initial={roots.reflection} />
             </div>
           </section>
         )}

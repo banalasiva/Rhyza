@@ -5,6 +5,7 @@ import { getPublicProfile } from "@/lib/services/profile";
 import { NavBar } from "@/components/NavBar";
 import { Avatar } from "@/components/Avatar";
 import { ProfileTopicsEditor } from "@/components/ProfileTopicsEditor";
+import { ReflectionEditor, ReflectionPoints } from "@/components/ReflectionEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -70,11 +71,18 @@ export default async function ProfilePage({ params }: { params: { id: string } }
             </div>
           )}
 
-          {/* How they show up — Claude's honest mirror, read from real messages */}
-          {profile.reflection && (
+          {/* How they show up — Claude's honest mirror, read from real messages.
+              The person themselves can edit it; others see it read-only. */}
+          {(profile.reflection || isMe) && (
             <div className="mt-4">
-              <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">🪞 How they show up</p>
-              <p className="text-sm leading-relaxed text-ink-mid">{profile.reflection}</p>
+              <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">
+                🪞 {isMe ? "How you show up" : "How they show up"}
+              </p>
+              {isMe ? (
+                <ReflectionEditor initial={profile.reflection} />
+              ) : (
+                <ReflectionPoints text={profile.reflection} />
+              )}
             </div>
           )}
 

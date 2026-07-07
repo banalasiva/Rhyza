@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/client";
 
 // Lets a person curate the free-form topics on their own profile: remove ones
 // that don't fit, add their own, or ask Claude to re-read their activity and
 // name the areas fresh. Manual additions survive a refresh.
 export function ProfileTopicsEditor({ initial }: { initial: string[] }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [topics, setTopics] = useState<string[]>(initial);
   const [draft, setDraft] = useState("");
@@ -19,9 +17,6 @@ export function ProfileTopicsEditor({ initial }: { initial: string[] }) {
     try {
       const r = await apiPost<{ topics: string[] }>("/api/me/topics", body);
       setTopics(r.topics);
-      // A refresh also regenerates the "how you show up" reflection server-side,
-      // so re-render the page to pick it up.
-      if (body.action === "refresh") router.refresh();
     } catch {
       /* leave the list as-is on failure */
     } finally {

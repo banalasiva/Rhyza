@@ -1,5 +1,10 @@
 import { db } from "@/lib/db";
-import { inferPersonTopics, describeContributionStyle, type PersonMessage } from "@/lib/ai";
+import {
+  inferPersonTopics,
+  describeContributionStyle,
+  parseReflectionPoints,
+  type PersonMessage,
+} from "@/lib/ai";
 
 // A person shows at most this many topics on their profile.
 const MAX_TOPICS = 20;
@@ -194,6 +199,26 @@ export async function refreshUserReflection(userId: string): Promise<string> {
     console.error("refreshUserReflection failed", err);
   }
   return getUserReflection(userId);
+}
+
+// Save a person's own edited reflection (points, one per line). Trimming it to
+// empty removes it — a subsequent view will lazily regenerate a fresh one.
+export async function setUserReflection(userId: string, text: string): Promise<string> {
+  const cleaned = parseReflectionPoints(text || "", 8);
+  try {
+    if (!cleaned) {
+      await db.userReflection.deleteMany({ where: { userId } });
+      return "";
+    }
+    await db.userReflection.upsert({
+      where: { userId },
+      update: { summary: cleaned },
+      create: { userId, summary: cleaned },
+    });
+  } catch (err) {
+    console.error("setUserReflection failed", err);
+  }
+  return cleaned;
 }
 
 // Read the reflection; if there's none yet but the person has written enough,
