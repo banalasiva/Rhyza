@@ -40,6 +40,7 @@ const PUBLIC_PREFIXES = [
   "/invite",
   "/privacy",
   "/delete-account",
+  "/guidelines",
   "/.well-known",
   "/manifest.webmanifest",
   "/sw.js",

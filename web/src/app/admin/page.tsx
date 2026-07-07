@@ -4,6 +4,7 @@ import { requireViewer } from "@/lib/session";
 import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
 import { AdminPanel } from "@/components/AdminPanel";
+import { countOpenReports } from "@/lib/services/reports";
 
 // AI-tag usage meter (best-effort — the table may not be migrated yet).
 async function aiTagStats() {
@@ -39,6 +40,7 @@ export default async function AdminPage() {
   }
 
   const ai = await aiTagStats();
+  const openReports = await countOpenReports().catch(() => 0);
 
   return (
     <div className="relative min-h-screen">
@@ -71,6 +73,23 @@ export default async function AdminPage() {
         </div>
 
         <AdminPanel />
+        <Link
+          href="/admin/reports"
+          className="card mt-4 flex items-center justify-between p-4 transition hover:border-accent"
+        >
+          <span>
+            <span className="block text-sm text-ink">🚩 Reports</span>
+            <span className="block text-xs text-ink-soft">Review flagged content and moderate</span>
+          </span>
+          <span className="flex items-center gap-2">
+            {openReports > 0 && (
+              <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-bg">
+                {openReports} open
+              </span>
+            )}
+            <span className="text-ink-soft">→</span>
+          </span>
+        </Link>
         <Link
           href="/admin/messages"
           className="card mt-4 flex items-center justify-between p-4 transition hover:border-accent"
