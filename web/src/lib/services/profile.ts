@@ -145,6 +145,20 @@ async function profileTopics(userId: string, hasActivity: boolean): Promise<stri
   return refreshUserTopics(userId);
 }
 
+// How many times a person has tagged each AI, shown on their profile. Reads the
+// ai_tag_events log. Resilient to the table not being migrated yet.
+async function aiTagCounts(userId: string): Promise<{ claude: number; chatgpt: number }> {
+  try {
+    const [claude, chatgpt] = await Promise.all([
+      db.aiTagEvent.count({ where: { userId, provider: "claude" } }),
+      db.aiTagEvent.count({ where: { userId, provider: "chatgpt" } }),
+    ]);
+    return { claude, chatgpt };
+  } catch {
+    return { claude: 0, chatgpt: 0 };
+  }
+}
+
 // A public profile — what anyone signed in can see about a person: their name,
 // photo, a short bio, a few safe activity counts, the free-form topics they're
 // involved in, and the recognition the community has given them (labels only, no
@@ -156,13 +170,14 @@ export async function getPublicProfile(userId: string) {
   });
   if (!user || user.deletedAt || user.name === "Claude" || user.name === "ChatGPT") return null;
 
-  const [contributions, seedsPlanted, bloomsHelped, recognitions] = await Promise.all([
+  const [contributions, seedsPlanted, bloomsHelped, recognitions, aiTags] = await Promise.all([
     db.contribution.count({ where: { authorId: userId, deletedAt: null } }),
     db.seed.count({ where: { createdById: userId, deletedAt: null } }),
     db.seed.count({ where: { createdById: userId, deletedAt: null, bloomId: { not: null } } }),
     db.userRecognition
       .findMany({ where: { userId }, include: { label: true } })
       .catch(() => [] as { labelKey: string; label: { emoji: string | null; label: string | null } | null }[]),
+    aiTagCounts(userId),
   ]);
 
   const topics = await profileTopics(userId, contributions > 0 || seedsPlanted > 0).catch(
@@ -185,6 +200,7 @@ export async function getPublicProfile(userId: string) {
     bio: user.bio,
     joinedAt: user.createdAt.toISOString(),
     stats: { contributions, seedsPlanted, bloomsHelped },
+    aiTags,
     recognitions: [...byLabel.values()].sort((a, b) => b.count - a.count),
     topics,
   };

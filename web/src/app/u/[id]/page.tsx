@@ -83,6 +83,23 @@ export default async function ProfilePage({ params }: { params: { id: string } }
             ))}
           </div>
 
+          {/* AI tags — how often this person asked Claude / ChatGPT */}
+          {(profile.aiTags.claude > 0 || profile.aiTags.chatgpt > 0) && (
+            <div className="mt-3">
+              <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">Asked the AIs</p>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(255,179,0,0.3)] bg-[rgba(255,179,0,0.06)] px-3 py-1.5 text-xs text-ink-mid">
+                  <span aria-hidden>✦</span>
+                  <span className="font-semibold text-ink">{profile.aiTags.claude}</span> Claude
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(16,163,127,0.3)] bg-[rgba(16,163,127,0.06)] px-3 py-1.5 text-xs text-ink-mid">
+                  <span aria-hidden>✦</span>
+                  <span className="font-semibold text-ink">{profile.aiTags.chatgpt}</span> ChatGPT
+                </span>
+              </div>
+            </div>
+          )}
+
           {isMe && (
             <Link href="/roots" className="btn-ghost mt-5 inline-flex text-xs">
               🌳 See everything you've grown
