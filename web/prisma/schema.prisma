@@ -806,3 +806,15 @@ model UserReflection {
 
   @@map("user_reflections")
 }
+
+// Per-section privacy on a person's profile: whether a given section (reflection,
+// topics, involved seeds, ai tags…) is visible to others. A missing row means
+// "use the section's default" (see SECTION_PUBLIC_DEFAULT in services/profile).
+model UserSectionVisibility {
+  userId  String  @map("user_id") @db.Uuid
+  section String
+  public  Boolean @default(true)
+
+  @@id([userId, section])
+  @@map("user_section_visibility")
+}

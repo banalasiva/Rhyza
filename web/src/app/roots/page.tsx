@@ -6,6 +6,7 @@ import { ProfilePhoto } from "@/components/ProfilePhoto";
 import { DisplayNameEditor } from "@/components/DisplayNameEditor";
 import { ProfileTopicsEditor } from "@/components/ProfileTopicsEditor";
 import { ReflectionEditor } from "@/components/ReflectionEditor";
+import { SectionPrivacyToggle } from "@/components/SectionPrivacyToggle";
 import { STAGES } from "@/lib/constants";
 
 export default async function RootsPage() {
@@ -43,7 +44,10 @@ export default async function RootsPage() {
             conversation, read from your real messages. Yours to edit. */}
         {(roots.reflection || !nothingYet) && (
           <section className="mb-8">
-            <p className="eyebrow mb-3">🪞 How you show up</p>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="eyebrow">🪞 How you show up</p>
+              <SectionPrivacyToggle section="reflection" initialPublic={roots.visibility.reflection} />
+            </div>
             <div className="card p-4">
               <ReflectionEditor initial={roots.reflection} />
             </div>
@@ -61,7 +65,10 @@ export default async function RootsPage() {
         {/* Mostly involved in — free-form topics Claude names from your activity,
             editable right here. */}
         <section className="mb-8">
-          <p className="eyebrow mb-3">🌿 Mostly involved in</p>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="eyebrow">🌿 Mostly involved in</p>
+            <SectionPrivacyToggle section="topics" initialPublic={roots.visibility.topics} />
+          </div>
           <div className="card p-4">
             {roots.topics.length > 0 ? (
               <div className="flex flex-wrap gap-2">
@@ -87,7 +94,10 @@ export default async function RootsPage() {
         {/* Asked the AIs — how often you tagged Claude / ChatGPT */}
         {(roots.aiTags.claude > 0 || roots.aiTags.chatgpt > 0) && (
           <section className="mb-8">
-            <p className="eyebrow mb-3">✦ You asked the AIs</p>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="eyebrow">✦ You asked the AIs</p>
+              <SectionPrivacyToggle section="aiTags" initialPublic={roots.visibility.aiTags} />
+            </div>
             <div className="flex flex-wrap gap-2">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(255,179,0,0.3)] bg-[rgba(255,179,0,0.06)] px-3 py-1.5 text-xs text-ink-mid">
                 <span aria-hidden>✦</span>
@@ -97,6 +107,33 @@ export default async function RootsPage() {
                 <span aria-hidden>✦</span>
                 <span className="font-semibold text-ink">{roots.aiTags.chatgpt}</span> ChatGPT
               </span>
+            </div>
+          </section>
+        )}
+
+        {/* Public seeds you're in — safe to show (already world-visible) */}
+        {roots.involvedSeeds.length > 0 && (
+          <section className="mb-8">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="eyebrow">🌍 Public seeds you&apos;re in</p>
+              <SectionPrivacyToggle section="seeds" initialPublic={roots.visibility.seeds} />
+            </div>
+            <div className="space-y-2">
+              {roots.involvedSeeds.map((s) => (
+                <Link
+                  key={s.id}
+                  href={`/seeds/${s.id}`}
+                  className="card flex items-center justify-between gap-3 p-3.5 transition hover:border-accent"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-ink">{s.title}</p>
+                    <p className="text-xs text-ink-soft">
+                      {s.garden?.emoji} {s.garden?.name}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-ink-soft">🌍</span>
+                </Link>
+              ))}
             </div>
           </section>
         )}

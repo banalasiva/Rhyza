@@ -6,16 +6,17 @@ import { NavBar } from "@/components/NavBar";
 import { Avatar } from "@/components/Avatar";
 import { ProfileTopicsEditor } from "@/components/ProfileTopicsEditor";
 import { ReflectionEditor, ReflectionPoints } from "@/components/ReflectionEditor";
+import { SectionPrivacyToggle } from "@/components/SectionPrivacyToggle";
 
 export const dynamic = "force-dynamic";
 
 // A person's public profile — reachable by tapping their name anywhere.
 export default async function ProfilePage({ params }: { params: { id: string } }) {
   const viewer = await requireViewer();
-  const profile = await getPublicProfile(params.id);
+  const profile = await getPublicProfile(params.id, viewer.userId);
   if (!profile) notFound();
 
-  const isMe = profile.id === viewer.userId;
+  const isMe = profile.isOwner;
   const joined = new Date(profile.joinedAt).toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
@@ -52,7 +53,10 @@ export default async function ProfilePage({ params }: { params: { id: string } }
               editable by the person themselves. */}
           {(profile.topics.length > 0 || isMe) && (
             <div className="mt-4">
-              <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">Mostly involved in</p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-[11px] uppercase tracking-wide text-ink-soft">Mostly involved in</p>
+                {isMe && <SectionPrivacyToggle section="topics" initialPublic={profile.visibility.topics} />}
+              </div>
               {profile.topics.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                   {profile.topics.map((t) => (
@@ -75,9 +79,12 @@ export default async function ProfilePage({ params }: { params: { id: string } }
               The person themselves can edit it; others see it read-only. */}
           {(profile.reflection || isMe) && (
             <div className="mt-4">
-              <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">
-                🪞 {isMe ? "How you show up" : "How they show up"}
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-[11px] uppercase tracking-wide text-ink-soft">
+                  🪞 {isMe ? "How you show up" : "How they show up"}
+                </p>
+                {isMe && <SectionPrivacyToggle section="reflection" initialPublic={profile.visibility.reflection} />}
+              </div>
               {isMe ? (
                 <ReflectionEditor initial={profile.reflection} />
               ) : (
@@ -100,9 +107,12 @@ export default async function ProfilePage({ params }: { params: { id: string } }
           </div>
 
           {/* AI tags — how often this person asked Claude / ChatGPT */}
-          {(profile.aiTags.claude > 0 || profile.aiTags.chatgpt > 0) && (
+          {profile.aiTags && (profile.aiTags.claude > 0 || profile.aiTags.chatgpt > 0 || isMe) && (
             <div className="mt-3">
-              <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">Asked the AIs</p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-[11px] uppercase tracking-wide text-ink-soft">Asked the AIs</p>
+                {isMe && <SectionPrivacyToggle section="aiTags" initialPublic={profile.visibility.aiTags} />}
+              </div>
               <div className="flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(255,179,0,0.3)] bg-[rgba(255,179,0,0.06)] px-3 py-1.5 text-xs text-ink-mid">
                   <span aria-hidden>✦</span>
@@ -113,6 +123,37 @@ export default async function ProfilePage({ params }: { params: { id: string } }
                   <span className="font-semibold text-ink">{profile.aiTags.chatgpt}</span> ChatGPT
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* Public seeds they're involved in (already world-visible) */}
+          {(profile.involvedSeeds.length > 0 || isMe) && (
+            <div className="mt-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-[11px] uppercase tracking-wide text-ink-soft">🌍 Public seeds they&apos;re in</p>
+                {isMe && <SectionPrivacyToggle section="seeds" initialPublic={profile.visibility.seeds} />}
+              </div>
+              {profile.involvedSeeds.length > 0 ? (
+                <div className="space-y-2">
+                  {profile.involvedSeeds.map((s) => (
+                    <Link
+                      key={s.id}
+                      href={`/seeds/${s.id}`}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-[rgba(76,175,80,0.18)] p-3 transition hover:border-accent"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-ink">{s.title}</p>
+                        <p className="text-xs text-ink-soft">
+                          {s.garden?.emoji} {s.garden?.name}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-xs text-ink-soft">🌍</span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                isMe && <p className="text-xs text-ink-soft">Public seeds you start or join will show here.</p>
+              )}
             </div>
           )}
 

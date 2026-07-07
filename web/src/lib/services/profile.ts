@@ -9,6 +9,91 @@ import {
 // A person shows at most this many topics on their profile.
 const MAX_TOPICS = 20;
 
+// ── Per-section profile privacy ───────────────────────────────────────────
+
+// The profile sections a person can make public or private, and the default for
+// each. "How you show up" can surface sensitive read, so it's PRIVATE first;
+// the rest are public by default.
+export const PROFILE_SECTIONS = ["reflection", "topics", "seeds", "aiTags"] as const;
+export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
+
+const SECTION_PUBLIC_DEFAULT: Record<ProfileSection, boolean> = {
+  reflection: false, // sensitive → private first
+  topics: true,
+  seeds: true,
+  aiTags: true,
+};
+
+export type SectionVisibility = Record<ProfileSection, boolean>;
+
+// A person's per-section visibility, defaults filled in for any unset section.
+export async function getSectionVisibility(userId: string): Promise<SectionVisibility> {
+  const map: SectionVisibility = { ...SECTION_PUBLIC_DEFAULT };
+  const rows = await db.userSectionVisibility
+    .findMany({ where: { userId }, select: { section: true, public: true } })
+    .catch(() => [] as { section: string; public: boolean }[]);
+  for (const r of rows as { section: string; public: boolean }[]) {
+    if ((PROFILE_SECTIONS as readonly string[]).includes(r.section)) {
+      map[r.section as ProfileSection] = r.public;
+    }
+  }
+  return map;
+}
+
+// Set one section public or private for a person.
+export async function setSectionVisibility(
+  userId: string,
+  section: ProfileSection,
+  isPublic: boolean,
+): Promise<SectionVisibility> {
+  if ((PROFILE_SECTIONS as readonly string[]).includes(section)) {
+    await db.userSectionVisibility
+      .upsert({
+        where: { userId_section: { userId, section } },
+        update: { public: isPublic },
+        create: { userId, section, public: isPublic },
+      })
+      .catch((err) => console.error("setSectionVisibility failed", err));
+  }
+  return getSectionVisibility(userId);
+}
+
+export type InvolvedSeed = { id: string; title: string; garden: { name: string; emoji: string } };
+
+// The PUBLIC seeds a person is involved in (created or contributed to) — safe to
+// show on a profile because they're already world-visible. Never includes
+// private seeds. Most recent first, capped.
+export async function getInvolvedPublicSeeds(userId: string, cap = 10): Promise<InvolvedSeed[]> {
+  const [created, contributed] = await Promise.all([
+    db.seed.findMany({
+      where: { createdById: userId, deletedAt: null, visibility: "public" },
+      select: { id: true, title: true, createdAt: true, garden: { select: { name: true, emoji: true } } },
+      orderBy: { createdAt: "desc" },
+      take: cap,
+    }),
+    db.contribution.findMany({
+      where: { authorId: userId, deletedAt: null, seed: { visibility: "public", deletedAt: null } },
+      distinct: ["seedId"],
+      select: { seed: { select: { id: true, title: true, garden: { select: { name: true, emoji: true } } } } },
+      take: cap,
+    }),
+  ]);
+  const seen = new Set<string>();
+  const out: InvolvedSeed[] = [];
+  for (const s of created as { id: string; title: string; garden: { name: string; emoji: string } }[]) {
+    if (seen.has(s.id)) continue;
+    seen.add(s.id);
+    out.push({ id: s.id, title: s.title, garden: s.garden });
+  }
+  for (const c of contributed as { seed: { id: string; title: string; garden: { name: string; emoji: string } } | null }[]) {
+    const s = c.seed;
+    if (!s || seen.has(s.id)) continue;
+    seen.add(s.id);
+    out.push({ id: s.id, title: s.title, garden: s.garden });
+  }
+  return out.slice(0, cap);
+}
+
 // The titles of the seeds a person created or took part in — the raw material
 // Claude reads to name the areas they're most involved in. Deduped by seed,
 // capped so inference stays fast and cheap.
@@ -247,22 +332,32 @@ export async function getAiTagCounts(userId: string): Promise<{ claude: number; 
 // photo, a short bio, a few safe activity counts, the free-form topics they're
 // involved in, and the recognition the community has given them (labels only, no
 // private garden names). Deliberately leaks no private seed/garden titles.
-export async function getPublicProfile(userId: string) {
+//
+// Per-section privacy: when `viewerId` isn't the profile's owner, sections the
+// person has marked private are stripped from the payload entirely (not just
+// hidden in the UI) so nothing private is even sent. The owner sees everything,
+// plus the `visibility` map to drive their toggles.
+export async function getPublicProfile(userId: string, viewerId?: string) {
   const user = await db.user.findUnique({
     where: { id: userId },
     select: { id: true, name: true, image: true, bio: true, createdAt: true, deletedAt: true },
   });
   if (!user || user.deletedAt || user.name === "Claude" || user.name === "ChatGPT") return null;
 
-  const [contributions, seedsPlanted, bloomsHelped, recognitions, aiTags] = await Promise.all([
-    db.contribution.count({ where: { authorId: userId, deletedAt: null } }),
-    db.seed.count({ where: { createdById: userId, deletedAt: null } }),
-    db.seed.count({ where: { createdById: userId, deletedAt: null, bloomId: { not: null } } }),
-    db.userRecognition
-      .findMany({ where: { userId }, include: { label: true } })
-      .catch(() => [] as { labelKey: string; label: { emoji: string | null; label: string | null } | null }[]),
-    getAiTagCounts(userId),
-  ]);
+  const isOwner = viewerId === userId;
+
+  const [contributions, seedsPlanted, bloomsHelped, recognitions, aiTags, visibility, involvedSeeds] =
+    await Promise.all([
+      db.contribution.count({ where: { authorId: userId, deletedAt: null } }),
+      db.seed.count({ where: { createdById: userId, deletedAt: null } }),
+      db.seed.count({ where: { createdById: userId, deletedAt: null, bloomId: { not: null } } }),
+      db.userRecognition
+        .findMany({ where: { userId }, include: { label: true } })
+        .catch(() => [] as { labelKey: string; label: { emoji: string | null; label: string | null } | null }[]),
+      getAiTagCounts(userId),
+      getSectionVisibility(userId),
+      getInvolvedPublicSeeds(userId).catch(() => [] as InvolvedSeed[]),
+    ]);
 
   const [topics, reflection] = await Promise.all([
     ensureUserTopics(userId, contributions > 0 || seedsPlanted > 0).catch(() => [] as string[]),
@@ -278,16 +373,23 @@ export async function getPublicProfile(userId: string) {
     byLabel.set(r.labelKey, cur);
   }
 
+  // Strip sections a non-owner isn't allowed to see, so private data never even
+  // reaches their client. The owner keeps everything.
+  const canSee = (s: ProfileSection) => isOwner || visibility[s];
+
   return {
     id: user.id,
     name: user.name,
     image: user.image,
     bio: user.bio,
+    isOwner,
     joinedAt: user.createdAt.toISOString(),
     stats: { contributions, seedsPlanted, bloomsHelped },
-    aiTags,
-    reflection,
+    visibility,
+    aiTags: canSee("aiTags") ? aiTags : null,
+    reflection: canSee("reflection") ? reflection : "",
+    topics: canSee("topics") ? topics : [],
+    involvedSeeds: canSee("seeds") ? involvedSeeds : [],
     recognitions: [...byLabel.values()].sort((a, b) => b.count - a.count),
-    topics,
   };
 }

@@ -249,4 +249,15 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
       CONSTRAINT "user_reflections_pkey" PRIMARY KEY ("user_id")
     )`,
   },
+
+  // 20260707140000_user_section_visibility
+  {
+    label: "user_section_visibility",
+    sql: `CREATE TABLE IF NOT EXISTS "user_section_visibility" (
+      "user_id" UUID    NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "section" TEXT    NOT NULL,
+      "public"  BOOLEAN NOT NULL DEFAULT true,
+      CONSTRAINT "user_section_visibility_pkey" PRIMARY KEY ("user_id", "section")
+    )`,
+  },
 ];
