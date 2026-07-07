@@ -139,7 +139,7 @@ export async function backfillUserTopics(limit = 6): Promise<{ tagged: number; r
 
 // Topics for a profile view: read what's stored; if there's none yet but the
 // person has activity, generate them once (lazily) so a first visit isn't empty.
-async function profileTopics(userId: string, hasActivity: boolean): Promise<string[]> {
+export async function ensureUserTopics(userId: string, hasActivity: boolean): Promise<string[]> {
   const existing = await getUserTopics(userId);
   if (existing.length > 0 || !hasActivity) return existing;
   return refreshUserTopics(userId);
@@ -147,7 +147,7 @@ async function profileTopics(userId: string, hasActivity: boolean): Promise<stri
 
 // How many times a person has tagged each AI, shown on their profile. Reads the
 // ai_tag_events log. Resilient to the table not being migrated yet.
-async function aiTagCounts(userId: string): Promise<{ claude: number; chatgpt: number }> {
+export async function getAiTagCounts(userId: string): Promise<{ claude: number; chatgpt: number }> {
   try {
     const [claude, chatgpt] = await Promise.all([
       db.aiTagEvent.count({ where: { userId, provider: "claude" } }),
@@ -177,10 +177,10 @@ export async function getPublicProfile(userId: string) {
     db.userRecognition
       .findMany({ where: { userId }, include: { label: true } })
       .catch(() => [] as { labelKey: string; label: { emoji: string | null; label: string | null } | null }[]),
-    aiTagCounts(userId),
+    getAiTagCounts(userId),
   ]);
 
-  const topics = await profileTopics(userId, contributions > 0 || seedsPlanted > 0).catch(
+  const topics = await ensureUserTopics(userId, contributions > 0 || seedsPlanted > 0).catch(
     () => [] as string[],
   );
 

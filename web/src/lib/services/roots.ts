@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { DIMENSIONS } from "@/lib/constants";
+import { ensureUserTopics, getAiTagCounts } from "@/lib/services/profile";
 
 // "What you've grown" — a person's durable footprint: the blooms their thinking
 // lives in, the seeds they planted, how they tend to contribute, and the
@@ -59,7 +60,17 @@ export async function getMyRoots(userId: string) {
   const distinctSeeds = new Set(myContribs.map((c) => c.seedId));
   for (const s of plantedSeeds) distinctSeeds.add(s.id);
 
+  // The free-form areas Claude sees this person involved in, and how often they
+  // reached for each AI. Both best-effort — never block the page.
+  const hasActivity = total > 0 || plantedSeeds.length > 0;
+  const [topics, aiTags] = await Promise.all([
+    ensureUserTopics(userId, hasActivity).catch(() => [] as string[]),
+    getAiTagCounts(userId),
+  ]);
+
   return {
+    topics,
+    aiTags,
     stats: {
       bloomsHelped: bloomContribs.length,
       contributions: total,

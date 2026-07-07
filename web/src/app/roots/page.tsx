@@ -4,6 +4,7 @@ import { getMyRoots } from "@/lib/services/roots";
 import { NavBar } from "@/components/NavBar";
 import { ProfilePhoto } from "@/components/ProfilePhoto";
 import { DisplayNameEditor } from "@/components/DisplayNameEditor";
+import { ProfileTopicsEditor } from "@/components/ProfileTopicsEditor";
 import { STAGES } from "@/lib/constants";
 
 export default async function RootsPage() {
@@ -44,6 +45,49 @@ export default async function RootsPage() {
           <Stat n={stats.endorsementsReceived} label="Found valuable" accent="#EC407A" />
           <Stat n={stats.seedsPlanted} label="Seeds planted" accent="#42A5F5" />
         </div>
+
+        {/* Mostly involved in — free-form topics Claude names from your activity,
+            editable right here. */}
+        <section className="mb-8">
+          <p className="eyebrow mb-3">🌿 Mostly involved in</p>
+          <div className="card p-4">
+            {roots.topics.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {roots.topics.map((t) => (
+                  <span
+                    key={t}
+                    className="inline-flex items-center rounded-full border border-[rgba(76,175,80,0.2)] bg-[rgba(76,175,80,0.05)] px-3 py-1 text-xs text-ink-mid"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-ink-soft">
+                These fill in as you take part — the areas you&apos;re most involved in. Add your own
+                or refresh anytime.
+              </p>
+            )}
+            <ProfileTopicsEditor initial={roots.topics} />
+          </div>
+        </section>
+
+        {/* Asked the AIs — how often you tagged Claude / ChatGPT */}
+        {(roots.aiTags.claude > 0 || roots.aiTags.chatgpt > 0) && (
+          <section className="mb-8">
+            <p className="eyebrow mb-3">✦ You asked the AIs</p>
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(255,179,0,0.3)] bg-[rgba(255,179,0,0.06)] px-3 py-1.5 text-xs text-ink-mid">
+                <span aria-hidden>✦</span>
+                <span className="font-semibold text-ink">{roots.aiTags.claude}</span> Claude
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(16,163,127,0.3)] bg-[rgba(16,163,127,0.06)] px-3 py-1.5 text-xs text-ink-mid">
+                <span aria-hidden>✦</span>
+                <span className="font-semibold text-ink">{roots.aiTags.chatgpt}</span> ChatGPT
+              </span>
+            </div>
+          </section>
+        )}
 
         {/* How you think */}
         {roots.dimensions.length > 0 && (
