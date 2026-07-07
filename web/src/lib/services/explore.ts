@@ -195,6 +195,34 @@ async function ensureSeedTopics(seedId: string, title: string, content: string):
   return topics;
 }
 
+// One-time-ish backfill: tag seeds that have no topics yet (e.g. private seeds
+// created before auto-tagging). Batched so a single call can't time out — the
+// admin re-runs it until `remaining` stops dropping.
+export async function backfillSeedTopics(limit = 15): Promise<{ tagged: number; remaining: number }> {
+  const untagged = await db.seed.findMany({
+    where: { deletedAt: null, topics: { none: {} } },
+    select: { id: true, title: true, content: true },
+    take: limit,
+  });
+  let tagged = 0;
+  for (const s of untagged) {
+    try {
+      const topics = await inferSeedTopics({ title: s.title, content: s.content ?? "" });
+      if (topics.length) {
+        await db.seedTopic.createMany({
+          data: topics.map((topic) => ({ seedId: s.id, topic })),
+          skipDuplicates: true,
+        });
+        tagged++;
+      }
+    } catch {
+      /* skip this one */
+    }
+  }
+  const remaining = await db.seed.count({ where: { deletedAt: null, topics: { none: {} } } });
+  return { tagged, remaining };
+}
+
 // Notify everyone (other than the author) who follows any of these topics that a
 // fresh public seed fits their interest. Push flows through the normal pipeline;
 // the nudge cron will also re-surface it if missed.

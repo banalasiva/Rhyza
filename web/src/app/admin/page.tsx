@@ -4,6 +4,7 @@ import { requireViewer } from "@/lib/session";
 import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
 import { AdminPanel } from "@/components/AdminPanel";
+import { BackfillTopicsButton } from "@/components/BackfillTopicsButton";
 import { countOpenReports } from "@/lib/services/reports";
 
 // AI-tag usage meter (best-effort — the table may not be migrated yet).
@@ -73,6 +74,7 @@ export default async function AdminPage() {
         </div>
 
         <AdminPanel />
+        <BackfillTopicsButton />
         <Link
           href="/admin/reports"
           className="card mt-4 flex items-center justify-between p-4 transition hover:border-accent"

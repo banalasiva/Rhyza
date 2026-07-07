@@ -39,6 +39,26 @@ export async function getInvolvedTopics(
     .map((t) => ({ key: t.key, label: t.label, emoji: t.emoji }));
 }
 
+// The topics shown on someone's profile: their own curated list if they've set
+// one (via the topic editor / interests), otherwise Claude's auto-inferred
+// involvement. Curating gives full add/remove control; clearing it falls back to
+// auto again.
+export async function getProfileTopics(
+  userId: string,
+): Promise<{ key: string; label: string; emoji: string }[]> {
+  const interests = await db.userInterest
+    .findMany({ where: { userId }, select: { topic: true } })
+    .catch(() => [] as { topic: string }[]);
+  if (interests.length > 0) {
+    return interests
+      .map((i) => TOPIC_BY_KEY.get(i.topic))
+      .filter((t): t is (typeof EXPLORE_TOPICS)[number] => !!t)
+      .map((t) => ({ key: t.key, label: t.label, emoji: t.emoji }))
+      .slice(0, 12);
+  }
+  return getInvolvedTopics(userId);
+}
+
 // A public profile — what anyone signed in can see about a person: their name,
 // photo, a short bio, a few safe activity counts, and the recognition the
 // community has given them (labels only, no private garden names). Deliberately
@@ -57,7 +77,7 @@ export async function getPublicProfile(userId: string) {
     db.userRecognition
       .findMany({ where: { userId }, include: { label: true } })
       .catch(() => [] as { labelKey: string; label: { emoji: string | null; label: string | null } | null }[]),
-    getInvolvedTopics(userId).catch(() => [] as { key: string; label: string; emoji: string }[]),
+    getProfileTopics(userId).catch(() => [] as { key: string; label: string; emoji: string }[]),
   ]);
 
   // Aggregate recognitions by label (across gardens) — count, not garden names.
