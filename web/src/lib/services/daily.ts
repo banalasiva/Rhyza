@@ -87,6 +87,14 @@ export async function deleteDailyQuote(id: string) {
   return { deleted: true };
 }
 
+// Clear every stored action so they're re-crafted (with the current prompt) on
+// next resolve. Use after tuning how actions read.
+export async function regenerateDailyActions() {
+  actionCache.clear();
+  const r = await db.dailyQuote.updateMany({ data: { action: null } }).catch(() => ({ count: 0 }));
+  return { cleared: r.count };
+}
+
 // One-time seed: copy the built-in 330 into the editable table so the owner
 // starts their yearly curation from the full set. No-op if rows already exist.
 export async function importDefaultQuotes() {

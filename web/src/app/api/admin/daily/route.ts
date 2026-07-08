@@ -6,6 +6,7 @@ import {
   updateDailyQuote,
   deleteDailyQuote,
   importDefaultQuotes,
+  regenerateDailyActions,
 } from "@/lib/services/daily";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export const POST = handle(async (req) => {
   await requireAdmin();
   const body = await req.json().catch(() => ({}));
   if (body?.import === true) return ok(await importDefaultQuotes());
+  if (body?.regenerateActions === true) return ok(await regenerateDailyActions());
   if (typeof body?.text !== "string" || !body.text.trim()) {
     throw new ApiError("BAD_REQUEST", "Message text is required");
   }
