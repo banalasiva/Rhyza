@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 // users). Fixed to the bottom where a thumb expects it.
 const TABS = [
   { href: "/", label: "Home", icon: "🏡" },
+  { href: "/explore", label: "Explore", icon: "🌍" },
   { href: "/search", label: "Search", icon: "🔍" },
   { href: "/notifications", label: "Alerts", icon: "🔔", badge: true },
   { href: "/roots", label: "You", icon: "🌳" },

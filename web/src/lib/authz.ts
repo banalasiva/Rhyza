@@ -30,8 +30,14 @@ export async function requireOrgMember(userId: string, orgId: string) {
 export async function requireGardenAccess(userId: string, gardenId: string) {
   const garden = await db.garden.findUnique({ where: { id: gardenId } });
   if (!garden) throw new ApiError("NOT_FOUND", "Garden not found");
+  // A PUBLIC garden is world-visible: any signed-in user can read it and its
+  // public seeds, no org membership required. (Private seeds inside a public
+  // garden still require seed membership — enforced in requireSeedAccess.)
+  if (garden.visibility === "public") return garden;
+  // A PRIVATE garden is invite-only: you must be in its org AND be the creator
+  // or an explicit garden member.
   await requireOrgMember(userId, garden.orgId);
-  if (garden.visibility === "private" && garden.createdById !== userId) {
+  if (garden.createdById !== userId) {
     const member = await db.gardenMember.findUnique({
       where: { gardenId_userId: { gardenId, userId } },
     });

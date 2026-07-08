@@ -134,16 +134,29 @@ export default async function GardenPage({ params }: { params: { id: string } })
           </>
         )}
 
-        {/* Produce actions — below the content a reader has just scrolled. */}
-        <div id="plant-seed" className="card mb-4 p-5">
-          <p className="eyebrow mb-3">Plant a seed</p>
-          <PlantSeedForm gardenId={garden.id} />
-        </div>
+        {/* Produce actions — below the content a reader has just scrolled. Only
+            people who belong to the garden plant seeds or invite here; a world
+            visitor browsing a public garden can still open and join any
+            discussion above. */}
+        {garden.viewerBelongs ? (
+          <>
+            <div id="plant-seed" className="card mb-4 p-5">
+              <p className="eyebrow mb-3">Plant a seed</p>
+              <PlantSeedForm gardenId={garden.id} />
+            </div>
 
-        <div id="invite" className="card p-5">
-          <p className="eyebrow mb-3">Invite people</p>
-          <InviteForm gardenId={garden.id} gardenName={garden.name} />
-        </div>
+            <div id="invite" className="card p-5">
+              <p className="eyebrow mb-3">Invite people</p>
+              <InviteForm gardenId={garden.id} gardenName={garden.name} />
+            </div>
+          </>
+        ) : (
+          <div className="card p-5 text-center">
+            <p className="text-sm text-ink-mid">
+              This is a public garden 🌍 — open any discussion above to read it and add your voice.
+            </p>
+          </div>
+        )}
       </main>
     </div>
   );

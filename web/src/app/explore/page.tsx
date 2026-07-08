@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireViewer } from "@/lib/session";
-import { listExplore, getExploreTopics } from "@/lib/services/explore";
+import { listExplore, getExploreTopics, listPublicGardens } from "@/lib/services/explore";
 import { NavBar } from "@/components/NavBar";
 import { Avatar } from "@/components/Avatar";
 import { FollowButton } from "@/components/FollowButton";
@@ -22,9 +22,10 @@ export default async function ExplorePage({
   const viewer = await requireViewer();
   const topic = searchParams.topic?.trim() || undefined;
 
-  const [seeds, topics] = await Promise.all([
+  const [seeds, topics, gardens] = await Promise.all([
     listExplore(viewer.userId, { topic }),
     getExploreTopics(),
+    listPublicGardens(),
   ]);
 
   return (
@@ -41,6 +42,32 @@ export default async function ExplorePage({
             ? `Public seeds about ${topic.toLowerCase()}. Follow the ones you care about.`
             : "Public seeds from communities everywhere. Follow the ones you care about — you’ll hear when they grow or bloom, and you can jump in any time. Your feed leans toward the areas you’re involved in."}
         </p>
+
+        {/* Public gardens — world-open topic hubs anyone can browse. Only on the
+            unfiltered view, so a topic search stays focused on seeds. */}
+        {!topic && gardens.length > 0 && (
+          <section className="mb-7">
+            <p className="eyebrow mb-3">🌳 Public gardens</p>
+            <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {gardens.map((g) => (
+                <Link
+                  key={g.id}
+                  href={`/gardens/${g.id}`}
+                  className="card w-56 shrink-0 p-4 transition hover:border-accent"
+                >
+                  <div className="mb-1 text-2xl" aria-hidden>{g.emoji || "🌳"}</div>
+                  <p className="truncate font-serif text-base text-ink">{g.name}</p>
+                  {g.description && (
+                    <p className="mt-0.5 line-clamp-2 text-xs text-ink-mid">{g.description}</p>
+                  )}
+                  <p className="mt-2 text-[11px] text-ink-soft">
+                    🌱 {g.seedCount} {g.seedCount === 1 ? "discussion" : "discussions"} · by {g.author}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         <TopicFilter topics={topics} active={topic} />
 

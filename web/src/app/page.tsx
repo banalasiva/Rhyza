@@ -62,6 +62,10 @@ export default async function GardensHome() {
             <div id="new-garden" className="card p-5">
               <CreateGardenForm firstRun />
             </div>
+            <p className="mt-4 text-sm text-ink-soft">
+              Just want to look around first?{" "}
+              <a href="/explore" className="text-accent hover:underline">Explore public gardens →</a>
+            </p>
           </>
         ) : (
           <>

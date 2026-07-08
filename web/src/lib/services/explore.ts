@@ -119,6 +119,63 @@ export async function listExplore(
   return mapped.slice(0, take).map(({ _match, ...rest }) => rest);
 }
 
+// ── Public gardens (the world square) ─────────────────────────────────────
+
+export type ExploreGarden = {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string | null;
+  author: string;
+  seedCount: number; // PUBLIC seeds only — never leaks that private ones exist
+};
+
+// World-public gardens anyone can browse — the topic hubs (Home Furniture,
+// Summer Plans…). Only PUBLIC gardens, ranked newest-first, with a count of the
+// public seeds inside each.
+export async function listPublicGardens(take = 24): Promise<ExploreGarden[]> {
+  const gardens = (await db.garden
+    .findMany({
+      where: { visibility: "public" },
+      orderBy: { createdAt: "desc" },
+      take,
+      select: {
+        id: true,
+        name: true,
+        emoji: true,
+        description: true,
+        createdBy: { select: { name: true } },
+      },
+    })
+    .catch(() => [])) as {
+    id: string;
+    name: string;
+    emoji: string;
+    description: string | null;
+    createdBy: { name: string | null } | null;
+  }[];
+  if (gardens.length === 0) return [];
+
+  const ids = gardens.map((g) => g.id);
+  const counts = (await db.seed
+    .groupBy({
+      by: ["gardenId"],
+      where: { gardenId: { in: ids }, visibility: "public", deletedAt: null },
+      _count: { _all: true },
+    })
+    .catch(() => [])) as { gardenId: string; _count: { _all: number } }[];
+  const byId = new Map(counts.map((c) => [c.gardenId, c._count._all]));
+
+  return gardens.map((g) => ({
+    id: g.id,
+    name: g.name,
+    emoji: g.emoji,
+    description: g.description,
+    author: g.createdBy?.name || "Someone",
+    seedCount: byId.get(g.id) ?? 0,
+  }));
+}
+
 // ── Personalisation & topic chips ─────────────────────────────────────────
 
 // The viewer's own areas of involvement (Claude-inferred profile topics),

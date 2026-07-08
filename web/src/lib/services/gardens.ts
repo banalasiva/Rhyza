@@ -156,12 +156,22 @@ export async function getGardenDetail(userId: string, gardenId: string) {
       select: { id: true, title: true, bloomId: true, visibility: true },
     }),
   ]);
-  if (!orgMember) throw new ApiError("FORBIDDEN", "Not a member of this organization");
-  // Private garden: only its creator or members may see it at all.
+  // A PUBLIC garden is world-visible — any signed-in viewer can open it (and,
+  // via visibleSeedFilter above, sees only its PUBLIC seeds). A private/org
+  // garden still requires org membership, and a private garden requires being
+  // its creator or a member.
+  if (garden.visibility !== "public" && !orgMember) {
+    throw new ApiError("FORBIDDEN", "Not a member of this organization");
+  }
   if (garden.visibility === "private" && garden.createdById !== userId && !member) {
     throw new ApiError("NOT_FOUND", "Garden not found");
   }
   const canManage = garden.createdById === userId || member?.role === "steward";
+  // Does the viewer BELONG to this garden (creator, garden member, or a member
+  // of its org)? A world visitor browsing a public garden does not — they can
+  // read and jump into public discussions, but not plant seeds here or invite
+  // people. Everyone who belongs sees those actions.
+  const viewerBelongs = garden.createdById === userId || !!member || !!orgMember;
   return {
     garden: {
       id: garden.id,
@@ -171,6 +181,7 @@ export async function getGardenDetail(userId: string, gardenId: string) {
       stage: garden.stage,
       visibility: garden.visibility as "public" | "private",
       canManage,
+      viewerBelongs,
     },
     seeds: seeds.map((s) => ({
       id: s.id,
