@@ -1,10 +1,11 @@
 import Link from "next/link";
 
-// Public "About" page — the ThinkThru story and what it stands for. Kept public
-// (no auth) so anyone, including a shared link or a Play reviewer, can read it.
+// Public "About" page — the ThinkThru story, why it exists, and how to use it.
+// Kept public (no auth) so anyone, including a shared link or a Play reviewer,
+// can read it.
 export const metadata = {
   title: "About · ThinkThru",
-  description: "Why ThinkThru exists — turning conversations into decisions your group stands behind.",
+  description: "Why ThinkThru exists, and how to use it — turning conversations into decisions your group stands behind.",
 };
 
 export default function About() {
@@ -16,50 +17,69 @@ export default function About() {
           ← ThinkThru
         </Link>
 
+        {/* ── The hook ── */}
         <p className="eyebrow mt-6">🌱 About us</p>
         <h1 className="serif-xl mt-2">Every important decision begins with a conversation.</h1>
 
-        <div className="mt-7 space-y-6 text-[15px] leading-relaxed text-ink-mid">
-          <p>
-            The decisions that shape our lives — where to live, what to do about a parent&apos;s
-            health, how to spend a windfall, which school, which job, whether to move — are almost
-            never made alone. They&apos;re talked through with the people we love and trust. But
-            those conversations scatter across WhatsApp threads, dinner tables, and half-remembered
-            phone calls, and the thinking gets lost.
-          </p>
-          <p>
-            <strong className="text-ink">ThinkThru</strong> gives that thinking a home. It&apos;s a
-            calm, private space where a family or a group can take a real question, explore it from
-            every angle — together, and with AI alongside — and arrive at an answer everyone
-            actually stands behind.
-          </p>
+        <div className="mt-6 space-y-3 text-[15px] leading-relaxed text-ink-mid">
+          <p>But how often do great conversations disappear into endless chats?</p>
+          <p>How often do teams lose the reasoning behind important decisions?</p>
+          <p>How often do we wish we&apos;d asked one more question before deciding?</p>
+        </div>
 
-          <Section title="🌱 How it grows">
+        <p className="mt-6 text-lg text-ink">
+          That&apos;s why we built{" "}
+          <span className="font-serif italic text-bloom">ThinkThru</span>.
+        </p>
+        <p className="mt-3 text-[15px] leading-relaxed text-ink-mid">
+          A place where communities think together, build shared understanding, make better
+          decisions, and grow wiser with every conversation. Whether you&apos;re building a product,
+          choosing a school, planning a family vacation, designing software, running an organization,
+          or leading a community — ThinkThru helps you think things through, together.
+        </p>
+
+        {/* ── Why ── */}
+        <div className="mt-10 space-y-6 text-[15px] leading-relaxed text-ink-mid">
+          <Section title="Why ThinkThru">
             <p>
-              We borrowed the shape from a garden, because that&apos;s how good thinking really
-              works — slowly, together, and worth tending.
+              The decisions that matter are rarely made alone — they&apos;re talked through with the
+              people we trust. But those conversations scatter across chats and calls, the reasoning
+              behind the choice fades, and the quietest good idea often never gets heard. ThinkThru
+              gives that thinking one calm home: every angle captured, every voice counted, and the
+              decision — and the <em>why</em> behind it — kept for good.
             </p>
-            <ul className="mt-2 list-disc space-y-1.5 pl-5">
-              <li>
-                <strong className="text-ink">Plant a seed</strong> — a real question you&apos;re
-                weighing.
-              </li>
-              <li>
-                <strong className="text-ink">Discuss</strong> — everyone brings their angle:
-                foundations, understanding, real-world practice, the honest debate.
-              </li>
-              <li>
-                <strong className="text-ink">Weigh in</strong> — when it matters, the people with the
-                most at stake carry the most say, so the call is fair, not just loud.
-              </li>
-              <li>
-                <strong className="text-ink">Bloom</strong> — it settles into one clear decision your
-                group keeps forever.
-              </li>
-            </ul>
           </Section>
 
-          <Section title="🤝 What we believe">
+          {/* ── How to use ── */}
+          <Section title="How to use ThinkThru">
+            <p className="mb-3">Five simple steps turn a conversation into a decision:</p>
+            <ol className="space-y-3">
+              <Step n="1" title="Plant a garden">
+                A private space for your group — your family, your team, your community. Invite the
+                people who should be in the conversation.
+              </Step>
+              <Step n="2" title="Plant a seed">
+                A seed is the real question you&apos;re weighing — “Which school?”, “Should we ship
+                this?”, “Where do we go this summer?” Everything grows from the question.
+              </Step>
+              <Step n="3" title="Think it through together">
+                Everyone adds their angle — the foundations, how to think about it, what it looks like
+                in practice, and the honest debate. Stuck or want a fact? Tag{" "}
+                <span className="text-accent">@claude</span> or{" "}
+                <span className="text-accent">@chatgpt</span> right in the thread for a hand.
+              </Step>
+              <Step n="4" title="Weigh in">
+                When it&apos;s time to decide, everyone weighs in — and the people with the most at
+                stake carry the most say, so the call is fair, not just loudest.
+              </Step>
+              <Step n="5" title="Let it bloom">
+                It settles into one clear decision, with the reasoning behind it, that your group
+                keeps forever — so no one ever asks “wait, why did we decide this?” again.
+              </Step>
+            </ol>
+          </Section>
+
+          <Section title="What we believe">
             <ul className="list-disc space-y-1.5 pl-5">
               <li>No one of us is as wise as all of us willing to listen.</li>
               <li>Every voice matters — and the quietest one often holds the wisdom the loudest miss.</li>
@@ -68,19 +88,11 @@ export default function About() {
             </ul>
           </Section>
 
-          <Section title="🔒 Built to be trusted">
+          <Section title="Built to be trusted">
             <p>
               ThinkThru is private by default. Your gardens and seeds are yours; you choose what, if
-              anything, to share. It&apos;s made to feel self-intuitive for everyone at the table —
-              from a ten-year-old to a grandparent.
-            </p>
-          </Section>
-
-          <Section title="✦ Who it&apos;s for">
-            <p>
-              Families making a hard call together. Friends planning something that matters. Teams
-              deciding without the loudest voice winning. Anyone who&apos;d rather think it through
-              than think it alone.
+              anything, to share. And it&apos;s made to feel self-intuitive for everyone at the table
+              — from a ten-year-old to a grandparent.
             </p>
           </Section>
 
@@ -105,5 +117,22 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <h2 className="serif-lg mb-2 text-ink">{title}</h2>
       {children}
     </section>
+  );
+}
+
+function Step({ n, title, children }: { n: string; title: string; children: React.ReactNode }) {
+  return (
+    <li className="flex gap-3">
+      <span
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[rgba(76,175,80,0.35)] text-xs font-semibold text-accent"
+        aria-hidden
+      >
+        {n}
+      </span>
+      <span>
+        <span className="font-medium text-ink">{title}</span>
+        <span className="mt-0.5 block text-sm text-ink-mid">{children}</span>
+      </span>
+    </li>
   );
 }
