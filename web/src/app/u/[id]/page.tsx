@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireViewer } from "@/lib/session";
+import { getViewer } from "@/lib/session";
 import { getPublicProfile } from "@/lib/services/profile";
 import { NavBar } from "@/components/NavBar";
 import { Avatar } from "@/components/Avatar";
@@ -8,16 +8,19 @@ import { ProfileTopicsEditor } from "@/components/ProfileTopicsEditor";
 import { ReflectionEditor, ReflectionPoints } from "@/components/ReflectionEditor";
 import { SectionPrivacyToggle } from "@/components/SectionPrivacyToggle";
 import { ThinkingFingerprint } from "@/components/ThinkingFingerprint";
+import { ShareButton } from "@/components/ShareButton";
 
 export const dynamic = "force-dynamic";
 
-// A person's public profile — reachable by tapping their name anywhere.
+// A person's public profile — a shareable page anyone with the link can open,
+// even signed out (only the sections marked public are shown to non-owners).
 export default async function ProfilePage({ params }: { params: { id: string } }) {
-  const viewer = await requireViewer();
-  const profile = await getPublicProfile(params.id, viewer.userId);
+  const viewer = await getViewer();
+  const profile = await getPublicProfile(params.id, viewer?.userId);
   if (!profile) notFound();
 
   const isMe = profile.isOwner;
+  const signedIn = !!viewer;
   const joined = new Date(profile.joinedAt).toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
@@ -32,19 +35,39 @@ export default async function ProfilePage({ params }: { params: { id: string } }
   return (
     <div className="relative min-h-screen">
       <div className="garden-bg" />
-      <NavBar name={viewer.name} />
+      {signedIn ? (
+        <NavBar name={viewer!.name} />
+      ) : (
+        <header className="relative z-10 flex items-center justify-between px-4 py-3 sm:px-6">
+          <Link href="/" className="serif-lg text-ink">🌱 ThinkThru</Link>
+          <Link href="/login" className="btn-primary text-xs">Sign in</Link>
+        </header>
+      )}
       <main id="main" className="relative z-10 mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
-        <Link href="/" className="btn-ghost mb-5 inline-flex px-3 py-1.5 text-xs">
-          ← Home
-        </Link>
+        {signedIn && (
+          <Link href="/" className="btn-ghost mb-5 inline-flex px-3 py-1.5 text-xs">
+            ← Home
+          </Link>
+        )}
 
         <div className="card p-5">
-          <div className="flex items-center gap-4">
-            <Avatar name={profile.name} image={profile.image} size={64} />
-            <div className="min-w-0">
-              <h1 className="serif-lg leading-tight">{profile.name}</h1>
-              <p className="mt-0.5 text-xs text-ink-soft">Growing here since {joined}</p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-4">
+              <Avatar name={profile.name} image={profile.image} size={64} />
+              <div className="min-w-0">
+                <h1 className="serif-lg leading-tight">{profile.name}</h1>
+                <p className="mt-0.5 text-xs text-ink-soft">Growing here since {joined}</p>
+              </div>
             </div>
+            {isMe && (
+              <ShareButton
+                path={`/u/${profile.id}`}
+                title={`${profile.name} on ThinkThru`}
+                text="My ThinkThru profile"
+                label="Share"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.3)] px-3 py-1.5 text-xs text-accent transition hover:text-ink"
+              />
+            )}
           </div>
 
           {profile.bio && <p className="mt-4 text-sm leading-relaxed text-ink-mid">{profile.bio}</p>}
@@ -192,6 +215,19 @@ export default async function ProfilePage({ params }: { params: { id: string } }
                 </span>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Signed-out: invite them in */}
+        {!signedIn && (
+          <div className="card mt-4 p-6 text-center">
+            <p className="serif-lg mb-1">Think it through, together.</p>
+            <p className="mb-4 text-sm text-ink-mid">
+              ThinkThru turns your group&apos;s conversations into decisions you all stand behind.
+            </p>
+            <Link href="/login" className="btn-primary text-sm">
+              🌱 Get started
+            </Link>
           </div>
         )}
       </main>

@@ -396,9 +396,17 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
 
   const dimensions = await getThinkingDimensions(userId).catch(() => [] as DimSlice[]);
 
+  // Only the owner's own view lazily generates topics/reflection (an AI call);
+  // everyone else just reads what's stored, so a stranger opening a shared link
+  // never drives generation.
   const [topics, reflection] = await Promise.all([
-    ensureUserTopics(userId, contributions > 0 || seedsPlanted > 0).catch(() => [] as string[]),
-    ensureUserReflection(userId, contributions).catch(() => ""),
+    (isOwner
+      ? ensureUserTopics(userId, contributions > 0 || seedsPlanted > 0)
+      : getUserTopics(userId)
+    ).catch(() => [] as string[]),
+    (isOwner ? ensureUserReflection(userId, contributions) : getUserReflection(userId)).catch(
+      () => "",
+    ),
   ]);
 
   // Aggregate recognitions by label (across gardens) — count, not garden names.

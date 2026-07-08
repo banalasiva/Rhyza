@@ -8,6 +8,7 @@ import { ProfileTopicsEditor } from "@/components/ProfileTopicsEditor";
 import { ReflectionEditor } from "@/components/ReflectionEditor";
 import { SectionPrivacyToggle } from "@/components/SectionPrivacyToggle";
 import { ThinkingFingerprint } from "@/components/ThinkingFingerprint";
+import { ShareButton } from "@/components/ShareButton";
 import { STAGES } from "@/lib/constants";
 
 export default async function RootsPage() {
@@ -28,9 +29,9 @@ export default async function RootsPage() {
           ← Your gardens
         </Link>
 
-        <div className="mb-6 flex items-center gap-4">
+        <div className="mb-6 flex items-start gap-4">
           <ProfilePhoto name={viewer.name || "You"} image={viewer.avatarUrl} uploadsEnabled={uploadsEnabled} />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="eyebrow mb-1">🌳 Your roots</p>
             <DisplayNameEditor name={viewer.name || "You"} />
             <p className="mt-1 text-sm text-ink-mid">
@@ -39,7 +40,19 @@ export default async function RootsPage() {
                 : "Here's what you've grown across the community."}
             </p>
           </div>
+          <ShareButton
+            path={`/u/${viewer.userId}`}
+            title={`${viewer.name || "My"} ThinkThru profile`}
+            text="My ThinkThru profile"
+            label="Share"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.3)] px-3 py-1.5 text-xs text-accent transition hover:text-ink"
+          />
         </div>
+
+        <p className="mb-6 -mt-3 text-[11px] text-ink-soft">
+          Your profile is a shareable link — anyone who opens it sees only what you&apos;ve marked
+          public.
+        </p>
 
         {/* How you show up — Claude's honest mirror of what you bring to a
             conversation, read from your real messages. Yours to edit. */}

@@ -44,6 +44,9 @@ const PUBLIC_PREFIXES = [
   "/.well-known",
   "/manifest.webmanifest",
   "/sw.js",
+  // A person's profile is a shareable public page — anyone with the link can
+  // view it (private sections are stripped server-side for non-owners).
+  "/u/",
 ];
 
 export const authConfig = {
