@@ -66,19 +66,18 @@ export async function sendGoodMorning(): Promise<{ sent: number; recipients: num
   let sent = 0;
   for (const p of people) {
     const g = groups.get(p.id);
-    const body = g ? summarise(g.types) : quoteLine;
+    // The quote is the gift — everyone gets it in the body, every morning. If
+    // there's unseen activity, we only hint the count in the title so people
+    // still know there's something waiting; the evening slot surfaces the actual
+    // activity. (Previously active people got the summary INSTEAD of the quote,
+    // so anyone with activity — e.g. the owner — never saw the quotes at all.)
+    const title = g ? `Good morning 🌱 · ${g.ids.length} waiting` : "Good morning 🌱";
     const delivered = await sendPushToUser(p.id, {
-      title: "Good morning 🌱",
-      body,
+      title,
+      body: quoteLine,
       url,
       tag: "nudge", // collapses with any previous nudge on the device
     });
-    // Stamp the activity we just summarised so it isn't re-counted next slot.
-    if (g) {
-      await db.notification
-        .updateMany({ where: { id: { in: g.ids } }, data: { nudgedAt: new Date() } })
-        .catch(() => {});
-    }
     if (delivered > 0) sent++;
   }
 

@@ -65,6 +65,7 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
   const [deviceOn, setDeviceOn] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testMsg, setTestMsg] = useState<string | null>(null);
+  const [quoting, setQuoting] = useState(false);
 
   // On load: reflect whether THIS device is actually subscribed. If it is, keep
   // its subscription fresh (heals an old-key one) and self-correct the account
@@ -192,6 +193,41 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
     }
   }
 
+  // Push today's actual quote to this person's devices, on demand — the daily
+  // "Good morning 🌱" push, felt right now. Enables this device first if needed.
+  async function sendQuote() {
+    setQuoting(true);
+    setTestMsg(null);
+    try {
+      if (!deviceOn) {
+        const r = await enablePush();
+        if (r === "denied") {
+          setPushDenied(true);
+          setTestMsg("Notifications are blocked — allow them for this site in your browser, then tap again.");
+          return;
+        }
+        if (r === "unsupported") {
+          setPushUnsupported(true);
+          return;
+        }
+        setDeviceOn(true);
+        setPushDenied(false);
+        await update({ pushNotify: true });
+      }
+      const res = await fetch("/api/push/quote", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      setTestMsg(
+        res.ok
+          ? `🌱 Sent today's quote to ${data.sent}/${data.devices} device${data.devices === 1 ? "" : "s"} — check your notifications.`
+          : data?.error?.message ?? "Couldn't send the quote.",
+      );
+    } catch {
+      setTestMsg("Couldn't send the quote.");
+    } finally {
+      setQuoting(false);
+    }
+  }
+
   const pushOn = deviceOn && !pushDenied && !pushUnsupported;
 
   return (
@@ -237,12 +273,20 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
           <button
             type="button"
             onClick={sendTest}
-            disabled={testing}
+            disabled={testing || quoting}
             className="rounded-full border border-[rgba(76,175,80,0.3)] px-3 py-1.5 text-xs text-accent transition hover:text-ink disabled:opacity-50"
           >
             {testing ? "Sending…" : "🔔 Send a test notification"}
           </button>
-          {testMsg && <span className="text-xs text-ink-soft">{testMsg}</span>}
+          <button
+            type="button"
+            onClick={sendQuote}
+            disabled={testing || quoting}
+            className="rounded-full border border-[rgba(76,175,80,0.3)] px-3 py-1.5 text-xs text-accent transition hover:text-ink disabled:opacity-50"
+          >
+            {quoting ? "Sending…" : "🌱 Send me today's quote"}
+          </button>
+          {testMsg && <span className="w-full text-xs text-ink-soft">{testMsg}</span>}
         </div>
       )}
     </div>
