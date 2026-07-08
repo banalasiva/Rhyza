@@ -7,6 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { ProfileTopicsEditor } from "@/components/ProfileTopicsEditor";
 import { ReflectionEditor, ReflectionPoints } from "@/components/ReflectionEditor";
 import { SectionPrivacyToggle } from "@/components/SectionPrivacyToggle";
+import { ThinkingFingerprint } from "@/components/ThinkingFingerprint";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,18 @@ export default async function ProfilePage({ params }: { params: { id: string } }
           </div>
 
           {profile.bio && <p className="mt-4 text-sm leading-relaxed text-ink-mid">{profile.bio}</p>}
+
+          {/* Thinking fingerprint — the archetype + signature that make this
+              profile feel earned. The person can hide it; others see it if public. */}
+          {(profile.dimensions.length > 0 || isMe) && (
+            <div className="mt-4 rounded-xl border border-[rgba(255,255,255,0.06)] p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-[11px] uppercase tracking-wide text-ink-soft">🧭 Thinking fingerprint</p>
+                {isMe && <SectionPrivacyToggle section="fingerprint" initialPublic={profile.visibility.fingerprint} />}
+              </div>
+              <ThinkingFingerprint dims={profile.dimensions} self={isMe} />
+            </div>
+          )}
 
           {/* Topics — the areas this person is most involved in, named
               automatically by Claude from the seeds they take part in, and

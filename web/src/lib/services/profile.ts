@@ -1,4 +1,6 @@
 import { db } from "@/lib/db";
+import { DIMENSIONS } from "@/lib/constants";
+import type { DimSlice } from "@/lib/fingerprint";
 import {
   inferPersonTopics,
   describeContributionStyle,
@@ -14,7 +16,7 @@ const MAX_TOPICS = 20;
 // The profile sections a person can make public or private, and the default for
 // each. "How you show up" can surface sensitive read, so it's PRIVATE first;
 // the rest are public by default.
-export const PROFILE_SECTIONS = ["reflection", "topics", "seeds", "aiTags"] as const;
+export const PROFILE_SECTIONS = ["reflection", "topics", "seeds", "aiTags", "fingerprint"] as const;
 export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
 
 const SECTION_PUBLIC_DEFAULT: Record<ProfileSection, boolean> = {
@@ -22,6 +24,7 @@ const SECTION_PUBLIC_DEFAULT: Record<ProfileSection, boolean> = {
   topics: true,
   seeds: true,
   aiTags: true,
+  fingerprint: true,
 };
 
 export type SectionVisibility = Record<ProfileSection, boolean>;
@@ -56,6 +59,27 @@ export async function setSectionVisibility(
       .catch((err) => console.error("setSectionVisibility failed", err));
   }
   return getSectionVisibility(userId);
+}
+
+// A person's "thinking fingerprint" input: how their contributions spread across
+// the five dimensions, ranked, only those with real activity.
+export async function getThinkingDimensions(userId: string): Promise<DimSlice[]> {
+  const contribs = await db.contribution
+    .findMany({ where: { authorId: userId, deletedAt: null }, select: { dimension: true }, take: 5000 })
+    .catch(() => [] as { dimension: string }[]);
+  const counts: Record<string, number> = {};
+  for (const c of contribs as { dimension: string }[]) counts[c.dimension] = (counts[c.dimension] ?? 0) + 1;
+  const total = contribs.length;
+  return DIMENSIONS.map((d) => ({
+    key: d.key,
+    label: d.label,
+    emoji: d.emoji,
+    color: d.color,
+    count: counts[d.key] ?? 0,
+    pct: total > 0 ? Math.round(((counts[d.key] ?? 0) / total) * 100) : 0,
+  }))
+    .filter((d) => d.count > 0)
+    .sort((a, b) => b.count - a.count);
 }
 
 export type InvolvedSeed = { id: string; title: string; garden: { name: string; emoji: string } };
@@ -370,6 +394,8 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
       getInvolvedPublicSeeds(userId).catch(() => [] as InvolvedSeed[]),
     ]);
 
+  const dimensions = await getThinkingDimensions(userId).catch(() => [] as DimSlice[]);
+
   const [topics, reflection] = await Promise.all([
     ensureUserTopics(userId, contributions > 0 || seedsPlanted > 0).catch(() => [] as string[]),
     ensureUserReflection(userId, contributions).catch(() => ""),
@@ -401,6 +427,7 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
     reflection: canSee("reflection") ? reflection : "",
     topics: canSee("topics") ? topics : [],
     involvedSeeds: canSee("seeds") ? involvedSeeds : [],
+    dimensions: canSee("fingerprint") ? dimensions : [],
     recognitions: [...byLabel.values()].sort((a, b) => b.count - a.count),
   };
 }

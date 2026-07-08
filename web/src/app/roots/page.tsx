@@ -7,6 +7,7 @@ import { DisplayNameEditor } from "@/components/DisplayNameEditor";
 import { ProfileTopicsEditor } from "@/components/ProfileTopicsEditor";
 import { ReflectionEditor } from "@/components/ReflectionEditor";
 import { SectionPrivacyToggle } from "@/components/SectionPrivacyToggle";
+import { ThinkingFingerprint } from "@/components/ThinkingFingerprint";
 import { STAGES } from "@/lib/constants";
 
 export default async function RootsPage() {
@@ -138,25 +139,15 @@ export default async function RootsPage() {
           </section>
         )}
 
-        {/* How you think */}
+        {/* Thinking fingerprint — your archetype + the mix that's uniquely yours */}
         {roots.dimensions.length > 0 && (
           <section className="mb-8">
-            <p className="eyebrow mb-3">🧭 How you think</p>
-            <div className="card space-y-2.5 p-4">
-              {roots.dimensions.map((d) => (
-                <div key={d.key} className="flex items-center gap-2">
-                  <span className="w-28 shrink-0 text-xs" style={{ color: d.color }}>
-                    {d.emoji} {d.label}
-                  </span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
-                    <div
-                      className="weight-bar-fill h-full rounded-full"
-                      style={{ width: `${d.pct}%`, background: d.color }}
-                    />
-                  </div>
-                  <span className="w-9 shrink-0 text-right text-[11px] text-ink-soft">{d.pct}%</span>
-                </div>
-              ))}
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="eyebrow">🧭 Your thinking fingerprint</p>
+              <SectionPrivacyToggle section="fingerprint" initialPublic={roots.visibility.fingerprint} />
+            </div>
+            <div className="card p-4">
+              <ThinkingFingerprint dims={roots.dimensions} self />
             </div>
           </section>
         )}
