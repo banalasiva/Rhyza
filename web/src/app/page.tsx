@@ -1,5 +1,6 @@
 import { requireViewer } from "@/lib/session";
 import { listGardens } from "@/lib/services/gardens";
+import { listPublicGardens } from "@/lib/services/explore";
 import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
 import { CreateGardenForm } from "@/components/CreateGardenForm";
@@ -9,11 +10,15 @@ import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 import { MorningQuote } from "@/components/MorningQuote";
 import { WaitingForThem } from "@/components/WaitingForThem";
 import { EnableNotifications } from "@/components/EnableNotifications";
+import { DiscoverGardens } from "@/components/DiscoverGardens";
 import { Feed } from "@/components/Feed";
 
 export default async function GardensHome() {
   const viewer = await requireViewer();
-  const gardens = await listGardens(viewer.userId, viewer.orgId);
+  const [gardens, publicGardens] = await Promise.all([
+    listGardens(viewer.userId, viewer.orgId),
+    listPublicGardens(12).catch(() => []),
+  ]);
 
   // Progress for the "getting started" guide: has the viewer planted a seed,
   // and has anyone else joined a garden they're in? (Cheap counts; only the
@@ -62,10 +67,11 @@ export default async function GardensHome() {
             <div id="new-garden" className="card p-5">
               <CreateGardenForm firstRun />
             </div>
-            <p className="mt-4 text-sm text-ink-soft">
+            <p className="mb-8 mt-4 text-sm text-ink-soft">
               Just want to look around first?{" "}
               <a href="/explore" className="text-accent hover:underline">Explore public gardens →</a>
             </p>
+            <DiscoverGardens gardens={publicGardens} />
           </>
         ) : (
           <>
@@ -81,6 +87,9 @@ export default async function GardensHome() {
               <p className="eyebrow mb-3">Plant a new garden</p>
               <CreateGardenForm />
             </div>
+            {/* Public gardens to discover — collapsible, so it teaches without
+                getting in the way of your own feed. */}
+            <DiscoverGardens gardens={publicGardens} />
             {/* The feed — an infinite, private-first river of seeds worth your
                 thought. Your gardens live in the side panel. */}
             <Feed />
