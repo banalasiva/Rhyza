@@ -45,11 +45,20 @@ export default async function GardensHome() {
           <>
             <p className="eyebrow mb-2">Welcome{viewer.name ? `, ${viewer.name.split(" ")[0]}` : ""} 🌱</p>
             <h1 className="serif-xl mb-3">Let&apos;s start your first garden.</h1>
-            <p className="mb-8 max-w-xl text-ink-mid">
-              A <span className="text-ink">garden</span> is a space for a group — your family,
-              your friends, your team — to think a decision through together. Name yours, then
-              plant your first question inside it.
+            <p className="mb-4 max-w-xl text-ink-mid">
+              A <span className="text-ink">garden</span> is a topic your group cares about — like{" "}
+              <em className="text-ink">Home Furniture</em> or <em className="text-ink">Summer Plans</em>.
+              Inside it, each <span className="text-ink">seed</span> is one real decision you think
+              through together — <em>“which fan?”</em>, <em>“where do we go?”</em>
             </p>
+            <div className="mb-8 flex flex-wrap gap-2 text-xs">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.25)] px-3 py-1 text-ink-mid">
+                🌳 Garden = a topic
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.25)] px-3 py-1 text-ink-mid">
+                🌱 Seed = a decision
+              </span>
+            </div>
             <div id="new-garden" className="card p-5">
               <CreateGardenForm firstRun />
             </div>
