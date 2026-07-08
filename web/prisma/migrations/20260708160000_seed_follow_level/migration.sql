@@ -1,0 +1,1 @@
+ALTER TABLE "seed_follows" ADD COLUMN IF NOT EXISTS "level" TEXT NOT NULL DEFAULT 'all';

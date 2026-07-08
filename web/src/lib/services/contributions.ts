@@ -24,6 +24,7 @@ import { requestAdmissionIfNeeded } from "@/lib/services/stake";
 import { settleStage } from "@/lib/services/voting";
 import { STAGES } from "@/lib/constants";
 import { deliver } from "@/lib/services/notify";
+import { bumpFollowOnContribute } from "@/lib/services/explore";
 import { getReactionTypes } from "@/lib/registry";
 
 async function seedOrThrow(seedId: string) {
@@ -460,6 +461,10 @@ export async function addContribution(
   // activity ping below can skip them — nobody gets pinged twice for one message.
   await notifyMentions(userId, seed, input.text, contribution.id, snippet);
 
+  // You spoke, so you're in it — make sure you hear the replies (upgrade a
+  // quiet/auto follow to "all", unless you deliberately muted). Best-effort.
+  await bumpFollowOnContribute(userId, seedId);
+
   // The core re-engagement loop: ping EVERYONE involved in this seed — its
   // creator, anyone who's contributed, followers, and (private) members — that
   // the conversation moved. Push now, rolls into the digest. Best-effort.
@@ -514,19 +519,36 @@ async function notifySeedActivity(
         distinct: ["authorId"],
         select: { authorId: true },
       }),
-      db.seedFollow.findMany({ where: { seedId: seed.id }, select: { userId: true } }),
+      db.seedFollow
+        .findMany({ where: { seedId: seed.id }, select: { userId: true, level: true } })
+        .catch(() => [] as { userId: string; level: string }[]),
       db.seedMember.findMany({ where: { seedId: seed.id }, select: { userId: true } }),
     ]);
 
+    // Each person's follow level, if they've set one. Involved people without a
+    // row (creator/participants/members) default to "all" — they're in it, so a
+    // normal reply reaches them, exactly as before follow-levels existed.
+    const levelByUser = new Map<string, string>();
+    for (const f of follows as { userId: string; level: string }[]) {
+      levelByUser.set(f.userId, f.level || "all");
+    }
+
     const exclude = new Set<string>([actorId, ...mentionedIds]);
-    const recipients = new Set<string>();
+    const candidates = new Set<string>();
     const add = (id?: string | null) => {
-      if (id && !exclude.has(id)) recipients.add(id);
+      if (id && !exclude.has(id)) candidates.add(id);
     };
     add(seed.createdById);
     for (const p of participants as { authorId: string }[]) add(p.authorId);
     for (const f of follows as { userId: string }[]) add(f.userId);
     for (const m of members as { userId: string }[]) add(m.userId);
+
+    // A NORMAL reply only pings people at level "all" (their explicit choice, or
+    // the involved-default). "highlights" and "muted" followers are spared the
+    // per-reply firehose — they still get blooms and @mentions elsewhere.
+    const recipients = new Set<string>(
+      [...candidates].filter((id) => (levelByUser.get(id) ?? "all") === "all"),
+    );
     if (recipients.size === 0) return;
 
     const actor = await db.user.findUnique({ where: { id: actorId }, select: { name: true } });

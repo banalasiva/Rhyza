@@ -333,18 +333,61 @@ async function notifyInterested(
 
 // Follow / unfollow a seed (any seed the viewer can access). Following routes
 // the seed's activity to them through the normal notification pipeline.
+// The three "how loud" levels a follow can be, plus "off" (unfollow entirely).
+export const FOLLOW_LEVELS = ["all", "highlights", "muted"] as const;
+export type FollowLevel = (typeof FOLLOW_LEVELS)[number];
+
+// Set how a person follows a seed:
+//   "all"        — every reply pings them
+//   "highlights" — only blooms/decisions + @mentions (no per-reply spam)
+//   "muted"      — nothing but @mentions; kept on their radar/feed
+//   "off"        — not following at all (row removed)
+export async function setSeedFollow(userId: string, seedId: string, level: FollowLevel | "off") {
+  await requireSeedAccess(userId, seedId); // listed / public-garden seeds pass for anyone
+  if (level === "off") {
+    await db.seedFollow.deleteMany({ where: { seedId, userId } });
+    return { ok: true, following: false, level: null };
+  }
+  await db.seedFollow.upsert({
+    where: { seedId_userId: { seedId, userId } },
+    update: { level },
+    create: { seedId, userId, level },
+  });
+  return { ok: true, following: true, level };
+}
+
+// Backwards-compatible boolean follow (the Explore + seed-room toggle): on =
+// "all" (you explicitly chose to follow, so you want the replies), off = remove.
 export async function followSeed(userId: string, seedId: string, following: boolean) {
-  await requireSeedAccess(userId, seedId); // listed seeds pass for anyone
-  if (following) {
+  return setSeedFollow(userId, seedId, following ? "all" : "off");
+}
+
+// Put a seed on an outsider's radar quietly the first time they open it — a
+// "highlights" follow, created only if they don't already follow it. Never
+// downgrades an existing follow. Best-effort.
+export async function autoFollowOnView(userId: string, seedId: string) {
+  await db.seedFollow
+    .create({ data: { seedId, userId, level: "highlights" } })
+    .catch(() => {}); // unique-conflict (already follows) or unmigrated table → ignore
+}
+
+// When someone contributes, make sure they hear the replies — upgrade their
+// follow to "all", unless they've deliberately muted it. Best-effort.
+export async function bumpFollowOnContribute(userId: string, seedId: string) {
+  try {
+    const existing = await db.seedFollow.findUnique({
+      where: { seedId_userId: { seedId, userId } },
+      select: { level: true },
+    });
+    if (existing?.level === "muted") return; // respect an explicit mute
     await db.seedFollow.upsert({
       where: { seedId_userId: { seedId, userId } },
-      update: {},
-      create: { seedId, userId },
+      update: { level: "all" },
+      create: { seedId, userId, level: "all" },
     });
-  } else {
-    await db.seedFollow.deleteMany({ where: { seedId, userId } });
+  } catch {
+    /* unmigrated table — ignore */
   }
-  return { ok: true, following };
 }
 
 // Bump a seed's activity timestamp so it rises on /explore. Best-effort.

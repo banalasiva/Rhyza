@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { ensureGardenMember, requireSeedManager, requireSeedAccess, canModerateSeed } from "@/lib/authz";
 import { STAGE_KEYS, type StageKey } from "@/lib/constants";
+import { autoFollowOnView } from "@/lib/services/explore";
 
 // What a contribution carries for the room view — author, reactions (with the
 // reactor's name, so we can show *who* reacted), and endorsements.
@@ -318,6 +319,21 @@ export async function getSeedDetail(userId: string, seedId: string) {
 
   const contribs = mapContribs(contributions as ContribRow[], userId);
 
+  // Auto-follow (quietly) the first time a pure outsider opens this seed — puts
+  // it on their radar without any per-reply spam. Skips anyone already involved
+  // (creator, member, contributor, or already following) so it never downgrades
+  // a real participant's notifications. Best-effort; reflected in the response.
+  const viewerContributed = (contributions as { authorId?: string }[]).some(
+    (c) => c.authorId === userId,
+  );
+  let followLevel: string | null = (follow as { level?: string } | null)?.level ?? null;
+  let following = !!follow;
+  if (!follow && !isCreator && !seedMember && !viewerContributed) {
+    void autoFollowOnView(userId, seedId);
+    following = true;
+    followLevel = "highlights";
+  }
+
   return {
     id: seed.id,
     title: seed.title,
@@ -327,7 +343,8 @@ export async function getSeedDetail(userId: string, seedId: string) {
     stage: (seed.stage === "bloomed" && !seed.bloomId ? "growing" : seed.stage) as StageKey,
     visibility: seed.visibility as "public" | "private",
     listed: seed.listed,
-    following: !!follow,
+    following,
+    followLevel,
     bloomId: seed.bloomId,
     author: seed.createdBy,
     garden: { id: seed.garden.id, name: seed.garden.name, emoji: seed.garden.emoji },

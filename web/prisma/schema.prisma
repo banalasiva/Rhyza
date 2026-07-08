@@ -234,6 +234,10 @@ model Seed {
 model SeedFollow {
   seedId    String   @map("seed_id") @db.Uuid
   userId    String   @map("user_id") @db.Uuid
+  // How loud: "all" (every reply), "highlights" (blooms/decisions/mentions
+  // only), "muted" (nothing but @mentions). Auto-follow-on-view creates
+  // "highlights"; contributing upgrades to "all".
+  level     String   @default("all")
   createdAt DateTime @default(now()) @map("created_at")
 
   seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)

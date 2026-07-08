@@ -266,4 +266,10 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "daily_quotes.action",
     sql: `ALTER TABLE "daily_quotes" ADD COLUMN IF NOT EXISTS "action" TEXT`,
   },
+
+  // 20260708160000_seed_follow_level
+  {
+    label: "seed_follows.level",
+    sql: `ALTER TABLE "seed_follows" ADD COLUMN IF NOT EXISTS "level" TEXT NOT NULL DEFAULT 'all'`,
+  },
 ];

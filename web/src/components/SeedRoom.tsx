@@ -143,6 +143,9 @@ export function SeedRoom({
   const [visBusy, setVisBusy] = useState(false);
   const [listed, setListed] = useState<boolean>(seed.listed ?? false);
   const [following, setFollowing] = useState<boolean>(seed.following ?? false);
+  const [followLevel, setFollowLevelState] = useState<string>(
+    seed.followLevel ?? (seed.following ? "all" : "highlights"),
+  );
   const [bloomConfirm, setBloomConfirm] = useState(false); // confirm modal open
   const [previewBloom, setPreviewBloom] = useState(false); // flower the plant as a preview
   const [bursts, setBursts] = useState<
@@ -664,13 +667,18 @@ export function SeedRoom({
     }
   }
 
-  async function toggleFollow() {
-    const next = !following;
-    setFollowing(next); // optimistic
+  // Set how loudly you follow this seed: "all" (every reply), "highlights"
+  // (blooms/decisions/mentions), or "off" (stop following). Optimistic.
+  async function setFollow(level: "all" | "highlights" | "off") {
+    const prevF = following;
+    const prevL = followLevel;
+    setFollowing(level !== "off");
+    if (level !== "off") setFollowLevelState(level);
     try {
-      await apiPost(`/api/seeds/${seed.id}/follow`, { following: next });
+      await apiPost(`/api/seeds/${seed.id}/follow`, { level });
     } catch {
-      setFollowing(!next);
+      setFollowing(prevF);
+      setFollowLevelState(prevL);
     }
   }
 
@@ -2026,19 +2034,37 @@ export function SeedRoom({
                   {listed ? "🌐 Listed on Explore · unlist" : "🌐 Share with the world"}
                 </button>
               )}
-              {/* Follow — for anyone who isn't the owner */}
+              {/* Follow level — for anyone who isn't the owner. Pick how loud:
+                  every reply, just the highlights, or off. */}
               {seed.author?.id !== currentUserId && (
-                <button
-                  onClick={() => {
-                    setSeedMenu(false);
-                    toggleFollow();
-                  }}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left transition hover:bg-[rgba(255,255,255,0.04)] ${
-                    following ? "text-accent" : "text-ink-mid hover:text-ink"
-                  }`}
-                >
-                  {following ? "✓ Following · unfollow" : "🔔 Follow this seed"}
-                </button>
+                <div className="rounded-lg border border-[rgba(255,255,255,0.08)] p-1">
+                  <p className="px-2 pb-1 pt-1.5 text-[11px] uppercase tracking-wide text-ink-soft">
+                    Notify me about this seed
+                  </p>
+                  {(
+                    [
+                      { key: "all", icon: "🔔", label: "Every reply" },
+                      { key: "highlights", icon: "🌿", label: "Highlights only" },
+                      { key: "off", icon: "🔕", label: "Off" },
+                    ] as const
+                  ).map((opt) => {
+                    const active = opt.key === "off" ? !following : following && followLevel === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        onClick={() => setFollow(opt.key)}
+                        aria-pressed={active}
+                        className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition hover:bg-[rgba(255,255,255,0.04)] ${
+                          active ? "text-accent" : "text-ink-mid hover:text-ink"
+                        }`}
+                      >
+                        <span aria-hidden>{opt.icon}</span>
+                        <span className="flex-1">{opt.label}</span>
+                        {active && <span aria-hidden>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
               <button
                 onClick={() => {
