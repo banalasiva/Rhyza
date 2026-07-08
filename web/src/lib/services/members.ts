@@ -207,23 +207,17 @@ async function assertCanAdd(actorId: string, seedId: string) {
   return await requireSeedAccess(actorId, seedId);
 }
 
-// People already on ThinkThru (in this seed's org) you can drop straight into
-// the seed — no invite link needed. Excludes anyone already in the seed, the
-// AI users, and yourself. Optional `q` filters by name/email.
+// People YOU can drop straight into the seed — drawn from your own contacts
+// (anyone you already share a garden or seed with), NOT the whole org directory.
+// This is deliberate: your parents shouldn't see your company's colleagues just
+// because you both signed in — you only see and add people you've actually
+// connected with. Excludes anyone already in the seed, the AI users, and
+// yourself. Optional `q` filters by name/email.
 export async function listAddablePeople(actorId: string, seedId: string, q?: string) {
   const seed = await assertCanAdd(actorId, seedId);
-  const garden = await db.garden.findUnique({
-    where: { id: seed.gardenId },
-    select: { orgId: true },
-  });
-  if (!garden) return [];
 
-  const [orgMembers, seedMembers, contributors] = await Promise.all([
-    db.orgMember.findMany({
-      where: { orgId: garden.orgId },
-      select: { user: { select: { id: true, name: true, email: true, image: true } } },
-      take: 1000,
-    }),
+  const [network, seedMembers, contributors] = await Promise.all([
+    listMyNetwork(actorId),
     db.seedMember.findMany({ where: { seedId }, select: { userId: true } }),
     db.contribution.findMany({
       where: { seedId, deletedAt: null },
@@ -240,18 +234,13 @@ export async function listAddablePeople(actorId: string, seedId: string, q?: str
   ]);
   const needle = (q ?? "").trim().toLowerCase();
 
-  return (orgMembers as { user: { id: string; name: string | null; email: string | null; image: string | null } }[])
-    .map((m) => m.user)
-    .filter((u) => u && u.email && !exclude.has(u.id) && u.name !== "Claude" && u.name !== "ChatGPT")
+  return network
+    .filter((p) => !exclude.has(p.id) && p.name !== "Claude" && p.name !== "ChatGPT")
     .filter(
-      (u) =>
-        !needle ||
-        (u.name ?? "").toLowerCase().includes(needle) ||
-        (u.email ?? "").toLowerCase().includes(needle),
+      (p) =>
+        !needle || p.name.toLowerCase().includes(needle) || p.email.toLowerCase().includes(needle),
     )
-    .slice(0, 20)
-    .map((u) => ({ id: u.id, name: u.name || (u.email as string), email: u.email as string, image: u.image }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .slice(0, 20);
 }
 
 // Add an existing org member straight into the seed (member role) and let them
@@ -265,6 +254,16 @@ export async function addExistingMember(actorId: string, seedId: string, targetI
   });
   if (!garden) throw new ApiError("NOT_FOUND", "Garden not found");
 
+  // Privacy: you can only directly add people you've already connected with
+  // (share a garden or seed) — not any stranger in the org. Anyone else needs an
+  // invite. This is what keeps your parents from seeing your colleagues.
+  const network = await listMyNetwork(actorId);
+  if (!network.some((p) => p.id === targetId)) {
+    throw new ApiError("BAD_REQUEST", "They're not in your circle yet — send them an invite instead.");
+  }
+  // Access: they must belong to this garden's org, or garden access would reject
+  // them after we add them. In the normal single-org case a contact always is;
+  // this guards the cross-org edge — send an invite instead there.
   const inOrg = await db.orgMember.findUnique({
     where: { orgId_userId: { orgId: garden.orgId, userId: targetId } },
     select: { userId: true },

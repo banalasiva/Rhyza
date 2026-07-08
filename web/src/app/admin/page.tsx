@@ -25,6 +25,45 @@ async function aiTagStats() {
   }
 }
 
+// Every member with their footprint — seeds planted, messages, AI calls. Sorted
+// by who's most active. Best-effort so a missing table never breaks the page.
+async function adminMembers() {
+  try {
+    const [users, seeds, msgs, ai] = await Promise.all([
+      db.user.findMany({
+        where: { deletedAt: null, name: { notIn: ["Claude", "ChatGPT"] } },
+        select: { id: true, name: true, email: true },
+        take: 2000,
+      }),
+      db.seed.groupBy({ by: ["createdById"], where: { deletedAt: null }, _count: { _all: true } }),
+      db.contribution.groupBy({ by: ["authorId"], where: { deletedAt: null }, _count: { _all: true } }),
+      db.aiTagEvent.groupBy({ by: ["userId"], _count: { _all: true } }).catch(() => []),
+    ]);
+    const seedBy = new Map(
+      (seeds as { createdById: string; _count: { _all: number } }[]).map((s) => [s.createdById, s._count._all]),
+    );
+    const msgBy = new Map(
+      (msgs as { authorId: string; _count: { _all: number } }[]).map((m) => [m.authorId, m._count._all]),
+    );
+    const aiBy = new Map(
+      (ai as { userId: string; _count: { _all: number } }[]).map((a) => [a.userId, a._count._all]),
+    );
+    const rows = (users as { id: string; name: string | null; email: string | null }[])
+      .map((u) => ({
+        id: u.id,
+        name: u.name || u.email || "Someone",
+        email: u.email || "",
+        seeds: seedBy.get(u.id) ?? 0,
+        messages: msgBy.get(u.id) ?? 0,
+        ai: aiBy.get(u.id) ?? 0,
+      }))
+      .sort((a, b) => b.messages - a.messages || b.seeds - a.seeds || a.name.localeCompare(b.name));
+    return { rows, total: rows.length, ok: true as const };
+  } catch {
+    return { rows: [] as { id: string; name: string; email: string; seeds: number; messages: number; ai: number }[], total: 0, ok: false as const };
+  }
+}
+
 export const dynamic = "force-dynamic";
 
 // Owner-only admin page. Gated to ADMIN_EMAILS — anyone else gets a 404 (so its
@@ -41,6 +80,7 @@ export default async function AdminPage() {
   }
 
   const ai = await aiTagStats();
+  const members = await adminMembers();
   const openReports = await countOpenReports().catch(() => 0);
 
   return (
@@ -70,6 +110,41 @@ export default async function AdminPage() {
             <p className="text-xs text-ink-soft">
               No data yet — apply the latest migration below to start metering AI tags.
             </p>
+          )}
+        </div>
+
+        {/* Members — everyone on ThinkThru with their footprint */}
+        <div className="card mb-4 p-4">
+          <p className="eyebrow mb-3">👥 Members{members.ok ? ` · ${members.total}` : ""}</p>
+          {members.ok && members.rows.length > 0 ? (
+            <>
+              <div className="mb-1.5 flex items-center justify-end gap-3 text-[10px] uppercase tracking-wide text-ink-soft">
+                <span className="w-8 text-right">🌱</span>
+                <span className="w-8 text-right">💬</span>
+                <span className="w-8 text-right">🤖</span>
+              </div>
+              <div className="space-y-1.5">
+                {members.rows.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between gap-3 border-b border-[rgba(255,255,255,0.05)] pb-1.5 last:border-0"
+                  >
+                    <Link href={`/u/${m.id}`} className="min-w-0 transition hover:text-accent">
+                      <span className="block truncate text-sm text-ink">{m.name}</span>
+                      {m.email && <span className="block truncate text-[11px] text-ink-soft">{m.email}</span>}
+                    </Link>
+                    <div className="flex shrink-0 items-center gap-3 text-xs text-ink-mid">
+                      <span className="w-8 text-right">{m.seeds}</span>
+                      <span className="w-8 text-right">{m.messages}</span>
+                      <span className="w-8 text-right">{m.ai}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-[11px] text-ink-soft">🌱 seeds · 💬 messages · 🤖 AI calls · tap a name for their profile</p>
+            </>
+          ) : (
+            <p className="text-xs text-ink-soft">No members yet.</p>
           )}
         </div>
 
