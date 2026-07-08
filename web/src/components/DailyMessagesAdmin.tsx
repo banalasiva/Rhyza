@@ -86,26 +86,16 @@ export function DailyMessagesAdmin() {
           </button>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-ink-soft">
-            {activeCount} active · {total} total — today shows #{" "}
-            {(() => {
-              const active = quotes.filter((q) => q.active);
-              if (active.length === 0) return "—";
-              const now = new Date();
-              const day = Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000);
-              return ((day % active.length) + active.length) % active.length + 1;
-            })()}
-          </p>
-          <button
-            onClick={() => api("POST", { regenerateActions: true })}
-            disabled={busy}
-            title="Clear the crafted 'do this today' action on every quote so a fresh, varied one is generated"
-            className="rounded-full border border-[rgba(76,175,80,0.3)] px-3 py-1 text-xs text-accent transition hover:text-ink disabled:opacity-50"
-          >
-            {busy ? "…" : "↻ Refresh action items"}
-          </button>
-        </div>
+        <p className="text-xs text-ink-soft">
+          {activeCount} active · {total} total — today shows #{" "}
+          {(() => {
+            const active = quotes.filter((q) => q.active);
+            if (active.length === 0) return "—";
+            const now = new Date();
+            const day = Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000);
+            return ((day % active.length) + active.length) % active.length + 1;
+          })()}
+        </p>
       )}
 
       {/* Add a new one */}

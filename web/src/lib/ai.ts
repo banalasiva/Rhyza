@@ -587,44 +587,6 @@ export async function describeContributionStyle(
   }
 }
 
-// Turn the quote of the day into a tiny "do this today" nudge for ThinkThru.
-// The action VARIES across ThinkThru's ways of thinking together — not always
-// the candid/hard-question kind. Claude picks whichever best fits the quote:
-//   • understand together — explore how something works or why it is the way it is
-//   • decide together — bring a real decision to the group, or weigh in on one
-//   • get curious — plant a question you're genuinely wondering about
-//   • appreciate / reflect — revisit a past decision, or tell someone their point mattered
-//   • ask openly — put a question the group hasn't discussed on the table
-// Returns "" if AI is off or it fails, so the quote still stands alone.
-export async function craftDailyAction(text: string, author?: string): Promise<string> {
-  if (!aiConfigured() || !text.trim()) return "";
-  try {
-    const out = await complete(
-      "ThinkThru is a space where families and groups turn conversations into shared understanding " +
-        "and decisions — you plant a question (a 'seed'), discuss it together, and let it 'bloom' " +
-        "into a decision. Given the quote of the day, write ONE tiny action a person could take in " +
-        "ThinkThru today, in the quote's spirit. Choose the kind of action that BEST fits this " +
-        "specific quote, and vary across these kinds rather than always doing the same one:\n" +
-        "• understand together — 'explore with your group how/why …'\n" +
-        "• decide together — 'bring a decision you're weighing to the group' or 'weigh in on …'\n" +
-        "• get curious — 'plant a question you've been wondering about …'\n" +
-        "• appreciate / reflect — 'revisit a decision you made' or 'tell someone their point mattered'\n" +
-        "• ask openly — 'put a question on the table your group hasn't discussed'\n" +
-        "Match the action to the quote's meaning (a learning quote → understand together; a " +
-        "decision quote → decide together; a curiosity quote → get curious; a gratitude quote → " +
-        "appreciate). Start with 'Today,' and keep it to one warm, concrete sentence under 18 " +
-        "words. Output only the sentence — no quotes, no preamble.",
-      author ? `Quote: “${text}” — ${author}` : `Quote: “${text}”`,
-      60,
-      MODEL_FAST,
-    );
-    return out.trim().replace(/^["'“]|["'”]$/g, "").slice(0, 160);
-  } catch (err) {
-    console.error("craftDailyAction failed", err);
-    return "";
-  }
-}
-
 // Does this text tag Claude? Matches "@claude" as a whole word, case-insensitive.
 export function mentionsClaude(text: string): boolean {
   return /(^|[^a-zA-Z0-9])@claude\b/i.test(text);
