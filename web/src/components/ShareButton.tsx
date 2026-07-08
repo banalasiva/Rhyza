@@ -11,12 +11,14 @@ export function ShareButton({
   text,
   label = "Share",
   className,
+  iconOnly = false,
 }: {
   path: string;
   title: string;
   text?: string;
   label?: string;
   className?: string;
+  iconOnly?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -26,6 +28,24 @@ export function ShareButton({
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     }
+  }
+
+  // Icon-only: just the universal share glyph in a compact circle — saves the
+  // row space a label would take (so e.g. "Hey Siva 👋" stays on one line).
+  if (iconOnly) {
+    return (
+      <button
+        onClick={onClick}
+        aria-label="Share profile"
+        title="Share"
+        className={
+          className ??
+          "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[rgba(76,175,80,0.3)] text-accent transition hover:text-ink"
+        }
+      >
+        <span aria-hidden className="text-base leading-none">{copied ? "✓" : "📤"}</span>
+      </button>
+    );
   }
 
   return (

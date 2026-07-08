@@ -41,11 +41,10 @@ export default async function RootsPage() {
             </p>
           </div>
           <ShareButton
+            iconOnly
             path={`/u/${viewer.userId}`}
             title={`${viewer.name || "My"} ThinkThru profile`}
             text="My ThinkThru profile"
-            label="Share"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.3)] px-3 py-1.5 text-xs text-accent transition hover:text-ink"
           />
         </div>
 

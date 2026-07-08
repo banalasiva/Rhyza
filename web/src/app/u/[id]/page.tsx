@@ -61,11 +61,10 @@ export default async function ProfilePage({ params }: { params: { id: string } }
             </div>
             {isMe && (
               <ShareButton
+                iconOnly
                 path={`/u/${profile.id}`}
                 title={`${profile.name} on ThinkThru`}
                 text="My ThinkThru profile"
-                label="Share"
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.3)] px-3 py-1.5 text-xs text-accent transition hover:text-ink"
               />
             )}
           </div>
