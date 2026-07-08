@@ -260,4 +260,10 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
       CONSTRAINT "user_section_visibility_pkey" PRIMARY KEY ("user_id", "section")
     )`,
   },
+
+  // 20260708120000_daily_quote_action
+  {
+    label: "daily_quotes.action",
+    sql: `ALTER TABLE "daily_quotes" ADD COLUMN IF NOT EXISTS "action" TEXT`,
+  },
 ];

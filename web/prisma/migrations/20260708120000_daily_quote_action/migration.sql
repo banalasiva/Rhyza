@@ -1,0 +1,1 @@
+ALTER TABLE "daily_quotes" ADD COLUMN IF NOT EXISTS "action" TEXT;

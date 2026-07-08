@@ -33,7 +33,8 @@ export async function sendGoodMorning(): Promise<{ sent: number; recipients: num
 
   const url = `${appUrl()}/notifications`;
   const msg = await resolveMessageOfTheDay();
-  const quoteLine = msg.author ? `“${msg.text}” — ${msg.author}` : msg.text;
+  const quoteBase = msg.author ? `“${msg.text}” — ${msg.author}` : msg.text;
+  const quoteLine = msg.action ? `${quoteBase}\n\n→ ${msg.action}` : quoteBase;
   const cutoff = new Date(Date.now() - LOOKBACK_MS);
 
   // Unseen (unread), not-yet-nudged activity, grouped by recipient.

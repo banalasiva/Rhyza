@@ -19,7 +19,8 @@ export const POST = handle(async () => {
   }
 
   const msg = await resolveMessageOfTheDay();
-  const body = msg.author ? `“${msg.text}” — ${msg.author}` : msg.text;
+  const base = msg.author ? `“${msg.text}” — ${msg.author}` : msg.text;
+  const body = msg.action ? `${base}\n\n→ ${msg.action}` : base;
 
   const r = await sendPushDetailed(userId, { title: "Good morning 🌱", body, url: "/" });
 

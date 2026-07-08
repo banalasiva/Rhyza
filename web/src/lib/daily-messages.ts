@@ -14,7 +14,7 @@
 // automatically.
 // ─────────────────────────────────────────────────────────────
 
-export type DailyMessage = { text: string; author?: string };
+export type DailyMessage = { text: string; author?: string; action?: string };
 
 export const DAILY_MESSAGES: DailyMessage[] = [
   // ── Thinking & making sense of things ──

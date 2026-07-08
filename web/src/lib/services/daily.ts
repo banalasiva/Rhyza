@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { DAILY_MESSAGES, messageOfTheDay, type DailyMessage } from "@/lib/daily-messages";
+import { craftDailyAction } from "@/lib/ai";
 
 function pickByDay<T>(arr: T[], now: Date): T {
   const dayNumber = Math.floor(
@@ -9,24 +10,49 @@ function pickByDay<T>(arr: T[], now: Date): T {
   return arr[((dayNumber % n) + n) % n];
 }
 
+// Per-quote action cache, so we craft the "do this today" nudge at most once per
+// quote per warm instance (and, for DB quotes, persist it on the row too).
+const actionCache = new Map<string, string>();
+
+// The "do this today" nudge for a quote — Claude-crafted, cached. For a DB quote
+// it's stored on the row (id given) so it's generated once ever; for the code
+// library it's kept in memory. Best-effort: "" on any failure.
+async function actionFor(text: string, author?: string, id?: string): Promise<string> {
+  const key = id ?? text;
+  const cached = actionCache.get(key);
+  if (cached !== undefined) return cached;
+
+  const crafted = await craftDailyAction(text, author);
+  actionCache.set(key, crafted);
+  if (id && crafted) {
+    db.dailyQuote.update({ where: { id }, data: { action: crafted } }).catch(() => {});
+  }
+  return crafted;
+}
+
 // Today's message. If the editable DB library has active rows, it drives the
 // pick; otherwise (empty, or the table not migrated yet) we fall back to the
 // built-in set in lib/daily-messages.ts — so the daily message never fails.
+// Each message ends with a small, Claude-crafted action for the day.
 export async function resolveMessageOfTheDay(now = new Date()): Promise<DailyMessage> {
   try {
     const rows = (await db.dailyQuote.findMany({
       where: { active: true },
       orderBy: { createdAt: "asc" },
-      select: { text: true, author: true },
-    })) as { text: string; author: string | null }[];
+      select: { id: true, text: true, author: true, action: true },
+    })) as { id: string; text: string; author: string | null; action: string | null }[];
     if (rows.length > 0) {
       const r = pickByDay(rows, now);
-      return { text: r.text, author: r.author ?? undefined };
+      const author = r.author ?? undefined;
+      const action = r.action ?? (await actionFor(r.text, author, r.id));
+      return { text: r.text, author, action: action || undefined };
     }
   } catch {
     /* table not migrated yet — fall back to the code library */
   }
-  return messageOfTheDay(now);
+  const m = messageOfTheDay(now);
+  const action = await actionFor(m.text, m.author);
+  return { ...m, action: action || undefined };
 }
 
 // ── Admin curation ──
@@ -47,7 +73,9 @@ export async function updateDailyQuote(
   return db.dailyQuote.update({
     where: { id },
     data: {
-      ...(data.text !== undefined ? { text: data.text.trim() } : {}),
+      // Changing the text invalidates the crafted action — null it so a fresh
+      // one is generated on next resolve.
+      ...(data.text !== undefined ? { text: data.text.trim(), action: null } : {}),
       ...(data.author !== undefined ? { author: (data.author ?? "").trim() || null } : {}),
       ...(data.active !== undefined ? { active: data.active } : {}),
     },

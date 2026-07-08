@@ -74,6 +74,12 @@ export function MorningQuote({ name }: { name?: string }) {
         </p>
         <p className="mt-1 text-sm italic leading-relaxed text-ink-mid">“{data.quote.text}”</p>
         {data.quote.author && <p className="mt-0.5 text-xs text-ink-soft">— {data.quote.author}</p>}
+        {data.quote.action && (
+          <p className="mt-2.5 flex items-start gap-1.5 border-t border-[rgba(76,175,80,0.15)] pt-2.5 text-xs font-medium text-accent">
+            <span aria-hidden>→</span>
+            <span>{data.quote.action}</span>
+          </p>
+        )}
       </div>
       <button
         onClick={dismiss}

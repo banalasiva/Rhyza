@@ -759,6 +759,7 @@ model DailyQuote {
   id        String   @id @default(uuid()) @db.Uuid
   text      String
   author    String?
+  action    String? // a short "do this today" nudge Claude crafts from the quote
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 

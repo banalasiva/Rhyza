@@ -587,6 +587,32 @@ export async function describeContributionStyle(
   }
 }
 
+// Turn the quote of the day into a tiny "do this today" nudge for ThinkThru —
+// one warm, concrete action a person could take right now (plant a question,
+// ask someone, weigh in, decide the thing they've been sitting on). Returns ""
+// if AI is off or it fails, so the quote still stands alone.
+export async function craftDailyAction(text: string, author?: string): Promise<string> {
+  if (!aiConfigured() || !text.trim()) return "";
+  try {
+    const out = await complete(
+      "ThinkThru is a space where families and groups turn conversations into decisions — you " +
+        "plant a question (a 'seed'), discuss it, and let it 'bloom' into a decision. Given a quote " +
+        "of the day, write ONE tiny action a person could take in ThinkThru today, in the quote's " +
+        "spirit — e.g. plant a question you've been sitting on, ask someone what they really think, " +
+        "weigh in on a decision, or revisit one you've been avoiding. Start with 'Today,' and keep " +
+        "it to one warm, concrete sentence under 18 words. Output only the sentence — no quotes, no " +
+        "preamble.",
+      author ? `Quote: “${text}” — ${author}` : `Quote: “${text}”`,
+      60,
+      MODEL_FAST,
+    );
+    return out.trim().replace(/^["'“]|["'”]$/g, "").slice(0, 160);
+  } catch (err) {
+    console.error("craftDailyAction failed", err);
+    return "";
+  }
+}
+
 // Does this text tag Claude? Matches "@claude" as a whole word, case-insensitive.
 export function mentionsClaude(text: string): boolean {
   return /(^|[^a-zA-Z0-9])@claude\b/i.test(text);
