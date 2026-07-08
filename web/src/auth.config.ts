@@ -37,6 +37,7 @@ if (process.env.AUTH_SSO_ISSUER && process.env.AUTH_SSO_CLIENT_ID) {
 const PUBLIC_PREFIXES = [
   "/login",
   "/api/auth",
+  "/api/health",
   "/invite",
   "/privacy",
   "/delete-account",

@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { appUrl } from "@/lib/email";
 import { pushConfigured, sendPushToUser } from "@/lib/push";
 import { resolveMessageOfTheDay } from "@/lib/services/daily";
+import { mapLimit } from "@/lib/concurrency";
 
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
@@ -57,14 +58,24 @@ export async function sendGoodMorning(): Promise<{ sent: number; recipients: num
   }
 
   // Everyone who wants push — the daily hello reaches all of them.
+  // NOTE: capped at PUSH_FANOUT_CAP per run. Beyond that a single cron can't
+  // finish inside the function time limit — that's the point where the morning
+  // fan-out should move to a queue (see SCALING.md). We log when we hit the cap
+  // so it's never a silent drop.
+  const CAP = Number(process.env.PUSH_FANOUT_CAP || 20000);
   const people = await db.user.findMany({
     where: { pushNotify: true, deletedAt: null },
     select: { id: true },
-    take: 5000,
+    take: CAP,
   });
+  if (people.length >= CAP) {
+    console.warn(`[morning] hit fan-out cap of ${CAP} — move to a queue (see SCALING.md).`);
+  }
 
-  let sent = 0;
-  for (const p of people) {
+  // Send with bounded concurrency instead of one-at-a-time: far faster per run,
+  // without opening thousands of simultaneous push requests.
+  const CONCURRENCY = Number(process.env.PUSH_FANOUT_CONCURRENCY || 24);
+  const outcomes = await mapLimit(people, CONCURRENCY, async (p: { id: string }) => {
     const g = groups.get(p.id);
     // The quote is the gift — everyone gets it in the body, every morning. If
     // there's unseen activity, we only hint the count in the title so people
@@ -72,14 +83,14 @@ export async function sendGoodMorning(): Promise<{ sent: number; recipients: num
     // activity. (Previously active people got the summary INSTEAD of the quote,
     // so anyone with activity — e.g. the owner — never saw the quotes at all.)
     const title = g ? `Good morning 🌱 · ${g.ids.length} waiting` : "Good morning 🌱";
-    const delivered = await sendPushToUser(p.id, {
+    return sendPushToUser(p.id, {
       title,
       body: quoteLine,
       url,
       tag: "nudge", // collapses with any previous nudge on the device
-    });
-    if (delivered > 0) sent++;
-  }
+    }).catch(() => 0);
+  });
+  const sent = outcomes.filter((n) => n > 0).length;
 
   return { sent, recipients: people.length };
 }
