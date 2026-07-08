@@ -34,17 +34,19 @@ export async function NavBar({ name }: { name?: string }) {
             <Image src="/emblem.png" alt="" width={22} height={22} className="h-[22px] w-[22px]" />
             ThinkThru
           </Link>
+        </div>
+        {/* About + light/dark toggle — matching circular controls, top-right. */}
+        <div className="flex items-center gap-2">
           <Link
             href="/about"
+            aria-label="About ThinkThru"
             title="About ThinkThru"
-            className="text-xs text-ink-soft transition hover:text-accent"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(76,175,80,0.25)] font-serif text-base text-ink-soft transition hover:border-[rgba(76,175,80,0.5)] hover:text-ink"
           >
-            About
+            ?
           </Link>
+          <ThemeToggle />
         </div>
-        {/* Light/dark toggle — now that the top bar is uncluttered, it lives
-            here where it's easy to find. */}
-        <ThemeToggle />
       </header>
       <BottomNav unread={unread} />
     </>
