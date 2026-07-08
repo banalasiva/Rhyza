@@ -34,6 +34,13 @@ export async function NavBar({ name }: { name?: string }) {
             <Image src="/emblem.png" alt="" width={22} height={22} className="h-[22px] w-[22px]" />
             ThinkThru
           </Link>
+          <Link
+            href="/about"
+            title="About ThinkThru"
+            className="text-xs text-ink-soft transition hover:text-accent"
+          >
+            About
+          </Link>
         </div>
         {/* Light/dark toggle — now that the top bar is uncluttered, it lives
             here where it's easy to find. */}
