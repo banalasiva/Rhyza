@@ -52,29 +52,36 @@ export default function About() {
 
           {/* ── How to use ── */}
           <Section title="How to use ThinkThru">
-            <p className="mb-3">Five simple steps turn a conversation into a decision:</p>
+            <p className="mb-3">
+              Think of a <strong className="text-ink">garden</strong> as a big topic, and a{" "}
+              <strong className="text-ink">seed</strong> as one real decision inside it. Here&apos;s
+              the flow, with a simple example:
+            </p>
             <ol className="space-y-3">
-              <Step n="1" title="Plant a garden">
-                A private space for your group — your family, your team, your community. Invite the
-                people who should be in the conversation.
+              <Step n="1" title="Open a garden — a topic">
+                A garden holds everything around one theme — say{" "}
+                <em className="text-ink">Home Furniture</em>. Keep it{" "}
+                <strong className="text-ink">private</strong> for just your family, or make it{" "}
+                <strong className="text-ink">public</strong> to see and join the wider conversation —
+                ACs, fans, sofas — alongside other people thinking the same things through.
               </Step>
-              <Step n="2" title="Plant a seed">
-                A seed is the real question you&apos;re weighing — “Which school?”, “Should we ship
-                this?”, “Where do we go this summer?” Everything grows from the question.
+              <Step n="2" title="Plant a seed — a decision">
+                Inside the garden, a seed is one specific question you actually need to settle — like{" "}
+                <em className="text-ink">“Which fan should we buy for the living room?”</em>
               </Step>
               <Step n="3" title="Think it through together">
-                Everyone adds their angle — the foundations, how to think about it, what it looks like
-                in practice, and the honest debate. Stuck or want a fact? Tag{" "}
-                <span className="text-accent">@claude</span> or{" "}
+                Everyone weighs the pros and cons and adds their angle. Stuck, or want a fact, a
+                price, or a link? Tag <span className="text-accent">@claude</span> or{" "}
                 <span className="text-accent">@chatgpt</span> right in the thread for a hand.
               </Step>
-              <Step n="4" title="Weigh in">
-                When it&apos;s time to decide, everyone weighs in — and the people with the most at
-                stake carry the most say, so the call is fair, not just loudest.
+              <Step n="4" title="Weigh in — who has the most at stake">
+                When it&apos;s time to decide, everyone weighs in — and the people it affects most
+                carry the most weight, so the call is fair, not just the loudest voice.
               </Step>
-              <Step n="5" title="Let it bloom">
-                It settles into one clear decision, with the reasoning behind it, that your group
-                keeps forever — so no one ever asks “wait, why did we decide this?” again.
+              <Step n="5" title="Bloom — and keep it forever">
+                The seed blooms into one clear decision, with the reasoning behind it. Months later,
+                if anyone asks <em className="text-ink">“wait, why did we choose this fan?”</em> —
+                it&apos;s all still there.
               </Step>
             </ol>
           </Section>
