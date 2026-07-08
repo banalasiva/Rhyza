@@ -1783,7 +1783,7 @@ export function SeedRoom({
       {/* Message action sheet — tap a message's ⋯ to react or act on it.
           Keeps each message in the thread clean. */}
       {sheetC && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
           <button
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             aria-label="Close"
@@ -1792,7 +1792,7 @@ export function SeedRoom({
           <div
             role="dialog"
             aria-label="Message actions"
-            className="relative z-10 w-full max-w-md rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 shadow-2xl sm:rounded-2xl"
+            className="relative z-10 max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 pb-[calc(1rem+4.75rem+env(safe-area-inset-bottom))] shadow-2xl sm:max-h-[85vh] sm:rounded-2xl sm:pb-4"
           >
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="flex items-center gap-2">
@@ -1901,7 +1901,7 @@ export function SeedRoom({
                   <ReadAloud text={sheetC.text} />
                 </div>
               )}
-              {(sheetC.author?.id === currentUserId || seed.canManage) && (
+              {(sheetC.author?.id === currentUserId || seed.canModerate) && (
                 <button
                   onClick={() => {
                     removeContribution(sheetC.id);
@@ -1921,7 +1921,7 @@ export function SeedRoom({
       {/* Seed details sheet — tap the question/meta to open. Visibility, member
           count, framing, and every seed action in one tidy place. */}
       {seedMenu && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
           <button
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             aria-label="Close"
@@ -1930,7 +1930,7 @@ export function SeedRoom({
           <div
             role="dialog"
             aria-label="Seed details"
-            className="relative z-10 max-h-[85vh] w-full max-w-md overflow-auto rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 shadow-2xl sm:rounded-2xl"
+            className="relative z-10 max-h-[85vh] w-full max-w-md overflow-auto rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 pb-[calc(1rem+4.75rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-4"
           >
             <div className="mb-3 flex items-start justify-between gap-3">
               <div className="min-w-0">

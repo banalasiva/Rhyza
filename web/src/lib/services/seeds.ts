@@ -296,6 +296,10 @@ export async function getSeedDetail(userId: string, seedId: string) {
     seedMember?.role === "steward" ||
     seed.garden.createdById === userId ||
     member?.role === "steward";
+  // Who can remove ANY message here for moderation: everyone canManage covers,
+  // plus the app owner (superadmin) — even in gardens they're not part of. This
+  // is what gates the Delete/Remove button on others' and AI-authored messages.
+  const canModerate = canManage || (await canModerateSeed(userId, { createdById: seed.createdById, gardenId: seed.garden.id }));
 
   // Taggable people = seed-visible members + anyone who's contributed, minus
   // the viewer and the Claude system user (tagged via @claude, not the picker).
@@ -329,6 +333,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
     garden: { id: seed.garden.id, name: seed.garden.name, emoji: seed.garden.emoji },
     canBloom,
     canManage,
+    canModerate,
     people,
     distribution,
     myVote: myVote?.stage ?? null,
