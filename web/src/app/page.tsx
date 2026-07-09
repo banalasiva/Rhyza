@@ -10,6 +10,7 @@ import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 import { MorningQuote } from "@/components/MorningQuote";
 import { WaitingForThem } from "@/components/WaitingForThem";
 import { EnableNotifications } from "@/components/EnableNotifications";
+import { PushHealer } from "@/components/PushHealer";
 import { DiscoverGardens } from "@/components/DiscoverGardens";
 import { Feed } from "@/components/Feed";
 
@@ -39,6 +40,7 @@ export default async function GardensHome() {
     <div className="relative min-h-screen">
       <FirstVisitIntro />
       <HashFocus />
+      <PushHealer />
       <div className="garden-bg" />
       <NavBar name={viewer.name} />
       <main id="main" className="relative z-10 mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
