@@ -73,11 +73,9 @@ export type Source = { url: string; title: string };
 const WEB_SEARCH_TOOL: Anthropic.WebSearchTool20260209 = {
   type: "web_search_20260209",
   name: "web_search",
-  // Capped: thread text is user-controlled and could try to steer the model into
-  // many searches. Two keeps a searching reply reasonably fast (each Anthropic
-  // search is a slow round-trip) while still answering real-world questions with
-  // real links; pure-discussion replies don't search at all and stay fast.
-  max_uses: 2,
+  // Enough searches to actually answer a real research-y question well, without
+  // letting a thread steer it into dozens. Pure-discussion replies don't search.
+  max_uses: 5,
 };
 
 // Collect the unique web pages Claude cited, in first-seen order, capped.
@@ -104,7 +102,7 @@ function citedSources(msg: Anthropic.Message, cap = 6): Source[] {
 async function completeSearched(
   system: string,
   prompt: string | Anthropic.ContentBlockParam[],
-  maxTokens = 1536,
+  maxTokens = 4096,
 ): Promise<{ text: string; sources: Source[] }> {
   const stream = getClient().messages.stream({
     model: MODEL,
@@ -249,9 +247,17 @@ export async function claudeReply(input: {
       "specifics — real names, neighbourhoods, and clickable links — never vague advice like " +
       "'try Google Maps'. Skip searching only for pure discussion, opinions, or reasoning that " +
       "needs no outside facts. Never mention searching, the tool, or any limits in your reply; " +
-      "if a search finds nothing, just answer as best you can. Be concise " +
-      "(1–3 short paragraphs), warm, and direct. Output only your reply — no greeting like " +
-      "'Sure!', no sign-off, and don't refer to yourself in the third person.",
+      "if a search finds nothing, just answer as best you can. " +
+      // Depth is the point — this is real learning together:
+      "Match your depth to what the question needs — go genuinely thorough when it aids " +
+      "understanding (worked examples, step-by-step reasoning, analogies, trade-offs), and stay " +
+      "brief when the question is small. HONOUR the person's hints: if they ask you to expand, go " +
+      "further and richer; if they ask to compress, simplify, or 'ELI5', tighten it right down. " +
+      "Structure it so it reads cleanly as plain text — open a point with a **bold label**, use " +
+      "short numbered steps, and blank lines between ideas (avoid tables and code-diagrams, they " +
+      "don't render here). If a visual would truly help, tell them to ask you to draw or diagram " +
+      "it and it'll come back as an image. Write warmly and directly; output only your reply — no " +
+      "greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.",
     userMessage(prompt, collectImages(input.contributions)),
   );
   if (!text) return null;
@@ -616,7 +622,7 @@ const OPENAI_IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || "dall-e-3";
 // A verb of creation near an image noun — deliberately broad but anchored so a
 // mention like "what do you think of this image" doesn't trigger a generation.
 export function wantsImage(text: string): boolean {
-  return /\b(draw|sketch|illustrate|generate|create|make|design|render|paint|imagine|show me)\b[^.?!\n]{0,40}\b(image|picture|photo|drawing|illustration|logo|art|artwork|design|visual|poster|icon|mockup|graphic|scene|wallpaper)\b/i.test(
+  return /\b(draw|sketch|illustrate|generate|create|make|design|render|paint|imagine|show me|visualise|visualize)\b[^.?!\n]{0,40}\b(image|picture|photo|drawing|illustration|logo|art|artwork|design|visual|poster|icon|mockup|graphic|scene|wallpaper|diagram|chart|flowchart|flow chart|infographic|mind ?map|graph|timeline|sketch)\b/i.test(
     text,
   );
 }
@@ -745,9 +751,16 @@ export async function chatgptReply(input: {
     "neighbourhoods, and clickable links — never vague advice like 'try Google Maps'. Skip " +
     "searching only for pure discussion, opinions, or reasoning that needs no outside facts. " +
     "Never mention searching, the tool, or any limits in your reply; if a search finds nothing, " +
-    "just answer as best you can. Be concise " +
-    "(1–3 short paragraphs), warm, and direct. Output " +
-    "only your reply — no greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.";
+    "just answer as best you can. " +
+    "Match your depth to what the question needs — go genuinely thorough when it aids understanding " +
+    "(worked examples, step-by-step reasoning, analogies, trade-offs), and stay brief when the " +
+    "question is small. HONOUR the person's hints: if they ask you to expand, go further and richer; " +
+    "if they ask to compress, simplify, or 'ELI5', tighten it right down. Structure it so it reads " +
+    "cleanly as plain text — open a point with a **bold label**, use short numbered steps, and blank " +
+    "lines between ideas (avoid tables and code-diagrams, they don't render here). If a visual would " +
+    "truly help, tell them to ask you to draw or diagram it and it'll come back as an image. Write " +
+    "warmly and directly; output only your reply — no greeting like 'Sure!', no sign-off, and don't " +
+    "refer to yourself in the third person.";
   const images = collectImages(input.contributions);
 
   try {
@@ -756,6 +769,7 @@ export async function chatgptReply(input: {
       instructions: system,
       input: openaiResponseInput(prompt, images),
       tools: [{ type: "web_search" }],
+      max_output_tokens: 4096,
     });
     const text = resp.output_text.trim();
     if (text) return text + sourcesFooter(openaiCitedSources(resp));

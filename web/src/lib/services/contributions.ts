@@ -81,10 +81,10 @@ async function getOrCreateChatGptUser() {
 }
 
 // Build the thread (with images) an AI participant sees for this seed.
-// Cap how much of a thread we feed the AI. The most recent messages carry the
-// live context for a reply; sending the entire history just slows every call
-// and runs up token cost as a discussion grows.
-const AI_CONTEXT_LIMIT = 24;
+// How much of a thread we feed the AI. Generous — this is intensive learning,
+// so the AI should have the full arc of the discussion to reason over. We only
+// cap it to keep a runaway thread from ballooning a single call.
+const AI_CONTEXT_LIMIT = 120;
 
 async function threadForSeed(seedId: string) {
   const seed = await db.seed.findUnique({
