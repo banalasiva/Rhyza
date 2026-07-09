@@ -812,6 +812,20 @@ model UserReflection {
   @@map("user_reflections")
 }
 
+// One person following another (one-directional, no approval — like following a
+// thinker whose public work you want to hear about). Powers "someone you follow
+// did something public" notifications and follower/following counts. No DMs,
+// ever — ThinkThru is thinking in the open, not private messaging.
+model UserFollow {
+  followerId  String   @map("follower_id") @db.Uuid
+  followingId String   @map("following_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+  @@map("user_follows")
+}
+
 // Per-section privacy on a person's profile: whether a given section (reflection,
 // topics, involved seeds, ai tags…) is visible to others. A missing row means
 // "use the section's default" (see SECTION_PUBLIC_DEFAULT in services/profile).

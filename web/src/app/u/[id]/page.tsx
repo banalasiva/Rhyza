@@ -9,6 +9,7 @@ import { ReflectionEditor, ReflectionPoints } from "@/components/ReflectionEdito
 import { SectionPrivacyToggle } from "@/components/SectionPrivacyToggle";
 import { ThinkingFingerprint } from "@/components/ThinkingFingerprint";
 import { ShareButton } from "@/components/ShareButton";
+import { FollowUserButton } from "@/components/FollowUserButton";
 
 export const dynamic = "force-dynamic";
 
@@ -57,16 +58,27 @@ export default async function ProfilePage({ params }: { params: { id: string } }
               <div className="min-w-0">
                 <h1 className="serif-lg leading-tight">{profile.name}</h1>
                 <p className="mt-0.5 text-xs text-ink-soft">Growing here since {joined}</p>
+                <p className="mt-1 text-xs text-ink-soft">
+                  <span className="font-semibold text-ink">{profile.follow.followers}</span>{" "}
+                  {profile.follow.followers === 1 ? "follower" : "followers"}
+                  <span className="mx-1.5">·</span>
+                  <span className="font-semibold text-ink">{profile.follow.following}</span> following
+                </p>
               </div>
             </div>
-            {isMe && (
-              <ShareButton
-                iconOnly
-                path={`/u/${profile.id}`}
-                title={`${profile.name} on ThinkThru`}
-                text="My ThinkThru profile"
-              />
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              {!isMe && (
+                <FollowUserButton userId={profile.id} initialFollowing={profile.follow.isFollowing} />
+              )}
+              {isMe && (
+                <ShareButton
+                  iconOnly
+                  path={`/u/${profile.id}`}
+                  title={`${profile.name} on ThinkThru`}
+                  text="My ThinkThru profile"
+                />
+              )}
+            </div>
           </div>
 
           {profile.bio && <p className="mt-4 text-sm leading-relaxed text-ink-mid">{profile.bio}</p>}

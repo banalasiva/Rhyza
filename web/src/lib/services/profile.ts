@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { DIMENSIONS } from "@/lib/constants";
 import type { DimSlice } from "@/lib/fingerprint";
+import { getFollowContext } from "@/lib/services/follows";
 import {
   inferPersonTopics,
   describeContributionStyle,
@@ -395,6 +396,11 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
     ]);
 
   const dimensions = await getThinkingDimensions(userId).catch(() => [] as DimSlice[]);
+  const follow = await getFollowContext(userId, viewerId).catch(() => ({
+    followers: 0,
+    following: 0,
+    isFollowing: false,
+  }));
 
   // Only the owner's own view lazily generates topics/reflection (an AI call);
   // everyone else just reads what's stored, so a stranger opening a shared link
@@ -428,6 +434,7 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
     image: user.image,
     bio: user.bio,
     isOwner,
+    follow,
     joinedAt: user.createdAt.toISOString(),
     stats: { contributions, seedsPlanted, bloomsHelped },
     visibility,

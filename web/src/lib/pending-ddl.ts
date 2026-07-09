@@ -272,4 +272,19 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "seed_follows.level",
     sql: `ALTER TABLE "seed_follows" ADD COLUMN IF NOT EXISTS "level" TEXT NOT NULL DEFAULT 'all'`,
   },
+
+  // 20260708190000_user_follows
+  {
+    label: "user_follows",
+    sql: `CREATE TABLE IF NOT EXISTS "user_follows" (
+      "follower_id"  UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "following_id" UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "created_at"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "user_follows_pkey" PRIMARY KEY ("follower_id", "following_id")
+    )`,
+  },
+  {
+    label: "user_follows_following_id_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "user_follows_following_id_idx" ON "user_follows" ("following_id")`,
+  },
 ];

@@ -25,6 +25,7 @@ import { settleStage } from "@/lib/services/voting";
 import { STAGES } from "@/lib/constants";
 import { deliver } from "@/lib/services/notify";
 import { bumpFollowOnContribute } from "@/lib/services/explore";
+import { notifyFollowersJoinedDiscussion } from "@/lib/services/follows";
 import { getReactionTypes } from "@/lib/registry";
 
 async function seedOrThrow(seedId: string) {
@@ -464,6 +465,21 @@ export async function addContribution(
   // You spoke, so you're in it — make sure you hear the replies (upgrade a
   // quiet/auto follow to "all", unless you deliberately muted). Best-effort.
   await bumpFollowOnContribute(userId, seedId);
+
+  // The "someone you follow joined this discussion" hook — only the FIRST time
+  // this person contributes to a world-visible seed, so it never becomes
+  // per-comment spam. Best-effort; the helper also verifies the seed is public.
+  {
+    const priorMine = await db.contribution
+      .count({ where: { seedId, authorId: userId, deletedAt: null, id: { not: contribution.id } } })
+      .catch(() => 1);
+    void notifyFollowersJoinedDiscussion(
+      userId,
+      contribution.author?.name ?? null,
+      { id: seedId, title: seed.title, gardenId: seed.gardenId, listed: (seed as { listed?: boolean }).listed ?? false },
+      priorMine === 0,
+    );
+  }
 
   // The core re-engagement loop: ping EVERYONE involved in this seed — its
   // creator, anyone who's contributed, followers, and (private) members — that

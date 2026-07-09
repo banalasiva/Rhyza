@@ -3,6 +3,7 @@ import { ApiError } from "@/lib/api";
 import { ensureGardenMember, requireSeedManager, requireSeedAccess, canModerateSeed } from "@/lib/authz";
 import { STAGE_KEYS, type StageKey } from "@/lib/constants";
 import { autoFollowOnView } from "@/lib/services/explore";
+import { notifyFollowersNewSeed } from "@/lib/services/follows";
 
 // What a contribution carries for the room view — author, reactions (with the
 // reactor's name, so we can show *who* reacted), and endorsements.
@@ -80,6 +81,14 @@ export async function plantSeed(
         : {}),
     },
   });
+
+  // If this seed is planted in a public (world) garden, let the planter's
+  // followers know — "someone you follow started a discussion." Best-effort;
+  // notifyFollowersNewSeed itself checks the garden is public. Private seeds and
+  // private gardens never fan out.
+  if (visibility === "public") {
+    void notifyFollowersNewSeed(userId, { id: seed.id, title: seed.title, gardenId });
+  }
 
   // Seed-level topics (for Explore discovery) are tagged lazily when a seed is
   // listed to the world; a person's own profile topics are inferred separately
