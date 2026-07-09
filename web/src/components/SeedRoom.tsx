@@ -838,7 +838,7 @@ export function SeedRoom({
   }
 
   async function removeContribution(id: string) {
-    if (!confirm("Delete this contribution?")) return;
+    if (!confirm("Delete this thought?")) return;
     // Remember the delete so the live poll doesn't briefly re-add it before the
     // server has processed the DELETE.
     removedRef.current.set(id, Date.now());
@@ -1467,7 +1467,7 @@ export function SeedRoom({
                   )}
                   <button
                     onClick={() => setSheetForId(c.id)}
-                    aria-label="Message actions — react, endorse, edit"
+                    aria-label="Thought actions — react, endorse, edit"
                     className="ml-auto inline-flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.16)] px-2.5 py-1 text-xs leading-none text-ink-mid transition hover:border-accent hover:text-ink"
                   >
                     <span className="text-sm leading-none" aria-hidden>⋯</span>
@@ -1799,7 +1799,7 @@ export function SeedRoom({
           />
           <div
             role="dialog"
-            aria-label="Message actions"
+            aria-label="Thought actions"
             className="relative z-10 max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 pb-[calc(1rem+4.75rem+env(safe-area-inset-bottom))] shadow-2xl sm:max-h-[85vh] sm:rounded-2xl sm:pb-4"
           >
             <div className="mb-3 flex items-start justify-between gap-3">

@@ -40,13 +40,14 @@ export function FollowButton({
       onClick={toggle}
       disabled={busy}
       aria-pressed={following}
+      title={following ? "You're tending this seed — tap to stop" : "Tend this seed to watch it grow"}
       className={`shrink-0 rounded-full border font-medium transition disabled:opacity-60 ${pad} ${
         following
           ? "border-[rgba(76,175,80,0.4)] text-accent"
           : "border-transparent bg-[#4CAF50] text-[#070D07] hover:bg-[#5cbb60]"
       }`}
     >
-      {following ? "✓ Following" : "+ Follow"}
+      {following ? "🌿 Tending" : "🌱 Tend"}
     </button>
   );
 }

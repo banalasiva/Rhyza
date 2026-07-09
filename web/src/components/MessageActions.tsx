@@ -67,7 +67,7 @@ export function MessageActions({
   // Standalone Copy — its own cell.
   if (only === "copy") {
     return (
-      <button onClick={copy} aria-label="Copy message" className={btnClass}>
+      <button onClick={copy} aria-label="Copy thought" className={btnClass}>
         {copied ? "✓ Copied" : "⧉ Copy"}
       </button>
     );
@@ -77,7 +77,7 @@ export function MessageActions({
   if (only === "share") {
     return (
       <div className="relative">
-        <button onClick={share} aria-label="Share message" className={`w-full ${btnClass}`}>
+        <button onClick={share} aria-label="Share thought" className={`w-full ${btnClass}`}>
           ↗ Share
         </button>
         {menuOpen && (
@@ -115,10 +115,10 @@ export function MessageActions({
 
   return (
     <span className="relative inline-flex items-center gap-3">
-      <button onClick={copy} aria-label="Copy message" className="transition hover:text-ink">
+      <button onClick={copy} aria-label="Copy thought" className="transition hover:text-ink">
         {copied ? "✓ Copied" : "⧉ Copy"}
       </button>
-      <button onClick={share} aria-label="Share message" className="transition hover:text-ink">
+      <button onClick={share} aria-label="Share thought" className="transition hover:text-ink">
         ↗ Share
       </button>
 

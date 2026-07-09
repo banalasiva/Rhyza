@@ -97,7 +97,7 @@ export default async function GardenPage({ params }: { params: { id: string } })
                       ) : (
                         s.author?.name || "Someone"
                       )}{" "}
-                      · {s.contributionCount} contributions
+                      · {s.contributionCount} {s.contributionCount === 1 ? "thought" : "thoughts"}
                     </p>
                   </div>
                 </div>
