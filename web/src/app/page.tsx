@@ -1,6 +1,7 @@
 import { requireViewer } from "@/lib/session";
 import { listGardens } from "@/lib/services/gardens";
 import { listPublicGardens } from "@/lib/services/explore";
+import { getYourTurn } from "@/lib/services/yourturn";
 import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
 import { CreateGardenForm } from "@/components/CreateGardenForm";
@@ -11,14 +12,16 @@ import { MorningQuote } from "@/components/MorningQuote";
 import { WaitingForThem } from "@/components/WaitingForThem";
 import { EnableNotifications } from "@/components/EnableNotifications";
 import { PushHealer } from "@/components/PushHealer";
+import { YourTurn } from "@/components/YourTurn";
 import { DiscoverGardens } from "@/components/DiscoverGardens";
 import { Feed } from "@/components/Feed";
 
 export default async function GardensHome() {
   const viewer = await requireViewer();
-  const [gardens, publicGardens] = await Promise.all([
+  const [gardens, publicGardens, yourTurn] = await Promise.all([
     listGardens(viewer.userId, viewer.orgId),
     listPublicGardens(12).catch(() => []),
+    getYourTurn(viewer.userId).catch(() => []),
   ]);
 
   // Progress for the "getting started" guide: has the viewer planted a seed,
@@ -46,6 +49,7 @@ export default async function GardensHome() {
       <main id="main" className="relative z-10 mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
         <MorningQuote name={viewer.name} />
         <EnableNotifications />
+        <YourTurn items={yourTurn} />
         <WaitingForThem />
         {gardens.length === 0 ? (
           // First run: warm, personal, and one concrete next step.

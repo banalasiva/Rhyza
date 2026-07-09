@@ -296,6 +296,28 @@ export async function saveWeighIn(
       }
       // Everyone's in — announce the result (the actor is the last submitter).
       await announceQuorumReveal(seedId, userId, state.template);
+    } else {
+      // Not everyone yet — it's now the remaining people's turn. Ping the seed's
+      // people who HAVEN'T weighed in, so a decision doesn't stall waiting on them.
+      try {
+        const submitterIds = (submitters as { raterId: string }[]).map((s) => s.raterId);
+        const [seedRow, actor] = await Promise.all([
+          db.seed.findUnique({ where: { id: seedId }, select: { title: true, createdById: true } }),
+          db.user.findUnique({ where: { id: userId }, select: { name: true } }),
+        ]);
+        if (seedRow) {
+          await notifySeedAudience({
+            actorId: userId,
+            seed: { id: seedId, title: seedRow.title, createdById: seedRow.createdById },
+            type: "weigh_in",
+            title: "It's your turn to weigh in ⚖️",
+            body: `${actor?.name || "Someone"} weighed in — add your voice on “${seedRow.title}”.`,
+            exclude: submitterIds, // people who've already committed (incl. the actor)
+          });
+        }
+      } catch (err) {
+        console.error("[quorum] weigh-in turn notify failed", err);
+      }
     }
   }
   return { ok: true, submitted: submit, revealed };
