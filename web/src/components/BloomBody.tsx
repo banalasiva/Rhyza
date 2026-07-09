@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ReadAloud } from "@/components/ReadAloud";
+import { shareCard } from "@/lib/share-card";
 
 // The bloom's title + summary, with inline editing. Blooms are AI-synthesized
 // but collaborative — any member can refine the text.
@@ -26,6 +27,36 @@ export function BloomBody({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [synth, setSynth] = useState(aiSynthesized);
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
+
+  async function share() {
+    // A bloom is a durable decision — worth showing off. Turn it into a card
+    // that carries the decision (and a taste of the reasoning) out to wherever
+    // people already talk.
+    const firstLine = summary.split(/\n+/).find((l) => l.trim())?.trim() ?? "";
+    try {
+      const how = await shareCard(
+        {
+          eyebrow: "A decision, thought through",
+          title,
+          lines: firstLine && firstLine !== title ? [truncate(firstLine, 140)] : undefined,
+          footer: "Grown together on ThinkThru · thinkthru.app",
+          accent: "bloom",
+        },
+        {
+          fileName: "thinkthru-bloom.png",
+          shareText: `${title} — a decision we thought through together on ThinkThru. https://thinkthru.app`,
+        },
+      );
+      if (how === "downloaded") {
+        setShareMsg("Saved — share it anywhere 🌸");
+        setTimeout(() => setShareMsg(null), 3000);
+      }
+    } catch {
+      setShareMsg("Couldn't make the card");
+      setTimeout(() => setShareMsg(null), 3000);
+    }
+  }
 
   async function save() {
     const t = draftTitle.trim();
@@ -109,10 +140,20 @@ export function BloomBody({
 
       <div className="mt-3 flex items-center justify-between gap-2">
         <ReadAloud text={`${title}. ${summary}`} />
-        <button onClick={() => setEditing(true)} className="btn-ghost px-4 py-1.5 text-xs">
-          ✎ Edit bloom
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={share} className="btn-ghost px-4 py-1.5 text-xs">
+            ↗ Share
+          </button>
+          <button onClick={() => setEditing(true)} className="btn-ghost px-4 py-1.5 text-xs">
+            ✎ Edit bloom
+          </button>
+        </div>
       </div>
+      {shareMsg && <p className="mt-2 text-right text-xs text-ink-soft">{shareMsg}</p>}
     </div>
   );
+}
+
+function truncate(s: string, max: number): string {
+  return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
 }

@@ -287,4 +287,20 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "user_follows_following_id_idx",
     sql: `CREATE INDEX IF NOT EXISTS "user_follows_following_id_idx" ON "user_follows" ("following_id")`,
   },
+
+  // 20260709120000_daily_answers
+  {
+    label: "daily_answers",
+    sql: `CREATE TABLE IF NOT EXISTS "daily_answers" (
+      "day"        TEXT NOT NULL,
+      "user_id"    UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "choice"     INTEGER NOT NULL,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "daily_answers_pkey" PRIMARY KEY ("day", "user_id")
+    )`,
+  },
+  {
+    label: "daily_answers_day_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "daily_answers_day_idx" ON "daily_answers" ("day")`,
+  },
 ];

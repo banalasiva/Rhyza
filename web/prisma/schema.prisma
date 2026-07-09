@@ -837,3 +837,19 @@ model UserSectionVisibility {
   @@id([userId, section])
   @@map("user_section_visibility")
 }
+
+// One person's answer to the daily question — the tiny, tap-to-answer ritual
+// meant to bring people back every day. `day` is the UTC "YYYY-MM-DD" the
+// question belongs to; `choice` is the index into that day's options. One answer
+// per person per day (changeable). The question text lives in code
+// (daily-questions.ts), so we only store the choice.
+model DailyAnswer {
+  day       String
+  userId    String   @map("user_id") @db.Uuid
+  choice    Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([day, userId])
+  @@index([day])
+  @@map("daily_answers")
+}

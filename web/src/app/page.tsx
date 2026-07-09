@@ -9,6 +9,7 @@ import { GettingStarted } from "@/components/GettingStarted";
 import { HashFocus } from "@/components/HashFocus";
 import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 import { MorningQuote } from "@/components/MorningQuote";
+import { DailyQuestion } from "@/components/DailyQuestion";
 import { WaitingForThem } from "@/components/WaitingForThem";
 import { EnableNotifications } from "@/components/EnableNotifications";
 import { PushHealer } from "@/components/PushHealer";
@@ -48,6 +49,7 @@ export default async function GardensHome() {
       <NavBar name={viewer.name} />
       <main id="main" className="relative z-10 mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
         <MorningQuote name={viewer.name} />
+        <DailyQuestion />
         <EnableNotifications />
         <YourTurn items={yourTurn} />
         <WaitingForThem />

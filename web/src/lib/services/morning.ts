@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { appUrl } from "@/lib/email";
 import { pushConfigured, sendPushToUser } from "@/lib/push";
 import { resolveMessageOfTheDay } from "@/lib/services/daily";
+import { questionOfTheDay } from "@/lib/daily-questions";
 import { mapLimit } from "@/lib/concurrency";
 
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
@@ -33,8 +34,13 @@ export async function sendGoodMorning(): Promise<{ sent: number; recipients: num
   if (!pushConfigured()) return { sent: 0, recipients: 0 };
 
   const url = `${appUrl()}/notifications`;
+  // The daily push carries two gifts: today's touching quote (the body) and the
+  // day's question (the hook that pulls people in to tap an answer). Both land
+  // on Home where the question card lives.
+  const homeUrl = appUrl();
   const msg = await resolveMessageOfTheDay();
   const quoteLine = msg.author ? `“${msg.text}” — ${msg.author}` : msg.text;
+  const question = questionOfTheDay().text;
   const cutoff = new Date(Date.now() - LOOKBACK_MS);
 
   // Unseen (unread), not-yet-nudged activity, grouped by recipient.
@@ -82,11 +88,17 @@ export async function sendGoodMorning(): Promise<{ sent: number; recipients: num
     // still know there's something waiting; the evening slot surfaces the actual
     // activity. (Previously active people got the summary INSTEAD of the quote,
     // so anyone with activity — e.g. the owner — never saw the quotes at all.)
-    const title = g ? `Good morning 🌱 · ${g.ids.length} waiting` : "Good morning 🌱";
+    // Everyone gets the quote; the question rides along as the reason to tap in.
+    // If there's unseen activity we hint the count in the title, and send them to
+    // their notifications instead of the question card.
+    const title = g
+      ? `Good morning 🌱 · ${g.ids.length} waiting`
+      : "Good morning 🌱 · Today's question";
+    const body = g ? quoteLine : `💭 ${question}\n\n${quoteLine}`;
     return sendPushToUser(p.id, {
       title,
-      body: quoteLine,
-      url,
+      body,
+      url: g ? url : homeUrl,
       tag: "nudge", // collapses with any previous nudge on the device
     }).catch(() => 0);
   });
