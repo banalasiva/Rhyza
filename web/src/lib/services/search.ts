@@ -113,14 +113,13 @@ export async function search(userId: string, orgId: string, raw: string): Promis
       take: 6,
       select: { id: true, name: true, emoji: true },
     }),
-    // People in the org (excluding the AI participants).
-    db.orgMember.findMany({
-      where: {
-        orgId,
-        user: { deletedAt: null, name: ci, NOT: { name: { in: ["Claude", "ChatGPT"] } } },
-      },
-      take: 6,
-      select: { user: { select: { id: true, name: true, image: true } } },
+    // People across ThinkThru, by name — profiles are public, so anyone can be
+    // found (excluding the AI participants and deleted accounts).
+    db.user.findMany({
+      where: { deletedAt: null, name: ci, NOT: { name: { in: ["Claude", "ChatGPT"] } } },
+      orderBy: { name: "asc" },
+      take: 8,
+      select: { id: true, name: true, image: true },
     }),
   ]);
 
@@ -133,7 +132,7 @@ export async function search(userId: string, orgId: string, raw: string): Promis
   }));
   const messageResults = messages; // already the final shape from searchMessages
   const gardenResults = gardens.map((g) => ({ id: g.id, name: g.name, emoji: g.emoji }));
-  const peopleResults = people.map((p) => p.user).filter((u): u is NonNullable<typeof u> => !!u);
+  const peopleResults = people as { id: string; name: string | null; image: string | null }[];
 
   return {
     query: q,
