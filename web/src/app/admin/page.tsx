@@ -157,7 +157,7 @@ export default async function AdminPage() {
             </div>
           ) : (
             <p className="text-xs text-ink-soft">
-              No cron has run since this was added. If tomorrow&apos;s 9:30 AM still shows nothing
+              No cron has run since this was added. If tomorrow&apos;s 10:00 AM still shows nothing
               here, the scheduler isn&apos;t reaching the app.
             </p>
           )}

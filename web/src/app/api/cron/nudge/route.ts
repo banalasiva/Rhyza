@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 // A twice-daily re-engagement push (morning + evening, see vercel.json).
 //
-// Morning slot (04:00 UTC = 09:30 IST): a daily "Good morning 🌱" to everyone
+// Morning slot (04:30 UTC = 10:00 IST): a daily "Good morning 🌱" to everyone
 // who wants push — never an empty ping, because people with unseen activity get
 // the news and everyone else gets the quote of the day (see sendGoodMorning).
 //
