@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { randomUUID } from "crypto";
 import { appUrl, emailConfigured, sendEmail, digestEmailHtml } from "@/lib/email";
+import { cronAuthorized, markCronRun } from "@/lib/cron";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +24,11 @@ function linkFor(entityType: string | null, entityId: string | null): string {
 // activity that didn't already earn an instant email. Triggered by Vercel Cron
 // (see vercel.json); protected by CRON_SECRET so only the scheduler can run it.
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!cronAuthorized(req)) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
   if (!emailConfigured()) {
+    await markCronRun("digest", "email not configured");
     return NextResponse.json({ ok: true, sent: 0, note: "email not configured" });
   }
 
@@ -96,5 +97,6 @@ export async function GET(req: Request) {
     }
   }
 
+  await markCronRun("digest", `sent ${sent}/${groups.size}`);
   return NextResponse.json({ ok: true, recipients: groups.size, sent });
 }

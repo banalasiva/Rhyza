@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { appUrl } from "@/lib/email";
 import { pushConfigured, sendPushToUser } from "@/lib/push";
 import { sendGoodMorning, summarise } from "@/lib/services/morning";
+import { cronAuthorized, markCronRun } from "@/lib/cron";
 
 export const dynamic = "force-dynamic";
 
@@ -25,19 +26,23 @@ export const dynamic = "force-dynamic";
 // but nudgedAt stamping guarantees it's summarised at most once.
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
 
-// GET /api/cron/nudge — protected by CRON_SECRET so only the scheduler runs it.
+// GET /api/cron/nudge — protected so only the scheduler runs it (see cron.ts:
+// works whether or not CRON_SECRET is set, so a missing secret can't silently
+// 401 the morning push into oblivion).
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!cronAuthorized(req)) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
+  const slot = new Date().getUTCHours() < 6 ? "morning" : "evening";
   if (!pushConfigured()) {
+    await markCronRun(slot, "push not configured");
     return NextResponse.json({ ok: true, sent: 0, note: "push not configured" });
   }
 
   // Morning → daily good-morning to everyone who wants push.
-  if (new Date().getUTCHours() < 6) {
+  if (slot === "morning") {
     const r = await sendGoodMorning();
+    await markCronRun("morning", `sent ${r.sent}/${r.recipients}`);
     return NextResponse.json({ ok: true, slot: "morning", ...r });
   }
 
@@ -80,5 +85,6 @@ export async function GET(req: Request) {
     if (delivered > 0) sent++;
   }
 
+  await markCronRun("evening", `sent ${sent}/${groups.size}`);
   return NextResponse.json({ ok: true, slot: "evening", recipients: groups.size, sent });
 }

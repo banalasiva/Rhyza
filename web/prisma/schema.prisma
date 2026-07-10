@@ -838,6 +838,17 @@ model UserSectionVisibility {
   @@map("user_section_visibility")
 }
 
+// A heartbeat row per cron slot (morning / evening / digest) so we can confirm
+// the scheduler actually fired — surfaced in /admin. Distinguishes a firing-but-
+// empty cron from one that never runs (e.g. a missing CRON_SECRET self-401).
+model CronRun {
+  name      String   @id
+  lastRunAt DateTime @default(now()) @map("last_run_at")
+  detail    String?
+
+  @@map("cron_runs")
+}
+
 // One person's answer to the daily question — the tiny, tap-to-answer ritual
 // meant to bring people back every day. `day` is the UTC "YYYY-MM-DD" the
 // question belongs to; `choice` is the index into that day's options. One answer

@@ -64,6 +64,31 @@ async function adminMembers() {
   }
 }
 
+// Cron heartbeats — when each scheduled slot last actually fired. This is the
+// fastest way to tell "the cron isn't running" from "it ran but had nothing to
+// send", without digging through Vercel logs.
+async function cronHeartbeats() {
+  try {
+    const rows = await db.cronRun.findMany({ orderBy: { lastRunAt: "desc" } });
+    return {
+      ok: true as const,
+      rows: rows as { name: string; lastRunAt: Date; detail: string | null }[],
+      hasSecret: !!process.env.CRON_SECRET,
+    };
+  } catch {
+    return { ok: false as const, rows: [], hasSecret: !!process.env.CRON_SECRET };
+  }
+}
+
+function ago(d: Date): string {
+  const mins = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 export const dynamic = "force-dynamic";
 
 // Owner-only admin page. Gated to ADMIN_EMAILS — anyone else gets a 404 (so its
@@ -82,6 +107,7 @@ export default async function AdminPage() {
   const ai = await aiTagStats();
   const members = await adminMembers();
   const openReports = await countOpenReports().catch(() => 0);
+  const crons = await cronHeartbeats();
 
   return (
     <div className="relative min-h-screen">
@@ -111,6 +137,32 @@ export default async function AdminPage() {
               No data yet — apply the latest migration below to start metering AI tags.
             </p>
           )}
+        </div>
+
+        {/* Cron heartbeats — did the scheduler actually fire? */}
+        <div className="card mb-4 p-4">
+          <p className="eyebrow mb-3">⏰ Scheduled jobs</p>
+          {crons.rows.length > 0 ? (
+            <div className="space-y-1.5">
+              {crons.rows.map((c) => (
+                <div key={c.name} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-ink capitalize">{c.name}</span>
+                  <span className="flex items-center gap-2 text-xs text-ink-soft">
+                    {c.detail && <span>{c.detail}</span>}
+                    <span className="text-ink-mid">{ago(c.lastRunAt)}</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-ink-soft">
+              No cron has run since this was added. If tomorrow&apos;s 08:00 still shows nothing
+              here, the scheduler isn&apos;t reaching the app.
+            </p>
+          )}
+          <p className="mt-3 text-[11px] text-ink-soft">
+            CRON_SECRET is {crons.hasSecret ? "set ✓" : "not set — the job now runs anyway, but set it in Vercel to lock it down"}.
+          </p>
         </div>
 
         {/* Members — everyone on ThinkThru with their footprint */}

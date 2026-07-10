@@ -303,4 +303,15 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "daily_answers_day_idx",
     sql: `CREATE INDEX IF NOT EXISTS "daily_answers_day_idx" ON "daily_answers" ("day")`,
   },
+
+  // 20260710120000_cron_runs
+  {
+    label: "cron_runs",
+    sql: `CREATE TABLE IF NOT EXISTS "cron_runs" (
+      "name"        TEXT NOT NULL,
+      "last_run_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "detail"      TEXT,
+      CONSTRAINT "cron_runs_pkey" PRIMARY KEY ("name")
+    )`,
+  },
 ];
