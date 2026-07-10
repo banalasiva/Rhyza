@@ -34,6 +34,7 @@ import { MicButton } from "@/components/MicButton";
 import { MessageActions } from "@/components/MessageActions";
 import { SeedInvite } from "@/components/SeedInvite";
 import { MembersSheet } from "@/components/MembersSheet";
+import { AskPeople } from "@/components/AskPeople";
 
 const SEED_TABS = [
   { key: "discuss", label: "Discuss", icon: "discussion" },
@@ -1096,6 +1097,12 @@ export function SeedRoom({
               <p className="mt-1 text-xs text-ink-soft">
                 Everyone gives their honest read below — it adds up to one fair group answer.
               </p>
+              {/* More voices make a fairer decision — invite the people who
+                  should weigh in, right where the deciding happens. */}
+              <div className="mt-3 flex items-center gap-2 border-t border-[rgba(76,175,80,0.15)] pt-3">
+                <span className="text-xs text-ink-soft">Want more voices on this?</span>
+                <AskPeople seedId={seed.id} />
+              </div>
             </div>
             <QuorumV2 seedId={seed.id} />
           </div>

@@ -4,7 +4,6 @@ import { getSeedDetail } from "@/lib/services/seeds";
 import { getReactionTypes } from "@/lib/registry";
 import { NavBar } from "@/components/NavBar";
 import { SeedRoom } from "@/components/SeedRoom";
-import { AskPeople } from "@/components/AskPeople";
 
 export default async function SeedPage({ params }: { params: { id: string } }) {
   const viewer = await requireViewer();
@@ -25,9 +24,6 @@ export default async function SeedPage({ params }: { params: { id: string } }) {
           >
             ← {seed.garden.emoji} {seed.garden.name}
           </Link>
-          <div className="ml-auto">
-            <AskPeople seedId={seed.id} />
-          </div>
         </div>
         <SeedRoom
           seed={seed}
