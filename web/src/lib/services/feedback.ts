@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { deliver } from "@/lib/services/notify";
+import { createFeedbackIssue } from "@/lib/github-issues";
 
 // In-app feedback — the fast lane from "I hit a bug" to a fix. A person reports
 // from anywhere; we capture the page + device so it's actionable, then ping the
@@ -33,7 +34,7 @@ export async function submitFeedback(
     .findUnique({ where: { id: userId }, select: { name: true } })
     .catch(() => null);
 
-  await db.feedback.create({
+  const created = (await db.feedback.create({
     data: {
       userId,
       kind,
@@ -41,7 +42,25 @@ export async function submitFeedback(
       path: input.path?.slice(0, 400) ?? null,
       userAgent: input.userAgent?.slice(0, 400) ?? null,
     },
-  });
+    select: { id: true },
+  })) as { id: string };
+
+  // Auto-file a GitHub issue (opt-in via env) so the report lands where fixes
+  // happen. Best-effort — never blocks the feedback. Stash the URL for triage.
+  try {
+    const url = await createFeedbackIssue({
+      kind,
+      message,
+      reporter: reporter?.name ?? null,
+      path: input.path ?? null,
+      userAgent: input.userAgent ?? null,
+    });
+    if (url) {
+      await db.feedback.update({ where: { id: created.id }, data: { githubUrl: url } }).catch(() => {});
+    }
+  } catch (err) {
+    console.error("submitFeedback: github issue failed", err);
+  }
 
   // Ping the owner(s) so feedback never sits unseen. Best-effort.
   try {
@@ -87,6 +106,7 @@ export type FeedbackRow = {
   path: string | null;
   userAgent: string | null;
   status: string;
+  githubUrl: string | null;
   createdAt: Date;
   reporter: string | null;
 };
@@ -106,6 +126,7 @@ export async function listFeedback(status: "open" | "resolved" | "all" = "open")
     path: string | null;
     userAgent: string | null;
     status: string;
+    githubUrl: string | null;
     createdAt: Date;
   }[];
   if (rows.length === 0) return [];
@@ -125,6 +146,7 @@ export async function listFeedback(status: "open" | "resolved" | "all" = "open")
     path: r.path,
     userAgent: r.userAgent,
     status: r.status,
+    githubUrl: r.githubUrl,
     createdAt: r.createdAt,
     reporter: r.userId ? nameById.get(r.userId) ?? null : null,
   }));

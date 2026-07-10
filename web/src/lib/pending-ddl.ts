@@ -360,4 +360,10 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "feedback_status_created_at_idx",
     sql: `CREATE INDEX IF NOT EXISTS "feedback_status_created_at_idx" ON "feedback" ("status", "created_at")`,
   },
+
+  // 20260710170000_feedback_github_url
+  {
+    label: "feedback.github_url",
+    sql: `ALTER TABLE "feedback" ADD COLUMN IF NOT EXISTS "github_url" TEXT`,
+  },
 ];

@@ -61,7 +61,19 @@ export function FeedbackQueue({ initial }: { initial: FeedbackRow[] }) {
               {f.userAgent}
             </p>
           )}
-          <div className="mt-3 flex justify-end">
+          <div className="mt-3 flex items-center justify-between gap-2">
+            {f.githubUrl ? (
+              <a
+                href={f.githubUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-accent hover:underline"
+              >
+                ↗ GitHub issue
+              </a>
+            ) : (
+              <span />
+            )}
             {f.status === "resolved" ? (
               <button
                 onClick={() => setStatus(f.id, "open")}
