@@ -3,7 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ReadAloud } from "@/components/ReadAloud";
+import { InlineText } from "@/components/InlineText";
 import { shareCard } from "@/lib/share-card";
+
+// Strip the tiny markdown (bold markers, leading bullets) for plain contexts
+// like read-aloud and the share card headline.
+function plain(s: string): string {
+  return s
+    .replace(/\*\*/g, "")
+    .replace(/^[\s•\-*]+/gm, "")
+    .trim();
+}
 
 // The bloom's title + summary, with inline editing. Blooms are AI-synthesized
 // but collaborative — any member can refine the text.
@@ -33,7 +43,7 @@ export function BloomBody({
     // A bloom is a durable decision — worth showing off. Turn it into a card
     // that carries the decision (and a taste of the reasoning) out to wherever
     // people already talk.
-    const firstLine = summary.split(/\n+/).find((l) => l.trim())?.trim() ?? "";
+    const firstLine = plain(summary.split(/\n+/).find((l) => l.trim()) ?? "");
     try {
       const how = await shareCard(
         {
@@ -134,12 +144,12 @@ export function BloomBody({
         )}
       </div>
 
-      <article className="card whitespace-pre-wrap p-6 text-[15px] leading-relaxed text-ink">
-        {summary}
+      <article className="card bloom-body p-6 text-[15px] leading-relaxed text-ink">
+        <InlineText text={summary} />
       </article>
 
       <div className="mt-3 flex items-center justify-between gap-2">
-        <ReadAloud text={`${title}. ${summary}`} />
+        <ReadAloud text={`${title}. ${plain(summary)}`} />
         <div className="flex items-center gap-2">
           <button onClick={share} className="btn-ghost px-4 py-1.5 text-xs">
             ↗ Share
