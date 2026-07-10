@@ -9,16 +9,34 @@ import type { DailyQuestionState } from "@/lib/services/daily-question";
 // tap an answer, and instantly see how everyone else voted. Then share the card
 // to a WhatsApp group or a story so the ritual spreads. One tap in, a little
 // social reward out — the reason to open the app every day.
+// The localStorage key for "I've dealt with today's question" — so once it's
+// answered or dismissed it stays gone for the day and never clutters Home again.
+function seenKey(): string {
+  const n = new Date();
+  return `tt-dq-${n.getFullYear()}-${n.getMonth() + 1}-${n.getDate()}`;
+}
+
 export function DailyQuestion() {
   const [state, setState] = useState<DailyQuestionState | null>(null);
+  const [hidden, setHidden] = useState(false);
   const [busy, setBusy] = useState(false);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
+    // Already dismissed today? Never fetch — stay out of the way.
+    try {
+      if (localStorage.getItem(seenKey()) === "1") return;
+    } catch {
+      /* private mode — fall through */
+    }
     apiGet<DailyQuestionState>("/api/daily-question")
       .then((s) => {
-        if (alive) setState(s);
+        if (!alive) return;
+        // Already answered today → don't show the card at all; it's a once-a-day
+        // ritual, not a permanent fixture.
+        if (s.myChoice !== null) return;
+        setState(s);
       })
       .catch(() => {
         /* not migrated / offline — just don't show it */
@@ -28,15 +46,30 @@ export function DailyQuestion() {
     };
   }, []);
 
-  if (!state) return null;
+  if (hidden || !state) return null;
 
   const answered = state.myChoice !== null;
+
+  function markSeen() {
+    try {
+      localStorage.setItem(seenKey(), "1");
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function dismiss() {
+    markSeen();
+    setHidden(true);
+  }
 
   async function answer(choice: number) {
     if (busy) return;
     setBusy(true);
     // Optimistic: flip to results immediately.
     setState((s) => (s ? { ...s, myChoice: choice } : s));
+    // Answered → it won't return today. They still see the result + share now.
+    markSeen();
     try {
       const fresh = await apiPost<DailyQuestionState>("/api/daily-question", { choice });
       setState(fresh);
@@ -81,9 +114,18 @@ export function DailyQuestion() {
 
   return (
     <section className="mb-5 rounded-2xl border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.06)] p-4">
-      <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-accent">
-        <span aria-hidden>💭</span> Question of the day
-      </p>
+      <div className="mb-1 flex items-start justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-accent">
+          <span aria-hidden>💭</span> Question of the day
+        </p>
+        <button
+          onClick={dismiss}
+          aria-label="Dismiss for today"
+          className="-mr-1 -mt-1 shrink-0 rounded-full px-2 py-1 text-ink-soft transition hover:text-ink"
+        >
+          ✕
+        </button>
+      </div>
       <p className="mb-3 text-base font-medium leading-snug text-ink">{state.text}</p>
 
       {!answered ? (
