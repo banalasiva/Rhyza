@@ -838,6 +838,24 @@ model UserSectionVisibility {
   @@map("user_section_visibility")
 }
 
+// A direct "ask" — one person invites another, by name, to weigh in on a
+// specific seed ("Sreedevi, what do you think?"). This is the interpersonal pull
+// that brings a high-intent person back: something is waiting on THEM, from a
+// person they know — not a group ping. Answered when they contribute to the seed.
+model SeedAsk {
+  id         String    @id @default(uuid()) @db.Uuid
+  seedId     String    @map("seed_id") @db.Uuid
+  askerId    String    @map("asker_id") @db.Uuid
+  askedId    String    @map("asked_id") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at")
+  answeredAt DateTime? @map("answered_at")
+
+  @@unique([seedId, askedId])
+  @@index([askedId, answeredAt])
+  @@index([seedId])
+  @@map("seed_asks")
+}
+
 // A heartbeat row per cron slot (morning / evening / digest) so we can confirm
 // the scheduler actually fired — surfaced in /admin. Distinguishes a firing-but-
 // empty cron from one that never runs (e.g. a missing CRON_SECRET self-401).

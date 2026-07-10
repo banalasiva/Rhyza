@@ -6,13 +6,52 @@ import { db } from "@/lib/db";
 export type YourTurnItem = {
   seedId: string;
   title: string;
-  reason: "weigh-in" | "mention";
+  reason: "ask" | "weigh-in" | "mention";
   detail: string;
 };
 
 export async function getYourTurn(userId: string, cap = 6): Promise<YourTurnItem[]> {
   const items: YourTurnItem[] = [];
   const seen = new Set<string>();
+
+  // ── 0. Someone asked YOU directly — the strongest, most personal pull ──
+  try {
+    const asks = (await db.seedAsk.findMany({
+      where: { askedId: userId, answeredAt: null },
+      orderBy: { createdAt: "desc" },
+      take: cap * 2,
+      select: { seedId: true, askerId: true },
+    })) as { seedId: string; askerId: string }[];
+    if (asks.length) {
+      const seedIds = [...new Set(asks.map((a) => a.seedId))];
+      const askerIds = [...new Set(asks.map((a) => a.askerId))];
+      const [seeds, askers] = await Promise.all([
+        db.seed.findMany({
+          where: { id: { in: seedIds }, deletedAt: null, bloomId: null },
+          select: { id: true, title: true },
+        }),
+        db.user.findMany({ where: { id: { in: askerIds } }, select: { id: true, name: true } }),
+      ]);
+      const titleById = new Map((seeds as { id: string; title: string }[]).map((s) => [s.id, s.title]));
+      const nameById = new Map((askers as { id: string; name: string | null }[]).map((u) => [u.id, u.name]));
+      for (const a of asks) {
+        if (seen.has(a.seedId)) continue;
+        const title = titleById.get(a.seedId);
+        if (!title) continue; // seed gone, bloomed, or deleted
+        seen.add(a.seedId);
+        const who = (nameById.get(a.askerId) || "").trim().split(/\s+/)[0] || "Someone";
+        items.push({
+          seedId: a.seedId,
+          title,
+          reason: "ask",
+          detail: `${who} asked for your take — they're waiting on you.`,
+        });
+        if (items.length >= cap) break;
+      }
+    }
+  } catch {
+    /* seed_asks not migrated yet */
+  }
 
   // ── 1. A decision is being weighed in on — others committed, you haven't ──
   try {

@@ -26,6 +26,7 @@ import { STAGES } from "@/lib/constants";
 import { deliver } from "@/lib/services/notify";
 import { bumpFollowOnContribute } from "@/lib/services/explore";
 import { notifyFollowersJoinedDiscussion } from "@/lib/services/follows";
+import { markAsksAnswered } from "@/lib/services/asks";
 import { getReactionTypes } from "@/lib/registry";
 
 async function seedOrThrow(seedId: string) {
@@ -465,6 +466,10 @@ export async function addContribution(
   // You spoke, so you're in it — make sure you hear the replies (upgrade a
   // quiet/auto follow to "all", unless you deliberately muted). Best-effort.
   await bumpFollowOnContribute(userId, seedId);
+
+  // If someone asked you here directly, that ask is now answered — close it and
+  // tell them (the other half of the rally). Best-effort; never blocks posting.
+  void markAsksAnswered(seedId, userId);
 
   // The "someone you follow joined this discussion" hook — only the FIRST time
   // this person contributes to a world-visible seed, so it never becomes

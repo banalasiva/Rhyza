@@ -21,12 +21,12 @@ export function YourTurn({ items }: { items: YourTurnItem[] }) {
               <span className="min-w-0">
                 <span className="block truncate text-sm text-ink">{it.title}</span>
                 <span className="block text-xs text-ink-soft">
-                  {it.reason === "weigh-in" ? "⚖️ " : "💬 "}
+                  {it.reason === "ask" ? "🌱 " : it.reason === "weigh-in" ? "⚖️ " : "💬 "}
                   {it.detail}
                 </span>
               </span>
               <span className="shrink-0 text-xs font-medium text-bloom">
-                {it.reason === "weigh-in" ? "Weigh in →" : "Reply →"}
+                {it.reason === "ask" ? "Answer →" : it.reason === "weigh-in" ? "Weigh in →" : "Reply →"}
               </span>
             </Link>
           </li>
