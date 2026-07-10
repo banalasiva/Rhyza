@@ -300,6 +300,12 @@ export function SeedRoom({
   // leaves the thread alone, so the server's copy of a just-sent message can't
   // appear alongside its optimistic twin (the "two then one" flash).
   const postingRef = useRef(0);
+  // A hard re-entrancy lock for sending. `busy` is React state and lags a fast
+  // double-tap (or a tap while a slow AI reply is still in flight), which let the
+  // same message post twice — especially when @claude/@chatgpt were tagged and
+  // the reply took a few seconds. This ref flips synchronously, so a second
+  // invocation is dropped before it can create a duplicate.
+  const sendingRef = useRef(false);
   const markPending = useCallback((id: string) => {
     pendingRef.current.set(id, Date.now());
   }, []);
@@ -449,6 +455,8 @@ export function SeedRoom({
   async function contribute() {
     const text = draft.trim();
     if (text.length === 0 && draftAttachments.length === 0) return;
+    if (sendingRef.current) return; // already sending — ignore the double-tap
+    sendingRef.current = true;
     setBusy(true);
     setError(null);
     postingRef.current += 1; // pause the live poll until this post settles
@@ -525,6 +533,7 @@ export function SeedRoom({
     } finally {
       setThinking(false);
       setBusy(false);
+      sendingRef.current = false;
       postingRef.current = Math.max(0, postingRef.current - 1);
     }
   }

@@ -8,6 +8,7 @@ import { BackfillTopicsButton } from "@/components/BackfillTopicsButton";
 import { GoodMorningButton } from "@/components/GoodMorningButton";
 import { RekindleButton } from "@/components/RekindleButton";
 import { countOpenReports } from "@/lib/services/reports";
+import { countOpenFeedback } from "@/lib/services/feedback";
 
 // AI-tag usage meter (best-effort — the table may not be migrated yet).
 async function aiTagStats() {
@@ -109,6 +110,7 @@ export default async function AdminPage() {
   const ai = await aiTagStats();
   const members = await adminMembers();
   const openReports = await countOpenReports().catch(() => 0);
+  const openFeedback = await countOpenFeedback().catch(() => 0);
   const crons = await cronHeartbeats();
 
   return (
@@ -206,6 +208,23 @@ export default async function AdminPage() {
         <GoodMorningButton />
         <RekindleButton />
         <BackfillTopicsButton />
+        <Link
+          href="/admin/feedback"
+          className="card mt-4 flex items-center justify-between p-4 transition hover:border-accent"
+        >
+          <span>
+            <span className="block text-sm text-ink">🐞 Feedback</span>
+            <span className="block text-xs text-ink-soft">Bug reports and ideas from inside the app</span>
+          </span>
+          <span className="flex items-center gap-2">
+            {openFeedback > 0 && (
+              <span className="rounded-full bg-accent px-2 py-0.5 text-[11px] font-semibold text-bg">
+                {openFeedback} open
+              </span>
+            )}
+            <span className="text-ink-soft">→</span>
+          </span>
+        </Link>
         <Link
           href="/admin/reports"
           className="card mt-4 flex items-center justify-between p-4 transition hover:border-accent"

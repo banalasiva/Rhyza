@@ -340,4 +340,24 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "seed_asks_seed_id_idx",
     sql: `CREATE INDEX IF NOT EXISTS "seed_asks_seed_id_idx" ON "seed_asks" ("seed_id")`,
   },
+
+  // 20260710160000_feedback
+  {
+    label: "feedback",
+    sql: `CREATE TABLE IF NOT EXISTS "feedback" (
+      "id"         UUID NOT NULL DEFAULT gen_random_uuid(),
+      "user_id"    UUID REFERENCES "users" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+      "kind"       TEXT NOT NULL DEFAULT 'bug',
+      "message"    TEXT NOT NULL,
+      "path"       TEXT,
+      "user_agent" TEXT,
+      "status"     TEXT NOT NULL DEFAULT 'open',
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "feedback_pkey" PRIMARY KEY ("id")
+    )`,
+  },
+  {
+    label: "feedback_status_created_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "feedback_status_created_at_idx" ON "feedback" ("status", "created_at")`,
+  },
 ];

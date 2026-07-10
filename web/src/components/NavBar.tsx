@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { NavSidebar } from "@/components/NavSidebar";
 import { BottomNav } from "@/components/BottomNav";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { FeedbackButton } from "@/components/FeedbackButton";
 
 export async function NavBar({ name }: { name?: string }) {
   const session = await auth();
@@ -37,6 +38,7 @@ export async function NavBar({ name }: { name?: string }) {
         </div>
         {/* About + light/dark toggle — matching circular controls, top-right. */}
         <div className="flex items-center gap-2">
+          <FeedbackButton />
           <Link
             href="/about"
             aria-label="About ThinkThru"

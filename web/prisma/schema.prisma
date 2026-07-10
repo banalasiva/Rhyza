@@ -856,6 +856,23 @@ model SeedAsk {
   @@map("seed_asks")
 }
 
+// In-app feedback — a bug report or an idea a person sends from anywhere in the
+// app. Captured with the page they were on and their device, so it's actually
+// actionable. Surfaced to the owner in /admin; the owner triages and ships.
+model Feedback {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  kind      String   @default("bug") // bug | idea | other
+  message   String
+  path      String? // the page URL they were on when reporting
+  userAgent String?  @map("user_agent")
+  status    String   @default("open") // open | resolved
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([status, createdAt])
+  @@map("feedback")
+}
+
 // A heartbeat row per cron slot (morning / evening / digest) so we can confirm
 // the scheduler actually fired — surfaced in /admin. Distinguishes a firing-but-
 // empty cron from one that never runs (e.g. a missing CRON_SECRET self-401).
