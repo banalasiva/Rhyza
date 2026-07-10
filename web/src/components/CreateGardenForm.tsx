@@ -80,7 +80,7 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
         />
         <input
           className="input flex-1"
-          placeholder={firstRun ? "Name your garden — e.g. Home & family" : "Garden name — e.g. Product decisions"}
+          placeholder={firstRun ? "Name it — e.g. Home" : "Garden name — e.g. Home"}
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={80}
@@ -88,7 +88,7 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
       </div>
       <textarea
         className="input min-h-[60px]"
-        placeholder="What does this garden explore? (optional)"
+        placeholder="What's this garden about? (optional)"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         maxLength={500}

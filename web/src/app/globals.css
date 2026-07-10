@@ -146,7 +146,7 @@ body {
     color: var(--ink);
   }
   .input {
-    @apply w-full rounded-xl border px-4 py-3 text-ink outline-none transition placeholder:text-ink-soft;
+    @apply w-full rounded-xl border px-4 py-2.5 text-[15px] text-ink outline-none transition placeholder:text-ink-soft;
     background: var(--surface-2);
     border-color: var(--border-strong);
   }
