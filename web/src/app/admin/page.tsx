@@ -7,6 +7,7 @@ import { AdminPanel } from "@/components/AdminPanel";
 import { BackfillTopicsButton } from "@/components/BackfillTopicsButton";
 import { GoodMorningButton } from "@/components/GoodMorningButton";
 import { RekindleButton } from "@/components/RekindleButton";
+import { ResynthesizeBloomsButton } from "@/components/ResynthesizeBloomsButton";
 import { countOpenReports } from "@/lib/services/reports";
 import { countOpenFeedback } from "@/lib/services/feedback";
 
@@ -207,6 +208,7 @@ export default async function AdminPage() {
         <AdminPanel />
         <GoodMorningButton />
         <RekindleButton />
+        <ResynthesizeBloomsButton />
         <BackfillTopicsButton />
         <Link
           href="/admin/feedback"

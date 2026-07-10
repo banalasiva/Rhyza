@@ -196,6 +196,82 @@ export async function forceBloom(userId: string, seedId: string) {
   return bloom;
 }
 
+// Re-synthesize existing blooms with the current synthesis prompt (e.g. after
+// the format changed). Only touches AI-synthesized blooms — never overwrites a
+// bloom a human has edited. Best-effort per bloom; returns a tally. Owner-only
+// at the call site.
+export async function resynthesizeAllBlooms(opts?: {
+  onlyBloomId?: string;
+}): Promise<{ updated: number; skipped: number; failed: number; total: number }> {
+  const where = opts?.onlyBloomId ? { id: opts.onlyBloomId } : { aiSynthesized: true };
+  const blooms = (await db.bloom.findMany({
+    where,
+    select: { id: true, seedId: true, aiSynthesized: true },
+    orderBy: { bloomedAt: "desc" },
+    take: 1000,
+  })) as { id: string; seedId: string; aiSynthesized: boolean }[];
+
+  let updated = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const b of blooms) {
+    // Guard: for a single-bloom re-run, still refuse to clobber a human edit.
+    if (!b.aiSynthesized) {
+      skipped++;
+      continue;
+    }
+    try {
+      const seed = await db.seed.findUnique({
+        where: { id: b.seedId },
+        select: {
+          title: true,
+          content: true,
+          contributions: {
+            where: { deletedAt: null },
+            orderBy: { createdAt: "asc" },
+            select: { dimension: true, content: true, author: { select: { name: true } } },
+          },
+        },
+      });
+      if (!seed) {
+        failed++;
+        continue;
+      }
+      const thread: ContribForAI[] = (
+        seed.contributions as { dimension: string; content: unknown; author: { name: string | null } }[]
+      ).map((c) => ({
+        dimension: c.dimension,
+        author: c.author.name || "A member",
+        text: (c.content as { text?: string } | null)?.text ?? "",
+      }));
+      const fresh = await synthesizeBloom({
+        title: seed.title,
+        content: typeof seed.content === "string" ? seed.content : "",
+        contributions: thread,
+      });
+      if (!fresh) {
+        failed++;
+        continue;
+      }
+      await db.bloom.update({
+        where: { id: b.id },
+        data: {
+          summary: fresh,
+          content: { blocks: [{ type: "paragraph", text: fresh }] },
+          aiSynthesized: true,
+        },
+      });
+      updated++;
+    } catch (err) {
+      console.error("resynthesizeAllBlooms: failed for", b.id, err);
+      failed++;
+    }
+  }
+
+  return { updated, skipped, failed, total: blooms.length };
+}
+
 // Edit a bloom's title/summary. Blooms are collaborative knowledge, so any
 // member with access to the garden can refine the synthesized text.
 export async function updateBloom(
