@@ -6,6 +6,7 @@ import { NavBar } from "@/components/NavBar";
 import { AdminPanel } from "@/components/AdminPanel";
 import { BackfillTopicsButton } from "@/components/BackfillTopicsButton";
 import { GoodMorningButton } from "@/components/GoodMorningButton";
+import { RekindleButton } from "@/components/RekindleButton";
 import { countOpenReports } from "@/lib/services/reports";
 
 // AI-tag usage meter (best-effort — the table may not be migrated yet).
@@ -203,6 +204,7 @@ export default async function AdminPage() {
 
         <AdminPanel />
         <GoodMorningButton />
+        <RekindleButton />
         <BackfillTopicsButton />
         <Link
           href="/admin/reports"

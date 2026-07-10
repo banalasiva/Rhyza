@@ -4,6 +4,7 @@ import { appUrl } from "@/lib/email";
 import { pushConfigured, sendPushToUser } from "@/lib/push";
 import { sendGoodMorning, summarise } from "@/lib/services/morning";
 import { cronAuthorized, markCronRun } from "@/lib/cron";
+import { rekindleStallingThreads } from "@/lib/services/rekindle";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +86,16 @@ export async function GET(req: Request) {
     if (delivered > 0) sent++;
   }
 
-  await markCronRun("evening", `sent ${sent}/${groups.size}`);
-  return NextResponse.json({ ok: true, slot: "evening", recipients: groups.size, sent });
+  // Claude re-kindles good threads that have gone quiet — a targeted, low-volume
+  // pull-back for people who've drifted, separate from the summary above.
+  const rekindled = await rekindleStallingThreads().catch(() => ({ scanned: 0, nudged: 0 }));
+
+  await markCronRun("evening", `summary ${sent}/${groups.size} · rekindled ${rekindled.nudged}`);
+  return NextResponse.json({
+    ok: true,
+    slot: "evening",
+    recipients: groups.size,
+    sent,
+    rekindled,
+  });
 }

@@ -593,6 +593,55 @@ export async function describeContributionStyle(
   }
 }
 
+// A person Claude could nudge to revive a quiet thread — someone already
+// involved who's gone silent.
+export type RekindleCandidate = { firstName: string };
+
+// Read a genuinely stalling thread and decide whether it's worth reviving — and
+// if so, WHICH quiet participant is best placed to add something and a warm,
+// specific one-line reason to draw them back. This is the judgment that keeps the
+// nudge from being spam: Claude only picks someone when there's a real, open
+// thread and a real reason their voice would move it. Returns null to stay quiet
+// (nothing worth reviving, AI off, or anything fails) — the safe default.
+export async function pickRekindleNudge(input: {
+  title: string;
+  transcript: string; // recent messages, "Name: text"
+  candidates: RekindleCandidate[];
+}): Promise<{ candidateIndex: number; line: string } | null> {
+  if (!aiConfigured() || input.candidates.length === 0) return null;
+  try {
+    const people = input.candidates.map((c, i) => `${i}. ${c.firstName}`).join("\n");
+    const prompt = [
+      `THREAD: ${input.title}`,
+      `\nRECENT MESSAGES:\n${input.transcript.slice(0, 3500)}`,
+      `\nQUIET PEOPLE WHO COULD BE NUDGED (index. name):\n${people}`,
+      `\nDecide if this thread is genuinely worth reviving right now, and if so who to nudge.`,
+    ].join("\n");
+    const system =
+      "You help a small, high-trust group keep good conversations alive on ThinkThru. You read a " +
+      "thread that has gone quiet and decide whether it's genuinely worth drawing someone back — " +
+      "and if so, which quiet person is best placed to add something real, and a warm one-line " +
+      "reason addressed to them. Be highly selective: only revive threads with a real open " +
+      "question or unresolved tension where THIS person's view would actually move it. If the " +
+      "thread is finished, small-talk, already resolved, or nobody clearly has more to add, decline.\n" +
+      "The line must be specific to THIS thread (reference the actual question or point), warm, " +
+      "and under 120 characters — like a thoughtful friend, never marketing. Use the person's " +
+      "first name. No emoji spam (at most one).\n" +
+      'Respond with ONLY a JSON object: {"revive": true, "index": <number>, "line": "<text>"} ' +
+      'or {"revive": false}. No other text.';
+    const out = await complete(system, prompt, 200, MODEL_FAST);
+    const match = out.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    const parsed = JSON.parse(match[0]) as { revive?: boolean; index?: number; line?: string };
+    if (!parsed.revive || typeof parsed.index !== "number" || !parsed.line?.trim()) return null;
+    if (parsed.index < 0 || parsed.index >= input.candidates.length) return null;
+    return { candidateIndex: parsed.index, line: parsed.line.trim().slice(0, 160) };
+  } catch (err) {
+    console.error("pickRekindleNudge failed", err);
+    return null;
+  }
+}
+
 // Does this text tag Claude? Matches "@claude" as a whole word, case-insensitive.
 export function mentionsClaude(text: string): boolean {
   return /(^|[^a-zA-Z0-9])@claude\b/i.test(text);
