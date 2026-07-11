@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DIMENSIONS } from "@/lib/constants";
+import { PlantSvg } from "@/components/PlantSvg";
 
 type Msg = { who: string; ai?: boolean; dim: string; text: string };
 
@@ -42,8 +43,9 @@ const STEPS = [
 ] as const;
 
 // step timeline: 0–3 reveal messages (Think) · 4 Decide · 5 Bloom · 6–7 Sacred
-// Tree + hold, then loop.
-const DELAYS = [1200, 1400, 1400, 1600, 2400, 2000, 2600, 1400];
+// Tree + hold, then loop. Paced slow enough to actually read and absorb each
+// stage — this is the story, not a flash.
+const DELAYS = [2200, 2400, 2400, 2600, 5000, 3800, 5000, 2000];
 
 function dimMeta(key: string) {
   return DIMENSIONS.find((d) => d.key === key) ?? DIMENSIONS[1];
@@ -95,7 +97,7 @@ export function LandingDemo() {
       <p className="serif-lg mb-3 min-h-[3.25rem]">{SCHOOL.q}</p>
 
       {/* Stage — phases cross-fade in a fixed-height frame so the card is steady */}
-      <div className="relative min-h-[248px]">
+      <div className="relative min-h-[300px]">
         {/* ── THINK ── the conversation, each voice a different angle */}
         <div className={`absolute inset-0 transition-opacity duration-700 ${phase === "think" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <p className="mb-3 text-[11px] leading-relaxed text-ink-soft">
@@ -171,26 +173,30 @@ export function LandingDemo() {
           </p>
         </div>
 
-        {/* ── BLOOM ── one durable answer */}
-        <div className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-opacity duration-700 ${phase === "bloom" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
-          <div className="mb-2 text-4xl">🌸</div>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-bloom">Bloomed</p>
-          <div className="rounded-xl border p-3" style={{ borderColor: "rgba(255,179,0,0.4)", background: "rgba(255,179,0,0.08)" }}>
-            <p className="text-xs leading-relaxed text-ink">{SCHOOL.bloom}</p>
+        {/* ── BLOOM & SACRED TREE ── the joyful payoff. The same living bloom
+            stays on screen (a glowing flower on a rooted plant — the Sacred
+            Tree) while the words move from "it bloomed" to "it's kept forever". */}
+        <div className={`absolute inset-0 flex flex-col items-center transition-opacity duration-700 ${phase === "bloom" || phase === "tree" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+          <div className="h-[150px] w-[150px] shrink-0">
+            <PlantSvg stage={4} />
           </div>
-        </div>
-
-        {/* ── SACRED TREE ── where the bloom is kept, with its summary */}
-        <div className={`absolute inset-0 flex flex-col items-center justify-center text-center transition-opacity duration-700 ${phase === "tree" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
-          <div className="mb-2 text-4xl">🌳</div>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide" style={{ color: "#66BB6A" }}>
-            Kept in your Sacred Tree
-          </p>
-          <div className="w-full rounded-xl border p-3 text-left" style={{ borderColor: "rgba(76,175,80,0.3)", background: "rgba(76,175,80,0.06)" }}>
-            <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-ink">
-              🌸 Choosing Aria’s school
-            </p>
-            <p className="text-[11px] leading-relaxed text-ink-mid">{SCHOOL.treeSummary}</p>
+          {/* Caption swaps between Bloom and Tree in a small reserved area */}
+          <div className="relative mt-1 w-full flex-1">
+            <div className={`absolute inset-0 text-center transition-opacity duration-500 ${phase === "bloom" ? "opacity-100" : "opacity-0"}`}>
+              <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-bloom">🌸 Bloomed</p>
+              <div className="mx-auto max-w-[19rem] rounded-xl border p-3" style={{ borderColor: "rgba(255,179,0,0.4)", background: "rgba(255,179,0,0.08)" }}>
+                <p className="text-xs leading-relaxed text-ink">{SCHOOL.bloom}</p>
+              </div>
+            </div>
+            <div className={`absolute inset-0 transition-opacity duration-500 ${phase === "tree" ? "opacity-100" : "opacity-0"}`}>
+              <p className="mb-2 text-center text-[11px] font-medium uppercase tracking-wide" style={{ color: "#66BB6A" }}>
+                🌳 Kept in your Sacred Tree
+              </p>
+              <div className="mx-auto max-w-[19rem] rounded-xl border p-3 text-left" style={{ borderColor: "rgba(76,175,80,0.3)", background: "rgba(76,175,80,0.06)" }}>
+                <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-ink">🌸 Choosing Aria’s school</p>
+                <p className="text-[11px] leading-relaxed text-ink-mid">{SCHOOL.treeSummary}</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
