@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { NotificationList } from "@/components/NotificationList";
+import { NotificationFix } from "@/components/NotificationFix";
 
 function href(
   entityType: string | null,
@@ -84,6 +85,7 @@ export default async function NotificationsPage() {
           ← Your gardens
         </Link>
         <h1 className="serif-xl mb-6">🔔 Notifications</h1>
+        <NotificationFix />
         <NotificationSettings
           initial={prefs ?? { emailNotify: true, pushNotify: true, digestNotify: true }}
         />
