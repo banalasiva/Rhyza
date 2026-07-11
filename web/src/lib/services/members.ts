@@ -234,13 +234,17 @@ export async function listAddablePeople(actorId: string, seedId: string, q?: str
   ]);
   const needle = (q ?? "").trim().toLowerCase();
 
+  // Before the person searches, show only a few suggestions — a big group should
+  // never render as a wall of names. Once they type, surface up to 20 matches.
+  const cap = needle ? 20 : 6;
+
   return network
     .filter((p) => !exclude.has(p.id) && p.name !== "Claude" && p.name !== "ChatGPT")
     .filter(
       (p) =>
         !needle || p.name.toLowerCase().includes(needle) || p.email.toLowerCase().includes(needle),
     )
-    .slice(0, 20);
+    .slice(0, cap);
 }
 
 // Add an existing org member straight into the seed (member role) and let them

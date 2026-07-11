@@ -199,6 +199,11 @@ export function SeedInvite({
             ))}
           </ul>
         )}
+        {!q && addable.length >= 6 && (
+          <p className="mt-2 text-[11px] text-ink-soft">
+            Showing a few — search by name or email to find anyone.
+          </p>
+        )}
         {q && !searching && addable.length === 0 && (
           <p className="mt-2 text-xs text-ink-soft">Not here yet — invite them below.</p>
         )}
