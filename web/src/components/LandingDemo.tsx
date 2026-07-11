@@ -4,88 +4,97 @@ import { useEffect, useState } from "react";
 import { DIMENSIONS } from "@/lib/constants";
 
 type Msg = { who: string; ai?: boolean; dim: string; text: string };
-type Scenario = { q: string; msgs: Msg[]; bloom: string };
 
-// A looping, self-explaining demo: a real question, a few labeled messages, then
-// it Blooms — cycling through relatable decisions so a visitor sees their own
-// use case and understands ThinkThru in seconds. No sign-in needed.
-const SCENARIOS: Scenario[] = [
-  {
-    q: "Which school should we choose for Aria?",
-    msgs: [
-      { who: "Priya", dim: "foundations", text: "What matters most — academics, values, or distance?" },
-      { who: "Arjun", dim: "debate", text: "The nearest one is easy, but its approach feels too rigid." },
-      { who: "Claude", ai: true, dim: "understanding", text: "Teaching style and values shape a child more than a short commute." },
-    ],
-    bloom: "Lead with teaching philosophy and values; treat commute as a tie-breaker.",
-  },
-  {
-    q: "Should we make this hire?",
-    msgs: [
-      { who: "Sam", dim: "application", text: "Strong skills, shipped real things — exactly our gap." },
-      { who: "Mei", dim: "debate", text: "But the culture fit felt off in two interviews." },
-      { who: "Claude", ai: true, dim: "understanding", text: "Skills can be coached; values misalignment rarely fixes itself." },
-    ],
-    bloom: "Pass — skills fit, but repeated culture-fit concerns outweigh them.",
-  },
-  {
-    q: "Where should we travel this summer?",
-    msgs: [
-      { who: "Dad", dim: "foundations", text: "Is this trip about rest, adventure, or family time?" },
-      { who: "Aria", dim: "application", text: "Somewhere with mountains AND a beach!" },
-      { who: "Claude", ai: true, dim: "understanding", text: "A coast-plus-hills spot balances rest and adventure for every age." },
-    ],
-    bloom: "A coastal town near hills — rest for parents, adventure for kids.",
-  },
-];
+// A looping, self-explaining demo built around ONE relatable decision —
+// choosing a school — walking a visitor through the three steps ThinkThru is
+// built on: Think (talk it through), Decide (weigh in together), Bloom (a
+// durable answer everyone keeps). No sign-in needed.
+const SCHOOL = {
+  q: "Which school should we choose for Aria?",
+  msgs: [
+    { who: "Priya", dim: "foundations", text: "What matters most — academics, values, or distance?" },
+    { who: "Arjun", dim: "debate", text: "The nearest one is easy, but its approach feels too rigid." },
+    { who: "Claude", ai: true, dim: "understanding", text: "Teaching style and values shape a child more than a short commute." },
+  ] as Msg[],
+  decide: "The family weighed in — teaching style and values over a shorter commute.",
+  bloom: "Lead with teaching philosophy and values; treat commute as a tie-breaker.",
+};
+
+const STEPS = [
+  { key: "think", emoji: "💬", label: "Think" },
+  { key: "decide", emoji: "⚖️", label: "Decide" },
+  { key: "bloom", emoji: "🌸", label: "Bloom" },
+] as const;
 
 function dimMeta(key: string) {
   return DIMENSIONS.find((d) => d.key === key) ?? DIMENSIONS[1];
 }
 
 export function LandingDemo() {
-  const [si, setSi] = useState(0);
   const [step, setStep] = useState(0);
-  const sc = SCENARIOS[si];
-  const maxStep = sc.msgs.length + 3; // reveal msgs, bloom, then hold
+  const nMsgs = SCHOOL.msgs.length;
+  // steps: reveal each message (Think), then Decide, then Bloom, then hold.
+  const decideAt = nMsgs; // step index where "Decide" lands
+  const bloomAt = nMsgs + 1; // step index where "Bloom" lands
+  const maxStep = nMsgs + 4; // bloom + a short hold, then loop
 
   useEffect(() => {
     const t = setTimeout(
-      () => {
-        if (step + 1 >= maxStep) {
-          setSi((x) => (x + 1) % SCENARIOS.length);
-          setStep(0);
-        } else {
-          setStep(step + 1);
-        }
-      },
+      () => setStep((s) => (s + 1 >= maxStep ? 0 : s + 1)),
       step === 0 ? 1300 : 1600,
     );
     return () => clearTimeout(t);
-  }, [si, step, maxStep]);
+  }, [step, maxStep]);
 
-  const showBloom = step >= sc.msgs.length;
+  const phase = step < decideAt ? "think" : step < bloomAt ? "decide" : "bloom";
+  const phaseIndex = STEPS.findIndex((s) => s.key === phase);
+  const showDecide = step >= decideAt;
+  const showBloom = step >= bloomAt;
 
-  // The whole conversation + bloom are ALWAYS in the DOM and reveal by fading in
-  // (opacity), never by mounting — so the card's height never changes and the
-  // page below it doesn't jump on mobile. Reserved min-heights keep the card the
-  // same size across scenarios too.
+  // Everything is ALWAYS in the DOM and reveals by fading in (opacity), never by
+  // mounting — so the card's height never changes and the page below it doesn't
+  // jump. Reserved min-heights keep the card steady across the loop.
   return (
     <div className="card mx-auto w-full max-w-sm p-4">
-      {/* Seed question (rotating) */}
-      <p className="eyebrow mb-1">🌱 Seed</p>
-      <p key={sc.q} className="serif-lg mb-4 min-h-[3.25rem] animate-[fadeUp_0.5s_ease-out]">
-        {sc.q}
-      </p>
+      {/* Think · Decide · Bloom — the three steps, lighting up as it plays */}
+      <div className="mb-4 flex items-center justify-center gap-1">
+        {STEPS.map((s, i) => {
+          const active = i === phaseIndex;
+          const done = i < phaseIndex;
+          return (
+            <div key={s.key} className="flex items-center gap-1">
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-all duration-500"
+                style={{
+                  background: active ? "rgba(76,175,80,0.18)" : "transparent",
+                  color: active ? "#66BB6A" : done ? "#4C7A4E" : "#5A6456",
+                }}
+              >
+                <span aria-hidden>{s.emoji}</span>
+                {s.label}
+              </span>
+              {i < STEPS.length - 1 && (
+                <span aria-hidden className="text-[9px]" style={{ color: i < phaseIndex ? "#4C7A4E" : "#3A4238" }}>
+                  →
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
-      {/* Conversation — all messages rendered; opacity reveals them in turn */}
+      {/* Seed question */}
+      <p className="eyebrow mb-1">🌱 Seed</p>
+      <p className="serif-lg mb-4 min-h-[3.25rem]">{SCHOOL.q}</p>
+
+      {/* Think — the conversation; opacity reveals each message in turn */}
       <div className="min-h-[176px] space-y-2">
-        {sc.msgs.map((m, i) => {
+        {SCHOOL.msgs.map((m, i) => {
           const d = dimMeta(m.dim);
           const revealed = i <= step;
           return (
             <div
-              key={`${si}-${i}`}
+              key={i}
               className={`flex items-start gap-2 transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-0"}`}
             >
               <span
@@ -111,15 +120,25 @@ export function LandingDemo() {
         })}
       </div>
 
-      {/* Bloom — always rendered (reserves its space); fades in at the end */}
+      {/* Decide — the group converges; fades in before the bloom */}
+      <div
+        className={`mt-3 flex items-start gap-2 rounded-xl border p-3 transition-opacity duration-500 ${showDecide ? "opacity-100" : "opacity-0"}`}
+        style={{ borderColor: "rgba(76,175,80,0.3)", background: "rgba(76,175,80,0.06)" }}
+      >
+        <span aria-hidden className="text-sm leading-none">⚖️</span>
+        <div>
+          <p className="mb-0.5 text-[11px] font-medium" style={{ color: "#66BB6A" }}>Decided together</p>
+          <p className="text-xs leading-relaxed text-ink-mid">{SCHOOL.decide}</p>
+        </div>
+      </div>
+
+      {/* Bloom — the durable answer everyone keeps */}
       <div
         className={`mt-3 rounded-xl border p-3 transition-opacity duration-500 ${showBloom ? "opacity-100" : "opacity-0"}`}
         style={{ borderColor: "rgba(255,179,0,0.4)", background: "rgba(255,179,0,0.08)" }}
       >
-        <p className="mb-1 flex items-center gap-1 text-[11px] font-medium text-bloom">
-          🌸 Bloomed
-        </p>
-        <p className="text-xs leading-relaxed text-ink">{sc.bloom}</p>
+        <p className="mb-1 flex items-center gap-1 text-[11px] font-medium text-bloom">🌸 Bloomed</p>
+        <p className="text-xs leading-relaxed text-ink">{SCHOOL.bloom}</p>
       </div>
     </div>
   );
