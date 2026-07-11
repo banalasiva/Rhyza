@@ -11,6 +11,8 @@ import { ThinkingFingerprint } from "@/components/ThinkingFingerprint";
 import { ShareButton } from "@/components/ShareButton";
 import { FollowUserButton } from "@/components/FollowUserButton";
 import { FollowCounts } from "@/components/FollowCounts";
+import { ConnectButton } from "@/components/ConnectButton";
+import { getConnectionStatus, type ConnectionStatus } from "@/lib/services/connections";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +25,8 @@ export default async function ProfilePage({ params }: { params: { id: string } }
 
   const isMe = profile.isOwner;
   const signedIn = !!viewer;
+  const connectStatus: ConnectionStatus | null =
+    viewer && !profile.isOwner ? await getConnectionStatus(viewer.userId, profile.id) : null;
   const joined = new Date(profile.joinedAt).toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
@@ -66,7 +70,10 @@ export default async function ProfilePage({ params }: { params: { id: string } }
                 />
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              {!isMe && signedIn && connectStatus && connectStatus !== "self" && (
+                <ConnectButton userId={profile.id} initialStatus={connectStatus} />
+              )}
               {!isMe && (
                 <FollowUserButton userId={profile.id} initialFollowing={profile.follow.isFollowing} />
               )}

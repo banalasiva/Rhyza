@@ -4,6 +4,7 @@ import { requireViewer } from "@/lib/session";
 import { getMyRoots } from "@/lib/services/roots";
 import { NavBar } from "@/components/NavBar";
 import { ProfilePhoto } from "@/components/ProfilePhoto";
+import { ConnectionRequests } from "@/components/ConnectionRequests";
 import { DisplayNameEditor } from "@/components/DisplayNameEditor";
 import { ProfileTopicsEditor } from "@/components/ProfileTopicsEditor";
 import { ReflectionEditor } from "@/components/ReflectionEditor";
@@ -29,6 +30,8 @@ export default async function RootsPage() {
         <Link href="/" className="btn-ghost mb-5 inline-flex px-3 py-1.5 text-xs">
           ← Your gardens
         </Link>
+
+        <ConnectionRequests />
 
         <div className="mb-6 flex items-start gap-4">
           <ProfilePhoto name={viewer.name || "You"} image={viewer.avatarUrl} uploadsEnabled={uploadsEnabled} />

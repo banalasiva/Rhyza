@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { requireSeedAccess, requireSeedManager } from "@/lib/authz";
 import { deliver } from "@/lib/services/notify";
+import { connectedUserIds } from "@/lib/services/connections";
 
 export type SeedRole = "owner" | "admin" | "member" | "contributor";
 
@@ -158,19 +159,21 @@ export type NetworkPerson = { id: string; name: string; email: string; image: st
 // with them. Powers invite autocomplete: you mostly re-invite the same circle,
 // and re-inviting them into new gardens is the network-effect flywheel.
 export async function listMyNetwork(userId: string): Promise<NetworkPerson[]> {
-  // Everyone you've collaborated with — co-members of any garden OR seed you're
-  // in — so the "add existing" picker shows the whole family/group, not only
-  // people who happen to share a garden.
-  const [myGardens, mySeeds] = await Promise.all([
+  // Your circle = everyone you've collaborated with (co-members of any garden OR
+  // seed you're in) PLUS everyone you've accepted a connection with — so the
+  // "add existing" picker shows your whole family/group, including people you met
+  // through a connection rather than a shared garden.
+  const [myGardens, mySeeds, connectedIds] = await Promise.all([
     db.gardenMember.findMany({ where: { userId }, select: { gardenId: true } }),
     db.seedMember.findMany({ where: { userId }, select: { seedId: true } }),
+    connectedUserIds(userId),
   ]);
   const gardenIds = myGardens.map((g: { gardenId: string }) => g.gardenId);
   const seedIds = mySeeds.map((s: { seedId: string }) => s.seedId);
-  if (gardenIds.length === 0 && seedIds.length === 0) return [];
+  if (gardenIds.length === 0 && seedIds.length === 0 && connectedIds.length === 0) return [];
 
   const userSel = { user: { select: { id: true, name: true, email: true, image: true } } };
-  const [gardenPeople, seedPeople] = await Promise.all([
+  const [gardenPeople, seedPeople, connectedPeople] = await Promise.all([
     gardenIds.length
       ? db.gardenMember.findMany({
           where: { gardenId: { in: gardenIds }, userId: { not: userId } },
@@ -185,16 +188,32 @@ export async function listMyNetwork(userId: string): Promise<NetworkPerson[]> {
           take: 1000,
         })
       : Promise.resolve([]),
+    connectedIds.length
+      ? db.user.findMany({
+          where: { id: { in: connectedIds } },
+          select: { id: true, name: true, email: true, image: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   const seen = new Map<string, NetworkPerson>();
+  const addUser = (u: { id: string; name: string | null; email: string | null; image: string | null }) => {
+    if (u?.id && u.email && !seen.has(u.id)) {
+      seen.set(u.id, { id: u.id, name: u.name || u.email, email: u.email, image: u.image });
+    }
+  };
   for (const m of [...gardenPeople, ...seedPeople] as {
     user: { id: string; name: string | null; email: string | null; image: string | null };
   }[]) {
-    const u = m.user;
-    if (u?.email && !seen.has(u.id)) {
-      seen.set(u.id, { id: u.id, name: u.name || u.email, email: u.email, image: u.image });
-    }
+    addUser(m.user);
+  }
+  for (const u of connectedPeople as {
+    id: string;
+    name: string | null;
+    email: string | null;
+    image: string | null;
+  }[]) {
+    addUser(u);
   }
   return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
 }

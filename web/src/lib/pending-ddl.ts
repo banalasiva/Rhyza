@@ -388,4 +388,30 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "seed_join_requests_seed_id_status_idx",
     sql: `CREATE INDEX IF NOT EXISTS "seed_join_requests_seed_id_status_idx" ON "seed_join_requests" ("seed_id", "status")`,
   },
+
+  // 20260711140000_connections
+  {
+    label: "connections",
+    sql: `CREATE TABLE IF NOT EXISTS "connections" (
+      "id"           UUID NOT NULL DEFAULT gen_random_uuid(),
+      "requester_id" UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "addressee_id" UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "status"       TEXT NOT NULL DEFAULT 'pending',
+      "created_at"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "responded_at" TIMESTAMP(3),
+      CONSTRAINT "connections_pkey" PRIMARY KEY ("id")
+    )`,
+  },
+  {
+    label: "connections_requester_id_addressee_id_key",
+    sql: `CREATE UNIQUE INDEX IF NOT EXISTS "connections_requester_id_addressee_id_key" ON "connections" ("requester_id", "addressee_id")`,
+  },
+  {
+    label: "connections_addressee_id_status_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "connections_addressee_id_status_idx" ON "connections" ("addressee_id", "status")`,
+  },
+  {
+    label: "connections_requester_id_status_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "connections_requester_id_status_idx" ON "connections" ("requester_id", "status")`,
+  },
 ];

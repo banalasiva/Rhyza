@@ -838,6 +838,25 @@ model UserSectionVisibility {
   @@map("user_section_visibility")
 }
 
+// A mutual connection between two people (like a LinkedIn connection). One
+// person requests, the other accepts; once accepted they're in each other's
+// circle — which means they can be added straight into each other's private
+// seeds, no invite/approval needed. Distinct from a one-directional *follow*.
+// One row per pair, keyed by who requested whom.
+model Connection {
+  id          String    @id @default(uuid()) @db.Uuid
+  requesterId String    @map("requester_id") @db.Uuid
+  addresseeId String    @map("addressee_id") @db.Uuid
+  status      String    @default("pending") // pending | accepted
+  createdAt   DateTime  @default(now()) @map("created_at")
+  respondedAt DateTime? @map("responded_at")
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+  @@index([requesterId, status])
+  @@map("connections")
+}
+
 // A request to join a private seed. A shared link only lets someone *knock* —
 // they sign in, land on a locked preview, and request in; the seed's owner or a
 // steward approves or declines. So a leaked link can never grant access on its
