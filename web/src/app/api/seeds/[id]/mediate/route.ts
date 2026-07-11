@@ -9,9 +9,13 @@ import { mediateSeed } from "@/lib/services/contributions";
 export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   const userId = await requireUserId();
   await enforceAiRateLimit(userId);
-  const body = (await req.json().catch(() => ({}))) as { provider?: "claude" | "chatgpt" };
+  const body = (await req.json().catch(() => ({}))) as {
+    provider?: "claude" | "chatgpt";
+    mode?: "balanced" | "peace" | "guide";
+  };
   const provider = body.provider === "chatgpt" ? "chatgpt" : "claude";
-  const c = await mediateSeed(userId, ctx.params.id, provider);
+  const mode = body.mode === "peace" || body.mode === "guide" ? body.mode : "balanced";
+  const c = await mediateSeed(userId, ctx.params.id, provider, mode);
   if (!c) {
     throw new ApiError(
       "BAD_REQUEST",

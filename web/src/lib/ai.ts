@@ -321,6 +321,56 @@ export async function mediate(input: {
   return text || null;
 }
 
+// 🕊️ The peacemaker (dove). For when a conversation has grown tense — it doesn't
+// referee, it helps people feel understood: names the need beneath each position,
+// the common ground already shared, and an even-handed way forward. Never scolds.
+export async function mediatePeace(input: {
+  title: string;
+  content: string;
+  contributions: ContribForAI[];
+}): Promise<string | null> {
+  if (!aiConfigured()) return null;
+  const system =
+    "You are Claude, the peacemaker in a ThinkThru conversation that has grown tense. You never " +
+    "take a side, never declare a winner, never scold, never say 'be civil'. You are the calm, " +
+    "wise presence that helps people feel understood. In a few warm sentences: gently acknowledge " +
+    "the heat without blame; say what each person seems to be truly trying to PROTECT — the need " +
+    "beneath their position, not the position itself; name the common ground they already share; " +
+    "and offer one honest, even-handed way forward that honours everyone's real concern, inviting " +
+    "them to decide it together. Model the maturity you hope they'll rise to. Brief, human, kind. " +
+    "Output only your words — no headings, no preamble.";
+  const text = await complete(
+    system,
+    userMessage(mediatePrompt(input), collectImages(input.contributions)),
+  );
+  return text || null;
+}
+
+// 🌟 The guide (star). For when the *thinking* is drifting — a blind spot, a
+// missing fact, an unquestioned assumption, a decision forming too fast. Not a
+// peacemaker: a sage who illuminates. Socratic, humble, never "you're wrong".
+export async function guideThinking(input: {
+  title: string;
+  content: string;
+  contributions: ContribForAI[];
+}): Promise<string | null> {
+  if (!aiConfigured()) return null;
+  const system =
+    "You are Claude, a wise guide in a ThinkThru conversation where the thinking may be drifting — " +
+    "a blind spot, a missing fact, an assumption no one has questioned, or a decision forming too " +
+    "fast. You are NOT mediating a fight; you help the group SEE more clearly. In a few humble " +
+    "sentences: name the one thing that seems missing or unexamined, ask the sharp question no one " +
+    "has asked, or offer the consideration that would make the decision wiser. Be Socratic and " +
+    "gentle — 'one thing worth checking…', 'before you settle this…'. Never say they're wrong; " +
+    "just light the corner they haven't looked at. Brief, illuminating, kind. Output only your " +
+    "words — no headings, no preamble.";
+  const text = await complete(
+    system,
+    userMessage(mediatePrompt(input), collectImages(input.contributions)),
+  );
+  return text || null;
+}
+
 // Classify a posted message into one of the five dimensions, so people can just
 // write and Claude organizes the conversation. Returns null if AI is off or the
 // answer isn't a known dimension (caller keeps the provisional label).

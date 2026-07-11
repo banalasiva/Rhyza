@@ -10,6 +10,8 @@ import {
   chatgptReply,
   classifyDimension,
   mediate,
+  mediatePeace,
+  guideThinking,
   openaiMediate,
   aiStageVote,
   summarizeThread,
@@ -369,6 +371,7 @@ export async function mediateSeed(
   userId: string,
   seedId: string,
   provider: "claude" | "chatgpt" = "claude",
+  mode: "balanced" | "peace" | "guide" = "balanced",
 ) {
   await requireSeedAccess(userId, seedId);
   const [seed, reactionTypes] = await Promise.all([
@@ -414,11 +417,24 @@ export async function mediateSeed(
     };
   });
 
+  const input = { title: seed.title, content: seed.content, contributions: thread };
+  // Two elevated voices for Claude — the dove (peace) and the star (guide);
+  // ChatGPT keeps the balanced mediation. `mode` picks which presence steps in.
   const text = await (provider === "chatgpt"
-    ? openaiMediate({ title: seed.title, content: seed.content, contributions: thread })
-    : mediate({ title: seed.title, content: seed.content, contributions: thread }));
+    ? openaiMediate(input)
+    : mode === "peace"
+      ? mediatePeace(input)
+      : mode === "guide"
+        ? guideThinking(input)
+        : mediate(input));
   if (!text) return null;
 
+  const prefix =
+    mode === "peace"
+      ? "🕊️ **A word of peace**"
+      : mode === "guide"
+        ? "🌟 **A clearer view**"
+        : "🕊️ **Mediation**";
   const bot =
     provider === "chatgpt" ? await getOrCreateChatGptUser() : await getOrCreateClaudeUser();
   const contribution = await db.contribution.create({
@@ -426,7 +442,7 @@ export async function mediateSeed(
       seedId,
       authorId: bot.id,
       dimension: "debate",
-      content: { text: `🕊️ **Mediation**\n\n${text}` },
+      content: { text: `${prefix}\n\n${text}` },
     },
     include: { author: { select: { id: true, name: true, image: true } } },
   });

@@ -150,6 +150,49 @@ body {
     background: var(--surface-2);
     border-color: var(--border-strong);
   }
+
+  /* The wise presence — dove (peace) & star (guide). Calm glowing orbs that
+     breathe softly at rest and pulse warmly while being called. A candle on the
+     table, not a button on a dashboard. */
+  .presence-orb .orb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 9999px;
+    font-size: 20px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    animation: presence-breathe 4.5s ease-in-out infinite;
+  }
+  .presence-orb .orb.dove {
+    background: radial-gradient(circle at 50% 45%, rgba(226, 232, 240, 0.16), rgba(226, 232, 240, 0.04));
+    box-shadow: 0 0 0 1px rgba(226, 232, 240, 0.18), 0 0 16px rgba(226, 232, 240, 0.12);
+  }
+  .presence-orb .orb.star {
+    background: radial-gradient(circle at 50% 45%, rgba(255, 200, 90, 0.2), rgba(255, 179, 0, 0.05));
+    box-shadow: 0 0 0 1px rgba(255, 179, 0, 0.25), 0 0 16px rgba(255, 179, 0, 0.14);
+  }
+  .presence-orb:hover .orb {
+    transform: translateY(-2px) scale(1.06);
+  }
+  .presence-orb:hover .orb.dove {
+    box-shadow: 0 0 0 1px rgba(226, 232, 240, 0.3), 0 0 26px rgba(226, 232, 240, 0.22);
+  }
+  .presence-orb:hover .orb.star {
+    box-shadow: 0 0 0 1px rgba(255, 179, 0, 0.4), 0 0 26px rgba(255, 179, 0, 0.26);
+  }
+  .presence-orb .orb.is-calling {
+    animation: presence-call 1.4s ease-in-out infinite;
+  }
+  @keyframes presence-breathe {
+    0%, 100% { transform: scale(1); opacity: 0.85; }
+    50% { transform: scale(1.05); opacity: 1; }
+  }
+  @keyframes presence-call {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.12); }
+  }
   .input:focus {
     border-color: rgba(76, 175, 80, 0.5);
   }

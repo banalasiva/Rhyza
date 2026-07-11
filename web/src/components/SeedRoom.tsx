@@ -575,6 +575,28 @@ export function SeedRoom({
     }
   }
 
+  // The wise presence — dove (peace) when it's getting rough, star (guide) when
+  // the thinking's drifting. One tap invites Claude in with the right voice.
+  const [presenceMode, setPresenceMode] = useState<"peace" | "guide" | null>(null);
+  async function invokePresence(mode: "peace" | "guide") {
+    if (presenceMode) return;
+    setPresenceMode(mode);
+    setError(null);
+    try {
+      const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/mediate`, {
+        provider: "claude",
+        mode,
+      });
+      setContributions((prev) => [...prev, hydrate(c)]);
+      playNatureSound(mode === "peace" ? "wind" : "chime");
+      setTimeout(() => threadEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }), 120);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The presence couldn't come just now.");
+    } finally {
+      setPresenceMode(null);
+    }
+  }
+
   async function askMediate(provider: "claude" | "chatgpt") {
     setMediating(true);
     setMediatingWho(provider);
@@ -1501,6 +1523,43 @@ export function SeedRoom({
           {/* Scroll anchor: arrivals without a deep-link land on the latest message. */}
           <div ref={threadEndRef} />
         </div>
+
+        {/* The wise presence — a calm candle at the foot of the conversation.
+            Turn to it when it's getting heated (the dove), or when the thinking
+            has drifted (the star). One tap; it never takes a side. */}
+        {!isBloomed && contributions.length >= 2 && (
+          <div className="presence mt-5 flex flex-col items-center gap-2 py-2">
+            <p className="text-[11px] text-ink-soft">
+              {presenceMode === "peace"
+                ? "A dove is on its way…"
+                : presenceMode === "guide"
+                  ? "Lighting a clearer view…"
+                  : "If it would help, invite a gentle presence"}
+            </p>
+            <div className="flex items-center gap-5">
+              <button
+                onClick={() => invokePresence("peace")}
+                disabled={!!presenceMode}
+                aria-label="Help us find peace"
+                title="Help us find peace"
+                className="presence-orb group flex flex-col items-center gap-1 disabled:opacity-60"
+              >
+                <span className={`orb dove ${presenceMode === "peace" ? "is-calling" : ""}`}>🕊️</span>
+                <span className="text-[11px] text-ink-soft transition group-hover:text-ink">Find peace</span>
+              </button>
+              <button
+                onClick={() => invokePresence("guide")}
+                disabled={!!presenceMode}
+                aria-label="Help us see clearly"
+                title="Help us see clearly"
+                className="presence-orb group flex flex-col items-center gap-1 disabled:opacity-60"
+              >
+                <span className={`orb star ${presenceMode === "guide" ? "is-calling" : ""}`}>🌟</span>
+                <span className="text-[11px] text-ink-soft transition group-hover:text-ink">See clearly</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Compose — hidden once you've committed your bloom vote */}
         {!isBloomed && committedToBloom && (
