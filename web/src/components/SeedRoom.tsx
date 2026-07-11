@@ -144,9 +144,7 @@ export function SeedRoom({
   const [visBusy, setVisBusy] = useState(false);
   const [listed, setListed] = useState<boolean>(seed.listed ?? false);
   const [following, setFollowing] = useState<boolean>(seed.following ?? false);
-  const [followLevel, setFollowLevelState] = useState<string>(
-    seed.followLevel ?? (seed.following ? "all" : "highlights"),
-  );
+  const [followLevel, setFollowLevelState] = useState<string>(seed.followLevel ?? "all");
   const [bloomConfirm, setBloomConfirm] = useState(false); // confirm modal open
   const [previewBloom, setPreviewBloom] = useState(false); // flower the plant as a preview
   const [bursts, setBursts] = useState<

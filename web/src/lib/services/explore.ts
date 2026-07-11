@@ -362,12 +362,13 @@ export async function followSeed(userId: string, seedId: string, following: bool
   return setSeedFollow(userId, seedId, following ? "all" : "off");
 }
 
-// Put a seed on an outsider's radar quietly the first time they open it — a
-// "highlights" follow, created only if they don't already follow it. Never
-// downgrades an existing follow. Best-effort.
+// Put a seed on someone's radar the first time they open it — following it at
+// "all" so they hear every reply by default (the reason to come back). Created
+// only if they don't already follow it; never downgrades an existing choice.
+// Best-effort.
 export async function autoFollowOnView(userId: string, seedId: string) {
   await db.seedFollow
-    .create({ data: { seedId, userId, level: "highlights" } })
+    .create({ data: { seedId, userId, level: "all" } })
     .catch(() => {}); // unique-conflict (already follows) or unmigrated table → ignore
 }
 
