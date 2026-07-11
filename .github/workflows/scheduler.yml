@@ -1,0 +1,62 @@
+name: ThinkThru scheduler
+
+# Reliable triggering for the daily notifications, independent of Vercel Cron
+# (which on the Hobby plan is capped at 2 jobs and is best-effort on timing).
+# This hits the same protected endpoints with the CRON_SECRET. The morning slot
+# is guarded server-side to once per UTC day, so it's safe to run alongside the
+# Vercel crons — whichever fires first wins, the other no-ops.
+#
+# ── ONE-TIME SETUP ─────────────────────────────────────────────────────────
+#   1. GitHub → repo → Settings → Secrets and variables → Actions →
+#      New repository secret:  Name = CRON_SECRET   Value = <same as in Vercel>
+#   2. (optional) Variables tab → New variable: APP_URL = https://thinkthru.app
+#      (only needed if the domain differs from the default below)
+#   3. Actions tab → "ThinkThru scheduler" → Run workflow → to test on demand.
+#
+# Times are UTC. IST = UTC + 5:30. GitHub may delay a scheduled run by a few to
+# ~15 minutes under load; ?slot= makes that harmless (a late morning run still
+# behaves as morning). For to-the-minute precision, use cron-job.org instead.
+
+on:
+  schedule:
+    - cron: "30 4 * * *"    # 10:00 IST — morning: good-morning + question of the day
+    - cron: "30 13 * * *"   # 19:00 IST — evening: activity nudges + re-kindle
+    - cron: "0 14 * * *"    # 19:30 IST — daily email digest
+  workflow_dispatch: {}      # manual "Run workflow" button in the Actions tab
+
+concurrency:
+  group: thinkthru-scheduler
+  cancel-in-progress: false
+
+jobs:
+  fire:
+    runs-on: ubuntu-latest
+    env:
+      APP_URL: ${{ vars.APP_URL || 'https://thinkthru.app' }}
+    steps:
+      - name: Morning nudge (10:00 IST) + manual runs
+        if: ${{ github.event.schedule == '30 4 * * *' || github.event_name == 'workflow_dispatch' }}
+        run: |
+          code=$(curl -sS -o /tmp/out.txt -w '%{http_code}' \
+            "$APP_URL/api/cron/nudge?slot=morning" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          echo "HTTP $code"; cat /tmp/out.txt; echo
+          test "$code" = "200"
+
+      - name: Evening nudge (19:00 IST)
+        if: ${{ github.event.schedule == '30 13 * * *' }}
+        run: |
+          code=$(curl -sS -o /tmp/out.txt -w '%{http_code}' \
+            "$APP_URL/api/cron/nudge?slot=evening" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          echo "HTTP $code"; cat /tmp/out.txt; echo
+          test "$code" = "200"
+
+      - name: Daily digest (19:30 IST)
+        if: ${{ github.event.schedule == '0 14 * * *' }}
+        run: |
+          code=$(curl -sS -o /tmp/out.txt -w '%{http_code}' \
+            "$APP_URL/api/cron/digest" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}")
+          echo "HTTP $code"; cat /tmp/out.txt; echo
+          test "$code" = "200"

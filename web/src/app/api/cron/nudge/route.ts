@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { appUrl } from "@/lib/email";
 import { pushConfigured, sendPushToUser } from "@/lib/push";
 import { sendGoodMorning, summarise } from "@/lib/services/morning";
-import { cronAuthorized, markCronRun } from "@/lib/cron";
+import { cronAuthorized, markCronRun, cronRanToday } from "@/lib/cron";
 import { rekindleStallingThreads } from "@/lib/services/rekindle";
 
 export const dynamic = "force-dynamic";
@@ -34,14 +34,28 @@ export async function GET(req: Request) {
   if (!cronAuthorized(req)) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
-  const slot = new Date().getUTCHours() < 6 ? "morning" : "evening";
+  // The slot is normally chosen by UTC hour, but a scheduler can force it with
+  // ?slot=morning|evening — so an external cron (GitHub Actions) that fires a bit
+  // late can't accidentally flip morning into the evening branch.
+  const override = new URL(req.url).searchParams.get("slot");
+  const slot =
+    override === "morning" || override === "evening"
+      ? override
+      : new Date().getUTCHours() < 6
+        ? "morning"
+        : "evening";
   if (!pushConfigured()) {
     await markCronRun(slot, "push not configured");
     return NextResponse.json({ ok: true, sent: 0, note: "push not configured" });
   }
 
-  // Morning → daily good-morning to everyone who wants push.
+  // Morning → daily good-morning to everyone who wants push. Guarded to once per
+  // UTC day so two schedulers (Vercel cron + GitHub Actions) can both point here
+  // safely without double-pinging everyone.
   if (slot === "morning") {
+    if (await cronRanToday("morning")) {
+      return NextResponse.json({ ok: true, slot: "morning", skipped: "already ran today" });
+    }
     const r = await sendGoodMorning();
     await markCronRun("morning", `sent ${r.sent}/${r.recipients}`);
     return NextResponse.json({ ok: true, slot: "morning", ...r });

@@ -24,6 +24,24 @@ export function cronAuthorized(req: Request): boolean {
   return isVercelCron;
 }
 
+// Has this cron slot already run today (UTC)? Lets two schedulers safely point
+// at the same endpoint without double-firing a once-a-day job. Fails open
+// (returns false) if the heartbeat table isn't there yet.
+export async function cronRanToday(name: string, now = new Date()): Promise<boolean> {
+  try {
+    const row = await db.cronRun.findUnique({ where: { name }, select: { lastRunAt: true } });
+    if (!row) return false;
+    const last = new Date(row.lastRunAt);
+    return (
+      last.getUTCFullYear() === now.getUTCFullYear() &&
+      last.getUTCMonth() === now.getUTCMonth() &&
+      last.getUTCDate() === now.getUTCDate()
+    );
+  } catch {
+    return false;
+  }
+}
+
 // Record that a cron slot ran, so /admin can show "morning cron last ran …" and
 // we can tell a firing-but-empty cron from one that never fires — without having
 // to dig through Vercel function logs. Best-effort: never let it break the job.
