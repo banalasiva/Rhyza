@@ -85,8 +85,15 @@ body {
   min-height: 100%;
   background: var(--bg);
   /* Clear the fixed labelled bottom navigation bar so page content is never
-     hidden behind it (plus the device's home-indicator safe area). */
+     hidden behind it (plus the device's home-indicator safe area). On desktop
+     the bottom bar is hidden (nav moves to the top header), so no clearance. */
   padding-bottom: calc(4.25rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  html,
+  body {
+    padding-bottom: 0;
+  }
 }
 
 body {

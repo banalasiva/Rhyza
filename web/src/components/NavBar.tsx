@@ -4,6 +4,7 @@ import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { NavSidebar } from "@/components/NavSidebar";
 import { BottomNav } from "@/components/BottomNav";
+import { TopNav } from "@/components/TopNav";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { FeedbackButton } from "@/components/FeedbackButton";
 
@@ -36,6 +37,9 @@ export async function NavBar({ name }: { name?: string }) {
             ThinkThru
           </Link>
         </div>
+        {/* Desktop main nav — the five destinations as a labelled row. On phones
+            this is hidden and the fixed bottom bar takes over. */}
+        <TopNav unread={unread} />
         {/* About + light/dark toggle — matching circular controls, top-right. */}
         <div className="flex items-center gap-2">
           <FeedbackButton />
