@@ -77,6 +77,12 @@ export function Search() {
         )}
       </div>
 
+      {q.trim().length === 0 && (
+        <p className="mt-4 text-center text-sm text-ink-soft">
+          Find <span className="text-ink-mid">people</span> by name or email — plus seeds, messages,
+          and gardens.
+        </p>
+      )}
       {q.trim().length > 0 && q.trim().length < 2 && (
         <p className="mt-4 text-center text-sm text-ink-soft">Keep typing…</p>
       )}

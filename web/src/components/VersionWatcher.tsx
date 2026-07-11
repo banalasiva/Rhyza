@@ -2,39 +2,62 @@
 
 import { useEffect, useRef, useState } from "react";
 
-// Keeps everyone on the latest deploy WITHOUT yanking the page out from under
-// them. Installed PWAs happily resume old code from memory and never re-fetch,
-// so we quietly poll which build is live — but when a newer one appears we show
-// a small, dismissible "refresh" pill instead of force-reloading. The person
-// chooses when to update, so a reply or a half-typed thought is never lost.
+// Keeps everyone on the latest deploy without yanking the page mid-use.
+// Installed PWAs happily resume old code from memory and never re-fetch, so we
+// poll which build is live and:
+//   • when you RETURN to the app after switching away → silently reload to the
+//     latest (you weren't mid-thought, so it's invisible and keeps you current);
+//   • when a deploy lands WHILE you're actively using it → show a small,
+//     dismissible "refresh" pill instead of interrupting.
+// This is the balance: nobody gets stuck on stale code (the reason People search
+// looked missing), but a reply or half-typed thought is never wiped out.
 export function VersionWatcher() {
   const dismissed = useRef(false);
+  const wasHidden = useRef(false);
   const [updateReady, setUpdateReady] = useState(false);
 
   useEffect(() => {
     const mine = process.env.NEXT_PUBLIC_BUILD_ID;
     if (!mine || mine === "dev") return;
 
-    async function check() {
-      if (dismissed.current || updateReady || document.visibilityState !== "visible") return;
+    async function latestDiffers(): Promise<boolean> {
       try {
         const res = await fetch("/api/version", { cache: "no-store" });
-        if (!res.ok) return;
+        if (!res.ok) return false;
         const { v } = (await res.json()) as { v?: string };
-        if (v && v !== mine) setUpdateReady(true);
+        return !!v && v !== mine;
       } catch {
-        /* offline / transient — try again later */
+        return false;
       }
     }
 
-    const onVisible = () => {
-      if (document.visibilityState === "visible") check();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    const id = window.setInterval(check, 60_000);
-    check();
+    // Detected while actively using → offer the pill, never yank.
+    async function checkActive() {
+      if (dismissed.current || updateReady || document.visibilityState !== "visible") return;
+      if (await latestDiffers()) setUpdateReady(true);
+    }
+
+    async function onVisibility() {
+      if (document.visibilityState === "hidden") {
+        wasHidden.current = true;
+        return;
+      }
+      // Just came back to the app → safe to jump straight to the latest.
+      if (wasHidden.current) {
+        wasHidden.current = false;
+        if (await latestDiffers()) {
+          window.location.reload();
+          return;
+        }
+      }
+      void checkActive();
+    }
+
+    document.addEventListener("visibilitychange", onVisibility);
+    const id = window.setInterval(checkActive, 60_000);
+    void checkActive();
     return () => {
-      document.removeEventListener("visibilitychange", onVisible);
+      document.removeEventListener("visibilitychange", onVisibility);
       window.clearInterval(id);
     };
   }, [updateReady]);
