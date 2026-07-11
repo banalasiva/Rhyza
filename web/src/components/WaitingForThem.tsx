@@ -45,6 +45,10 @@ export function WaitingForThem() {
   const [collapsed, setCollapsed] = useState<boolean | null>(null);
   // The invite-set signature the card was ✕-closed against (null = not closed).
   const [dismissedSig, setDismissedSig] = useState<string | null>(null);
+  // The person just crossed off — shows a one-tap Undo for a few seconds.
+  const [justHidden, setJustHidden] = useState<string | null>(null);
+  // Whether the "crossed off" list is expanded for per-person restore.
+  const [showHiddenList, setShowHiddenList] = useState(false);
 
   useEffect(() => {
     setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
@@ -69,8 +73,22 @@ export function WaitingForThem() {
       /* ignore */
     }
   }
-  const hide = (id: string) => persistHidden(new Set(hidden).add(id));
-  const restoreAll = () => persistHidden(new Set());
+  // Cross off one person, and remember it briefly so a mis-tap has a one-tap Undo.
+  const hide = (id: string) => {
+    persistHidden(new Set(hidden).add(id));
+    setJustHidden(id);
+    window.setTimeout(() => setJustHidden((cur) => (cur === id ? null : cur)), 6000);
+  };
+  const unhide = (id: string) => {
+    const next = new Set(hidden);
+    next.delete(id);
+    persistHidden(next);
+    setJustHidden((cur) => (cur === id ? null : cur));
+  };
+  const restoreAll = () => {
+    persistHidden(new Set());
+    setJustHidden(null);
+  };
 
   if (!invites || invites.length === 0) return null;
 
@@ -154,11 +172,12 @@ export function WaitingForThem() {
         <div className="flex shrink-0 items-center gap-2">
           {!isCollapsed && hiddenCount > 0 && (
             <button
-              onClick={restoreAll}
+              onClick={() => setShowHiddenList((v) => !v)}
+              aria-expanded={showHiddenList}
               className="text-[11px] text-ink-soft transition hover:text-ink"
               title="Bring back anyone you crossed off"
             >
-              ↺ Show hidden ({hiddenCount})
+              ↺ {showHiddenList ? "Hide" : "Crossed off"} ({hiddenCount})
             </button>
           )}
           <button
@@ -176,9 +195,57 @@ export function WaitingForThem() {
       <p className="mb-3 mt-0.5 text-xs text-ink-soft">
         People you invited who haven’t joined yet. A hello from you means far more than any reminder.
       </p>
+
+      {/* Undo — a single mis-tapped cross-off is one tap away from coming back. */}
+      {justHidden && (
+        <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-[rgba(255,255,255,0.1)] bg-[rgba(7,13,7,0.4)] px-3 py-2">
+          <span className="min-w-0 truncate text-xs text-ink-mid">
+            Crossed off {invites.find((p) => p.id === justHidden)?.email || "someone"}
+          </span>
+          <button
+            onClick={() => unhide(justHidden)}
+            className="shrink-0 text-xs font-medium text-accent transition hover:text-ink"
+          >
+            ↺ Undo
+          </button>
+        </div>
+      )}
+
+      {/* Crossed-off list — bring back one person, or everyone. */}
+      {showHiddenList && hiddenCount > 0 && (
+        <div className="mb-3 rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(7,13,7,0.3)] p-2.5">
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-[11px] text-ink-soft">Crossed off</span>
+            <button
+              onClick={restoreAll}
+              className="text-[11px] text-accent transition hover:text-ink"
+            >
+              Bring all back
+            </button>
+          </div>
+          <ul className="space-y-1">
+            {invites
+              .filter((p) => hidden.has(p.id))
+              .map((p) => (
+                <li key={p.id} className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-xs text-ink-mid">
+                    {p.email || "Someone you invited"}
+                  </span>
+                  <button
+                    onClick={() => unhide(p.id)}
+                    className="shrink-0 rounded-full border border-[rgba(76,175,80,0.3)] px-2.5 py-1 text-[11px] text-ink-mid transition hover:text-ink"
+                  >
+                    ↺ Bring back
+                  </button>
+                </li>
+              ))}
+          </ul>
+        </div>
+      )}
+
       {visible.length === 0 ? (
         <p className="py-2 text-center text-xs text-ink-soft">
-          All caught up 🌱 {hiddenCount > 0 && "— tap “Show hidden” to bring anyone back."}
+          All caught up 🌱 {hiddenCount > 0 && "— tap “Crossed off” to bring anyone back."}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -208,7 +275,7 @@ export function WaitingForThem() {
                 <button
                   onClick={() => hide(p.id)}
                   aria-label="Cross off — they don't need a nudge"
-                  title="Cross off (you can bring them back with “Show hidden”)"
+                  title="Cross off (Undo appears, or bring them back later from “Crossed off”)"
                   className="rounded-full px-1.5 py-1 text-ink-soft transition hover:text-[#e57373]"
                 >
                   ✕
