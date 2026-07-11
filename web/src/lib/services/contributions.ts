@@ -29,6 +29,7 @@ import { deliver } from "@/lib/services/notify";
 import { bumpFollowOnContribute } from "@/lib/services/explore";
 import { notifyFollowersJoinedDiscussion } from "@/lib/services/follows";
 import { markAsksAnswered } from "@/lib/services/asks";
+import { maybeSenseRoom, resolveMediatorNudge } from "@/lib/services/mediator";
 import { getReactionTypes } from "@/lib/registry";
 
 async function seedOrThrow(seedId: string) {
@@ -446,6 +447,8 @@ export async function mediateSeed(
     },
     include: { author: { select: { id: true, name: true, image: true } } },
   });
+  // The presence answered — clear any live offer so it doesn't keep asking.
+  if (mode === "peace" || mode === "guide") void resolveMediatorNudge(seedId);
   return contribution;
 }
 
@@ -486,6 +489,10 @@ export async function addContribution(
   // If someone asked you here directly, that ask is now answered — close it and
   // tell them (the other half of the rally). Best-effort; never blocks posting.
   void markAsksAnswered(seedId, userId);
+
+  // The wise presence takes a quiet, throttled read of the room after a human
+  // message — and offers to step in if it's getting rough or drifting.
+  void maybeSenseRoom(seedId);
 
   // The "someone you follow joined this discussion" hook — only the FIRST time
   // this person contributes to a world-visible seed, so it never becomes

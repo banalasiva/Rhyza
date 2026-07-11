@@ -5,6 +5,7 @@ import { STAGE_KEYS, type StageKey } from "@/lib/constants";
 import { autoFollowOnView } from "@/lib/services/explore";
 import { notifyFollowersNewSeed, notifyGardenNewSeed } from "@/lib/services/follows";
 import { getJoinStatus } from "@/lib/services/joinreq";
+import { getMediatorNudge } from "@/lib/services/mediator";
 
 // What a contribution carries for the room view — author, reactions (with the
 // reactor's name, so we can show *who* reacted), and endorsements.
@@ -380,7 +381,7 @@ export type SeedSync = Awaited<ReturnType<typeof getSeedSync>>;
 // conversation, so the poll stays cheap.
 export async function getSeedSync(userId: string, seedId: string) {
   await requireSeedAccess(userId, seedId);
-  const [rows, distribution, myVote, seed] = await Promise.all([
+  const [rows, distribution, myVote, seed, mediatorNudge] = await Promise.all([
     db.contribution.findMany({
       where: { seedId, deletedAt: null },
       orderBy: { createdAt: "asc" },
@@ -389,6 +390,7 @@ export async function getSeedSync(userId: string, seedId: string) {
     stageDistribution(seedId),
     db.seedStageVote.findUnique({ where: { seedId_userId: { seedId, userId } } }),
     db.seed.findUnique({ where: { id: seedId }, select: { stage: true, bloomId: true } }),
+    getMediatorNudge(seedId),
   ]);
   const stage = (seed?.stage === "bloomed" && !seed.bloomId ? "growing" : seed?.stage ?? "seed") as StageKey;
   return {
@@ -396,6 +398,7 @@ export async function getSeedSync(userId: string, seedId: string) {
     distribution,
     stage,
     myVote: myVote?.stage ?? null,
+    mediatorNudge, // { mode, reason } | null — the presence's live offer, for everyone
   };
 }
 

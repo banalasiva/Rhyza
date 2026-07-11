@@ -838,6 +838,20 @@ model UserSectionVisibility {
   @@map("user_section_visibility")
 }
 
+// The wise presence sensing the room. One row per seed: `mode` set (peace|guide)
+// means there's a live offer to step in, shown to everyone via the seed's sync
+// poll — anyone can accept. `sensedAt` throttles how often we re-run the sense so
+// it never spams or over-costs. Cleared when someone accepts (or on decline).
+model SeedMediatorNudge {
+  seedId    String   @id @map("seed_id") @db.Uuid
+  mode      String? // peace | guide | null
+  reason    String?
+  sensedAt  DateTime @default(now()) @map("sensed_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("seed_mediator_nudges")
+}
+
 // A mutual connection between two people (like a LinkedIn connection). One
 // person requests, the other accepts; once accepted they're in each other's
 // circle — which means they can be added straight into each other's private

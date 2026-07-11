@@ -154,6 +154,9 @@ export function SeedRoom({
   const [labelFx, setLabelFx] = useState<{ id: number; text: string; x: number; y: number }[]>([]);
   const burstId = useRef(0);
   const [showHelp, setShowHelp] = useState(false);
+  // The wise presence's live offer, sensed server-side and delivered to every
+  // screen via the sync poll. When set, the presence glows and asks to step in.
+  const [nudge, setNudge] = useState<{ mode: "peace" | "guide"; reason: string } | null>(null);
 
   useEffect(() => setMuted(muted), [muted]);
 
@@ -321,9 +324,13 @@ export function SeedRoom({
               distribution: typeof distribution;
               stage: string;
               myVote: string | null;
+              mediatorNudge?: { mode: "peace" | "guide"; reason: string } | null;
             }
           | undefined;
         if (!snap) return;
+
+        // The presence's live offer, sensed server-side — shown to everyone.
+        setNudge(snap.mediatorNudge ?? null);
 
         const now = Date.now();
         for (const [id, t0] of pendingRef.current) if (now - t0 > 8000) pendingRef.current.delete(id);
@@ -581,6 +588,7 @@ export function SeedRoom({
   async function invokePresence(mode: "peace" | "guide") {
     if (presenceMode) return;
     setPresenceMode(mode);
+    setNudge(null); // accepting the offer clears it for everyone
     setError(null);
     try {
       const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/mediate`, {
@@ -595,6 +603,12 @@ export function SeedRoom({
     } finally {
       setPresenceMode(null);
     }
+  }
+
+  // "Not now" — clear the offer for everyone without inviting the presence in.
+  function dismissNudge() {
+    setNudge(null);
+    void fetch(`/api/seeds/${seed.id}/mediator/dismiss`, { method: "POST" }).catch(() => {});
   }
 
   async function askMediate(provider: "claude" | "chatgpt") {
@@ -1527,6 +1541,39 @@ export function SeedRoom({
         {/* The wise presence — a calm candle at the foot of the conversation.
             Turn to it when it's getting heated (the dove), or when the thinking
             has drifted (the star). One tap; it never takes a side. */}
+        {/* The presence has SENSED something and is quietly offering — shown to
+            everyone via the live sync. Anyone can accept; one yes brings it in. */}
+        {!isBloomed && nudge && !presenceMode && (
+          <div
+            className={`mt-5 rounded-2xl border p-4 text-center ${
+              nudge.mode === "peace"
+                ? "border-[rgba(226,232,240,0.28)] bg-[rgba(226,232,240,0.05)]"
+                : "border-[rgba(255,179,0,0.32)] bg-[rgba(255,179,0,0.05)]"
+            }`}
+          >
+            <span className={`orb ${nudge.mode === "peace" ? "dove" : "star"} is-calling mx-auto mb-2`}>
+              {nudge.mode === "peace" ? "🕊️" : "🌟"}
+            </span>
+            <p className="text-sm text-ink">
+              {nudge.mode === "peace"
+                ? "This feels like it's getting heated. Shall I step in to help you find peace?"
+                : "One thing seems worth a closer look. Shall I offer a clearer view?"}
+            </p>
+            {nudge.reason && <p className="mt-0.5 text-[11px] italic text-ink-soft">{nudge.reason}</p>}
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <button
+                onClick={() => invokePresence(nudge.mode)}
+                className="btn-primary px-4 py-1.5 text-sm"
+              >
+                Yes, please
+              </button>
+              <button onClick={dismissNudge} className="btn-ghost px-3 py-1.5 text-xs">
+                Not now
+              </button>
+            </div>
+          </div>
+        )}
+
         {!isBloomed && contributions.length >= 2 && (
           <div className="presence mt-5 flex flex-col items-center gap-2 py-2">
             <p className="text-[11px] text-ink-soft">

@@ -346,6 +346,44 @@ export async function mediatePeace(input: {
   return text || null;
 }
 
+// Sense the room. A cheap, fast read of the recent exchange: is it healthy, is
+// it getting rough (→ dove), or is the thinking drifting/deciding too fast
+// (→ star)? Returns { mode: "peace" | "guide" | "none", reason }. Deliberately
+// conservative — it should mostly say "none", because a presence that offers
+// help too often is noise, not wisdom.
+export async function senseRoom(input: {
+  title: string;
+  transcript: string;
+}): Promise<{ mode: "peace" | "guide" | "none"; reason: string }> {
+  if (!aiConfigured()) return { mode: "none", reason: "" };
+  try {
+    const system =
+      "You quietly watch a small group's conversation and decide whether a gentle presence should " +
+      "OFFER to step in. Be very conservative — most healthy disagreement needs no help; only flag " +
+      "something real.\n" +
+      "Return 'peace' ONLY if it's genuinely getting rough between people — personal jabs, " +
+      "dismissiveness, 'you always/never', rising heat, someone shutting down.\n" +
+      "Return 'guide' ONLY if the THINKING is clearly off — a decision forming too fast, an " +
+      "obvious blind spot, an unquestioned assumption, or people talking past a missing fact.\n" +
+      "Otherwise return 'none'. When unsure, return 'none'.\n" +
+      'Respond with ONLY a JSON object: {"mode":"peace|guide|none","reason":"<max 12 words>"}.';
+    const out = await complete(
+      system,
+      `TOPIC: ${input.title}\n\nRECENT MESSAGES:\n${input.transcript.slice(0, 3000)}`,
+      120,
+      MODEL_FAST,
+    );
+    const m = out.match(/\{[\s\S]*\}/);
+    if (!m) return { mode: "none", reason: "" };
+    const parsed = JSON.parse(m[0]) as { mode?: string; reason?: string };
+    const mode = parsed.mode === "peace" || parsed.mode === "guide" ? parsed.mode : "none";
+    return { mode, reason: (parsed.reason || "").slice(0, 120) };
+  } catch (err) {
+    console.error("senseRoom failed", err);
+    return { mode: "none", reason: "" };
+  }
+}
+
 // 🌟 The guide (star). For when the *thinking* is drifting — a blind spot, a
 // missing fact, an unquestioned assumption, a decision forming too fast. Not a
 // peacemaker: a sage who illuminates. Socratic, humble, never "you're wrong".

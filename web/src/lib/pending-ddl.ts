@@ -414,4 +414,17 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "connections_requester_id_status_idx",
     sql: `CREATE INDEX IF NOT EXISTS "connections_requester_id_status_idx" ON "connections" ("requester_id", "status")`,
   },
+
+  // 20260711160000_seed_mediator_nudges
+  {
+    label: "seed_mediator_nudges",
+    sql: `CREATE TABLE IF NOT EXISTS "seed_mediator_nudges" (
+      "seed_id"    UUID NOT NULL REFERENCES "seeds" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "mode"       TEXT,
+      "reason"     TEXT,
+      "sensed_at"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "seed_mediator_nudges_pkey" PRIMARY KEY ("seed_id")
+    )`,
+  },
 ];
