@@ -33,10 +33,9 @@ export function summarise(types: string[]): string {
 export async function sendGoodMorning(): Promise<{ sent: number; recipients: number }> {
   if (!pushConfigured()) return { sent: 0, recipients: 0 };
 
-  const url = `${appUrl()}/notifications`;
-  // The daily push carries two gifts: today's touching quote (the body) and the
-  // day's question (the hook that pulls people in to tap an answer). Both land
-  // on Home where the question card lives.
+  // The daily push carries two gifts: the day's question (the hook that pulls
+  // people in to tap an answer) and today's touching quote. Both land on Home
+  // where the question card lives.
   const homeUrl = appUrl();
   const msg = await resolveMessageOfTheDay();
   const quoteLine = msg.author ? `“${msg.text}” — ${msg.author}` : msg.text;
@@ -83,22 +82,18 @@ export async function sendGoodMorning(): Promise<{ sent: number; recipients: num
   const CONCURRENCY = Number(process.env.PUSH_FANOUT_CONCURRENCY || 24);
   const outcomes = await mapLimit(people, CONCURRENCY, async (p: { id: string }) => {
     const g = groups.get(p.id);
-    // The quote is the gift — everyone gets it in the body, every morning. If
-    // there's unseen activity, we only hint the count in the title so people
-    // still know there's something waiting; the evening slot surfaces the actual
-    // activity. (Previously active people got the summary INSTEAD of the quote,
-    // so anyone with activity — e.g. the owner — never saw the quotes at all.)
-    // Everyone gets the quote; the question rides along as the reason to tap in.
-    // If there's unseen activity we hint the count in the title, and send them to
-    // their notifications instead of the question card.
-    const title = g
-      ? `Good morning 🌱 · ${g.ids.length} waiting`
-      : "Good morning 🌱 · Today's question";
-    const body = g ? quoteLine : `💭 ${question}\n\n${quoteLine}`;
+    // The daily question is the hook that pulls people in — so it LEADS the push
+    // for EVERYONE, every morning, with the touching quote right below it.
+    // (Previously anyone with unseen activity — e.g. the owner — got the quote
+    // only and never the question, which is why it didn't arrive as a
+    // notification.) If there's unseen activity we just hint the count in the
+    // title; the evening slot surfaces the actual activity.
+    const title = g ? `💭 Question of the day · ${g.ids.length} waiting` : "💭 Question of the day";
+    const body = `${question}\n\n${quoteLine}`;
     return sendPushToUser(p.id, {
       title,
       body,
-      url: g ? url : homeUrl,
+      url: homeUrl, // land on Home, where the question card is
       tag: "nudge", // collapses with any previous nudge on the device
     }).catch(() => 0);
   });
