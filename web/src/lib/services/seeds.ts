@@ -3,7 +3,7 @@ import { ApiError } from "@/lib/api";
 import { ensureGardenMember, requireSeedManager, requireSeedAccess, canModerateSeed } from "@/lib/authz";
 import { STAGE_KEYS, type StageKey } from "@/lib/constants";
 import { autoFollowOnView } from "@/lib/services/explore";
-import { notifyFollowersNewSeed } from "@/lib/services/follows";
+import { notifyFollowersNewSeed, notifyGardenNewSeed } from "@/lib/services/follows";
 
 // What a contribution carries for the room view — author, reactions (with the
 // reactor's name, so we can show *who* reacted), and endorsements.
@@ -88,6 +88,9 @@ export async function plantSeed(
   // private gardens never fan out.
   if (visibility === "public") {
     void notifyFollowersNewSeed(userId, { id: seed.id, title: seed.title, gardenId });
+    // Tell the garden's members there's a new question to weigh in on. Only for
+    // garden-visible seeds, so a private seed never pings people who can't open it.
+    void notifyGardenNewSeed(userId, { id: seed.id, title: seed.title, gardenId });
   }
 
   // Seed-level topics (for Explore discovery) are tagged lazily when a seed is

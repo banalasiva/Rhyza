@@ -167,6 +167,59 @@ export async function notifyFollowersNewSeed(
   }
 }
 
+// A new seed was planted in a garden — tell the garden's OTHER members ("Siva
+// planted a new seed in Home & family"). This is the everyday "there's a new
+// question to weigh in on" nudge for the group, distinct from the followers hook
+// above. Only for garden-visible (public-visibility) seeds, so a private seed
+// never leaks to members who can't open it. Best-effort.
+export async function notifyGardenNewSeed(
+  actorId: string,
+  seed: { id: string; title: string; gardenId: string },
+): Promise<void> {
+  try {
+    const [garden, members, me] = await Promise.all([
+      db.garden.findUnique({ where: { id: seed.gardenId }, select: { name: true } }).catch(() => null),
+      db.gardenMember
+        .findMany({ where: { gardenId: seed.gardenId, userId: { not: actorId } }, select: { userId: true } })
+        .catch(() => [] as { userId: string }[]),
+      db.user.findUnique({ where: { id: actorId }, select: { name: true } }),
+    ]);
+    const recipients = [...new Set((members as { userId: string }[]).map((m) => m.userId))];
+    if (recipients.length === 0) return;
+    const who = me?.name || "Someone";
+    const gardenName = (garden as { name?: string } | null)?.name || "your garden";
+    const title = `${who} planted a new seed 🌱`;
+    const body = `“${seed.title}” in ${gardenName}`;
+    const start = new Date();
+    await db.notification.createMany({
+      data: recipients.map((rid) => ({
+        recipientId: rid,
+        actorId,
+        type: "new_seed",
+        title,
+        body,
+        entityType: "seed",
+        entityId: seed.id,
+      })),
+    });
+    const rows = await db.notification.findMany({
+      where: { type: "new_seed", entityId: seed.id, actorId, recipientId: { in: recipients }, createdAt: { gte: start } },
+      select: { id: true, recipientId: true },
+    });
+    await deliver(
+      (rows as { id: string; recipientId: string }[]).map((r) => ({
+        notificationId: r.id,
+        recipientId: r.recipientId,
+        type: "new_seed",
+        push: { title, body },
+        link: `/seeds/${seed.id}`,
+      })),
+    );
+  } catch (err) {
+    console.error("notifyGardenNewSeed failed", err);
+  }
+}
+
 // A person you follow just JOINED a public discussion (their first message on it)
 // — the "they're thinking about this too" hook. Fires once per seed per person,
 // only for world-visible seeds, so it never becomes per-comment spam.
