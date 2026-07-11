@@ -18,11 +18,19 @@ const SCHOOL = {
     { who: "Claude", ai: true, dim: "understanding", text: "Teaching style and values shape a child more than a short commute." },
   ] as Msg[],
   // Decide isn't a plain vote — the group answers real weighting questions (from
-  // the "Decide" quorum template) so the fairest voice carries most on each part.
-  decide: [
-    { q: "Who will this affect the most?", a: "Aria" },
-    { q: "Whose opinion do you trust most here?", a: "Priya & Arjun" },
-  ],
+  // the "Decide" quorum template) and the weight spreads: each question is
+  // carried by whoever has the most stake in it. Different people lead different
+  // questions — not one person for everything.
+  decide: {
+    weighed: [
+      { q: "Who will this affect the most?", a: "Aria" },
+      { q: "Who’s paying for it?", a: "Arjun" },
+      { q: "Whose judgement do we trust most?", a: "Priya" },
+    ],
+    // Once the revealed weight behind "ready" crosses the majority, it blooms —
+    // so two people carrying most of the weight can tip it.
+    pct: 62,
+  },
   bloom: "Lead with teaching philosophy and values; treat commute as a tie-breaker.",
 };
 
@@ -140,18 +148,26 @@ export function LandingDemo() {
         style={{ borderColor: "rgba(76,175,80,0.3)", background: "rgba(76,175,80,0.06)" }}
       >
         <span aria-hidden className="text-sm leading-none">⚖️</span>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="mb-1 text-[11px] font-medium" style={{ color: "#66BB6A" }}>Decided together</p>
           <ul className="space-y-1">
-            {SCHOOL.decide.map((d) => (
+            {SCHOOL.decide.weighed.map((d) => (
               <li key={d.q} className="text-xs leading-relaxed text-ink-mid">
                 <span className="text-ink-soft">{d.q}</span>{" "}
                 <span className="text-ink">→ {d.a}</span>
               </li>
             ))}
           </ul>
+          {/* Weight revealed — a majority marker at 50%; the fill crosses it. */}
+          <div className="relative mt-2 h-1.5 rounded-full bg-[rgba(255,255,255,0.08)]">
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${SCHOOL.decide.pct}%`, background: "linear-gradient(to right,#FFD54F,#FF8F00)" }}
+            />
+            <span aria-hidden className="absolute -top-0.5 h-[10px] w-px bg-[rgba(255,255,255,0.45)]" style={{ left: "50%" }} />
+          </div>
           <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">
-            Everyone&apos;s weight adds up to one fair answer — not just the loudest voice.
+            Just 2 of 3 voted — but they carry <span className="text-ink">{SCHOOL.decide.pct}%</span> of the weight. Past the majority, it blooms.
           </p>
         </div>
       </div>
