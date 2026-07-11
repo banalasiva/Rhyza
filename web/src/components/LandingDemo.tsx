@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { DIMENSIONS } from "@/lib/constants";
-import { PlantSvg } from "@/components/PlantSvg";
 
 type Msg = { who: string; ai?: boolean; dim: string; text: string };
 
@@ -173,12 +172,28 @@ export function LandingDemo() {
           </p>
         </div>
 
-        {/* ── BLOOM & SACRED TREE ── the joyful payoff. The same living bloom
-            stays on screen (a glowing flower on a rooted plant — the Sacred
-            Tree) while the words move from "it bloomed" to "it's kept forever". */}
+        {/* ── BLOOM & SACRED TREE ── the joyful payoff: a bloom blossoming on the
+            Sacred Tree (the real artwork), while the words move from "it bloomed"
+            to "it's kept forever". */}
         <div className={`absolute inset-0 flex flex-col items-center transition-opacity duration-700 ${phase === "bloom" || phase === "tree" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
-          <div className="h-[150px] w-[150px] shrink-0">
-            <PlantSvg stage={4} />
+          <div className="relative h-[188px] w-full shrink-0 overflow-hidden rounded-xl bg-black">
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: "url('/sacred-tree-dark.png')",
+                backgroundSize: "contain",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+              }}
+            />
+            {/* the bloom, blossoming in the canopy */}
+            <div
+              className="absolute left-1/2 top-2 -translate-x-1/2 animate-pulse text-3xl leading-none"
+              style={{ filter: "drop-shadow(0 0 12px rgba(255,213,79,0.85))" }}
+              aria-hidden
+            >
+              🌸
+            </div>
           </div>
           {/* Caption swaps between Bloom and Tree in a small reserved area */}
           <div className="relative mt-1 w-full flex-1">
