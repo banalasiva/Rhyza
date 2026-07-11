@@ -20,10 +20,6 @@ type Pending = {
 // pick the person); a WhatsApp Business / Exotel auto-send can layer on later.
 const HIDDEN_KEY = "tt-waiting-hidden";
 const COLLAPSE_KEY = "tt-waiting-collapsed";
-// When you ✕-close the card we remember *which* invites you dismissed (a
-// signature of their ids). The card stays gone until that set changes — i.e. it
-// quietly comes back only when you invite someone new.
-const DISMISS_KEY = "tt-waiting-dismissed";
 
 function loadHidden(): Set<string> {
   try {
@@ -43,8 +39,6 @@ export function WaitingForThem() {
   // Whether the whole card is folded away. `null` = the user hasn't chosen, so
   // we fall back to a sensible default (collapsed once you're all caught up).
   const [collapsed, setCollapsed] = useState<boolean | null>(null);
-  // The invite-set signature the card was ✕-closed against (null = not closed).
-  const [dismissedSig, setDismissedSig] = useState<string | null>(null);
   // The person just crossed off — shows a one-tap Undo for a few seconds.
   const [justHidden, setJustHidden] = useState<string | null>(null);
   // Whether the "crossed off" list is expanded for per-person restore.
@@ -56,7 +50,6 @@ export function WaitingForThem() {
     try {
       const c = localStorage.getItem(COLLAPSE_KEY);
       if (c !== null) setCollapsed(c === "1");
-      setDismissedSig(localStorage.getItem(DISMISS_KEY));
     } catch {
       /* ignore */
     }
@@ -91,19 +84,6 @@ export function WaitingForThem() {
   };
 
   if (!invites || invites.length === 0) return null;
-
-  // Signature of the current invite set. If it matches what you dismissed, the
-  // card stays closed; a new invite changes the signature and brings it back.
-  const sig = invites.map((p) => p.id).sort().join(",");
-  if (dismissedSig === sig) return null;
-  function dismiss() {
-    setDismissedSig(sig);
-    try {
-      localStorage.setItem(DISMISS_KEY, sig);
-    } catch {
-      /* ignore */
-    }
-  }
 
   const visible = invites.filter((p) => !hidden.has(p.id));
   const hiddenCount = invites.length - visible.length;
@@ -169,26 +149,16 @@ export function WaitingForThem() {
             <span className="text-[11px] font-normal text-ink-soft">({visible.length})</span>
           )}
         </button>
-        <div className="flex shrink-0 items-center gap-2">
-          {!isCollapsed && hiddenCount > 0 && (
-            <button
-              onClick={() => setShowHiddenList((v) => !v)}
-              aria-expanded={showHiddenList}
-              className="text-[11px] text-ink-soft transition hover:text-ink"
-              title="Bring back anyone you crossed off"
-            >
-              ↺ {showHiddenList ? "Hide" : "Crossed off"} ({hiddenCount})
-            </button>
-          )}
+        {!isCollapsed && hiddenCount > 0 && (
           <button
-            onClick={dismiss}
-            aria-label="Close — hide this card"
-            title="Close (comes back if you invite someone new)"
-            className="text-ink-soft transition hover:text-ink"
+            onClick={() => setShowHiddenList((v) => !v)}
+            aria-expanded={showHiddenList}
+            className="shrink-0 text-[11px] text-ink-soft transition hover:text-ink"
+            title="Bring back anyone you crossed off"
           >
-            ✕
+            ↺ {showHiddenList ? "Hide" : "Crossed off"} ({hiddenCount})
           </button>
-        </div>
+        )}
       </div>
       {isCollapsed ? null : (
       <>
