@@ -24,7 +24,6 @@ import { shareOrCopy } from "@/lib/share-client";
 import { CollapsibleText } from "@/components/CollapsibleText";
 import { Avatar } from "@/components/Avatar";
 import { Attachments, type Attachment } from "@/components/Attachments";
-import { StakeMap } from "@/components/StakeMap";
 import { type Board } from "@/components/StakeBoard";
 import { PollCard, PollCreator, type Poll } from "@/components/SeedPolls";
 import { QuorumV2 } from "@/components/QuorumV2";
@@ -1783,15 +1782,21 @@ export function SeedRoom({
               </span>
             </div>
             <p className="mx-auto mb-4 max-w-sm text-center text-xs text-ink-soft">
-              Voting shares your read with everyone here — it’s how the group sees whether
-              we’re converging or still finding our way. The plant grows to match where most
-              people feel it stands.
+              Your move: vote to tell everyone whether this conversation is
+              <span style={{ color: "#66BB6A" }}> moving forward</span> or
+              <span style={{ color: "#EF9A9A" }}> slipping back</span>. The plant grows to match
+              where the group stands — and everyone here is notified when you do.
             </p>
 
             {/* Community feels */}
-            <p className="eyebrow mb-1">
-              How ready does this feel?
-            </p>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <p className="eyebrow">How ready does this feel?</p>
+              {myVote === null && !isBloomed && (
+                <span className="rounded-full bg-[rgba(76,175,80,0.15)] px-2 py-0.5 text-[10px] font-medium" style={{ color: "#66BB6A" }}>
+                  your move
+                </span>
+              )}
+            </div>
             <p className="mb-3 text-[11px] text-ink-soft">
               {totalVotes} of {quorumSize} {quorumSize === 1 ? "member" : "members"} voted
               {notVoted > 0 && ` · ${notVoted} not yet`}
@@ -1828,7 +1833,7 @@ export function SeedRoom({
               </p>
             )}
             {myVote === null && !isBloomed && (
-              <p className="mt-2 text-center text-xs italic text-ink-soft">Tap a stage to vote → watch the plant respond</p>
+              <p className="mt-2 text-center text-xs italic text-ink-soft">Tap a stage to share where you feel it stands — everyone will be notified</p>
             )}
 
             {/* Bring the AIs into the quorum — they read the thread and vote too */}
@@ -1861,50 +1866,10 @@ export function SeedRoom({
               </div>
             </div>
 
-            {/* Bloom high bar */}
-            <div
-              className="mt-4 rounded-2xl border p-3"
-              style={{ borderColor: bloomReady ? "rgba(255,179,0,0.4)" : "rgba(255,255,255,0.07)", background: bloomReady ? "rgba(255,179,0,0.08)" : "rgba(255,255,255,0.03)" }}
-            >
-              <p className="eyebrow mb-2" style={{ color: bloomReady ? "#FFB300" : "#5A6456" }}>🌸 Ready to bloom?</p>
-              <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
-                <div className="h-full rounded-full" style={{ width: `${Math.min(100, (bloomedVotes / bloomTarget) * 100)}%`, background: bloomReady ? "linear-gradient(to right,#FFD54F,#FF8F00)" : "rgba(255,179,0,0.4)", transition: "width 0.7s" }} />
-              </div>
-              <p className="mb-1 text-[11px]" style={{ color: bloomReady ? "#FFB300" : "#5A6456" }}>
-                {isBloomed
-                  ? "🌸 Bloomed — collective knowledge, remembered."
-                  : `${bloomedVotes} of ${bloomTarget} people have voted to bloom${
-                      bloomNeeded > 0 ? ` — ${bloomNeeded} more to go` : " — ready!"
-                    }`}
-              </p>
-              {!isBloomed && (
-                <p className="mb-3 text-[10px] leading-relaxed text-ink-soft">
-                  This bar fills as people vote “Bloomed”. At {bloomTarget} votes, the seed blooms into durable knowledge.
-                </p>
-              )}
-              <Requirement met={bloomedVotes >= bloomTarget} label={`${bloomedVotes} of ${bloomTarget} voted to bloom`} />
-              <Requirement met={dimsWithContribs >= 3} label={`${dimsWithContribs} of 3 dimensions explored`} />
-              {stakeBoard && (stakeBoard.locked || stakeBoard.bloomProgress.configured) && (
-                <p className="mt-2 text-[10px] leading-relaxed text-bloom">
-                  ⚖️ Final call is stake-weighted — the Decide tab shows whose votes weigh more.
-                </p>
-              )}
-              {seed.canBloom && !isBloomed && (
-                <button
-                  onClick={bloomNow}
-                  disabled={busy}
-                  className="mt-3 w-full rounded-full px-3 py-2 text-xs font-medium text-bg transition"
-                  style={{ background: "linear-gradient(135deg,#FFB300,#FF8F00)" }}
-                >
-                  🌸 Bloom now
-                </button>
-              )}
-            </div>
-
-            {/* Stake-weighted quorum glance — full board lives in the Quorum tab */}
-            {tab !== "decide" && (
-              <StakeMap board={stakeBoard} onOpen={() => setTab("decide")} bloomed={isBloomed} />
-            )}
+            {/* Ready-to-bloom and stake weighting used to live here too, but they
+                already have their own Bloom and Decide tabs — no need to repeat
+                them under every chat. This rail stays focused on one action:
+                vote your read and watch the plant respond. */}
           </div>
         </div>
       </aside>
