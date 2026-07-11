@@ -113,13 +113,19 @@ export async function search(userId: string, orgId: string, raw: string): Promis
       take: 6,
       select: { id: true, name: true, emoji: true },
     }),
-    // People across ThinkThru, by name — profiles are public, so anyone can be
-    // found (excluding the AI participants and deleted accounts).
+    // People across ThinkThru, by name OR email — profiles are public, so anyone
+    // can be found (excluding the AI participants and deleted accounts). Email is
+    // essential: a freshly-invited person often has NO name yet, so name-only
+    // search can't surface them — but whoever invited them knows their email.
     db.user.findMany({
-      where: { deletedAt: null, name: ci, NOT: { name: { in: ["Claude", "ChatGPT"] } } },
+      where: {
+        deletedAt: null,
+        OR: [{ name: ci }, { email: ci }],
+        NOT: { name: { in: ["Claude", "ChatGPT"] } },
+      },
       orderBy: { name: "asc" },
       take: 8,
-      select: { id: true, name: true, image: true },
+      select: { id: true, name: true, email: true, image: true },
     }),
   ]);
 
@@ -132,7 +138,11 @@ export async function search(userId: string, orgId: string, raw: string): Promis
   }));
   const messageResults = messages; // already the final shape from searchMessages
   const gardenResults = gardens.map((g) => ({ id: g.id, name: g.name, emoji: g.emoji }));
-  const peopleResults = people as { id: string; name: string | null; image: string | null }[];
+  // Fall back to email as the label so a person who hasn't set a name yet still
+  // shows up as something clickable (not a blank row).
+  const peopleResults = (people as { id: string; name: string | null; email: string | null; image: string | null }[]).map(
+    (u) => ({ id: u.id, name: u.name || u.email || "Someone", image: u.image }),
+  );
 
   return {
     query: q,

@@ -8,7 +8,13 @@ import Google from "next-auth/providers/google";
 // Google Workspace, Auth0, or any OIDC-compliant IdP without code changes.
 // SAML-only IdPs are bridged to OIDC via SAML Jackson (see DEPLOY.md).
 
-const providers: NextAuthConfig["providers"] = [Google];
+const providers: NextAuthConfig["providers"] = [
+  // Always show Google's account chooser. Without prompt=select_account, Google
+  // silently reuses whatever account is already signed in on the device — so
+  // someone with several Gmail accounts (or on a shared phone) gets logged into
+  // the wrong one with no way to pick. The chooser is essential for onboarding.
+  Google({ authorization: { params: { prompt: "select_account" } } }),
+];
 
 if (process.env.AUTH_SSO_ISSUER && process.env.AUTH_SSO_CLIENT_ID) {
   providers.push({

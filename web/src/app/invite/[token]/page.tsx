@@ -20,6 +20,7 @@ export default async function InvitePage({
     getViewer(),
     getInviteByToken(params.token),
   ]);
+  const emailEnabled = !!process.env.RESEND_API_KEY;
 
   // Already in? Don't show an invite (or worse, an "expired" wall) — just take
   // them where they're going.
@@ -110,19 +111,55 @@ export default async function InvitePage({
       {viewer ? (
         <AcceptInviteButton token={invite.token} seed={!!invite.seed} />
       ) : (
-        <form
-          action={async () => {
-            "use server";
-            await signIn("google", { redirectTo: `/invite/${params.token}` });
-          }}
-        >
-          <button type="submit" className="btn-primary w-full">
-            {invite.seed ? "Sign in to join the conversation" : "Sign in to accept"}
-          </button>
+        <>
+          <form
+            action={async () => {
+              "use server";
+              await signIn("google", { redirectTo: `/invite/${params.token}` });
+            }}
+          >
+            <button type="submit" className="btn-primary w-full">
+              {invite.seed ? "Continue with Google" : "Sign in to accept"}
+            </button>
+          </form>
+
+          {/* Email fallback — crucial for this flow. If Google picks the wrong
+              account (or they'd rather use a specific address), a magic link
+              brings them right back to THIS invite, so the invite is never lost. */}
+          {emailEnabled && (
+            <>
+              <div className="my-3 flex items-center gap-3 text-[11px] text-ink-soft">
+                <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
+                or use your email
+                <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
+              </div>
+              <form
+                action={async (formData: FormData) => {
+                  "use server";
+                  const email = String(formData.get("email") || "").trim();
+                  if (!email) return;
+                  await signIn("resend", { email, redirectTo: `/invite/${params.token}` });
+                }}
+                className="space-y-2"
+              >
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="you@email.com"
+                  className="w-full rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-sm text-ink outline-none focus:border-accent"
+                />
+                <button type="submit" className="btn-ghost w-full">
+                  Email me a sign-in link
+                </button>
+              </form>
+            </>
+          )}
           <p className="mt-3 text-xs text-ink-soft">
-            Takes a few seconds. By continuing you agree to the Code of Conduct.
+            By continuing you agree to the Code of Conduct.
           </p>
-        </form>
+        </>
       )}
     </Shell>
   );

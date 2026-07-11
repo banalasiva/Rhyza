@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { signOut } from "@/auth";
 import { requireViewer } from "@/lib/session";
 import { getMyRoots } from "@/lib/services/roots";
 import { NavBar } from "@/components/NavBar";
@@ -247,6 +248,26 @@ export default async function RootsPage() {
             </Link>
           </div>
         )}
+
+        {/* Account — signed-in-as + a plainly visible sign out. Sign out was
+            buried in the side panel; onboarding needs it obvious (especially when
+            someone logs into the wrong Google account and needs to switch). */}
+        <div className="mt-10 border-t border-[rgba(255,255,255,0.08)] pt-5">
+          <p className="text-xs text-ink-soft">
+            Signed in as <span className="text-ink-mid">{viewer.email}</span>
+          </p>
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/login" });
+            }}
+            className="mt-2"
+          >
+            <button type="submit" className="btn-ghost px-4 py-2 text-sm">
+              ↩ Sign out
+            </button>
+          </form>
+        </div>
       </main>
     </div>
   );
