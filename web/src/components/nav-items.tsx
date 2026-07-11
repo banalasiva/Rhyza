@@ -9,13 +9,17 @@ export const NAV_ITEMS: {
   href: string;
   label: string;
   key: NavKey;
+  emoji: string;
   badge?: boolean;
 }[] = [
-  { href: "/", label: "Home", key: "home" },
-  { href: "/explore", label: "Explore", key: "explore" },
-  { href: "/search", label: "Search", key: "search" },
-  { href: "/notifications", label: "Alerts", key: "alerts", badge: true },
-  { href: "/roots", label: "You", key: "you" },
+  // `emoji` is used by the mobile bottom bar (warm, familiar, thumb-friendly);
+  // `key` maps to a crisp line icon used by the desktop top nav (emoji look flat
+  // on desktop). Same destinations, the right glyph for each surface.
+  { href: "/", label: "Home", key: "home", emoji: "🏡" },
+  { href: "/explore", label: "Explore", key: "explore", emoji: "🌍" },
+  { href: "/search", label: "Search", key: "search", emoji: "🔍" },
+  { href: "/notifications", label: "Alerts", key: "alerts", emoji: "🔔", badge: true },
+  { href: "/roots", label: "You", key: "you", emoji: "🌳" },
 ];
 
 // Crisp monochrome line icons (Feather style). They inherit `currentColor`, so

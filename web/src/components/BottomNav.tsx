@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV_ITEMS, NavIcon } from "@/components/nav-items";
+import { NAV_ITEMS } from "@/components/nav-items";
 
 // A WhatsApp-style labelled bottom tab bar — the main way to get around on
-// phones. Words under crisp line icons, so it's obvious to everyone (including
-// first-timers and older users). Fixed to the bottom where a thumb expects it.
-// Hidden on desktop (md+), where the same destinations live in the top header.
+// phones. Warm emoji glyphs with words under them, so it's obvious and friendly
+// to everyone (including first-timers and older users). Fixed to the bottom
+// where a thumb expects it. Hidden on desktop (md+), where the same
+// destinations live in the top header as crisp line icons.
 export function BottomNav({ unread = 0 }: { unread?: number }) {
   const pathname = usePathname();
   const isActive = (href: string) =>
@@ -33,8 +34,8 @@ export function BottomNav({ unread = 0 }: { unread?: number }) {
             className="flex flex-1 flex-col items-center gap-0.5 py-2 transition"
             style={{ color: on ? "var(--accent)" : "var(--ink-soft)" }}
           >
-            <span className="relative leading-none">
-              <NavIcon name={t.key} size={22} />
+            <span className="relative text-[20px] leading-none">
+              <span aria-hidden>{t.emoji}</span>
               {t.badge && unread > 0 && (
                 <span className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-bg">
                   {unread > 9 ? "9+" : unread}
