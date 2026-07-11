@@ -160,7 +160,7 @@ async function respondWithImage(
     { id: seed.id, title: seed.title, createdById: seed.createdById },
     contribution.id,
     "ChatGPT shared an image",
-    invokerId ? [invokerId] : [],
+    [],
   );
   return contribution;
 }
@@ -205,7 +205,7 @@ export async function respondAsChatGpt(
     { id: data.seed.id, title: data.seed.title, createdById: data.seed.createdById },
     contribution.id,
     `ChatGPT replied: ${reply.slice(0, 120)}`,
-    invokerId ? [invokerId] : [],
+    [],
   );
   return contribution;
 }
@@ -240,7 +240,7 @@ export async function respondAsClaude(
       { id: seed.id, title: seed.title, createdById: seed.createdById },
       contribution.id,
       "Claude replied",
-      invokerId ? [invokerId] : [],
+      [],
     );
     return contribution;
   }
@@ -273,7 +273,7 @@ export async function respondAsClaude(
     { id: seed.id, title: seed.title, createdById: seed.createdById },
     contribution.id,
     `Claude replied: ${reply.slice(0, 120)}`,
-    invokerId ? [invokerId] : [],
+    [],
   );
   return contribution;
 }
@@ -767,6 +767,13 @@ export async function toggleReaction(
     });
   }
 
+  // Someone reacting to your thought is a little hit of "I was heard" — so the
+  // author hears about it. Only on ADD (not un-react), never for your own
+  // message, and never bother the AI bots. Best-effort; never blocks the react.
+  if (!existing && contribution.authorId !== userId) {
+    void notifyReaction(userId, contribution as { id: string; authorId: string; seedId: string; seed: { title: string } }, reactionType);
+  }
+
   const rows = await db.contributionReaction.groupBy({
     by: ["reactionKey"],
     where: { contributionId },
@@ -775,6 +782,49 @@ export async function toggleReaction(
   const counts: Record<string, number> = {};
   for (const r of rows) counts[r.reactionKey] = r._count.reactionKey;
   return { reacted: !existing, counts };
+}
+
+// Ping the author that someone reacted to their thought.
+async function notifyReaction(
+  reactorId: string,
+  contribution: { id: string; authorId: string; seedId: string; seed: { title: string } },
+  reaction: { emoji: string; label: string },
+) {
+  try {
+    const [author, reactor] = await Promise.all([
+      db.user.findUnique({ where: { id: contribution.authorId }, select: { name: true } }),
+      db.user.findUnique({ where: { id: reactorId }, select: { name: true } }),
+    ]);
+    // Don't notify the AI bots — they don't have devices to buzz.
+    if (!author || author.name === "Claude" || author.name === "ChatGPT") return;
+    const who = reactor?.name || "Someone";
+    const title = `${reaction.emoji} ${who} reacted to your thought`;
+    const body = `“${reaction.label}” in “${contribution.seed.title}”`;
+    const note = await db.notification.create({
+      data: {
+        recipientId: contribution.authorId,
+        actorId: reactorId,
+        type: "reaction",
+        title,
+        body,
+        entityType: "seed",
+        entityId: contribution.seedId,
+        anchorId: contribution.id,
+      },
+      select: { id: true },
+    });
+    await deliver([
+      {
+        notificationId: note.id,
+        recipientId: contribution.authorId,
+        type: "reaction",
+        push: { title, body },
+        link: `/seeds/${contribution.seedId}#c-${contribution.id}`,
+      },
+    ]);
+  } catch (err) {
+    console.error("notifyReaction failed", err);
+  }
 }
 
 // Edit a contribution's text — author only.

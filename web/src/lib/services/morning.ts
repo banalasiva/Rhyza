@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { appUrl } from "@/lib/email";
 import { pushConfigured, sendPushToUser } from "@/lib/push";
-import { resolveMessageOfTheDay } from "@/lib/services/daily";
 import { questionOfTheDay } from "@/lib/daily-questions";
 import { mapLimit } from "@/lib/concurrency";
 
@@ -33,12 +32,10 @@ export function summarise(types: string[]): string {
 export async function sendGoodMorning(): Promise<{ sent: number; recipients: number }> {
   if (!pushConfigured()) return { sent: 0, recipients: 0 };
 
-  // The daily push carries two gifts: the day's question (the hook that pulls
-  // people in to tap an answer) and today's touching quote. Both land on Home
-  // where the question card lives.
+  // The one daily broadcast is the QUESTION OF THE DAY — a light, tap-to-answer
+  // hook, not a mass "good morning quote". The quote still greets anyone who
+  // opens Home (the MorningQuote card); it's no longer pushed to everyone.
   const homeUrl = appUrl();
-  const msg = await resolveMessageOfTheDay();
-  const quoteLine = msg.author ? `“${msg.text}” — ${msg.author}` : msg.text;
   const question = questionOfTheDay().text;
   const cutoff = new Date(Date.now() - LOOKBACK_MS);
 
@@ -89,7 +86,7 @@ export async function sendGoodMorning(): Promise<{ sent: number; recipients: num
     // notification.) If there's unseen activity we just hint the count in the
     // title; the evening slot surfaces the actual activity.
     const title = g ? `💭 Question of the day · ${g.ids.length} waiting` : "💭 Question of the day";
-    const body = `${question}\n\n${quoteLine}`;
+    const body = `${question}\nTap to answer & see how everyone votes.`;
     return sendPushToUser(p.id, {
       title,
       body,
