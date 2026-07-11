@@ -17,7 +17,12 @@ const SCHOOL = {
     { who: "Arjun", dim: "debate", text: "The nearest school is easy, but its approach feels too rigid." },
     { who: "Claude", ai: true, dim: "understanding", text: "Teaching style and values shape a child more than a short commute." },
   ] as Msg[],
-  decide: "The family weighed in — teaching style and values over a shorter commute.",
+  // Decide isn't a plain vote — the group answers real weighting questions (from
+  // the "Decide" quorum template) so the fairest voice carries most on each part.
+  decide: [
+    { q: "Who will this affect the most?", a: "Aria" },
+    { q: "Whose opinion do you trust most here?", a: "Priya & Arjun" },
+  ],
   bloom: "Lead with teaching philosophy and values; treat commute as a tie-breaker.",
 };
 
@@ -135,9 +140,19 @@ export function LandingDemo() {
         style={{ borderColor: "rgba(76,175,80,0.3)", background: "rgba(76,175,80,0.06)" }}
       >
         <span aria-hidden className="text-sm leading-none">⚖️</span>
-        <div>
-          <p className="mb-0.5 text-[11px] font-medium" style={{ color: "#66BB6A" }}>Decided together</p>
-          <p className="text-xs leading-relaxed text-ink-mid">{SCHOOL.decide}</p>
+        <div className="min-w-0">
+          <p className="mb-1 text-[11px] font-medium" style={{ color: "#66BB6A" }}>Decided together</p>
+          <ul className="space-y-1">
+            {SCHOOL.decide.map((d) => (
+              <li key={d.q} className="text-xs leading-relaxed text-ink-mid">
+                <span className="text-ink-soft">{d.q}</span>{" "}
+                <span className="text-ink">→ {d.a}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">
+            Everyone&apos;s weight adds up to one fair answer — not just the loudest voice.
+          </p>
         </div>
       </div>
 
