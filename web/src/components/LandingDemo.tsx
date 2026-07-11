@@ -13,7 +13,8 @@ const SCHOOL = {
   q: "Which school should we choose for Aria?",
   msgs: [
     { who: "Priya", dim: "foundations", text: "What matters most — academics, values, or distance?" },
-    { who: "Arjun", dim: "debate", text: "The nearest one is easy, but its approach feels too rigid." },
+    { who: "Aria", dim: "application", text: "When we visited, the art studio and the kids there felt right to me." },
+    { who: "Arjun", dim: "debate", text: "The nearest school is easy, but its approach feels too rigid." },
     { who: "Claude", ai: true, dim: "understanding", text: "Teaching style and values shape a child more than a short commute." },
   ] as Msg[],
   decide: "The family weighed in — teaching style and values over a shorter commute.",
@@ -85,10 +86,18 @@ export function LandingDemo() {
 
       {/* Seed question */}
       <p className="eyebrow mb-1">🌱 Seed</p>
-      <p className="serif-lg mb-4 min-h-[3.25rem]">{SCHOOL.q}</p>
+      <p className="serif-lg mb-2 min-h-[3.25rem]">{SCHOOL.q}</p>
+      {/* What the coloured tags mean — the "parameters" that keep a discussion
+          whole, in plain words (not the internal dimension blurbs). */}
+      <p className="mb-4 text-[11px] leading-relaxed text-ink-soft">
+        Every voice adds a different angle — <span style={{ color: "#EC407A" }}>a question</span>,{" "}
+        <span style={{ color: "#42A5F5" }}>real experience</span>,{" "}
+        <span style={{ color: "#AB47BC" }}>a trade-off</span>,{" "}
+        <span style={{ color: "#FFB300" }}>a clearer view</span>. ThinkThru tags each so nothing gets lost.
+      </p>
 
       {/* Think — the conversation; opacity reveals each message in turn */}
-      <div className="min-h-[176px] space-y-2">
+      <div className="min-h-[232px] space-y-2">
         {SCHOOL.msgs.map((m, i) => {
           const d = dimMeta(m.dim);
           const revealed = i <= step;
