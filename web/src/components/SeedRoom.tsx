@@ -35,6 +35,7 @@ import { MessageActions } from "@/components/MessageActions";
 import { SeedInvite } from "@/components/SeedInvite";
 import { MembersSheet } from "@/components/MembersSheet";
 import { AskPeople } from "@/components/AskPeople";
+import { JoinRequests } from "@/components/JoinRequests";
 
 const SEED_TABS = [
   { key: "discuss", label: "Discuss", icon: "discussion" },
@@ -1986,6 +1987,9 @@ export function SeedRoom({
                 {seedContent}
               </p>
             )}
+
+            {/* People knocking to join this private seed — owner/stewards act here. */}
+            {seed.canManage && visibility === "private" && <JoinRequests seedId={seed.id} />}
 
             {/* Actions — a calm list, no single dominant button. Invite reveals
                 its form inline so it doesn't steal the eye. */}

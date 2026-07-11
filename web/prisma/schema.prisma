@@ -838,6 +838,24 @@ model UserSectionVisibility {
   @@map("user_section_visibility")
 }
 
+// A request to join a private seed. A shared link only lets someone *knock* —
+// they sign in, land on a locked preview, and request in; the seed's owner or a
+// steward approves or declines. So a leaked link can never grant access on its
+// own. (An email-scoped invite, or a member adding a contact directly, still
+// joins instantly — those are explicit vouches.)
+model SeedJoinRequest {
+  id        String    @id @default(uuid()) @db.Uuid
+  seedId    String    @map("seed_id") @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  status    String    @default("pending") // pending | approved | declined
+  createdAt DateTime  @default(now()) @map("created_at")
+  decidedAt DateTime? @map("decided_at")
+
+  @@unique([seedId, userId])
+  @@index([seedId, status])
+  @@map("seed_join_requests")
+}
+
 // A direct "ask" — one person invites another, by name, to weigh in on a
 // specific seed ("Sreedevi, what do you think?"). This is the interpersonal pull
 // that brings a high-intent person back: something is waiting on THEM, from a

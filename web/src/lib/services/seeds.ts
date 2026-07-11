@@ -4,6 +4,7 @@ import { ensureGardenMember, requireSeedManager, requireSeedAccess, canModerateS
 import { STAGE_KEYS, type StageKey } from "@/lib/constants";
 import { autoFollowOnView } from "@/lib/services/explore";
 import { notifyFollowersNewSeed, notifyGardenNewSeed } from "@/lib/services/follows";
+import { getJoinStatus } from "@/lib/services/joinreq";
 
 // What a contribution carries for the room view — author, reactions (with the
 // reactor's name, so we can show *who* reacted), and endorsements.
@@ -395,5 +396,33 @@ export async function getSeedSync(userId: string, seedId: string) {
     distribution,
     stage,
     myVote: myVote?.stage ?? null,
+  };
+}
+
+// A "locked" preview of a private seed for someone who doesn't have access yet —
+// just enough to know what they're knocking on (garden, question, size), never
+// the discussion. Returns null if the seed is truly gone. Powers the "request to
+// join / waiting for the host" screen.
+export async function getSeedPreview(userId: string, seedId: string) {
+  const seed = await db.seed
+    .findUnique({
+      where: { id: seedId },
+      select: { id: true, title: true, deletedAt: true, visibility: true, gardenId: true },
+    })
+    .catch(() => null);
+  if (!seed || seed.deletedAt) return null;
+  const [garden, memberCount, status] = await Promise.all([
+    db.garden
+      .findUnique({ where: { id: seed.gardenId }, select: { id: true, name: true, emoji: true } })
+      .catch(() => null),
+    db.seedMember.count({ where: { seedId } }).catch(() => 0),
+    getJoinStatus(userId, seedId),
+  ]);
+  return {
+    id: seed.id,
+    title: seed.title,
+    garden: garden as { id: string; name: string; emoji: string } | null,
+    memberCount,
+    status,
   };
 }

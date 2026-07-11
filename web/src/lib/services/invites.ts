@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { ensureGardenMember, requireSeedAccess } from "@/lib/authz";
 import { appUrl, sendEmail, inviteEmailHtml, emailConfigured } from "@/lib/email";
+import { requestToJoin } from "@/lib/services/joinreq";
 
 const INVITE_TTL_DAYS = 30;
 
@@ -267,8 +268,25 @@ export async function acceptInvite(userId: string, userEmail: string, token: str
   // (revoked) or expired link is refused.
   if (invite.status === "revoked") throw new ApiError("CONFLICT", "This invite was turned off.");
   if (invite.expiresAt.getTime() < Date.now()) throw new ApiError("CONFLICT", "This invite link has expired.");
-  if (invite.email && invite.email !== userEmail.toLowerCase()) {
-    throw new ApiError("FORBIDDEN", `This invite is for ${invite.email}`);
+
+  // The vouch test. A matching email-scoped invite means someone deliberately
+  // typed THIS person's address — an explicit vouch, so they're let in now. An
+  // open link (or a forwarded email-invite opened by someone else) only earns a
+  // request-to-join for a PRIVATE seed, so a leaked link can't grant access.
+  const emailMatches = !!invite.email && invite.email === userEmail.toLowerCase();
+  if (invite.seedId && !emailMatches) {
+    const seed = await db.seed
+      .findUnique({ where: { id: invite.seedId }, select: { visibility: true } })
+      .catch(() => null);
+    if (seed?.visibility === "private") {
+      const { status } = await requestToJoin(userId, invite.seedId);
+      return {
+        gardenId: invite.gardenId,
+        seedId: invite.seedId,
+        orgId: invite.orgId,
+        requested: status !== "member",
+      };
+    }
   }
 
   await db.$transaction(async (tx) => {
@@ -297,7 +315,7 @@ export async function acceptInvite(userId: string, userEmail: string, token: str
     });
   });
 
-  return { gardenId: invite.gardenId, seedId: invite.seedId, orgId: invite.orgId };
+  return { gardenId: invite.gardenId, seedId: invite.seedId, orgId: invite.orgId, requested: false };
 }
 
 // If the signed-in viewer already has access to what this invite points to,
