@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { signIn, auth } from "@/auth";
 import { LandingDemo } from "@/components/LandingDemo";
 import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
+import { ScrollCue } from "@/components/ScrollCue";
 
 const BEATS = [
   { emoji: "💬", title: "Discuss", body: "Bring a real decision and talk it through — many minds, every angle, Claude alongside." },
@@ -124,6 +125,8 @@ export default async function LoginPage() {
           </div>
         </div>
       </div>
+      {/* Mobile-only "scroll for the sign-in below" hint. */}
+      <ScrollCue />
     </main>
   );
 }
