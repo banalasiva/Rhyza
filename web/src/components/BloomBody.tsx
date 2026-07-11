@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ReadAloud } from "@/components/ReadAloud";
-import { InlineText } from "@/components/InlineText";
+import { BloomContent } from "@/components/BloomContent";
 import { shareCard } from "@/lib/share-card";
 
 // Strip the tiny markdown (bold markers, leading bullets) for plain contexts
@@ -144,8 +144,8 @@ export function BloomBody({
         )}
       </div>
 
-      <article className="card bloom-body p-6 text-[15px] leading-relaxed text-ink">
-        <InlineText text={summary} />
+      <article className="card p-6 text-[15px] leading-relaxed text-ink">
+        <BloomContent text={summary} />
       </article>
 
       <div className="mt-3 flex items-center justify-between gap-2">
