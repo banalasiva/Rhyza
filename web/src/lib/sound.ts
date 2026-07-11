@@ -1,7 +1,7 @@
 // Web-Audio nature cues, ported from the prototype. Pure client-side — no assets.
 // All sounds are synthesized, so there's nothing to download.
 
-export type NatureSound = "drop" | "wind" | "bloom" | "chirp";
+export type NatureSound = "drop" | "wind" | "bloom" | "chirp" | "chime";
 
 let muted = false;
 
@@ -150,6 +150,43 @@ export function playNatureSound(type: NatureSound) {
       wg.connect(ctx.destination);
       warm.start(t0);
       warm.stop(t0 + 0.4);
+    } else if (type === "chime") {
+      // "Someone (or an AI) just replied" — a soft, pretty three-note bell that
+      // rings up (C6–E6–G6, a major chord) with a warm low octave underneath.
+      // Gentle attack, long shimmering tail: a chime, never a jarring alert.
+      const t0 = ctx.currentTime;
+      [1046.5, 1318.5, 1568.0].forEach((freq, i) => {
+        const t = t0 + i * 0.09;
+        // Bell tone: a sine fundamental plus a quiet higher partial for sparkle.
+        [
+          { f: freq, gain: 0.09, type: "sine" as OscillatorType, tail: 1.1 },
+          { f: freq * 2.01, gain: 0.02, type: "sine" as OscillatorType, tail: 0.7 },
+        ].forEach(({ f, gain, type: ot, tail }) => {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = ot;
+          osc.frequency.value = f;
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime(gain, t + 0.012);
+          g.gain.exponentialRampToValueAtTime(0.0005, t + tail);
+          osc.connect(g);
+          g.connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + tail + 0.05);
+        });
+      });
+      // Warm low octave (C5) for body, so it feels rounded, not tinny.
+      const warm = ctx.createOscillator();
+      const wg = ctx.createGain();
+      warm.type = "triangle";
+      warm.frequency.value = 523.25;
+      wg.gain.setValueAtTime(0, t0);
+      wg.gain.linearRampToValueAtTime(0.03, t0 + 0.02);
+      wg.gain.exponentialRampToValueAtTime(0.0005, t0 + 0.9);
+      warm.connect(wg);
+      wg.connect(ctx.destination);
+      warm.start(t0);
+      warm.stop(t0 + 1.0);
     }
   } catch {
     /* audio not available — silently ignore */

@@ -513,7 +513,7 @@ export function SeedRoom({
           }
         return next;
       });
-      if (replies.length) playNatureSound("chirp");
+      if (replies.length) playNatureSound("chime"); // Claude/ChatGPT replied
       if (tagsAI && replies.length === 0) {
         setError(
           c.aiError === "not_configured"
@@ -581,7 +581,7 @@ export function SeedRoom({
     try {
       const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/mediate`, { provider });
       setContributions((prev) => [...prev, hydrate(c)]);
-      playNatureSound("chirp");
+      playNatureSound("chime"); // an AI mediated
     } catch (err) {
       setError(err instanceof Error ? err.message : "Mediation failed");
     } finally {
@@ -602,7 +602,7 @@ export function SeedRoom({
         { provider },
       );
       setSummary({ provider, text: res.text });
-      playNatureSound("chirp");
+      playNatureSound("chime"); // an AI summarized
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't summarize");
     } finally {
