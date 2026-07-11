@@ -692,6 +692,44 @@ export async function describeContributionStyle(
   }
 }
 
+// Read a thread that's gone quiet and, if there's a genuine open question worth
+// reviving, write a SHORT warm re-opener that gets it going again — a thoughtful
+// question or a fresh angle, in Claude's own voice, addressed to the group. Not a
+// summary, not filler. Declines (revive:false) for threads that are done,
+// resolved, or simply not worth stirring. The conservative default is to decline.
+export async function resparkThread(input: {
+  title: string;
+  transcript: string;
+}): Promise<{ message: string } | null> {
+  if (!aiConfigured()) return null;
+  try {
+    const system =
+      "You help a small, high-trust group keep good conversations alive on ThinkThru. You read a " +
+      "thread that has gone quiet and decide whether to gently reignite it. Revive ONLY if there's " +
+      "a real open question or unresolved thread worth returning to. If it's finished, resolved, " +
+      "small-talk, or nobody clearly has more to add, DECLINE.\n" +
+      "If you revive it, write a short, warm re-opener in your own voice, addressed to the group — " +
+      "one specific, inviting question or a fresh angle that makes people want to reply. Reference " +
+      "the actual discussion. 1–3 sentences, no preamble, no summary, no 'let's continue'. Human " +
+      "and curious, never salesy.\n" +
+      'Respond with ONLY JSON: {"revive": true, "message": "<text>"} or {"revive": false}.';
+    const out = await complete(
+      system,
+      `THREAD: ${input.title}\n\nRECENT MESSAGES:\n${input.transcript.slice(0, 3500)}`,
+      300,
+      MODEL_FAST,
+    );
+    const m = out.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    const parsed = JSON.parse(m[0]) as { revive?: boolean; message?: string };
+    if (!parsed.revive || !parsed.message?.trim()) return null;
+    return { message: parsed.message.trim().slice(0, 600) };
+  } catch (err) {
+    console.error("resparkThread failed", err);
+    return null;
+  }
+}
+
 // A person Claude could nudge to revive a quiet thread — someone already
 // involved who's gone silent.
 export type RekindleCandidate = { firstName: string };

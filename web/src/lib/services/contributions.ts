@@ -65,7 +65,7 @@ const CHATGPT_EMAIL = "chatgpt@thinkthru.app";
 
 // Claude is a permanent participant: one shared system user that authors its
 // replies. Created lazily the first time someone tags @claude.
-async function getOrCreateClaudeUser() {
+export async function getOrCreateClaudeUser() {
   return db.user.upsert({
     where: { email: CLAUDE_EMAIL },
     update: {},

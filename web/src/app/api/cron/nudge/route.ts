@@ -102,9 +102,9 @@ export async function GET(req: Request) {
 
   // Claude re-kindles good threads that have gone quiet — a targeted, low-volume
   // pull-back for people who've drifted, separate from the summary above.
-  const rekindled = await rekindleStallingThreads().catch(() => ({ scanned: 0, nudged: 0 }));
+  const rekindled = await rekindleStallingThreads().catch(() => ({ scanned: 0, sparked: 0 }));
 
-  await markCronRun("evening", `summary ${sent}/${groups.size} · rekindled ${rekindled.nudged}`);
+  await markCronRun("evening", `summary ${sent}/${groups.size} · rekindled ${rekindled.sparked}`);
   return NextResponse.json({
     ok: true,
     slot: "evening",
