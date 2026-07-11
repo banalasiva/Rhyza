@@ -84,6 +84,40 @@ export async function getFollowContext(
   }
 }
 
+export type FollowPerson = { id: string; name: string; image: string | null };
+
+// The people who follow `userId`, or the people `userId` follows — so a profile's
+// follower/following counts can open into a real, browsable list of people.
+export async function listFollows(
+  userId: string,
+  kind: "followers" | "following",
+): Promise<FollowPerson[]> {
+  try {
+    const rows = await db.userFollow.findMany({
+      where: kind === "followers" ? { followingId: userId } : { followerId: userId },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+      select: { followerId: true, followingId: true },
+    });
+    const ids = (rows as { followerId: string; followingId: string }[]).map((r) =>
+      kind === "followers" ? r.followerId : r.followingId,
+    );
+    if (ids.length === 0) return [];
+    const users = (await db.user.findMany({
+      where: { id: { in: ids }, deletedAt: null },
+      select: { id: true, name: true, image: true },
+    })) as { id: string; name: string | null; image: string | null }[];
+    // Preserve the recency order from userFollow.
+    const byId = new Map(users.map((u) => [u.id, u]));
+    return ids
+      .map((id) => byId.get(id))
+      .filter((u): u is { id: string; name: string | null; image: string | null } => !!u)
+      .map((u) => ({ id: u.id, name: u.name || "Someone", image: u.image }));
+  } catch {
+    return [];
+  }
+}
+
 // ── "Someone you follow did something public" notifications ────────────────
 
 // Fan a public action out to the actor's followers. Best-effort; never throws,
