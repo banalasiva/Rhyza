@@ -2,6 +2,7 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { signIn, auth } from "@/auth";
 import { LandingDemo } from "@/components/LandingDemo";
+import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
 
 const BEATS = [
   { emoji: "💬", title: "Discuss", body: "Bring a real decision and talk it through — many minds, every angle, Claude alongside." },
@@ -57,6 +58,7 @@ export default async function LoginPage() {
           </ol>
 
           <div className="mx-auto max-w-sm lg:mx-0">
+            <InAppBrowserNotice emailEnabled={emailEnabled} />
             <form
               action={async () => {
                 "use server";
