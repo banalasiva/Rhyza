@@ -13,6 +13,16 @@ const BEATS = [
   { emoji: "🌸", title: "Bloom", body: "It settles into one answer your community keeps forever." },
 ];
 
+// Real decisions people wrestle with — the kind that get lost in a group chat.
+// Shown right up front so a first-time visitor instantly sees "this is for me."
+const EXAMPLES = [
+  "🏫 Which school for our kid?",
+  "🏡 Where should we live?",
+  "💼 Take the new job?",
+  "👵🏽 Caring for aging parents",
+  "💰 How do we save more?",
+];
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -45,14 +55,30 @@ export default async function LoginPage({
             priority
             className="mx-auto mb-4 h-auto w-40 sm:w-48 lg:mx-0"
           />
+          <p className="eyebrow mb-2">Why ThinkThru?</p>
           <h1 className="serif-xl mb-3">
-            Every important decision begins with a conversation.
+            The big decisions deserve better than a group chat.
           </h1>
-          <p className="mb-8 text-lg text-ink-mid">
-            Together, we help conversations{" "}
-            <span className="font-serif italic text-bloom">Bloom</span>.
+          <p className="mb-4 text-lg text-ink-mid">
+            Which school for our child? Do we take the offer? How do we care for
+            aging parents? ThinkThru turns the messy back-and-forth into one clear,
+            fair decision your people stand behind — and{" "}
+            <span className="font-serif italic text-bloom">keep forever</span>.
           </p>
 
+          {/* Real decisions — so a first-timer instantly sees "this is for me." */}
+          <div className="mb-6 flex flex-wrap justify-center gap-2 lg:justify-start">
+            {EXAMPLES.map((e) => (
+              <span
+                key={e}
+                className="rounded-full border border-[rgba(76,175,80,0.25)] bg-[rgba(76,175,80,0.06)] px-3 py-1 text-xs text-ink-mid"
+              >
+                {e}
+              </span>
+            ))}
+          </div>
+
+          <p className="eyebrow mb-2">How it works</p>
           <ol className="mx-auto mb-8 max-w-sm space-y-3 lg:mx-0">
             {BEATS.map((b) => (
               <li key={b.title} className="flex items-start gap-3 text-left">

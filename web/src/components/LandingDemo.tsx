@@ -52,11 +52,21 @@ function dimMeta(key: string) {
 
 export function LandingDemo() {
   const [step, setStep] = useState(0);
+  // Auto-plays until the visitor touches it — then it's fully in their hands so
+  // they can go back and sit on any moment (the "let me touch and go back" ask).
+  const [paused, setPaused] = useState(false);
 
   useEffect(() => {
+    if (paused) return;
     const t = setTimeout(() => setStep((s) => (s + 1 >= DELAYS.length ? 0 : s + 1)), DELAYS[step]);
     return () => clearTimeout(t);
-  }, [step]);
+  }, [step, paused]);
+
+  // Manual step — pauses auto-play and wraps around so it never dead-ends.
+  const go = (dir: -1 | 1) => {
+    setPaused(true);
+    setStep((s) => (s + dir + DELAYS.length) % DELAYS.length);
+  };
 
   const phase = step <= 3 ? "think" : step === 4 ? "decide" : step === 5 ? "bloom" : "tree";
   // The 3-step mantra: Bloom stays lit through the Sacred-Tree payoff.
@@ -214,6 +224,53 @@ export function LandingDemo() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ── Controls: tap to step back or forward, or play/pause ── */}
+      <div className="mt-3 flex items-center justify-between gap-2 border-t border-[rgba(255,255,255,0.06)] pt-3">
+        <button
+          onClick={() => go(-1)}
+          aria-label="Previous"
+          className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-ink-mid transition hover:bg-[rgba(255,255,255,0.05)] hover:text-ink"
+        >
+          ‹ Back
+        </button>
+
+        <div className="flex items-center gap-2">
+          {/* progress dots — tap any to jump there */}
+          <div className="flex items-center gap-1">
+            {DELAYS.map((_, i) => (
+              <button
+                key={i}
+                aria-label={`Step ${i + 1}`}
+                onClick={() => {
+                  setPaused(true);
+                  setStep(i);
+                }}
+                className="h-1.5 rounded-full transition-all"
+                style={{
+                  width: i === step ? 14 : 6,
+                  background: i === step ? "#66BB6A" : "rgba(255,255,255,0.18)",
+                }}
+              />
+            ))}
+          </div>
+          <button
+            onClick={() => setPaused((p) => !p)}
+            aria-label={paused ? "Play" : "Pause"}
+            className="rounded-full px-1.5 py-0.5 text-xs text-ink-soft transition hover:text-ink"
+          >
+            {paused ? "▶" : "❚❚"}
+          </button>
+        </div>
+
+        <button
+          onClick={() => go(1)}
+          aria-label="Next"
+          className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium text-ink-mid transition hover:bg-[rgba(255,255,255,0.05)] hover:text-ink"
+        >
+          Next ›
+        </button>
       </div>
     </div>
   );

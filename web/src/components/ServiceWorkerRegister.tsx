@@ -9,11 +9,19 @@ import { useEffect } from "react";
 export function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
-    // When a new service worker takes control (a fresh deploy), reload once so
-    // the page runs the new assets instead of a stale cached bundle.
+    // When a new service worker REPLACES an existing one (a fresh deploy), reload
+    // once so the page runs the new assets instead of a stale cached bundle.
+    //
+    // Critically, DON'T reload on the FIRST install: on a brand-new device there
+    // is no controller yet, and the SW's clients.claim() fires controllerchange
+    // as it first takes control. Reloading then can interrupt the app mid-startup
+    // (the login redirect / hydration) and strand it on the splash "thumbnail"
+    // until a reinstall — exactly the stuck-screen a first-time visitor hit. So
+    // only reload when a controller already existed (a genuine update).
+    const hadController = !!navigator.serviceWorker.controller;
     let reloaded = false;
     const onControllerChange = () => {
-      if (reloaded) return;
+      if (reloaded || !hadController) return;
       reloaded = true;
       window.location.reload();
     };
