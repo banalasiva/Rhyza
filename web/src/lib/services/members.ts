@@ -288,16 +288,47 @@ export async function listAddablePeople(actorId: string, seedId: string, q?: str
   ]);
   const needle = (q ?? "").trim().toLowerCase();
 
-  // Before the person searches, show only a few suggestions — a big group should
-  // never render as a wall of names. Once they type, surface up to 20 matches.
-  const cap = needle ? 20 : 6;
+  // No query yet → show a few people from your circle as quick suggestions (a big
+  // group should never render as a wall of names).
+  if (!needle) {
+    return network
+      .filter((p) => !exclude.has(p.id) && p.name !== "Claude" && p.name !== "ChatGPT")
+      .slice(0, 6);
+  }
 
-  return network
-    .filter((p) => !exclude.has(p.id) && p.name !== "Claude" && p.name !== "ChatGPT")
-    .filter(
-      (p) =>
-        !needle || p.name.toLowerCase().includes(needle) || p.email.toLowerCase().includes(needle),
-    )
+  // Once they type, search EVERYONE on ThinkThru — discoverability is the point:
+  // you can find and add anyone by name or email, not only people already in your
+  // circle. Circle matches float to the top so familiar faces come first.
+  const found = await searchAllPeople(needle, exclude, 20);
+  const circleIds = new Set(network.map((p) => p.id));
+  return found.sort((a, b) => Number(circleIds.has(b.id)) - Number(circleIds.has(a.id)));
+}
+
+// Search every real person on ThinkThru by name or email (case-insensitive),
+// excluding AI accounts, deleted users, and anyone in `exclude`. Powers "add
+// anyone to a seed" — the open-discoverability model.
+export async function searchAllPeople(
+  needle: string,
+  exclude: Set<string>,
+  cap = 20,
+): Promise<{ id: string; name: string; email: string; image: string | null }[]> {
+  const term = needle.trim();
+  if (!term) return [];
+  const rows = await db.user.findMany({
+    where: {
+      deletedAt: null,
+      name: { notIn: ["Claude", "ChatGPT"] },
+      OR: [
+        { name: { contains: term, mode: "insensitive" } },
+        { email: { contains: term, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, name: true, email: true, image: true },
+    take: cap + 10, // over-fetch a little so exclusions don't shrink the list
+  });
+  return rows
+    .filter((u) => !exclude.has(u.id))
+    .map((u) => ({ id: u.id, name: displayName(u), email: u.email ?? "", image: u.image }))
     .slice(0, cap);
 }
 
@@ -312,21 +343,19 @@ export async function addExistingMember(actorId: string, seedId: string, targetI
   });
   if (!garden) throw new ApiError("NOT_FOUND", "Garden not found");
 
-  // Privacy: you can only directly add people you've already connected with
-  // (share a garden or seed) — not any stranger in the org. Anyone else needs an
-  // invite. This is what keeps your parents from seeing your colleagues.
-  const network = await listMyNetwork(actorId);
-  if (!network.some((p) => p.id === targetId)) {
-    throw new ApiError("BAD_REQUEST", "They're not in your circle yet — send them an invite instead.");
+  // Open discoverability: you can add anyone on ThinkThru straight into a seed by
+  // searching their name/email — no invite link, no accept step. We only guard
+  // that the target is a real, non-deleted person (AI accounts and ghosts can't
+  // be added). Whoever adds someone is bridged into this garden's org for them
+  // automatically (every Gmail user gets their own personal org), exactly as
+  // accepting an invite would — so they can read and reply immediately.
+  const target = await db.user.findFirst({
+    where: { id: targetId, deletedAt: null, name: { notIn: ["Claude", "ChatGPT"] } },
+    select: { id: true },
+  });
+  if (!target) {
+    throw new ApiError("BAD_REQUEST", "That person can't be added.");
   }
-  // Address-book model: anyone you already share a private seed or garden with is
-  // in your circle, so you can drop them straight into another of your private
-  // seeds — instantly, no invite, no accept. If they aren't yet in this garden's
-  // org (the usual case — every Gmail user gets their own personal org), we
-  // BRIDGE them in automatically, exactly as accepting an invite would. That's
-  // the whole point: sharing one private seed makes every future add
-  // friction-free, so the invite-link + accept dance is confined to genuinely
-  // new people you've never shared anything with.
   await db.$transaction([
     db.orgMember.upsert({
       where: { orgId_userId: { orgId: garden.orgId, userId: targetId } },

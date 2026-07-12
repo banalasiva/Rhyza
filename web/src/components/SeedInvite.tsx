@@ -162,16 +162,16 @@ export function SeedInvite({
 
   const inner = (
     <>
-      {/* Your circle → add them straight in, no invite link, no accept. */}
+      {/* Search anyone on ThinkThru → add them straight in, no invite, no accept. */}
       <div className="mb-4">
-        <p className="mb-1 text-sm font-medium text-ink">👋 Add from your circle</p>
+        <p className="mb-1 text-sm font-medium text-ink">👋 Add anyone on ThinkThru</p>
         <p className="mb-2 text-xs text-ink-soft">
-          Everyone you already share a private seed or garden with — add them straight in and tag
-          them right away. No invite, no waiting.
+          Search anyone by name or email and add them straight in — they can read and reply right
+          away. No invite, no waiting.
         </p>
         <input
           className="input w-full"
-          placeholder="Search your circle by name or email"
+          placeholder="Search anyone by name or email"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -202,13 +202,12 @@ export function SeedInvite({
         )}
         {!q && addable.length >= 6 && (
           <p className="mt-2 text-[11px] text-ink-soft">
-            Showing a few from your circle — search to find anyone.
+            A few from your circle — type a name to search everyone on ThinkThru.
           </p>
         )}
         {q && !searching && addable.length === 0 && (
           <p className="mt-2 text-xs text-ink-soft">
-            Not in your circle yet — invite them below, and they&apos;ll be in your circle from then
-            on.
+            No one by that name yet. Not on ThinkThru? Invite them with a link below.
           </p>
         )}
       </div>

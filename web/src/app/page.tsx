@@ -5,7 +5,6 @@ import { listPublicGardens } from "@/lib/services/explore";
 import { getYourTurn } from "@/lib/services/yourturn";
 import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
-import { CreateGardenForm } from "@/components/CreateGardenForm";
 import { GettingStarted } from "@/components/GettingStarted";
 import { HashFocus } from "@/components/HashFocus";
 import { MorningQuote } from "@/components/MorningQuote";
@@ -15,6 +14,7 @@ import { PushHealer } from "@/components/PushHealer";
 import { YourTurn } from "@/components/YourTurn";
 import { DiscoverGardens } from "@/components/DiscoverGardens";
 import { Feed } from "@/components/Feed";
+import { FirstDecision } from "@/components/FirstDecision";
 
 // The home page streams: only requireViewer() (a fast JWT decode) blocks the
 // first byte, so the shell + greeting paint almost immediately and the OS splash
@@ -70,17 +70,17 @@ async function GardensArea({
     return (
       <>
         <p className="eyebrow mb-2">Welcome{name ? `, ${name.split(" ")[0]}` : ""} 🌱</p>
-        <h1 className="serif-lg mb-4">See how people are deciding together 👇</h1>
+        {/* Guided start on top (Claude replies, then add people), real public
+            decisions below to browse — the "both" first-run. */}
+        <div id="new-garden" className="mb-8">
+          <FirstDecision />
+        </div>
+
+        <h2 className="serif-lg mb-4">Or see how others are deciding 👇</h2>
         <Suspense fallback={null}>
           <DiscoverSection />
         </Suspense>
         <Feed />
-
-        <div id="new-garden" className="card mt-8 p-4">
-          <p className="mb-1 text-sm font-medium text-ink">Ready to decide something of your own?</p>
-          <p className="mb-3 text-xs text-ink-soft">🌳 a garden is a topic · 🌱 a seed is one decision</p>
-          <CreateGardenForm firstRun />
-        </div>
       </>
     );
   }

@@ -1,5 +1,8 @@
 import { db } from "@/lib/db";
 import { uniqueSlug } from "@/lib/slug";
+import { createGarden } from "@/lib/services/gardens";
+import { plantSeed } from "@/lib/services/seeds";
+import { kickstartSeed } from "@/lib/services/contributions";
 
 // Create an organization and make the creator its owner. Every user lands here
 // on first sign-in (no org yet) so there's no hardcoded/default org anywhere.
@@ -90,4 +93,34 @@ export async function ensureUserOrg(
     },
   });
   return org.id;
+}
+
+// The guided first decision: a brand-new person types one real decision, and we
+// do all the plumbing — make their first (private) garden if they don't have
+// one, plant the seed, and have Claude reply first — then hand them to the seed
+// room where they add their people. Turns "create a garden, then a seed, then
+// figure out members" into a single sentence.
+export async function quickStartDecision(
+  userId: string,
+  orgId: string,
+  title: string,
+): Promise<{ seedId: string; gardenId: string }> {
+  let garden = await db.garden.findFirst({
+    where: { orgId, createdById: userId, visibility: "private" },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  if (!garden) {
+    const g = await createGarden(userId, orgId, {
+      name: "My decisions",
+      emoji: "🌿",
+      visibility: "private",
+    });
+    garden = { id: g.id };
+  }
+
+  const seed = await plantSeed(userId, garden.id, { title: title.trim(), visibility: "private" });
+  // Claude replies first so the room isn't empty when they arrive (best-effort).
+  void kickstartSeed(seed.id);
+  return { seedId: seed.id, gardenId: garden.id };
 }
