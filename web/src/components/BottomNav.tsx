@@ -18,11 +18,20 @@ export function BottomNav({ unread = 0 }: { unread?: number }) {
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-40 flex border-t backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex md:hidden"
       style={{
-        background: "var(--surface)",
-        borderColor: "var(--border)",
-        paddingBottom: "env(safe-area-inset-bottom)",
+        // Opaque surface (not the translucent --surface) and NO backdrop blur:
+        // a see-through bar let scrolling content smear a moving dark seam under
+        // the top edge, which read as the whole bar sliding up and down. Solid =
+        // rock steady.
+        background: "var(--bg-surface)",
+        // A soft elevation + faint hairline instead of a hard border line.
+        boxShadow: "0 -0.5px 0 var(--border), 0 -6px 20px rgba(0,0,0,0.12)",
+        paddingTop: "4px",
+        // Sit a little higher, with a floor under the safe-area inset, so the
+        // system nav (gesture bar or 3-button, OnePlus/Samsung/etc.) never
+        // crowds the tabs.
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)",
       }}
     >
       {NAV_ITEMS.map((t) => {
