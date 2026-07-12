@@ -230,6 +230,23 @@ model Seed {
   @@map("seeds")
 }
 
+// A failed (or notable) authentication attempt, logged so the owner can see
+// sign-in problems on the admin panel instead of only hearing about them from a
+// family member. Written best-effort from the login page when Auth.js redirects
+// back with an ?error= code. No relation to users — the person often isn't (and
+// can't be) signed in when it happens.
+model AuthEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String
+  email     String?
+  detail    String?
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("auth_events")
+}
+
 // A "rhythm" the group sets on a seed so a decision doesn't drift forever:
 // "2 days to discuss, 1 day to decide, and Claude keeps us moving" — or the
 // deliberate opposite, "no deadline, we'll converge peacefully." When a phase's

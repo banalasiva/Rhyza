@@ -68,7 +68,10 @@ const PUBLIC_PREFIXES = [
 
 export const authConfig = {
   providers,
-  pages: { signIn: "/login", verifyRequest: "/login/check-email" },
+  // Route auth errors back to our own /login (as ?error=CODE) instead of the
+  // bare Auth.js error page, so we can show a friendly banner and log the
+  // failure for the admin panel.
+  pages: { signIn: "/login", verifyRequest: "/login/check-email", error: "/login" },
   session: { strategy: "jwt" },
   callbacks: {
     // Edge-evaluated gate used by middleware.

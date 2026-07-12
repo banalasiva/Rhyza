@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { signIn, auth } from "@/auth";
 import { LandingDemo } from "@/components/LandingDemo";
 import { AuthPanel } from "@/components/AuthPanel";
+import { AuthErrorBanner } from "@/components/AuthErrorBanner";
 import { ScrollCue } from "@/components/ScrollCue";
+import { authErrorMessage } from "@/lib/services/auth-events";
 
 const BEATS = [
   { emoji: "💬", title: "Discuss", body: "Bring a real decision and talk it through — many minds, every angle, Claude alongside." },
@@ -11,13 +13,18 @@ const BEATS = [
   { emoji: "🌸", title: "Bloom", body: "It settles into one answer your community keeps forever." },
 ];
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams?: { error?: string };
+}) {
   const session = await auth();
   if (session?.user) redirect("/");
 
   const ssoEnabled = !!process.env.AUTH_SSO_ISSUER;
   const ssoName = process.env.AUTH_SSO_NAME || "SSO";
   const emailEnabled = !!process.env.RESEND_API_KEY;
+  const errorCode = searchParams?.error;
 
   return (
     <main id="main" className="relative flex min-h-screen items-center justify-center px-6 py-10">
@@ -57,6 +64,10 @@ export default async function LoginPage() {
               </li>
             ))}
           </ol>
+
+          {errorCode && (
+            <AuthErrorBanner code={errorCode} message={authErrorMessage(errorCode)} />
+          )}
 
           <AuthPanel
             emailEnabled={emailEnabled}

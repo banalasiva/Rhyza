@@ -449,6 +449,24 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     sql: `CREATE INDEX IF NOT EXISTS "seed_deadlines_decide_by_idx" ON "seed_deadlines" ("decide_by")`,
   },
 
+  // 20260712140000_auth_events
+  {
+    label: "auth_events",
+    sql: `CREATE TABLE IF NOT EXISTS "auth_events" (
+      "id"         UUID NOT NULL DEFAULT gen_random_uuid(),
+      "code"       TEXT NOT NULL,
+      "email"      TEXT,
+      "detail"     TEXT,
+      "user_agent" TEXT,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "auth_events_pkey" PRIMARY KEY ("id")
+    )`,
+  },
+  {
+    label: "auth_events_created_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "auth_events_created_at_idx" ON "auth_events" ("created_at")`,
+  },
+
   // One-time data backfill (idempotent): give people who joined via the email
   // magic-link — and so have an empty name — a readable display name derived
   // from their email ("siva.prasad@x" → "Siva Prasad"). Only touches rows whose

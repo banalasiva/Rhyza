@@ -10,6 +10,7 @@ import { RekindleButton } from "@/components/RekindleButton";
 import { ResynthesizeBloomsButton } from "@/components/ResynthesizeBloomsButton";
 import { countOpenReports } from "@/lib/services/reports";
 import { countOpenFeedback } from "@/lib/services/feedback";
+import { recentAuthFailures } from "@/lib/services/auth-events";
 
 // AI-tag usage meter (best-effort — the table may not be migrated yet).
 async function aiTagStats() {
@@ -113,6 +114,7 @@ export default async function AdminPage() {
   const openReports = await countOpenReports().catch(() => 0);
   const openFeedback = await countOpenFeedback().catch(() => 0);
   const crons = await cronHeartbeats();
+  const authFails = await recentAuthFailures();
 
   return (
     <div className="relative min-h-screen">
@@ -123,6 +125,50 @@ export default async function AdminPage() {
           ← Your gardens
         </Link>
         <h1 className="serif-xl mb-6">🛠 Admin</h1>
+
+        {/* Sign-in failures — a sev2. Highlighted red when any landed in the last
+            24h so a broken sign-in surfaces here, not just via a phone call. */}
+        <div
+          className="card mb-4 p-4"
+          style={
+            authFails.last24h > 0
+              ? { borderColor: "rgba(229,115,115,0.5)", background: "rgba(229,115,115,0.06)" }
+              : undefined
+          }
+        >
+          <div className="mb-3 flex items-center justify-between">
+            <p className="eyebrow">🔐 Sign-in failures</p>
+            {authFails.last24h > 0 ? (
+              <span className="rounded-full bg-[#e57373] px-2 py-0.5 text-[11px] font-semibold text-bg">
+                {authFails.last24h} in 24h
+              </span>
+            ) : (
+              <span className="text-[11px] text-ink-soft">none in 24h ✓</span>
+            )}
+          </div>
+          {!authFails.ok ? (
+            <p className="text-xs text-ink-soft">
+              No data yet — apply the latest migration below to start logging sign-in failures.
+            </p>
+          ) : authFails.rows.length === 0 ? (
+            <p className="text-xs text-ink-soft">No sign-in failures recorded. 🎉</p>
+          ) : (
+            <div className="space-y-1.5">
+              {authFails.rows.map((e) => (
+                <div
+                  key={e.id}
+                  className="flex items-center justify-between gap-3 border-b border-[rgba(255,255,255,0.05)] pb-1.5 text-sm last:border-0"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-mono text-xs text-ink">{e.code}</span>
+                    {e.email && <span className="block truncate text-[11px] text-ink-soft">{e.email}</span>}
+                  </span>
+                  <span className="shrink-0 text-xs text-ink-mid">{ago(e.createdAt)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* AI-tag usage meter */}
         <div className="card mb-4 p-4">
