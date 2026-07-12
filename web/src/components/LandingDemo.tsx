@@ -1,22 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DIMENSIONS } from "@/lib/constants";
 
-type Msg = { who: string; ai?: boolean; dim: string; text: string };
+type Msg = { who: string; ai?: boolean; text: string };
 
 // A looping, self-explaining storyboard built around ONE relatable decision —
-// where to go on a family holiday — that walks a visitor through the whole
-// ThinkThru arc as a smooth workflow: Think (talk it through), Decide (people
-// vote, weighted by stake), Bloom (one durable answer), and where it's kept —
-// the Sacred Tree. Phases cross-fade in a fixed-height stage so it never jumps.
+// where to go on a family holiday. It shows the real dynamic: the group talks,
+// someone asks Claude a question, Claude ANSWERS with something useful, and that
+// helps everyone come together — then they Decide (weighted by who has the most
+// at stake) and it Blooms into one answer they keep. Phases cross-fade in a
+// fixed-height stage so it never jumps.
 const TRIP = {
   q: "Where should we go for our holiday?",
   msgs: [
-    { who: "Meera", dim: "foundations", text: "What matters most — adventure, rest, or the budget?" },
-    { who: "Aarav", dim: "application", text: "The kids want adventure — can we do Thailand?" },
-    { who: "Ravi", dim: "debate", text: "Manali’s cheaper, but that’s a long drive for the parents." },
-    { who: "Claude", ai: true, dim: "understanding", text: "Match the trip to everyone — energy for the kids, easy days for the parents." },
+    { who: "Meera", text: "Somewhere the kids can run wild, or somewhere we actually rest?" },
+    { who: "Aarav", text: "Adventure! Can we do Thailand? 🏝️" },
+    { who: "Ravi", text: "@Claude — better value in December for a family: Goa or Thailand?" },
+    { who: "Claude", ai: true, text: "Goa, easily — December is Thailand’s peak, so flights spike. Goa gives you calm beaches to rest and water-sports for the kids." },
   ] as Msg[],
   // Decide: not every voice weighs the same on every question — money, time,
   // experience. The person with the most at stake leads each one.
@@ -44,11 +44,7 @@ const STEPS = [
 // step timeline: 0–3 reveal messages (Think) · 4 Decide · 5 Bloom · 6–7 Sacred
 // Tree + hold, then loop. Paced slow enough to actually read and absorb each
 // stage — this is the story, not a flash.
-const DELAYS = [2200, 2400, 2400, 2600, 5000, 3800, 5000, 2000];
-
-function dimMeta(key: string) {
-  return DIMENSIONS.find((d) => d.key === key) ?? DIMENSIONS[1];
-}
+const DELAYS = [2200, 2400, 2600, 3200, 5000, 3800, 5000, 2000];
 
 export function LandingDemo() {
   const [step, setStep] = useState(0);
@@ -107,17 +103,14 @@ export function LandingDemo() {
 
       {/* Stage — phases cross-fade in a fixed-height frame so the card is steady */}
       <div className="relative min-h-[300px]">
-        {/* ── THINK ── the conversation, each voice a different angle */}
+        {/* ── THINK ── the group talks; someone asks Claude, Claude answers */}
         <div className={`absolute inset-0 transition-opacity duration-700 ${phase === "think" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <p className="mb-3 text-[11px] leading-relaxed text-ink-soft">
-            Every voice adds a different angle — <span style={{ color: "#EC407A" }}>a question</span>,{" "}
-            <span style={{ color: "#42A5F5" }}>real experience</span>,{" "}
-            <span style={{ color: "#AB47BC" }}>a trade-off</span>,{" "}
-            <span style={{ color: "#FFB300" }}>a clearer view</span>.
+            Everyone talks it through together — and when a real question comes up, they just ask
+            Claude.
           </p>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {TRIP.msgs.map((m, i) => {
-              const d = dimMeta(m.dim);
               const revealed = phase !== "think" || i <= step;
               return (
                 <div key={i} className={`flex items-start gap-2 transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-0"}`}>
@@ -128,13 +121,15 @@ export function LandingDemo() {
                     {m.ai ? "✦" : m.who[0]}
                   </span>
                   <div className="min-w-0">
-                    <div className="mb-0.5 flex items-center gap-1.5">
-                      <span className="text-xs font-medium text-ink">{m.who}</span>
-                      <span className="rounded-full px-1.5 py-0.5 text-[9px]" style={{ color: d.color, background: `${d.color}1A` }}>
-                        {d.emoji} {d.label}
-                      </span>
-                    </div>
-                    <p className="text-xs leading-relaxed text-ink-mid">{m.text}</p>
+                    <span className="text-xs font-medium text-ink">{m.who === "Claude" ? "Claude · answering" : m.who}</span>
+                    <p
+                      className={`mt-0.5 rounded-xl px-2.5 py-1.5 text-xs leading-relaxed ${
+                        m.ai ? "text-ink" : "text-ink-mid"
+                      }`}
+                      style={{ background: m.ai ? "rgba(76,175,80,0.1)" : "rgba(255,255,255,0.04)" }}
+                    >
+                      {m.text}
+                    </p>
                   </div>
                 </div>
               );
