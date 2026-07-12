@@ -8,7 +8,6 @@ import { NavBar } from "@/components/NavBar";
 import { CreateGardenForm } from "@/components/CreateGardenForm";
 import { GettingStarted } from "@/components/GettingStarted";
 import { HashFocus } from "@/components/HashFocus";
-import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 import { MorningQuote } from "@/components/MorningQuote";
 import { DailyQuestion } from "@/components/DailyQuestion";
 import { NotificationSetup } from "@/components/NotificationSetup";
@@ -28,7 +27,6 @@ export default async function GardensHome() {
 
   return (
     <div className="relative min-h-screen">
-      <FirstVisitIntro />
       <HashFocus />
       <PushHealer />
       <div className="garden-bg" />
@@ -65,40 +63,23 @@ async function GardensArea({
   const gardens = await listGardens(userId, orgId);
 
   if (gardens.length === 0) {
+    // First run: don't hit them with a wall of text or a dead "make a garden"
+    // form. Drop them straight into real public decisions so they get a feel for
+    // it in seconds — the "just show public gardens so they get a hang" ask.
+    // Starting your own sits quietly below, once they've seen the point.
     return (
       <>
         <p className="eyebrow mb-2">Welcome{name ? `, ${name.split(" ")[0]}` : ""} 🌱</p>
-        <h1 className="serif-xl mb-3">Let&apos;s start your first garden.</h1>
-        <p className="mb-4 max-w-xl text-ink-mid">
-          A <span className="text-ink">garden</span> is a topic your group cares about — like{" "}
-          <em className="text-ink">Home Furniture</em> or <em className="text-ink">Summer Plans</em>.
-          Inside it, each <span className="text-ink">seed</span> is one real decision you think
-          through together — <em>“which fan?”</em>, <em>“where do we go?”</em>
-        </p>
-        <div className="mb-8 flex flex-wrap gap-2 text-xs">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.25)] px-3 py-1 text-ink-mid">
-            🌳 Garden = a topic
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.25)] px-3 py-1 text-ink-mid">
-            🌱 Seed = a decision
-          </span>
-        </div>
-        <div id="new-garden" className="card p-5">
-          <CreateGardenForm firstRun />
-        </div>
+        <h1 className="serif-lg mb-4">See how people are deciding together 👇</h1>
+        <Suspense fallback={null}>
+          <DiscoverSection />
+        </Suspense>
+        <Feed />
 
-        {/* New users shouldn't hit a dead "make a garden" wall — start them in
-            the middle of real public conversations so they see the value first
-            and can weigh in before creating anything of their own. */}
-        <div className="mt-10">
-          <h2 className="serif-lg mb-1">🌍 What people are deciding right now</h2>
-          <p className="mb-4 text-sm text-ink-soft">
-            Jump into a public conversation — weigh in, or just watch how a group thinks together.
-          </p>
-          <Suspense fallback={null}>
-            <DiscoverSection />
-          </Suspense>
-          <Feed />
+        <div id="new-garden" className="card mt-8 p-4">
+          <p className="mb-1 text-sm font-medium text-ink">Ready to decide something of your own?</p>
+          <p className="mb-3 text-xs text-ink-soft">🌳 a garden is a topic · 🌱 a seed is one decision</p>
+          <CreateGardenForm firstRun />
         </div>
       </>
     );
