@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { deadlineFollowup } from "@/lib/ai";
 import { getOrCreateClaudeUser } from "@/lib/services/contributions";
 import { notifySeedAudience } from "@/lib/services/seed-notify";
+import { displayName } from "@/lib/display-name";
 
 // ── Rhythm / deadlines ────────────────────────────────────────────────────────
 // A group can put a gentle rhythm on a seed so a decision doesn't drift forever:
@@ -16,6 +17,17 @@ import { notifySeedAudience } from "@/lib/services/seed-notify";
 // the "Claude follows up till Bloom" the group asked for.
 
 const days = (d: number) => d * 24 * 60 * 60 * 1000;
+
+// "2 days", "1 day", or "12 hours" for a sub-day span — plain words for the
+// in-thread note everyone (down to a 10-year-old) reads.
+function humanDuration(d: number): string {
+  if (d >= 1) {
+    const n = Math.round(d * 10) / 10;
+    return `${n} ${n === 1 ? "day" : "days"}`;
+  }
+  const h = Math.max(1, Math.round(d * 24));
+  return `${h} ${h === 1 ? "hour" : "hours"}`;
+}
 
 export type DeadlineView = {
   mode: "paced" | "peaceful";
@@ -53,6 +65,8 @@ export async function setDeadline(
 ): Promise<DeadlineView> {
   let discussBy: Date | null = null;
   let decideBy: Date | null = null;
+  let dDays = 2;
+  let kDays = 1;
 
   if (input.mode === "paced") {
     // Clamp to sane bounds so a fat-fingered "200" can't schedule a nudge a year
@@ -61,8 +75,8 @@ export async function setDeadline(
       const v = Number.isFinite(d) ? Number(d) : fallback;
       return Math.min(Math.max(v, 0.125), 30); // 0.125d = 3h floor
     };
-    const dDays = clamp(input.discussDays, 2);
-    const kDays = clamp(input.decideDays, 1);
+    dDays = clamp(input.discussDays, 2);
+    kDays = clamp(input.decideDays, 1);
     discussBy = new Date(now.getTime() + days(dDays));
     decideBy = new Date(discussBy.getTime() + days(kDays));
   }
@@ -91,6 +105,39 @@ export async function setDeadline(
 
   // Keep the seed sorting fresh — a rhythm is a real signal of momentum.
   await db.seed.update({ where: { id: seedId }, data: { lastActivityAt: now } }).catch(() => {});
+
+  // Tell the whole group the clock started, both in the thread (a quiet centered
+  // line everyone present sees) and as a notification (for those away). This is
+  // the "once the timer starts, notify the group" ask.
+  try {
+    const [seed, user] = await Promise.all([
+      db.seed.findUnique({ where: { id: seedId }, select: { id: true, title: true, createdById: true } }),
+      db.user.findUnique({ where: { id: userId }, select: { name: true, email: true } }),
+    ]);
+    if (seed) {
+      const name = displayName(user ?? {});
+      const text =
+        input.mode === "paced"
+          ? `⏱️ ${name} started a timer — ${humanDuration(dDays)} to talk it over, then ${humanDuration(kDays)} to decide.`
+          : `🕊️ ${name} chose no deadline — we'll take the time we need.`;
+      await db.contribution.create({
+        data: { seedId, authorId: userId, dimension: "system", content: { system: "rhythm", text } },
+      });
+      await notifySeedAudience({
+        actorId: userId,
+        seed,
+        type: "deadline",
+        title:
+          input.mode === "paced"
+            ? `⏱️ A timer started — “${seed.title.slice(0, 60)}”`
+            : `“${seed.title.slice(0, 70)}” — no deadline`,
+        body: text,
+      });
+    }
+  } catch (err) {
+    console.error("setDeadline: announce failed", err);
+  }
+
   return getDeadline(seedId);
 }
 

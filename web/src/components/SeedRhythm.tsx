@@ -130,7 +130,7 @@ export function SeedRhythm({
         <div className="flex items-center gap-2 text-[13px]">
           <span aria-hidden className="text-sm">🕊️</span>
           <span className="min-w-0 flex-1 text-ink-mid">
-            No deadline — the group is converging peacefully, in its own time.
+            No deadline — we’ll take the time we need.
           </span>
           {canManage && !editing && (
             <button onClick={() => setEditing(true)} className="shrink-0 rounded-full px-2.5 py-1 text-xs text-accent transition hover:bg-[rgba(76,175,80,0.12)]">
@@ -145,14 +145,14 @@ export function SeedRhythm({
             <div className="min-w-0">
               <p className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">
                 {phase === "discuss"
-                  ? "🌱 Discussing — then decide"
+                  ? "🌱 Time to talk it over"
                   : phase === "decide"
-                    ? "⚖️ Deciding"
-                    : "🌸 Decision time"}
+                    ? "⚖️ Time to decide"
+                    : "🌸 Time’s up"}
               </p>
               {phase === "over" ? (
                 <p className="mt-0.5 text-sm text-ink-mid">
-                  Time’s up — {canManage ? "bloom it, add more time, or reopen." : "Claude is nudging the group toward a bloom."}
+                  Time’s up — {canManage ? "make the call, or add more time." : "it’s time to decide together."}
                 </p>
               ) : (
                 <p className="mt-0.5 font-mono text-2xl font-semibold tabular-nums text-ink" aria-live="off">
@@ -162,7 +162,7 @@ export function SeedRhythm({
             </div>
             {phase !== "over" && (
               <p className="max-w-[7.5rem] shrink-0 text-right text-[11px] leading-tight text-ink-soft">
-                {phase === "discuss" ? "left to talk it through" : "left to land the decision"}
+                {phase === "discuss" ? "left to talk" : "left to decide"}
               </p>
             )}
           </div>
@@ -179,7 +179,7 @@ export function SeedRhythm({
                   disabled={busy}
                   className="rounded-full border border-[rgba(255,255,255,0.12)] px-2.5 py-1 text-xs text-ink-mid transition hover:border-accent hover:text-ink disabled:opacity-50"
                 >
-                  {phase === "discuss" ? "❄️ End discussion now" : "❄️ Close decision now"}
+                  {phase === "discuss" ? "❄️ Done talking — decide now" : "❄️ Time’s up"}
                 </button>
               )}
               <button
@@ -193,14 +193,14 @@ export function SeedRhythm({
           )}
         </div>
       ) : (
-        // ── No rhythm yet (steward only, since non-managers are filtered above) ──
+        // ── No deadline set yet (steward only; non-managers are filtered above) ──
         <div className="flex items-center gap-2 text-[13px]">
           <span aria-hidden className="text-sm">🕰️</span>
           <span className="min-w-0 flex-1 text-ink-soft">
-            No rhythm yet — set a gentle pace so the decision keeps moving.
+            Want a deadline to finish talking and decide?
           </span>
           <button onClick={() => setEditing(true)} className="shrink-0 rounded-full px-2.5 py-1 text-xs text-accent transition hover:bg-[rgba(76,175,80,0.12)]">
-            Set a rhythm
+            Set a deadline
           </button>
         </div>
       )}
@@ -209,21 +209,21 @@ export function SeedRhythm({
       {editing && canManage && (
         <div className="mt-3 space-y-3 border-t border-[rgba(255,255,255,0.06)] pt-3">
           <p className="text-xs text-ink-soft">
-            A rhythm keeps a decision from drifting. The clock starts ticking right away, and Claude
-            steps in when each phase’s time comes — never to rush you, just to keep everyone moving.
+            Pick how long to talk it over, then how long to decide. The countdown starts right away,
+            and everyone gets a friendly reminder when time’s up.
           </p>
 
           <div className="rounded-lg border border-[rgba(255,255,255,0.06)] bg-[rgba(7,13,7,0.35)] p-3">
-            <p className="mb-2 text-xs font-semibold text-ink">⏱️ Set a pace</p>
+            <p className="mb-2 text-xs font-semibold text-ink">⏱️ Set a deadline</p>
             <div className="flex flex-wrap items-center gap-2 text-sm text-ink-mid">
               <NumBox value={discussDays} onChange={setDiscussDays} /> days to
-              <span className="text-ink">discuss</span>
+              <span className="text-ink">talk</span>
               <span className="text-ink-soft">·</span>
               <NumBox value={decideDays} onChange={setDecideDays} /> more to
               <span className="text-ink">decide</span>
             </div>
             <button onClick={setPaced} disabled={busy} className="btn-primary mt-3 w-full py-1.5 text-sm">
-              {busy ? "Setting…" : "🌱 Start this rhythm"}
+              {busy ? "Starting…" : "▶️ Start the timer"}
             </button>
           </div>
 
@@ -235,14 +235,14 @@ export function SeedRhythm({
             <span aria-hidden className="text-base">🕊️</span>
             <span className="min-w-0 flex-1">
               <span className="block text-xs font-semibold text-ink">No deadline</span>
-              <span className="block text-xs text-ink-soft">Converge peacefully, in your own time.</span>
+              <span className="block text-xs text-ink-soft">Take all the time we need.</span>
             </span>
           </button>
 
           <div className="flex items-center justify-between">
             {dl ? (
               <button onClick={remove} disabled={busy} className="text-xs text-ink-soft underline-offset-2 hover:underline">
-                Remove rhythm
+                Remove deadline
               </button>
             ) : (
               <span />

@@ -1398,9 +1398,12 @@ export function SeedRoom({
             // System "joined" line — a quiet, centered presence marker, not a
             // message bubble.
             if (c.dimension === "system") {
+              // A quiet, centered presence marker. Custom text (e.g. a timer
+              // note) shows verbatim; otherwise it's a join line.
+              const sysText = c.text?.trim();
               return (
                 <div key={c.id} id={`c-${c.id}`} className="scroll-mt-20 py-1 text-center text-xs text-ink-soft">
-                  🌿 {c.author?.name || "Someone"} joined the conversation
+                  {sysText ? sysText : `🌿 ${c.author?.name || "Someone"} joined the conversation`}
                 </div>
               );
             }

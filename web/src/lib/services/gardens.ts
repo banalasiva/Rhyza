@@ -52,6 +52,23 @@ export async function deleteGarden(userId: string, gardenId: string) {
 
 // Gardens the viewer can see in their org: public gardens, plus private gardens
 // they created or belong to. With seed/member/bloom counts for the list view.
+// Which gardens a person should see in their nav / home. The fix for "my mother
+// made a garden and added me but it isn't showing": every Gmail user gets their
+// own personal org, so a garden someone creates and adds you to lives in THEIR
+// org, not your primary one. Gating the whole list on your primary org hid it.
+// So: show every garden you CREATED or are a MEMBER of, whatever org it's in —
+// plus public gardens within your own org (scoped, so joining one family's space
+// doesn't flood your list with every other public garden across bridged orgs).
+function gardensVisibleTo(userId: string, orgId: string) {
+  return {
+    OR: [
+      { createdById: userId },
+      { members: { some: { userId } } },
+      { orgId, visibility: "public" },
+    ],
+  };
+}
+
 export async function listGardens(userId: string, orgId: string) {
   // Run the membership check in parallel with the listing instead of serially
   // before it — one fewer round-trip on the critical path (this is the home
@@ -60,14 +77,7 @@ export async function listGardens(userId: string, orgId: string) {
   const [, gardens] = await Promise.all([
     requireOrgMember(userId, orgId),
     db.garden.findMany({
-      where: {
-        orgId,
-        OR: [
-          { visibility: "public" },
-          { createdById: userId },
-          { members: { some: { userId } } },
-        ],
-      },
+      where: gardensVisibleTo(userId, orgId),
       orderBy: { createdAt: "desc" },
       include: {
         _count: { select: { members: true, seeds: true, blooms: true } },
@@ -207,14 +217,7 @@ export async function getGardenDetail(userId: string, gardenId: string) {
 export async function getNavTree(userId: string, orgId: string) {
   await requireOrgMember(userId, orgId);
   const gardens = await db.garden.findMany({
-    where: {
-      orgId,
-      OR: [
-        { visibility: "public" },
-        { createdById: userId },
-        { members: { some: { userId } } },
-      ],
-    },
+    where: gardensVisibleTo(userId, orgId),
     orderBy: { name: "asc" },
     select: {
       id: true,
