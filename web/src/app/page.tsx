@@ -13,6 +13,7 @@ import { YourTurn } from "@/components/YourTurn";
 import { DiscoverGardens } from "@/components/DiscoverGardens";
 import { Feed } from "@/components/Feed";
 import { FirstDecision } from "@/components/FirstDecision";
+import { WelcomeFlow } from "@/components/WelcomeFlow";
 
 // The home page streams: only requireViewer() (a fast JWT decode) blocks the
 // first byte, so the shell + greeting paint almost immediately and the OS splash
@@ -65,6 +66,9 @@ async function GardensArea({
     // Starting your own sits quietly below, once they've seen the point.
     return (
       <>
+        {/* The first-minute welcome — why → how → plant your first seed. Shows
+            once per device, skippable; new users only. */}
+        <WelcomeFlow />
         <p className="eyebrow mb-2">Welcome{name ? `, ${name.split(" ")[0]}` : ""} 🌱</p>
         {/* Guided start on top (Claude replies, then add people), real public
             decisions below to browse — the "both" first-run. */}
