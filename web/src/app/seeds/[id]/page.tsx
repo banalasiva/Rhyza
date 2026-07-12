@@ -5,6 +5,7 @@ import { getSeedDetail, getSeedPreview } from "@/lib/services/seeds";
 import { getReactionTypes } from "@/lib/registry";
 import { NavBar } from "@/components/NavBar";
 import { SeedRoom } from "@/components/SeedRoom";
+import { SeedRhythm } from "@/components/SeedRhythm";
 import { LockedSeed } from "@/components/LockedSeed";
 
 export default async function SeedPage({ params }: { params: { id: string } }) {
@@ -45,6 +46,11 @@ export default async function SeedPage({ params }: { params: { id: string } }) {
             ← {seed.garden.emoji} {seed.garden.name}
           </Link>
         </div>
+        <SeedRhythm
+          seedId={seed.id}
+          canManage={seed.canManage}
+          active={!seed.bloomId}
+        />
         <SeedRoom
           seed={seed}
           reactions={reactions}

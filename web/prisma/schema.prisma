@@ -223,10 +223,38 @@ model Seed {
   followers     SeedFollow[]
   reports       SeedReport[]
   topics        SeedTopic[]
+  deadline      SeedDeadline?
 
   @@index([gardenId, stage])
   @@index([listed, lastActivityAt])
   @@map("seeds")
+}
+
+// A "rhythm" the group sets on a seed so a decision doesn't drift forever:
+// "2 days to discuss, 1 day to decide, and Claude keeps us moving" — or the
+// deliberate opposite, "no deadline, we'll converge peacefully." When a phase's
+// time arrives, the deadline cron has Claude step into the thread with a warm,
+// specific nudge toward the next step (see lib/services/deadlines.ts). One per
+// seed; setById is a plain user id (no Prisma relation needed — the DB FK in the
+// migration enforces the cascade).
+model SeedDeadline {
+  seedId         String    @id @map("seed_id") @db.Uuid
+  // "paced" = timed with Claude follow-ups · "peaceful" = no deadline, converge
+  // naturally (still recorded so the intention is visible to everyone).
+  mode           String    @default("paced")
+  discussBy      DateTime? @map("discuss_by")
+  decideBy       DateTime? @map("decide_by")
+  setById        String    @map("set_by") @db.Uuid
+  // Cooldown + idempotency for the follow-up cron: the last phase Claude nudged
+  // ("discuss" | "decide") and when, so it never double-posts the same reminder.
+  lastFollowupAt DateTime? @map("last_followup_at")
+  followupStage  String?   @map("followup_stage")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
+
+  @@map("seed_deadlines")
 }
 
 // A user following a world-public seed from /explore — they get its activity

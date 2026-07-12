@@ -17,6 +17,7 @@ export function summarise(types: string[]): string {
       : `Someone mentioned you 🌿`;
   }
   if (has("bloom")) return `A seed you're in just bloomed 🌸`;
+  if (has("deadline")) return `It's time to move a decision forward 🕰️`;
   if (has("endorsement")) return `Your thinking was found valuable ✦`;
   if (has("stage_change")) return `The room is moving on something you're in 🌿`;
   if (n === 1) return `1 new thing in your gardens 🌿`;

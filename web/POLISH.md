@@ -36,10 +36,18 @@ Legend: `[ ]` to do · `[~]` needs a design call / bigger build · `[x]` shipped
 - [x] **#1 Plant→garden.** "Planting in [🌿 garden]" selector at the top of the
   compose form, defaulting to the current garden but changeable.
 
-### Bigger builds (planned next)
+### Bigger builds
 
-- [~] **#7 Timers / deadlines.** "2 days to discuss, 1 day to decide, Claude
-  follows up till Bloom" — or "no deadline, converge peacefully." Schema + UI +
-  Claude follow-up. Bigger build.
+- [x] **#7 Timers / deadlines ("rhythm").** A group can put a gentle pace on a
+  seed — "N days to discuss, M more to decide" — or the deliberate opposite,
+  "🕊️ no deadline, converge peacefully." Shown as a slim bar above the
+  conversation (`SeedRhythm`); stewards set/change/clear it, everyone sees where
+  things stand. Nothing is ever force-closed: when a phase's time arrives, the
+  nudge cron has **Claude step into the thread** with a warm, specific message
+  moving the group toward the next step (converge → 🌸 bloom), with a plain
+  templated fallback if AI is off so a rhythm the group asked for always lands.
+  New `seed_deadlines` table (+ migration + pending-ddl), `/api/seeds/:id/deadline`
+  (GET any member · POST steward), `followUpOnDeadlines()` wired into
+  `/api/cron/nudge` (runs both slots, once-per-phase via `followupStage`).
 - [ ] **#3 Dimensions beyond Foundations/Understanding/…** Deferred by request —
   people's dialogues are broader than these buckets; revisit after features land.

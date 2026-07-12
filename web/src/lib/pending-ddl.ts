@@ -428,6 +428,27 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     )`,
   },
 
+  // 20260712120000_seed_deadlines
+  {
+    label: "seed_deadlines",
+    sql: `CREATE TABLE IF NOT EXISTS "seed_deadlines" (
+      "seed_id"          UUID    NOT NULL REFERENCES "seeds" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "mode"             TEXT    NOT NULL DEFAULT 'paced',
+      "discuss_by"       TIMESTAMP(3),
+      "decide_by"        TIMESTAMP(3),
+      "set_by"           UUID    NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "last_followup_at" TIMESTAMP(3),
+      "followup_stage"   TEXT,
+      "created_at"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updated_at"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "seed_deadlines_pkey" PRIMARY KEY ("seed_id")
+    )`,
+  },
+  {
+    label: "seed_deadlines_decide_by_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "seed_deadlines_decide_by_idx" ON "seed_deadlines" ("decide_by")`,
+  },
+
   // One-time data backfill (idempotent): give people who joined via the email
   // magic-link — and so have an empty name — a readable display name derived
   // from their email ("siva.prasad@x" → "Siva Prasad"). Only touches rows whose

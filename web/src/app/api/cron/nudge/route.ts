@@ -5,6 +5,7 @@ import { pushConfigured, sendPushToUser } from "@/lib/push";
 import { sendGoodMorning, summarise } from "@/lib/services/morning";
 import { cronAuthorized, markCronRun, cronRanToday } from "@/lib/cron";
 import { rekindleStallingThreads } from "@/lib/services/rekindle";
+import { followUpOnDeadlines } from "@/lib/services/deadlines";
 
 export const dynamic = "force-dynamic";
 
@@ -44,9 +45,15 @@ export async function GET(req: Request) {
       : new Date().getUTCHours() < 6
         ? "morning"
         : "evening";
+  // Rhythm follow-ups run on every invocation (both slots), independent of push:
+  // when a seed's discuss/decide window arrives, Claude steps into the thread to
+  // keep the group moving. Its own 18h per-seed cooldown prevents double-posting
+  // across the two daily slots. Best-effort — never let it break the push job.
+  const deadlines = await followUpOnDeadlines().catch(() => ({ scanned: 0, nudged: 0 }));
+
   if (!pushConfigured()) {
-    await markCronRun(slot, "push not configured");
-    return NextResponse.json({ ok: true, sent: 0, note: "push not configured" });
+    await markCronRun(slot, `push not configured · rhythm ${deadlines.nudged}`);
+    return NextResponse.json({ ok: true, sent: 0, note: "push not configured", deadlines });
   }
 
   // Morning → daily good-morning to everyone who wants push. Guarded to once per
@@ -111,5 +118,6 @@ export async function GET(req: Request) {
     recipients: groups.size,
     sent,
     rekindled,
+    deadlines,
   });
 }

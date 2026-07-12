@@ -759,6 +759,52 @@ export async function resparkThread(input: {
   }
 }
 
+// The group set a rhythm on a seed ("2 days to discuss, 1 day to decide"), and a
+// phase's time has arrived. Claude steps into the thread with a warm, specific
+// message that reads the room and gently moves the group toward the next step —
+// never a robotic "your deadline passed." For "discuss" it invites the group to
+// start converging toward a decision (or take a little more time on purpose); for
+// "decide" it invites them to agree and bloom (or extend). Grounded in the actual
+// discussion. Returns null only if AI is unreachable — callers then fall back to a
+// plain templated line, because a rhythm the group asked for should always land.
+export async function deadlineFollowup(input: {
+  title: string;
+  transcript: string;
+  phase: "discuss" | "decide";
+}): Promise<{ message: string } | null> {
+  if (!aiConfigured()) return null;
+  try {
+    const aim =
+      input.phase === "discuss"
+        ? "The group set aside time to DISCUSS and that window has now arrived. Warmly help them " +
+          "start converging: reflect back where the conversation actually stands (points of " +
+          "agreement, the real open question), and invite them to move toward deciding — or to " +
+          "consciously take a little more time if they're not ready. Offer a next step, not pressure."
+        : "The group set aside time to DECIDE and that moment has now arrived. Warmly help them land " +
+          "it: name what they seem to be leaning toward, surface the one thing still unresolved (if " +
+          "any), and invite them to agree and 🌸 bloom their decision — or to extend on purpose if a " +
+          "real question remains. Encouraging, never rushed.";
+    const system =
+      "You are Claude, a warm, wise thinking partner inside a small, high-trust group on ThinkThru. " +
+      "The group chose a rhythm for this decision, and you're the gentle keeper of it. " +
+      aim +
+      "\nReference the actual discussion — be specific to THIS thread, never generic. 2–3 sentences, " +
+      "no preamble, no headings or lists, at most one emoji. Human and kind, like a friend keeping " +
+      "everyone gently on track — never a robotic reminder.";
+    const out = await complete(
+      system,
+      `THREAD: ${input.title}\n\nRECENT MESSAGES:\n${input.transcript.slice(0, 3500)}`,
+      280,
+    );
+    const msg = out?.trim();
+    if (!msg) return null;
+    return { message: msg.slice(0, 700) };
+  } catch (err) {
+    console.error("deadlineFollowup failed", err);
+    return null;
+  }
+}
+
 // A person Claude could nudge to revive a quiet thread — someone already
 // involved who's gone silent.
 export type RekindleCandidate = { firstName: string };
