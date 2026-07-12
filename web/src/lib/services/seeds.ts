@@ -168,8 +168,10 @@ export async function countParticipants(seedId: string): Promise<number> {
     where: { id: seedId },
     select: { createdById: true },
   });
+  // Humans only — the AI teammates (Claude / ChatGPT) contribute but are never
+  // counted as members of the group.
   const authors = await db.contribution.findMany({
-    where: { seedId, deletedAt: null },
+    where: { seedId, deletedAt: null, author: { name: { notIn: ["Claude", "ChatGPT"] } } },
     select: { authorId: true },
     distinct: ["authorId"],
   });

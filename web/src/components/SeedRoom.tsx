@@ -378,9 +378,12 @@ export function SeedRoom({
   const totalVotes = distribution.reduce((n, d) => n + d.votes, 0);
 
   const participants = useMemo(() => {
+    const AI = new Set(["Claude", "ChatGPT"]);
     const ids = new Set<string>();
-    if (seed.author?.id) ids.add(seed.author.id);
-    for (const c of contributions) if (c.author?.id) ids.add(c.author.id);
+    if (seed.author?.id && !AI.has(seed.author?.name ?? "")) ids.add(seed.author.id);
+    for (const c of contributions) {
+      if (c.author?.id && !AI.has(c.author?.name ?? "")) ids.add(c.author.id);
+    }
     return Math.max(ids.size, 1);
   }, [contributions, seed.author]);
 
