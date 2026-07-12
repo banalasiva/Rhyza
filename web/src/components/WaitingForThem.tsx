@@ -90,9 +90,9 @@ export function WaitingForThem() {
   // Nothing left to show and nothing hidden → collapse entirely.
   if (visible.length === 0 && hiddenCount === 0) return null;
 
-  // Default to folded once there's no one actively waiting on you; otherwise
-  // stay open. A tap remembers the choice for next time.
-  const isCollapsed = collapsed ?? visible.length === 0;
+  // Default to a single line — it's a quiet, ambient reminder, not something to
+  // eat the top of the home page. Tap the arrow to expand (remembered next time).
+  const isCollapsed = collapsed ?? true;
   function toggleCollapsed() {
     const next = !isCollapsed;
     setCollapsed(next);
