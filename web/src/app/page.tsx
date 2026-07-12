@@ -89,13 +89,20 @@ async function GardensArea({
         <div id="new-garden" className="card p-5">
           <CreateGardenForm firstRun />
         </div>
-        <p className="mb-8 mt-4 text-sm text-ink-soft">
-          Just want to look around first?{" "}
-          <a href="/explore" className="text-accent hover:underline">Explore public gardens →</a>
-        </p>
-        <Suspense fallback={null}>
-          <DiscoverSection />
-        </Suspense>
+
+        {/* New users shouldn't hit a dead "make a garden" wall — start them in
+            the middle of real public conversations so they see the value first
+            and can weigh in before creating anything of their own. */}
+        <div className="mt-10">
+          <h2 className="serif-lg mb-1">🌍 What people are deciding right now</h2>
+          <p className="mb-4 text-sm text-ink-soft">
+            Jump into a public conversation — weigh in, or just watch how a group thinks together.
+          </p>
+          <Suspense fallback={null}>
+            <DiscoverSection />
+          </Suspense>
+          <Feed />
+        </div>
       </>
     );
   }
