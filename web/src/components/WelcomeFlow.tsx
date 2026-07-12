@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/client";
 
-// The first minute — the part that has to earn the "oh, I get it" and then the
-// rush. Three fast, visual beats a newcomer taps through in seconds (skippable
-// any time), ending by planting a REAL decision so Claude replies within
-// seconds. Not a text wall to read — a runway to the first hit of delight.
+// The first minute — a short CONVERSATION, not a pitch. It hooks with a question
+// the newcomer is already asking, answers the one objection everyone has ("can't
+// I just ask ChatGPT myself?"), shows the whole app is three simple steps, and
+// ends by planting a REAL decision so Claude replies within seconds. That reply —
+// to their own question, with their people invitable right there — is the hit of
+// delight and the answer to "why ThinkThru".
 //
-// Shows once per device (localStorage). Rendered only for brand-new users (the
-// home empty state), so returning people never see it.
+// Shows once per device (localStorage), skippable any time, new users only.
 
 const EXAMPLES = [
   "Which school for our kid?",
@@ -19,16 +20,19 @@ const EXAMPLES = [
   "How do we care for our parents?",
 ];
 
-const HOW = [
-  { emoji: "💬", label: "Talk it through", sub: "You and your people — plus Claude — from every angle." },
-  { emoji: "⚖️", label: "Weigh what matters", sub: "It adds up to one fair answer, not just the loudest voice." },
-  { emoji: "🌸", label: "It blooms", sub: "Into one decision your family keeps, forever." },
+// The whole app, in three words.
+const STEPS3 = [
+  { emoji: "💬", label: "Discuss", sub: "Everyone shares their take — with Claude thinking alongside you." },
+  { emoji: "⚖️", label: "Decide", sub: "Weigh what matters, so it's the fair answer — not the loudest voice." },
+  { emoji: "🌸", label: "Bloom", sub: "It settles into one decision your people keep, forever." },
 ];
+
+const LAST = 3; // step index of the "do it now" screen
 
 export function WelcomeFlow() {
   const router = useRouter();
   const [show, setShow] = useState(false);
-  const [step, setStep] = useState(0); // 0 why · 1 how · 2 do
+  const [step, setStep] = useState(0); // 0 hook · 1 why-not-chatgpt · 2 three-steps · 3 do
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,9 +78,9 @@ export function WelcomeFlow() {
   return (
     <div className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-[#070d07]">
       <div className="garden-bg" />
-      {/* Skip — always available so it never feels like a trap. */}
+      {/* Skip — always there so it never feels like a trap. */}
       <div className="relative z-10 flex justify-end p-4">
-        {step < 2 && (
+        {step < LAST && (
           <button onClick={done} className="text-xs text-ink-soft transition hover:text-ink">
             Skip
           </button>
@@ -84,24 +88,43 @@ export function WelcomeFlow() {
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
-        {/* ── Step 0 · Why ── */}
+        {/* ── 0 · The hook (a question they're already asking) ── */}
         {step === 0 && (
           <div className="max-w-md animate-[fadeUp_0.5s_ease-out]">
             <div className="mb-5 text-5xl">🌱</div>
-            <h1 className="serif-xl mb-4">The big decisions deserve better than a group chat.</h1>
+            <h1 className="serif-xl mb-4">Got a big decision coming up with your people?</h1>
             <p className="text-lg text-ink-mid">
-              ThinkThru turns the messy back-and-forth into one clear answer —{" "}
-              <span className="font-serif italic text-bloom">that everyone keeps</span>.
+              Which school. Where to live. Whether to take the offer. The ones that matter never
+              really fit in a group chat, do they?
             </p>
           </div>
         )}
 
-        {/* ── Step 1 · How ── */}
+        {/* ── 1 · The one objection, answered ── */}
         {step === 1 && (
+          <div className="max-w-md animate-[fadeUp_0.5s_ease-out]">
+            <p className="mb-4 rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.03)] px-4 py-2.5 text-sm italic text-ink-soft">
+              “But can’t I just ask ChatGPT or Claude myself?”
+            </p>
+            <h2 className="serif-lg mb-3">You can — on your own.</h2>
+            <p className="text-base text-ink-mid">
+              ThinkThru is different: it brings your{" "}
+              <span className="text-ink">people</span> <em>and</em> AI into the same room. Everyone’s
+              voice, weighed fairly, with Claude thinking alongside all of you —{" "}
+              <span className="font-serif italic text-bloom">
+                not one person and a bot, but your whole circle deciding together
+              </span>
+              .
+            </p>
+          </div>
+        )}
+
+        {/* ── 2 · The whole app, in three steps ── */}
+        {step === 2 && (
           <div className="w-full max-w-md animate-[fadeUp_0.5s_ease-out]">
-            <p className="eyebrow mb-5">Here’s how it works</p>
+            <p className="eyebrow mb-5">And it’s just three simple steps</p>
             <div className="space-y-3 text-left">
-              {HOW.map((h, i) => (
+              {STEPS3.map((h, i) => (
                 <div
                   key={h.label}
                   className="flex items-start gap-3 rounded-2xl border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.05)] p-4"
@@ -118,13 +141,14 @@ export function WelcomeFlow() {
           </div>
         )}
 
-        {/* ── Step 2 · Do it now ── */}
-        {step === 2 && (
+        {/* ── 3 · Your turn — plant a real one ── */}
+        {step === 3 && (
           <div className="w-full max-w-md animate-[fadeUp_0.5s_ease-out]">
             <div className="mb-3 text-4xl">✨</div>
-            <h2 className="serif-lg mb-2">Your turn — let’s try it right now.</h2>
+            <h2 className="serif-lg mb-2">Alright — your turn. What should we decide?</h2>
             <p className="mb-4 text-sm text-ink-mid">
-              What’s one thing you’d love to decide with your family or friends?
+              Ask one real thing you’d love to sort out with your family or friends. Claude replies
+              right away — then you add your people.
             </p>
             <textarea
               className="input min-h-[56px] w-full text-left"
@@ -155,7 +179,7 @@ export function WelcomeFlow() {
               disabled={busy || title.trim().length < 4}
               className="btn-primary mt-4 w-full disabled:opacity-50"
             >
-              {busy ? "🌱 Planting your seed…" : "✨ Start — Claude replies right away"}
+              {busy ? "🌱 Planting your seed…" : "✨ Ask it — Claude replies right away"}
             </button>
             <button onClick={done} className="mt-3 text-xs text-ink-soft transition hover:text-ink">
               I’ll explore first
@@ -167,7 +191,7 @@ export function WelcomeFlow() {
       {/* ── Progress dots + Next ── */}
       <div className="relative z-10 flex items-center justify-between px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
         <div className="flex gap-1.5">
-          {[0, 1, 2].map((i) => (
+          {[0, 1, 2, 3].map((i) => (
             <span
               key={i}
               className="h-1.5 rounded-full transition-all"
@@ -175,9 +199,9 @@ export function WelcomeFlow() {
             />
           ))}
         </div>
-        {step < 2 ? (
+        {step < LAST ? (
           <button onClick={() => setStep((s) => s + 1)} className="btn-primary px-6">
-            Next →
+            {step === 1 ? "Show me →" : step === 2 ? "Let’s go →" : "Next →"}
           </button>
         ) : (
           <span />
