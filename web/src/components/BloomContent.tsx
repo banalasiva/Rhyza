@@ -43,15 +43,22 @@ export function BloomContent({ text }: { text: string }) {
       continue;
     }
     flushBullets();
-    // A whole line that's just a bold label, e.g. "**Key points**"
-    const label = line.match(/^\*\*(.+?)\*\*:?$/);
-    if (label) {
+    // A whole line that's just a section label — either a markdown heading
+    // ("# Key points", "## …") or a bold-only line ("**Key points**"). Render it
+    // as an accent label, with the markdown markers stripped so no raw #/* leaks.
+    const isLabel = /^(#{1,6}\s+.+|\*\*.+\*\*:?)$/.test(line);
+    if (isLabel) {
+      const labelText = line
+        .replace(/^#{1,6}\s+/, "")
+        .replace(/\*\*/g, "")
+        .replace(/:?\s*$/, "")
+        .trim();
       blocks.push(
         <p
           key={`h-${blocks.length}`}
           className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-accent first:mt-0"
         >
-          {label[1]}
+          {labelText}
         </p>,
       );
       continue;

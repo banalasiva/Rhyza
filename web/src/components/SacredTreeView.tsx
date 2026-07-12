@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
+import { BloomContent } from "@/components/BloomContent";
 
 type Bloom = {
   id: string;
@@ -98,7 +99,9 @@ export function SacredTreeView({ blooms }: { blooms: Bloom[] }) {
             </div>
             <button onClick={() => setSelected(null)} className="text-ink-soft hover:text-ink">✕</button>
           </div>
-          <p className="mb-5 whitespace-pre-wrap text-sm leading-relaxed text-ink-mid">{active.summary}</p>
+          <div className="mb-5 text-sm leading-relaxed text-ink-mid">
+            <BloomContent text={active.summary} />
+          </div>
 
           <p className="eyebrow mb-2">Lineage — who grew this</p>
           <div className="space-y-2">
