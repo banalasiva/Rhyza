@@ -15,6 +15,7 @@ export function AuthPanel({
   googleAction,
   emailAction,
   ssoAction,
+  defaultMode = "signin",
 }: {
   emailEnabled: boolean;
   ssoEnabled: boolean;
@@ -22,8 +23,9 @@ export function AuthPanel({
   googleAction: () => Promise<void>;
   emailAction: (formData: FormData) => Promise<void>;
   ssoAction: () => Promise<void>;
+  defaultMode?: "signin" | "signup";
 }) {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(defaultMode);
   const signup = mode === "signup";
 
   return (
