@@ -57,35 +57,37 @@ export default async function ProfilePage({ params }: { params: { id: string } }
         )}
 
         <div className="card p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-4">
-              <Avatar name={profile.name} image={profile.image} size={64} />
-              <div className="min-w-0">
-                <h1 className="serif-lg leading-tight">{profile.name}</h1>
-                <p className="mt-0.5 text-xs text-ink-soft">Growing here since {joined}</p>
-                <FollowCounts
-                  userId={profile.id}
-                  followers={profile.follow.followers}
-                  following={profile.follow.following}
-                />
-              </div>
+          {/* Avatar + identity on one row; the name gets the full width so it no
+              longer collides with the action buttons or wrap one word per line. */}
+          <div className="flex items-start gap-4">
+            <Avatar name={profile.name} image={profile.image} size={64} />
+            <div className="min-w-0 flex-1">
+              <h1 className="serif-lg break-words leading-tight">{profile.name}</h1>
+              <p className="mt-0.5 text-xs text-ink-soft">Growing here since {joined}</p>
+              <FollowCounts
+                userId={profile.id}
+                followers={profile.follow.followers}
+                following={profile.follow.following}
+              />
             </div>
-            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-              {!isMe && signedIn && connectStatus && connectStatus !== "self" && (
-                <ConnectButton userId={profile.id} initialStatus={connectStatus} />
-              )}
-              {!isMe && (
-                <FollowUserButton userId={profile.id} initialFollowing={profile.follow.isFollowing} />
-              )}
-              {isMe && (
-                <ShareButton
-                  iconOnly
-                  path={`/u/${profile.id}`}
-                  title={`${profile.name} on ThinkThru`}
-                  text="My ThinkThru profile"
-                />
-              )}
-            </div>
+          </div>
+          {/* Actions on their own full-width row below, so they never crowd the
+              name. */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {!isMe && signedIn && connectStatus && connectStatus !== "self" && (
+              <ConnectButton userId={profile.id} initialStatus={connectStatus} />
+            )}
+            {!isMe && (
+              <FollowUserButton userId={profile.id} initialFollowing={profile.follow.isFollowing} />
+            )}
+            {isMe && (
+              <ShareButton
+                iconOnly
+                path={`/u/${profile.id}`}
+                title={`${profile.name} on ThinkThru`}
+                text="My ThinkThru profile"
+              />
+            )}
           </div>
 
           {profile.bio && <p className="mt-4 text-sm leading-relaxed text-ink-mid">{profile.bio}</p>}
