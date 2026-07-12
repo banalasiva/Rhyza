@@ -86,7 +86,7 @@ export function QuorumV2({ seedId }: { seedId: string }) {
   }, [seedId]);
 
   if (error) return <p className="py-6 text-center text-sm text-[#e57373]">{error}</p>;
-  if (!view) return <p className="py-6 text-center text-sm text-ink-soft">Loading the quorum…</p>;
+  if (!view) return <p className="py-6 text-center text-sm text-ink-soft">Getting the room ready…</p>;
 
   const showWeighIn = view.phase === "collecting";
   const understand = view.template === "understand";
@@ -131,7 +131,7 @@ export function QuorumV2({ seedId }: { seedId: string }) {
       {/* ── Step 1 · Purpose ── everyone sees what this is for; stewards pick. */}
       {view.phase === "collecting" && (
         <section>
-          <p className="eyebrow mb-2">Step 1 · What are we doing here?</p>
+          <p className="eyebrow mb-2">Step 1 · What are we here to do?</p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {templates.map((t) => {
               const on = view.template === t.key;
@@ -171,9 +171,9 @@ export function QuorumV2({ seedId }: { seedId: string }) {
         </section>
       )}
 
-      {/* ── Step 2 · Weigh in (or the revealed result) ── */}
+      {/* ── Step 2 · Your turn — weigh in (or the revealed result) ── */}
       <section>
-        {view.phase === "collecting" && <p className="eyebrow mb-2">Step 2 · Weigh in</p>}
+        {view.phase === "collecting" && <p className="eyebrow mb-2">Step 2 · Your turn — weigh in</p>}
         <div className="mb-2">
           <h2 className="serif-lg">
             {understand ? "Who helped everyone learn?" : "Who should have the biggest say?"}
@@ -198,7 +198,7 @@ export function QuorumV2({ seedId }: { seedId: string }) {
         ) : view.result ? (
           <Reveal view={view} result={view.result} />
         ) : (
-          <p className="py-6 text-center text-sm text-ink-soft">The quorum is being tallied…</p>
+          <p className="py-6 text-center text-sm text-ink-soft">Adding up everyone’s read…</p>
         )}
       </section>
 

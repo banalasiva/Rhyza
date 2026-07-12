@@ -25,7 +25,7 @@ export function GettingStarted({
     {
       done: hasSeed,
       n: 2,
-      label: "Ask your first question",
+      label: "What’s the first thing to decide?",
       sub: "Plant a “seed” — anything your group wants to think through together.",
       href: `${gardenHref}#plant-seed`,
       cta: "Ask a question",
@@ -33,7 +33,7 @@ export function GettingStarted({
     {
       done: hasInvited,
       n: 3,
-      label: "Invite your people",
+      label: "Who should be in on it?",
       sub: "Bring your family or friends in so they can weigh in.",
       href: `${gardenHref}#invite`,
       cta: "Invite people",
@@ -42,8 +42,8 @@ export function GettingStarted({
 
   return (
     <div className="card mb-6 p-5">
-      <p className="eyebrow mb-1">✨ Getting started</p>
-      <p className="mb-4 text-xs text-ink-soft">Two quick steps and your space comes alive.</p>
+      <p className="eyebrow mb-1">✨ Let’s get you set up</p>
+      <p className="mb-4 text-xs text-ink-soft">Just two quick steps and your space comes alive.</p>
       <ul className="space-y-4">
         {steps.map((s) => (
           <li key={s.n} className="flex items-start gap-3">

@@ -59,7 +59,7 @@ export function DiscoverGardens({ gardens }: { gardens: Garden[] }) {
           >
             ▾
           </span>
-          <span className="eyebrow">🌳 Public gardens to explore</span>
+          <span className="eyebrow">🌳 Curious how others decide? Peek in</span>
         </button>
         <Link href="/explore" className="text-xs text-ink-soft transition hover:text-accent">
           See all →

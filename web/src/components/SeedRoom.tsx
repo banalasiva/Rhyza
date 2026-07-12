@@ -1132,7 +1132,8 @@ export function SeedRoom({
               <p className="eyebrow mb-1">⚖️ Deciding together</p>
               <p className="serif-lg leading-snug">{seed.title}</p>
               <p className="mt-1 text-xs text-ink-soft">
-                Everyone gives their honest read below — it adds up to one fair group answer.
+                How does everyone see it? Give your honest read below, and it adds up to one fair
+                answer for the group.
               </p>
               {/* Weighing is optional — say so plainly, so no one feels stuck
                   here when they've already agreed. */}
@@ -1293,7 +1294,8 @@ export function SeedRoom({
             Tucked into one small menu so it doesn't eat space on mobile. */}
         <div className="relative mb-3 flex items-center justify-between gap-2">
           <p className="text-[11px] text-ink-soft">
-            💬 Share what you think — a thought, a question, a worry. Others reply, and it grows.
+            💬 What’s on your mind? A thought, a question, even a worry — share it, and the others
+            will weigh in.
           </p>
           <button
             onClick={() => setAiMenu((v) => !v)}
@@ -1380,7 +1382,7 @@ export function SeedRoom({
         {/* Contributions — one linear conversation */}
         <div className="space-y-3">
           {timeline.length === 0 && (
-            <p className="text-sm text-ink-soft">No thoughts yet. Be the first to share.</p>
+            <p className="text-sm text-ink-soft">Quiet so far — want to get things going? Share the first thought. 🌱</p>
           )}
           {timeline.map((it) => {
             if (it.kind === "poll") {
@@ -1673,7 +1675,7 @@ export function SeedRoom({
             <RichEditor
               value={draft}
               onChange={setDraft}
-              placeholder="What's your say?"
+              placeholder="What do you think? Share it here…"
               disabled={busy}
               people={seed.people}
               onSubmit={() => {

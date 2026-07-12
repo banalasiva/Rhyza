@@ -245,8 +245,8 @@ export function Feed() {
   if (started && items.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-[rgba(255,255,255,0.12)] p-8 text-center">
-        <p className="text-sm text-ink-mid">Your feed will fill as your gardens grow.</p>
-        <p className="mt-1 text-xs text-ink-soft">Plant a seed to start the first conversation. 🌱</p>
+        <p className="text-sm text-ink-mid">Nothing here just yet — but it fills up as your gardens grow.</p>
+        <p className="mt-1 text-xs text-ink-soft">Got something to decide? Plant a seed and start the first conversation. 🌱</p>
       </div>
     );
   }
