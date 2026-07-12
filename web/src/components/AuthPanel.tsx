@@ -56,7 +56,7 @@ export function AuthPanel({
           className="btn-primary flex w-full items-center justify-center gap-2.5"
         >
           <GoogleG />
-          {signup ? "Sign up with Google" : "Continue with Google"}
+          {signup ? "Start free with Google" : "Continue with Google"}
         </button>
       </form>
 

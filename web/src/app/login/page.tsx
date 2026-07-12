@@ -35,19 +35,16 @@ export default async function LoginPage({
           className="mx-auto mb-4 h-auto w-32 sm:w-40"
         />
 
-        {/* ── One line: what it is ── */}
-        <h1 className="serif-xl mb-3">Decide the big things, together.</h1>
-        <p className="mb-6 text-lg text-ink-mid">
-          Talk it through with your people, ask AI along the way, and land on one answer you keep.
+        {/* ── The hero — let the feeling do the selling ── */}
+        <h1 className="serif-xl mb-4">What should we do?</h1>
+        <p className="text-lg text-ink-mid">
+          Life’s biggest decisions rarely have one right answer.
         </p>
+        <p className="mt-3 text-base text-ink-soft">Before we decide…</p>
+        <p className="mt-1 font-serif text-2xl italic text-bloom">Let’s ThinkThru.</p>
 
-        {/* ── The story does the explaining ── */}
-        <LandingDemo />
-
-        {/* ── Then: just sign up ── */}
-        <div className="mt-8 rounded-2xl border border-[rgba(76,175,80,0.4)] bg-[rgba(76,175,80,0.06)] p-5 shadow-[0_0_30px_rgba(76,175,80,0.12)]">
-          <p className="mb-1 serif-lg">Start free — it takes 10 seconds</p>
-          <p className="mb-4 text-xs text-ink-soft">Bring your people in and make your first decision.</p>
+        {/* ── Start free — the hero action, right here ── */}
+        <div className="mt-7 rounded-2xl border border-[rgba(76,175,80,0.4)] bg-[rgba(76,175,80,0.06)] p-5 shadow-[0_0_30px_rgba(76,175,80,0.12)]">
           {errorCode && (
             <AuthErrorBanner code={errorCode} message={authErrorMessage(errorCode)} />
           )}
@@ -71,7 +68,12 @@ export default async function LoginPage({
               await signIn("sso", { redirectTo: "/" });
             }}
           />
+          <p className="mt-3 text-[11px] text-ink-soft">Free · takes 10 seconds</p>
         </div>
+
+        {/* ── The story, for anyone who wants to see how it works ── */}
+        <p className="mb-3 mt-10 eyebrow">See it in action 👇</p>
+        <LandingDemo />
       </div>
 
       {/* Mobile-only "scroll for more" hint. */}
