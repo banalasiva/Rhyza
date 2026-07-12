@@ -13,7 +13,16 @@ const providers: NextAuthConfig["providers"] = [
   // silently reuses whatever account is already signed in on the device — so
   // someone with several Gmail accounts (or on a shared phone) gets logged into
   // the wrong one with no way to pick. The chooser is essential for onboarding.
-  Google({ authorization: { params: { prompt: "select_account" } } }),
+  Google({
+    authorization: { params: { prompt: "select_account" } },
+    // Link Google to a user that already exists for the same email — someone who
+    // was invited/added by family (which creates a user row) or used an email
+    // magic link before. Without this, Auth.js throws OAuthAccountNotLinked and
+    // bounces them back to /login (looks like "Google sent me to email again").
+    // Safe here because Google verifies email ownership, so the address on the
+    // Google profile is guaranteed to belong to the person signing in.
+    allowDangerousEmailAccountLinking: true,
+  }),
 ];
 
 if (process.env.AUTH_SSO_ISSUER && process.env.AUTH_SSO_CLIENT_ID) {
