@@ -151,6 +151,36 @@ export async function showLocalNotification(title: string, body: string): Promis
   }
 }
 
+// Force a brand-new subscription for THIS device. Unlike healPush (which only
+// replaces a key-mismatched sub), this tears down whatever exists — even a
+// browser subscription the push service has since expired (a 410 the browser
+// can't see locally) — and rebuilds it. This is the fix for "rejected by all
+// devices": the old endpoint is gone, so we mint a fresh one.
+export async function reconnectPush(): Promise<PushState> {
+  if (!supported()) return "unsupported";
+  if (Notification.permission === "denied") return "denied";
+  const reg = await navigator.serviceWorker.register("/sw.js");
+  await navigator.serviceWorker.ready;
+  const existing = await reg.pushManager.getSubscription();
+  if (existing) {
+    await fetch("/api/push/subscribe", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: existing.endpoint }),
+    }).catch(() => {});
+    try {
+      await existing.unsubscribe();
+    } catch {
+      /* ignore */
+    }
+  }
+  const permission = await Notification.requestPermission();
+  if (permission === "denied") return "denied";
+  if (permission !== "granted") return "off";
+  await subscribeFresh(reg);
+  return "on";
+}
+
 // If permission is already granted, make sure a fresh, key-matched subscription
 // is saved (self-heals subscriptions bound to an old key). Safe to call on load.
 export async function healPush(): Promise<void> {

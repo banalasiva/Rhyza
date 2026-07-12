@@ -5,6 +5,7 @@ import {
   enablePush,
   disablePush,
   healPush,
+  reconnectPush,
   pushPermission,
   deviceSubscribed,
   showLocalNotification,
@@ -66,6 +67,9 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
   const [testing, setTesting] = useState(false);
   const [testMsg, setTestMsg] = useState<string | null>(null);
   const [quoting, setQuoting] = useState(false);
+  // Set when a real push was rejected (e.g. the subscription expired — 410/403).
+  // Surfaces a one-tap "Reconnect this device" action, the actual remedy.
+  const [needsReconnect, setNeedsReconnect] = useState(false);
 
   // On load: reflect whether THIS device is actually subscribed. If it is, keep
   // its subscription fresh (heals an old-key one) and self-correct the account
@@ -147,6 +151,7 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
   async function sendTest() {
     setTesting(true);
     setTestMsg(null);
+    setNeedsReconnect(false);
     try {
       // Enable this device first if it isn't already (prompts permission).
       if (!deviceOn) {
@@ -165,29 +170,38 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
         await update({ pushNotify: true });
       }
 
-      // Instant, local — proves this device shows notifications.
+      // Instant, local — proves this device CAN display notifications (but this
+      // is not proof that push delivery works; that's the real pipeline below).
       const shown = await showLocalNotification(
         "ThinkThru 🔔",
         "Your notifications are working on this device.",
       );
 
-      // Also fire the real push pipeline (to all your devices).
+      // The real test: push through the server to every subscribed device.
       const res = await fetch("/api/push/test", { method: "POST" });
       const data = await res.json().catch(() => ({}));
+      const delivered = res.ok && (data.sent ?? 0) > 0;
 
-      if (shown) {
+      if (delivered) {
         setTestMsg(
-          res.ok
-            ? `✓ Shown here — and pushed to ${data.sent}/${data.devices} device${data.devices === 1 ? "" : "s"}.`
-            : "✓ Shown on this device.",
+          `✓ Delivered to ${data.sent}/${data.devices} device${data.devices === 1 ? "" : "s"} — check your notifications.`,
         );
-      } else if (res.ok) {
-        setTestMsg(`Pushed to ${data.sent}/${data.devices} device${data.devices === 1 ? "" : "s"} — check notifications.`);
       } else {
-        setTestMsg(data?.error?.message ?? "Couldn't show a test notification.");
+        // Push failed. Don't call it success just because the local one showed —
+        // that masked the real failure before. Point to the actual fix.
+        const serverMsg = (data?.error?.message as string) ?? "";
+        const noDevice = /no device/i.test(serverMsg);
+        setNeedsReconnect(!noDevice);
+        setTestMsg(
+          noDevice
+            ? "This device isn't subscribed yet. Turn on Push notifications above, allow them, then try again."
+            : shown
+              ? "This device can show notifications, but its link to our server has expired — so pushes won't arrive. Tap Reconnect below, then test again."
+              : "Notifications couldn't be delivered — this device's link to our server has expired. Tap Reconnect below, then test again.",
+        );
       }
     } catch {
-      setTestMsg("Couldn't show a test notification.");
+      setTestMsg("Couldn't run the test — check your connection and try again.");
     } finally {
       setTesting(false);
     }
@@ -198,6 +212,7 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
   async function sendQuote() {
     setQuoting(true);
     setTestMsg(null);
+    setNeedsReconnect(false);
     try {
       if (!deviceOn) {
         const r = await enablePush();
@@ -216,15 +231,53 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
       }
       const res = await fetch("/api/push/quote", { method: "POST" });
       const data = await res.json().catch(() => ({}));
-      setTestMsg(
-        res.ok
-          ? `🌱 Sent today's quote to ${data.sent}/${data.devices} device${data.devices === 1 ? "" : "s"} — check your notifications.`
-          : data?.error?.message ?? "Couldn't send the quote.",
-      );
+      const delivered = res.ok && (data.sent ?? 0) > 0;
+
+      if (delivered) {
+        setTestMsg(
+          `🌱 Sent today's quote to ${data.sent}/${data.devices} device${data.devices === 1 ? "" : "s"} — check your notifications.`,
+        );
+      } else {
+        const serverMsg = (data?.error?.message as string) ?? "";
+        const noDevice = /no device/i.test(serverMsg);
+        setNeedsReconnect(!noDevice);
+        setTestMsg(
+          noDevice
+            ? "This device isn't subscribed yet. Turn on Push notifications above, allow them, then try again."
+            : "Couldn't deliver — this device's link to our server has expired. Tap Reconnect below, then try again.",
+        );
+      }
     } catch {
-      setTestMsg("Couldn't send the quote.");
+      setTestMsg("Couldn't send the quote — check your connection and try again.");
     } finally {
       setQuoting(false);
+    }
+  }
+
+  // The remedy for a rejected push: tear down the stale subscription and mint a
+  // fresh one, without the user hunting through browser settings.
+  async function reconnect() {
+    setPushBusy(true);
+    setTestMsg("Reconnecting this device…");
+    try {
+      const r = await reconnectPush();
+      if (r === "on") {
+        setDeviceOn(true);
+        setPushDenied(false);
+        setNeedsReconnect(false);
+        await update({ pushNotify: true });
+        setTestMsg("✓ Reconnected. Tap “🔔 Send a test notification” to confirm it arrives.");
+      } else if (r === "denied") {
+        setPushDenied(true);
+        setNeedsReconnect(false);
+        setTestMsg("Notifications are blocked in your browser — allow them for this site, then reconnect.");
+      } else if (r === "unsupported") {
+        setPushUnsupported(true);
+      } else {
+        setTestMsg("Couldn't reconnect — try turning Push notifications off and back on above.");
+      }
+    } finally {
+      setPushBusy(false);
     }
   }
 
@@ -286,6 +339,16 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
           >
             {quoting ? "Sending…" : "🌱 Send me today's quote"}
           </button>
+          {needsReconnect && (
+            <button
+              type="button"
+              onClick={reconnect}
+              disabled={pushBusy}
+              className="rounded-full bg-[#4CAF50] px-3 py-1.5 text-xs font-medium text-[#06120a] transition hover:brightness-110 disabled:opacity-50"
+            >
+              {pushBusy ? "Reconnecting…" : "🔄 Reconnect this device"}
+            </button>
+          )}
           {testMsg && <span className="w-full text-xs text-ink-soft">{testMsg}</span>}
         </div>
       )}
