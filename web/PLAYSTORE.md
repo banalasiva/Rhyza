@@ -139,6 +139,65 @@ minutes of rollout.
 
 ---
 
+## Notifications in the app — why the TWA fixes the pain
+
+This is the whole reason the native path is worth it. On the **web / Add-to-Home
+-Screen** version, notifications are a *web* permission: it's a browser prompt,
+and once a user blocks it there is **no way for a web page to re-open settings or
+re-prompt** (browsers forbid it — see the "Recheck" flow in `NotificationFix`).
+That's the "no notifications is painful" problem.
+
+Inside the **installed TWA** it's completely different, and better:
+
+- **Web push is delegated to the Android app** — already switched on via
+  `"enableNotifications": true` in `twa-manifest.json`. Your existing web-push
+  pipeline (VAPID + service worker) is unchanged; the notifications just render
+  as the ThinkThru app's notifications.
+- **Android 13+ shows the native system prompt** — a familiar OS
+  "Allow ThinkThru to send notifications?" dialog on first run, one tap. No web
+  permission UI, no confusion. This is the "started in seconds" win.
+- **Settings live in the standard place** — Settings → Apps → ThinkThru →
+  Notifications (or long-press the icon → App info). Because it's a real app,
+  those are reachable and the OS manages the on/off state.
+
+For most users that native prompt + standard settings path removes the pain
+entirely — you likely won't need an in-app "open settings" button at all.
+
+### If you *do* want an in-app "Open notification settings" button
+
+A page can't call Android APIs, so this needs a little native code. Two routes:
+
+1. **Stay on the TWA (lightest).** A bare TWA has no JS→native bridge, so the
+   cleanest option is to keep leaning on the native prompt + OS settings. Good
+   enough in practice.
+2. **Switch the Android wrapper to Capacitor (most control).** Capacitor embeds
+   the same web app but gives a real JS↔native bridge, so the web UI can call:
+   ```ts
+   import { NativeSettings, AndroidSettings } from "capacitor-native-settings";
+   await NativeSettings.openAndroid({ option: AndroidSettings.AppNotification });
+   ```
+   which opens ThinkThru's notification settings directly (the native equivalent
+   under the hood is the `Settings.ACTION_APP_NOTIFICATION_SETTINGS` intent).
+   Capacitor also gives you a path to an **iOS App Store** build from the same
+   web codebase. Trade-off: Capacitor push uses native FCM/APNs rather than web
+   push, so it's more setup than the TWA. Consider it a *later* upgrade, not the
+   starting point.
+
+**Recommendation:** ship the **TWA now** (this doc) — it already fixes the
+notification pain via the native prompt. Move to **Capacitor later** only if you
+want the in-app settings button and a native iOS app. Either way the **web app
+stays the single source of truth** — the wrapper is just a shell that loads it,
+so "maintain both web and app" costs you almost nothing.
+
+### iOS, for completeness
+
+There's no TWA on iOS. The **Add-to-Home-Screen PWA already supports push on
+iOS 16.4+** (the user installs from Safari's Share sheet, then allows
+notifications). For a real App Store app later, the Capacitor route above wraps
+the same web build for iOS too.
+
+---
+
 ## Checklist before you send the link
 
 - [ ] `assetlinks.json` live with the real fingerprint (URL bar hidden on launch)
