@@ -1,5 +1,40 @@
 import { db } from "@/lib/db";
 import { deliver } from "@/lib/services/notify";
+import { displayName } from "@/lib/display-name";
+
+// Announce, IN the seed thread, that someone just joined — whether they were
+// added from a circle, accepted an invite link, or were approved to join. Posts
+// a small "system" contribution authored by the joiner (so they immediately
+// count as a member and the count updates live), and notifies the rest of the
+// room. Idempotent: never announces the same person's join twice.
+export async function announceJoin(seedId: string, userId: string) {
+  try {
+    const existing = await db.contribution.findFirst({
+      where: { seedId, authorId: userId, dimension: "system", deletedAt: null },
+      select: { id: true },
+    });
+    if (existing) return;
+    const [seed, user] = await Promise.all([
+      db.seed.findUnique({ where: { id: seedId }, select: { id: true, title: true, createdById: true } }),
+      db.user.findUnique({ where: { id: userId }, select: { name: true, email: true } }),
+    ]);
+    if (!seed) return;
+    await db.contribution.create({
+      data: { seedId, authorId: userId, dimension: "system", content: { system: "join", text: "" } },
+    });
+    await db.seed.update({ where: { id: seedId }, data: { lastActivityAt: new Date() } }).catch(() => {});
+    const name = displayName(user ?? {});
+    await notifySeedAudience({
+      actorId: userId,
+      seed,
+      type: "member_joined",
+      title: `${name} joined “${seed.title.slice(0, 60)}”`,
+      body: `${name} is in the conversation now 🌱`,
+    });
+  } catch (err) {
+    console.error("announceJoin failed", err);
+  }
+}
 
 // Notify everyone involved in a seed — its creator, contributors, members and
 // followers — minus the actor (and anyone explicitly excluded). Creates the

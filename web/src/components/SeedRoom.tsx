@@ -392,7 +392,7 @@ export function SeedRoom({
   const pctOfQuorum = (votes: number) => Math.round((votes / quorumSize) * 100);
 
   const dimsWithContribs = useMemo(
-    () => new Set(contributions.map((c) => c.dimension)).size,
+    () => new Set(contributions.filter((c) => c.dimension !== "system").map((c) => c.dimension)).size,
     [contributions],
   );
 
@@ -1382,6 +1382,15 @@ export function SeedRoom({
               );
             }
             const c = it.c;
+            // System "joined" line — a quiet, centered presence marker, not a
+            // message bubble.
+            if (c.dimension === "system") {
+              return (
+                <div key={c.id} id={`c-${c.id}`} className="scroll-mt-20 py-1 text-center text-xs text-ink-soft">
+                  🌿 {c.author?.name || "Someone"} joined the conversation
+                </div>
+              );
+            }
             const cd = DIMENSIONS.find((d) => d.key === c.dimension) ?? DIMENSIONS[1];
             const isAI = c.author?.name === "Claude" || c.author?.name === "ChatGPT";
             return (

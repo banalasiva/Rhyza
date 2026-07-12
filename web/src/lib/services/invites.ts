@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/api";
 import { ensureGardenMember, requireSeedAccess } from "@/lib/authz";
 import { appUrl, sendEmail, inviteEmailHtml, emailConfigured } from "@/lib/email";
 import { requestToJoin } from "@/lib/services/joinreq";
+import { announceJoin } from "@/lib/services/seed-notify";
 
 const INVITE_TTL_DAYS = 30;
 
@@ -314,6 +315,9 @@ export async function acceptInvite(userId: string, userEmail: string, token: str
       data: { status: "accepted", acceptedAt: new Date(), acceptedById: userId },
     });
   });
+
+  // Someone joined via a link — show it in the seed thread so the room sees it.
+  if (invite.seedId) await announceJoin(invite.seedId, userId);
 
   return { gardenId: invite.gardenId, seedId: invite.seedId, orgId: invite.orgId, requested: false };
 }

@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { requireSeedManager } from "@/lib/authz";
 import { deliver } from "@/lib/services/notify";
+import { announceJoin } from "@/lib/services/seed-notify";
 
 // Request-to-join for private seeds. A shared link only lets someone knock:
 // they land on a locked preview and request in; the owner/stewards approve or
@@ -215,6 +216,8 @@ export async function resolveJoinRequest(
     } catch (err) {
       console.error("resolveJoinRequest notify failed", err);
     }
+    // Announce their arrival in the thread.
+    await announceJoin(seedId, targetUserId);
   } else {
     await db.seedJoinRequest.update({
       where: { seedId_userId: { seedId, userId: targetUserId } },

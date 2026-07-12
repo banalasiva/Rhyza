@@ -62,7 +62,7 @@ const seedSelect = {
   garden: { select: { id: true, name: true, emoji: true } },
   _count: { select: { contributions: true } },
   contributions: {
-    where: { deletedAt: null },
+    where: { deletedAt: null, dimension: { not: "system" } },
     orderBy: { createdAt: "desc" as const },
     take: 1,
     select: { content: true, author: { select: { name: true } } },

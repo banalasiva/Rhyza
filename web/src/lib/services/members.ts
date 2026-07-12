@@ -4,6 +4,7 @@ import { requireSeedAccess, requireSeedManager } from "@/lib/authz";
 import { deliver } from "@/lib/services/notify";
 import { connectedUserIds, getConnectionStatus, type ConnectionStatus } from "@/lib/services/connections";
 import { displayName } from "@/lib/display-name";
+import { announceJoin } from "@/lib/services/seed-notify";
 
 export type SeedRole = "owner" | "admin" | "member" | "contributor";
 
@@ -361,6 +362,9 @@ export async function addExistingMember(actorId: string, seedId: string, targetI
   } catch (err) {
     console.error("addExistingMember notify failed", err);
   }
+
+  // Show "they joined" in the thread and count them as a member right away.
+  await announceJoin(seedId, targetId);
 
   return { ok: true };
 }
