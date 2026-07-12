@@ -43,8 +43,10 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
         className="flex flex-1 flex-col items-center gap-0.5 py-2 transition"
         style={{ color: "var(--accent)" }}
       >
-        <span className="text-[20px] leading-none" aria-hidden>
-          🌱
+        {/* Same h-8 w-14 pill as the other tabs so the 🌱 sits at the exact
+            same size and vertical position — no more floating higher. */}
+        <span className="relative flex h-8 w-14 items-center justify-center rounded-full text-[20px] leading-none transition-all">
+          <span aria-hidden>🌱</span>
         </span>
         <span className="text-[11px] font-medium">Plant</span>
       </button>
