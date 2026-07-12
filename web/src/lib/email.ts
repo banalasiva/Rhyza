@@ -141,10 +141,10 @@ export function inviteEmailHtml(args: {
     ? `the <strong style="color:#E8E4DC">${escapeHtml(args.gardenName)}</strong> garden in <strong style="color:#E8E4DC">${escapeHtml(args.orgName)}</strong>`
     : `<strong style="color:#E8E4DC">${escapeHtml(args.orgName)}</strong>`;
   return emailShell({
-    preview: `${args.inviterName} invited you to ThinkThru`,
-    heading: "You've been invited to ThinkThru",
-    bodyHtml: `${escapeHtml(args.inviterName)} invited you to join ${where} — a garden where ideas grow into collective knowledge.`,
-    ctaText: "Accept invite",
+    preview: `${args.inviterName} wants to think something through with you`,
+    heading: "Someone wants your take 🌱",
+    bodyHtml: `${escapeHtml(args.inviterName)} invited you to ${where} — a calm space where a group talks real decisions through together. Want to join them?`,
+    ctaText: "Yes, count me in",
     ctaLink: args.link,
     reason: "You're getting this because someone invited you to a ThinkThru garden.",
   });
@@ -155,11 +155,11 @@ export function magicLinkEmailHtml(args: { link: string }): string {
   return emailShell({
     preview: "Your ThinkThru sign-in link",
     glyph: "🌿",
-    heading: "Sign in to ThinkThru",
+    heading: "Ready to jump back in?",
     bodyHtml:
-      "Tap the button below to sign in — no password needed. This link works once and expires soon. " +
-      "If you didn't request it, you can safely ignore this email.",
-    ctaText: "Sign in to ThinkThru",
+      "Tap below and you're in — no password to remember. This link works once and expires soon. " +
+      "Didn't ask for it? No worries, you can safely ignore this email.",
+    ctaText: "Sign me in",
     ctaLink: args.link,
     reason: "You're getting this because someone entered this email to sign in to ThinkThru.",
   });

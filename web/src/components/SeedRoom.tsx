@@ -1159,8 +1159,8 @@ export function SeedRoom({
             {isBloomed ? (
               <div className="rounded-2xl border border-[rgba(255,179,0,0.35)] bg-[rgba(255,179,0,0.08)] p-5 text-center">
                 <div className="mb-1 text-3xl">🌸</div>
-                <p className="serif-lg mb-1">This seed has bloomed</p>
-                <p className="mb-3 text-xs text-ink-mid">Collective knowledge, remembered forever.</p>
+                <p className="serif-lg mb-1">You decided it together 🌸</p>
+                <p className="mb-3 text-xs text-ink-mid">It's kept in your Sacred Tree, forever.</p>
                 <div className="flex flex-wrap justify-center gap-2">
                   {seed.bloomId && (
                     <button onClick={() => router.push(`/blooms/${seed.bloomId}`)} className="btn-primary text-sm">
@@ -1216,8 +1216,8 @@ export function SeedRoom({
         {isBloomed && (
           <div className="mb-4 rounded-2xl border border-[rgba(255,179,0,0.35)] bg-[rgba(255,179,0,0.08)] p-4 text-center">
             <div className="mb-1 text-3xl">🌸</div>
-            <p className="serif-lg mb-1">This seed has bloomed</p>
-            <p className="mb-3 text-xs text-ink-mid">Collective knowledge, remembered forever.</p>
+            <p className="serif-lg mb-1">You decided it together 🌸</p>
+            <p className="mb-3 text-xs text-ink-mid">It's kept in your Sacred Tree, forever.</p>
             <div className="flex flex-wrap justify-center gap-2">
               {seed.bloomId && (
                 <button onClick={() => router.push(`/blooms/${seed.bloomId}`)} className="btn-primary text-sm">
@@ -2411,13 +2411,13 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
         <div className="mx-auto mb-2 h-44 w-44 drop-shadow-[0_0_40px_rgba(255,179,0,0.55)]">
           <PlantSvg stage={4} />
         </div>
-        <p className="eyebrow mb-2 text-bloom">✨ This seed has bloomed ✨</p>
+        <p className="eyebrow mb-2 text-bloom">✨ You decided it together 🌸 ✨</p>
         <h2 className="serif-lg mx-auto max-w-md bloom-shimmer">{title}</h2>
         <p className="mt-3 text-sm text-ink-mid">
-          Collective knowledge, forever remembered.
+          You decided this together — and it’s yours to keep, forever. 🌸
         </p>
         <button onClick={onEnter} className="btn-primary mt-5 animate-pulse">
-          Enter the Sacred Tree →
+          See where it’s kept →
         </button>
       </div>
     </div>

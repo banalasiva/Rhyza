@@ -132,7 +132,7 @@ export function WaitingForThem() {
       >
         <span className="flex min-w-0 items-center gap-1.5">
           <span aria-hidden>🕊️</span>
-          <span className="truncate">Waiting for them</span>
+          <span className="truncate">Still to join?</span>
           {visible.length > 0 && (
             <span className="shrink-0 text-[11px] font-normal text-ink-soft">({visible.length})</span>
           )}
@@ -143,7 +143,7 @@ export function WaitingForThem() {
       <>
       <div className="mt-2 flex items-start justify-between gap-2">
         <p className="text-xs text-ink-soft">
-          People you invited who haven’t joined yet. A hello from you means far more than any reminder.
+          These folks you invited haven’t joined yet. A quick hello from you does far more than any reminder — want to reach out?
         </p>
         {hiddenCount > 0 && (
           <button
