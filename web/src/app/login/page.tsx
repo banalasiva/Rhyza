@@ -2,7 +2,7 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { signIn, auth } from "@/auth";
 import { LandingDemo } from "@/components/LandingDemo";
-import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
+import { AuthPanel } from "@/components/AuthPanel";
 import { ScrollCue } from "@/components/ScrollCue";
 
 const BEATS = [
@@ -58,76 +58,25 @@ export default async function LoginPage() {
             ))}
           </ol>
 
-          <div className="mx-auto max-w-sm lg:mx-0">
-            <InAppBrowserNotice emailEnabled={emailEnabled} />
-
-            {/* Email magic-link is the DEFAULT: it sidesteps the Google
-                account-picker entirely (a real trap for anyone with several
-                Google accounts). Type your email, tap the link, you're in. */}
-            {emailEnabled && (
-              <>
-                <form
-                  action={async (formData: FormData) => {
-                    "use server";
-                    const email = String(formData.get("email") || "").trim();
-                    if (!email) return;
-                    await signIn("resend", { email, redirectTo: "/" });
-                  }}
-                  className="space-y-2"
-                >
-                  <input
-                    name="email"
-                    type="email"
-                    required
-                    autoComplete="email"
-                    placeholder="you@email.com"
-                    className="w-full rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-base text-ink outline-none focus:border-accent"
-                  />
-                  <button type="submit" className="btn-primary w-full">
-                    Email me a sign-in link
-                  </button>
-                </form>
-                <p className="mt-2 text-[11px] text-ink-soft">
-                  No password, no account-picking — a one-tap link lands in your inbox.
-                </p>
-
-                <div className="my-4 flex items-center gap-3 text-[11px] text-ink-soft">
-                  <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
-                  or
-                  <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
-                </div>
-              </>
-            )}
-
-            <form
-              action={async () => {
-                "use server";
-                await signIn("google", { redirectTo: "/" });
-              }}
-            >
-              <button type="submit" className={emailEnabled ? "btn-ghost w-full" : "btn-primary w-full"}>
-                Continue with Google
-              </button>
-            </form>
-
-            {ssoEnabled && (
-              <form
-                className="mt-3"
-                action={async () => {
-                  "use server";
-                  await signIn("sso", { redirectTo: "/" });
-                }}
-              >
-                <button type="submit" className="btn-ghost w-full">
-                  Continue with {ssoName}
-                </button>
-              </form>
-            )}
-
-            <p className="mt-5 text-xs text-ink-soft">
-              By continuing you agree to the Code of Conduct.
-            </p>
-          </div>
+          <AuthPanel
+            emailEnabled={emailEnabled}
+            ssoEnabled={ssoEnabled}
+            ssoName={ssoName}
+            googleAction={async () => {
+              "use server";
+              await signIn("google", { redirectTo: "/" });
+            }}
+            emailAction={async (formData: FormData) => {
+              "use server";
+              const email = String(formData.get("email") || "").trim();
+              if (!email) return;
+              await signIn("resend", { email, redirectTo: "/" });
+            }}
+            ssoAction={async () => {
+              "use server";
+              await signIn("sso", { redirectTo: "/" });
+            }}
+          />
         </div>
       </div>
       {/* Mobile-only "scroll for the sign-in below" hint. */}
