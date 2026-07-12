@@ -2138,11 +2138,28 @@ export function SeedRoom({
                     setSeedMenu(false);
                     toggleListed();
                   }}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left transition hover:bg-[rgba(255,255,255,0.04)] ${
+                  className={`flex items-start gap-2 rounded-lg px-3 py-2 text-left transition hover:bg-[rgba(255,255,255,0.04)] ${
                     listed ? "text-accent" : "text-ink-mid hover:text-ink"
                   }`}
                 >
-                  {listed ? "🌐 Listed on Explore · unlist" : "🌐 Share with the world"}
+                  <span aria-hidden className="mt-0.5">🌐</span>
+                  <span className="min-w-0">
+                    {listed ? (
+                      <>
+                        <span className="block text-sm font-medium">Shared with the world</span>
+                        <span className="block text-xs text-ink-soft">
+                          Anyone on ThinkThru can find and join this. Tap to make it private again.
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="block text-sm font-medium">Share with the world</span>
+                        <span className="block text-xs text-ink-soft">
+                          Let anyone on ThinkThru discover this and join in.
+                        </span>
+                      </>
+                    )}
+                  </span>
                 </button>
               )}
               {/* Follow level — for anyone who isn't the owner. Pick how loud:
