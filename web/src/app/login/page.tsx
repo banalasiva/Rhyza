@@ -16,11 +16,11 @@ const BEATS = [
 // Real decisions people wrestle with — the kind that get lost in a group chat.
 // Shown right up front so a first-time visitor instantly sees "this is for me."
 const EXAMPLES = [
+  "✈️ Where should we holiday?",
   "🏫 Which school for our kid?",
   "🏡 Where should we live?",
   "💼 Take the new job?",
   "👵🏽 Caring for aging parents",
-  "💰 How do we save more?",
 ];
 
 export default async function LoginPage({

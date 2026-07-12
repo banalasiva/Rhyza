@@ -6,33 +6,33 @@ import { DIMENSIONS } from "@/lib/constants";
 type Msg = { who: string; ai?: boolean; dim: string; text: string };
 
 // A looping, self-explaining storyboard built around ONE relatable decision —
-// choosing a school — that walks a visitor through the whole ThinkThru arc as a
-// smooth workflow: Think (talk it through), Decide (people vote, weighted by
-// stake), Bloom (one durable answer), and where it's kept — the Sacred Tree.
-// Phases cross-fade inside a fixed-height stage so the card never jumps.
-const SCHOOL = {
-  q: "Which school should we choose for Aria?",
+// where to go on a family holiday — that walks a visitor through the whole
+// ThinkThru arc as a smooth workflow: Think (talk it through), Decide (people
+// vote, weighted by stake), Bloom (one durable answer), and where it's kept —
+// the Sacred Tree. Phases cross-fade in a fixed-height stage so it never jumps.
+const TRIP = {
+  q: "Where should we go for our holiday?",
   msgs: [
-    { who: "Priya", dim: "foundations", text: "What matters most — academics, values, or distance?" },
-    { who: "Aria", dim: "application", text: "When we visited, the art studio and the kids there felt right to me." },
-    { who: "Arjun", dim: "debate", text: "The nearest school is easy, but its approach feels too rigid." },
-    { who: "Claude", ai: true, dim: "understanding", text: "Teaching style and values shape a child more than a short commute." },
+    { who: "Meera", dim: "foundations", text: "What matters most — adventure, rest, or the budget?" },
+    { who: "Aarav", dim: "application", text: "The kids want adventure — can we do Thailand?" },
+    { who: "Ravi", dim: "debate", text: "Manali’s cheaper, but that’s a long drive for the parents." },
+    { who: "Claude", ai: true, dim: "understanding", text: "Match the trip to everyone — energy for the kids, easy days for the parents." },
   ] as Msg[],
-  // Decide: the weight spreads — each question is carried by whoever has the most
-  // stake in it, so different people lead different questions.
+  // Decide: not every voice weighs the same on every question — money, time,
+  // experience. The person with the most at stake leads each one.
   weighed: [
-    { q: "Who will this affect the most?", a: "Aria" },
-    { q: "Who’s paying for it?", a: "Arjun" },
-    { q: "Whose judgement do we trust most?", a: "Priya" },
+    { q: "💰 Whose budget carries it?", a: "Ravi" },
+    { q: "⏳ Who’s short on leave?", a: "Meera" },
+    { q: "✨ Who’s it really for?", a: "the kids" },
   ],
   voters: [
-    { who: "Priya", voted: true },
-    { who: "Arjun", voted: true },
-    { who: "Aria", voted: false },
+    { who: "Meera", voted: true },
+    { who: "Ravi", voted: true },
+    { who: "Aarav", voted: false },
   ],
-  pct: 62, // revealed weight behind "ready" — past the majority, it blooms
-  bloom: "Lead with teaching philosophy and values; treat commute as a tie-breaker.",
-  treeSummary: "Values & teaching style over commute — kept for your family, forever.",
+  pct: 64, // revealed weight behind "ready" — past the majority, it blooms
+  bloom: "Goa — beaches to unwind, water-sports for the kids, and it fits the budget and everyone’s leave.",
+  treeSummary: "Goa: adventure and rest in one, within budget — and why we chose it, kept for next time.",
 };
 
 const STEPS = [
@@ -103,7 +103,7 @@ export function LandingDemo() {
 
       {/* Seed question — the constant thread through every stage */}
       <p className="eyebrow mb-1">🌱 Seed</p>
-      <p className="serif-lg mb-3 min-h-[3.25rem]">{SCHOOL.q}</p>
+      <p className="serif-lg mb-3 min-h-[3.25rem]">{TRIP.q}</p>
 
       {/* Stage — phases cross-fade in a fixed-height frame so the card is steady */}
       <div className="relative min-h-[300px]">
@@ -116,7 +116,7 @@ export function LandingDemo() {
             <span style={{ color: "#FFB300" }}>a clearer view</span>.
           </p>
           <div className="space-y-2">
-            {SCHOOL.msgs.map((m, i) => {
+            {TRIP.msgs.map((m, i) => {
               const d = dimMeta(m.dim);
               const revealed = phase !== "think" || i <= step;
               return (
@@ -148,7 +148,7 @@ export function LandingDemo() {
             Everyone weighs in — and each question is carried by whoever has the most at stake.
           </p>
           <ul className="space-y-1">
-            {SCHOOL.weighed.map((d) => (
+            {TRIP.weighed.map((d) => (
               <li key={d.q} className="text-xs leading-relaxed text-ink-mid">
                 <span className="text-ink-soft">{d.q}</span> <span className="text-ink">→ {d.a}</span>
               </li>
@@ -156,7 +156,7 @@ export function LandingDemo() {
           </ul>
           {/* Voters cast their read */}
           <div className="mt-3 flex items-center gap-2">
-            {SCHOOL.voters.map((v) => (
+            {TRIP.voters.map((v) => (
               <span
                 key={v.who}
                 className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px]"
@@ -173,12 +173,12 @@ export function LandingDemo() {
           <div className="relative mt-3 h-1.5 rounded-full bg-[rgba(255,255,255,0.08)]">
             <div
               className="h-full rounded-full transition-[width] duration-1000"
-              style={{ width: phase === "decide" ? `${SCHOOL.pct}%` : "0%", background: "linear-gradient(to right,#FFD54F,#FF8F00)" }}
+              style={{ width: phase === "decide" ? `${TRIP.pct}%` : "0%", background: "linear-gradient(to right,#FFD54F,#FF8F00)" }}
             />
             <span aria-hidden className="absolute -top-0.5 h-[10px] w-px bg-[rgba(255,255,255,0.45)]" style={{ left: "50%" }} />
           </div>
           <p className="mt-1.5 text-[11px] leading-relaxed text-ink-soft">
-            Just 2 of 3 voted — but they carry <span className="text-ink">{SCHOOL.pct}%</span> of the weight. Past the majority, it blooms.
+            Just 2 of 3 voted — but they carry <span className="text-ink">{TRIP.pct}%</span> of the weight. Past the majority, it blooms.
           </p>
         </div>
 
@@ -210,7 +210,7 @@ export function LandingDemo() {
             <div className={`absolute inset-0 text-center transition-opacity duration-500 ${phase === "bloom" ? "opacity-100" : "opacity-0"}`}>
               <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-bloom">🌸 Bloomed</p>
               <div className="mx-auto max-w-[19rem] rounded-xl border p-3" style={{ borderColor: "rgba(255,179,0,0.4)", background: "rgba(255,179,0,0.08)" }}>
-                <p className="text-xs leading-relaxed text-ink">{SCHOOL.bloom}</p>
+                <p className="text-xs leading-relaxed text-ink">{TRIP.bloom}</p>
               </div>
             </div>
             <div className={`absolute inset-0 transition-opacity duration-500 ${phase === "tree" ? "opacity-100" : "opacity-0"}`}>
@@ -219,7 +219,7 @@ export function LandingDemo() {
               </p>
               <div className="mx-auto max-w-[19rem] rounded-xl border p-3 text-left" style={{ borderColor: "rgba(76,175,80,0.3)", background: "rgba(76,175,80,0.06)" }}>
                 <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-ink">🌸 Choosing Aria’s school</p>
-                <p className="text-[11px] leading-relaxed text-ink-mid">{SCHOOL.treeSummary}</p>
+                <p className="text-[11px] leading-relaxed text-ink-mid">{TRIP.treeSummary}</p>
               </div>
             </div>
           </div>
