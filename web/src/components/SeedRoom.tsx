@@ -1134,6 +1134,16 @@ export function SeedRoom({
               <p className="mt-1 text-xs text-ink-soft">
                 Everyone gives their honest read below — it adds up to one fair group answer.
               </p>
+              {/* Weighing is optional — say so plainly, so no one feels stuck
+                  here when they've already agreed. */}
+              <p className="mt-2 rounded-lg bg-[rgba(255,255,255,0.04)] px-2.5 py-2 text-[11px] leading-relaxed text-ink-soft">
+                Weighing whose voice counts most is <span className="text-ink">optional</span> — reach
+                for it on tough or contested calls. Already agreed?{" "}
+                <button onClick={() => setTab("bloom")} className="font-medium text-bloom underline-offset-2 hover:underline">
+                  Go straight to 🌸 Bloom
+                </button>
+                .
+              </p>
               {/* More voices make a fairer decision — invite the people who
                   should weigh in, right where the deciding happens. */}
               <div className="mt-3 flex items-center gap-2 border-t border-[rgba(76,175,80,0.15)] pt-3">

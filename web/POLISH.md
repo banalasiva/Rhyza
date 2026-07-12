@@ -20,22 +20,23 @@ Legend: `[ ]` to do · `[~]` needs a design call / bigger build · `[x]` shipped
   Replaced with a warm invitation: "Share what you think — a thought, a question,
   a worry. Others reply, and it grows."
 
-### Needs your input / bigger builds (planned next)
+- [x] **#2b Kickstart with an AI first reply.** Default on: when someone plants a
+  seed, Claude posts the first response to the question so effort to ask well is
+  rewarded immediately (seedOpener + kickstartSeed).
+- [x] **#5 (partial) "Can I bloom without weighting?" confusion.** The Decide tab
+  now says plainly that weighing is optional and links straight to Bloom.
 
-- [~] **#1 Planting a seed lands it in the wrong garden.** People want to add a
-  seed ASAP; "garden" reads as hierarchy. Plan: make the garden obvious at plant
-  time (or a "quick seed" that drops into a sensible default), and reframe garden
-  as "a space for a group," not a folder.
-- [~] **#2b Kickstart with an AI first reply.** When someone plants a seed,
-  optionally have Claude/ChatGPT respond to the question first, so effort to ask
-  a good question is immediately rewarded.
-- [~] **#3 Dimension jargon (Foundations / Understanding / …) isn't intuitive.**
-  These were borrowed from Juspay. Move to world-neutral, first-principles
-  buckets; still editable. NEEDS the naming decision.
-- [~] **#5 Decide should be a beautiful guided flow.** Step 1: "understand
-  together" vs "make a decision." Then the weighting questions as next→next.
-  Finally "open results to everyone." Also: make it clear you can bloom directly
-  without weighting. Bigger build.
+### Bigger builds (planned next)
+
+- [~] **#5 (full) Decide as a guided flow.** Step 1: "understand together" vs
+  "make a decision" as an explicit chooser. Then the weighting questions as a
+  polished next→next. Finally "open results to everyone." The stepped weigh-in
+  already exists — this is the wrapper/flow + the explicit template choice.
+  Deserves its own focused pass (touches the quorum engine).
 - [~] **#7 Timers / deadlines.** "2 days to discuss, 1 day to decide, Claude
   follows up till Bloom" — or "no deadline, converge peacefully." Schema + UI +
   Claude follow-up. Bigger build.
+- [~] **#1 Planting a seed lands it in the wrong garden.** Make the garden obvious
+  at plant time (or a sensible default), reframe garden as "a space for a group."
+- [ ] **#3 Dimensions beyond Foundations/Understanding/…** Deferred by request —
+  people's dialogues are broader than these buckets; revisit after features land.
