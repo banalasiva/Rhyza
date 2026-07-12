@@ -54,8 +54,16 @@ export function QuorumV2({ seedId }: { seedId: string }) {
   const [view, setView] = useState<View | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Which purpose card was just tapped and is still confirming with the server —
+  // drives the instant "Setting…" feedback so a tap never feels frozen.
+  const [pendingTemplate, setPendingTemplate] = useState<string | null>(null);
   const phaseRef = useRef<string>("collecting");
   phaseRef.current = view?.phase ?? "collecting";
+  // Pause the background poll while a steward action is confirming, so an in-
+  // flight optimistic change (e.g. switching purpose) isn't briefly reverted by
+  // a poll that lands before the server has caught up.
+  const busyRef = useRef(false);
+  busyRef.current = busy;
 
   async function load() {
     try {
@@ -71,7 +79,7 @@ export function QuorumV2({ seedId }: { seedId: string }) {
     // in-progress weigh-in keeps its local state; this only refreshes the shared
     // view.) Stops once the quorum is locked.
     const t = setInterval(() => {
-      if (phaseRef.current !== "locked") load();
+      if (phaseRef.current !== "locked" && !busyRef.current) load();
     }, 4000);
     return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,6 +94,12 @@ export function QuorumV2({ seedId }: { seedId: string }) {
 
   async function changeTemplate(next: string) {
     if (!view || next === view.template || busy) return;
+    // Flip the choice on-screen immediately — the "✓ Chosen" mark and the Step 2
+    // heading update the instant you tap, so it never feels like a frozen wait
+    // while the two network round-trips (save, then reload the fresh dimensions)
+    // complete in the background.
+    setView({ ...view, template: next });
+    setPendingTemplate(next);
     setBusy(true);
     setError(null);
     try {
@@ -93,7 +107,9 @@ export function QuorumV2({ seedId }: { seedId: string }) {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't change the purpose");
+      await load(); // re-sync to the true server state on failure
     } finally {
+      setPendingTemplate(null);
       setBusy(false);
     }
   }
@@ -119,6 +135,7 @@ export function QuorumV2({ seedId }: { seedId: string }) {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {templates.map((t) => {
               const on = view.template === t.key;
+              const pending = pendingTemplate === t.key;
               return (
                 <button
                   key={t.key}
@@ -128,13 +145,20 @@ export function QuorumV2({ seedId }: { seedId: string }) {
                   aria-pressed={on}
                   className={`rounded-2xl border p-3 text-left transition disabled:opacity-100 ${
                     on ? "border-accent bg-[rgba(76,175,80,0.1)]" : "border-[rgba(255,255,255,0.1)]"
-                  } ${view.canManage ? "hover:border-accent" : "cursor-default"}`}
+                  } ${view.canManage && !busy ? "hover:border-accent active:scale-[0.99]" : "cursor-default"}`}
                 >
                   <p className="text-sm font-medium text-ink">
                     {t.emoji} {t.label}
                   </p>
                   <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">{t.blurb}</p>
-                  {on && <p className="mt-1 text-[10px] font-medium text-accent">✓ Chosen</p>}
+                  {pending ? (
+                    <p className="mt-1 flex items-center gap-1 text-[10px] font-medium text-accent">
+                      <span className="inline-block h-2.5 w-2.5 animate-spin rounded-full border border-accent border-t-transparent" />
+                      Setting…
+                    </p>
+                  ) : (
+                    on && <p className="mt-1 text-[10px] font-medium text-accent">✓ Chosen</p>
+                  )}
                 </button>
               );
             })}
@@ -162,7 +186,15 @@ export function QuorumV2({ seedId }: { seedId: string }) {
         </div>
 
         {showWeighIn ? (
-          <WeighIn view={view} seedId={seedId} reload={load} />
+          // Key by the actual dimension set so that when switching purpose brings
+          // a different set of questions, the weigh-in remounts fresh instead of
+          // holding the previous purpose's ranking state under mismatched keys.
+          <WeighIn
+            key={view.dimensions.map((d) => d.key).join(",")}
+            view={view}
+            seedId={seedId}
+            reload={load}
+          />
         ) : view.result ? (
           <Reveal view={view} result={view.result} />
         ) : (
