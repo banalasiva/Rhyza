@@ -26,17 +26,20 @@ Legend: `[ ]` to do · `[~]` needs a design call / bigger build · `[x]` shipped
 - [x] **#5 (partial) "Can I bloom without weighting?" confusion.** The Decide tab
   now says plainly that weighing is optional and links straight to Bloom.
 
+- [x] **#5 (full) Decide is now a guided 3-step flow.** Lifted out of the buried
+  amber "admin" strip into steps everyone sees: **Step 1 · What are we doing
+  here?** (two cards — 🤝 Understand together / ⚖️ Make a decision; stewards pick,
+  everyone sees) → **Step 2 · Weigh in** (the existing stepped ranking) → **Step 3
+  · Open results to everyone** (the reveal, with the answered count). Step 1 also
+  points to "skip straight to 🌸 Bloom." AdminBar slimmed to advanced steward
+  tools (pin a number, lock/reopen).
+- [x] **#1 Plant→garden.** "Planting in [🌿 garden]" selector at the top of the
+  compose form, defaulting to the current garden but changeable.
+
 ### Bigger builds (planned next)
 
-- [~] **#5 (full) Decide as a guided flow.** Step 1: "understand together" vs
-  "make a decision" as an explicit chooser. Then the weighting questions as a
-  polished next→next. Finally "open results to everyone." The stepped weigh-in
-  already exists — this is the wrapper/flow + the explicit template choice.
-  Deserves its own focused pass (touches the quorum engine).
 - [~] **#7 Timers / deadlines.** "2 days to discuss, 1 day to decide, Claude
   follows up till Bloom" — or "no deadline, converge peacefully." Schema + UI +
   Claude follow-up. Bigger build.
-- [~] **#1 Planting a seed lands it in the wrong garden.** Make the garden obvious
-  at plant time (or a sensible default), reframe garden as "a space for a group."
 - [ ] **#3 Dimensions beyond Foundations/Understanding/…** Deferred by request —
   people's dialogues are broader than these buckets; revisit after features land.

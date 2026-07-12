@@ -81,40 +81,111 @@ export function QuorumV2({ seedId }: { seedId: string }) {
   if (!view) return <p className="py-6 text-center text-sm text-ink-soft">Loading the quorum…</p>;
 
   const showWeighIn = view.phase === "collecting";
-
   const understand = view.template === "understand";
+  const templates = Object.values(QUORUM_TEMPLATES);
+
+  async function changeTemplate(next: string) {
+    if (!view || next === view.template || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await apiPost(`/api/seeds/${seedId}/quorum`, { template: next });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't change the purpose");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function setPhaseAction(next: "collecting" | "revealed" | "locked") {
+    setBusy(true);
+    setError(null);
+    try {
+      await apiPost(`/api/seeds/${seedId}/quorum`, { phase: next });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't update");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
-      <header>
-        <h2 className="serif-lg">
-          {understand ? "Who helped everyone learn?" : "Who should have the biggest say?"}
-        </h2>
-        <p className="mt-1 text-sm leading-relaxed text-ink-mid">
-          {understand
-            ? "Answer each question below about everyone — including yourself. We'll add it all up and show the group what it saw in each of you."
-            : "Answer each question below about everyone — including yourself. We'll add it all up into one fair answer for the group."}
-        </p>
-      </header>
-
-      {!understand && (
-        <p className="rounded-xl border border-[rgba(76,175,80,0.2)] bg-[rgba(76,175,80,0.06)] p-3 text-xs leading-relaxed text-ink-mid">
-          💡 Not every voice should count the same on every decision — and that&apos;s okay. Here
-          the group gently agrees whose voice should weigh most on each part — money, judgement,
-          who&apos;s most affected — so the final choice feels fair. It&apos;s only about this one
-          decision, never about ranking anyone as a person.
-        </p>
+      {/* ── Step 1 · Purpose ── everyone sees what this is for; stewards pick. */}
+      {view.phase === "collecting" && (
+        <section>
+          <p className="eyebrow mb-2">Step 1 · What are we doing here?</p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {templates.map((t) => {
+              const on = view.template === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => view.canManage && changeTemplate(t.key)}
+                  disabled={busy || !view.canManage}
+                  aria-pressed={on}
+                  className={`rounded-2xl border p-3 text-left transition disabled:opacity-100 ${
+                    on ? "border-accent bg-[rgba(76,175,80,0.1)]" : "border-[rgba(255,255,255,0.1)]"
+                  } ${view.canManage ? "hover:border-accent" : "cursor-default"}`}
+                >
+                  <p className="text-sm font-medium text-ink">
+                    {t.emoji} {t.label}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">{t.blurb}</p>
+                  {on && <p className="mt-1 text-[10px] font-medium text-accent">✓ Chosen</p>}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1.5 text-[10px] text-ink-soft">
+            {view.canManage
+              ? "Switching resets the weigh-in. Not sure? You can also skip this and go straight to 🌸 Bloom."
+              : "Chosen by the group's steward."}
+          </p>
+        </section>
       )}
 
+      {/* ── Step 2 · Weigh in (or the revealed result) ── */}
+      <section>
+        {view.phase === "collecting" && <p className="eyebrow mb-2">Step 2 · Weigh in</p>}
+        <div className="mb-2">
+          <h2 className="serif-lg">
+            {understand ? "Who helped everyone learn?" : "Who should have the biggest say?"}
+          </h2>
+          <p className="mt-1 text-sm leading-relaxed text-ink-mid">
+            {understand
+              ? "Answer each question about everyone — including yourself. We'll add it up and show the group what it saw in each of you."
+              : "Answer each question about everyone — including yourself. It adds up into one fair answer for the group."}
+          </p>
+        </div>
+
+        {showWeighIn ? (
+          <WeighIn view={view} seedId={seedId} reload={load} />
+        ) : view.result ? (
+          <Reveal view={view} result={view.result} />
+        ) : (
+          <p className="py-6 text-center text-sm text-ink-soft">The quorum is being tallied…</p>
+        )}
+      </section>
+
+      {/* ── Step 3 · Open results ── (steward only) */}
+      {view.canManage && view.phase === "collecting" && (
+        <section>
+          <p className="eyebrow mb-1.5">Step 3 · When you're ready</p>
+          <button
+            onClick={() => setPhaseAction("revealed")}
+            disabled={busy}
+            className="btn-primary w-full text-sm disabled:opacity-50"
+          >
+            🔓 Open results to everyone ({view.submittedCount}/{view.totalPeople} answered)
+          </button>
+        </section>
+      )}
+
+      {/* Advanced steward controls — pin a hard number, lock/reopen. */}
       {view.canManage && <AdminBar view={view} seedId={seedId} busy={busy} setBusy={setBusy} reload={load} setError={setError} />}
-
-      {showWeighIn ? (
-        <WeighIn view={view} seedId={seedId} reload={load} />
-      ) : view.result ? (
-        <Reveal view={view} result={view.result} />
-      ) : (
-        <p className="py-6 text-center text-sm text-ink-soft">The quorum is being tallied…</p>
-      )}
     </div>
   );
 }
@@ -579,21 +650,6 @@ function AdminBar({
 }) {
   const [hardcodeDim, setHardcodeDim] = useState<string | null>(null);
   const measurable = view.dimensions.filter((d) => d.measurable);
-  const templates = Object.values(QUORUM_TEMPLATES);
-
-  async function changeTemplate(next: string) {
-    if (next === view.template) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await apiPost(`/api/seeds/${seedId}/quorum`, { template: next });
-      await reload();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't change the purpose");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function phase(next: "collecting" | "revealed" | "locked") {
     setBusy(true);
@@ -610,42 +666,9 @@ function AdminBar({
 
   return (
     <div className="rounded-xl border border-[rgba(255,179,0,0.25)] bg-[rgba(255,179,0,0.05)] p-3">
-      <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">Admin · {view.phase}</p>
-
-      {view.phase === "collecting" && (
-        <div className="mb-3">
-          <p className="mb-1.5 text-[11px] text-ink-soft">Purpose of this quorum:</p>
-          <div className="flex flex-wrap gap-1.5">
-            {templates.map((t) => {
-              const on = view.template === t.key;
-              return (
-                <button
-                  key={t.key}
-                  onClick={() => changeTemplate(t.key)}
-                  disabled={busy}
-                  title={t.blurb}
-                  className={
-                    "rounded-full border px-2.5 py-1 text-[11px] transition disabled:opacity-50 " +
-                    (on
-                      ? "border-accent bg-[rgba(76,175,80,0.16)] text-ink"
-                      : "border-[rgba(255,255,255,0.14)] text-ink-soft hover:border-[rgba(76,175,80,0.4)] hover:text-ink")
-                  }
-                >
-                  {t.emoji} {t.label}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-1 text-[10px] text-ink-soft">Switching purpose resets the weigh-in.</p>
-        </div>
-      )}
+      <p className="mb-2 text-[11px] uppercase tracking-wide text-ink-soft">Steward tools · {view.phase}</p>
 
       <div className="flex flex-wrap gap-2">
-        {view.phase === "collecting" && (
-          <button onClick={() => phase("revealed")} disabled={busy} className="btn-primary text-sm disabled:opacity-50">
-            Show everyone the result ({view.submittedCount}/{view.totalPeople} answered)
-          </button>
-        )}
         {view.phase === "revealed" && (
           <>
             <button onClick={() => phase("locked")} disabled={busy} className="btn-primary text-xs disabled:opacity-50">
