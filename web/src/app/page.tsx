@@ -11,8 +11,6 @@ import { HashFocus } from "@/components/HashFocus";
 import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 import { MorningQuote } from "@/components/MorningQuote";
 import { DailyQuestion } from "@/components/DailyQuestion";
-import { WaitingForThem } from "@/components/WaitingForThem";
-import { PeopleToConnect } from "@/components/PeopleToConnect";
 import { NotificationSetup } from "@/components/NotificationSetup";
 import { PushHealer } from "@/components/PushHealer";
 import { YourTurn } from "@/components/YourTurn";
@@ -39,13 +37,12 @@ export default async function GardensHome() {
         <MorningQuote name={viewer.name} />
         <DailyQuestion />
         <NotificationSetup />
-        <Suspense fallback={null}>
-          <PeopleToConnect userId={viewer.userId} />
-        </Suspense>
+        {/* "It's your turn" stays — it's things waiting on YOU to act on, part of
+            consuming the feed. Creating (gardens/seeds) and "waiting for them"
+            now live in the Plant tab, so Home is just seeds to read + weigh in. */}
         <Suspense fallback={null}>
           <YourTurnSection userId={viewer.userId} />
         </Suspense>
-        <WaitingForThem />
         <Suspense fallback={<HomeSkeleton />}>
           <GardensArea userId={viewer.userId} orgId={viewer.orgId} name={viewer.name} />
         </Suspense>
@@ -112,20 +109,12 @@ async function GardensArea({
       <Suspense fallback={null}>
         <GettingStartedSection userId={userId} firstGardenId={gardens[0]?.id} />
       </Suspense>
-      <h1 className="serif-xl mb-4">What will the community grow today?</h1>
-      {/* Start-something composer (also the target of the side panel's
-          "New garden") — kept at the top, feed below, like a social home. */}
-      <div id="new-garden" className="card mb-6 p-4">
-        <p className="eyebrow mb-3">Plant a new garden</p>
-        <CreateGardenForm />
-      </div>
-      {/* Public gardens to discover — collapsible, so it teaches without
-          getting in the way of your own feed. */}
+      {/* Home is for consuming — seeds to read and weigh in on. Creating a
+          garden or seed now lives in the Plant tab. Public gardens to discover
+          stay (collapsible), then the feed. */}
       <Suspense fallback={null}>
         <DiscoverSection />
       </Suspense>
-      {/* The feed — an infinite, private-first river of seeds worth your
-          thought. Your gardens live in the side panel. */}
       <Feed />
     </>
   );

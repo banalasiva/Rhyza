@@ -3,13 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { NavIcon } from "@/components/nav-items";
+import { CreateGardenForm } from "@/components/CreateGardenForm";
+import { WaitingForThem } from "@/components/WaitingForThem";
 
 type GardenNode = { id: string; name: string; emoji: string };
 
-// The central "Plant a seed" create action, replacing the old Explore tab. Tap
-// it and a sheet comes up: pick a garden to plant your question in, or start a
-// new garden. This is the app's core action, so it lives front-and-centre —
-// discovery moved to Home.
+// The central "Plant" create-and-manage hub, replacing the old Explore tab. Tap
+// it and a sheet comes up with everything about *starting* things — plant a seed
+// in a garden, start a new garden, and the people you invited who haven't joined
+// yet ("waiting for them"). Home stays purely for consuming seeds.
 export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
   const [open, setOpen] = useState(false);
   const [gardens, setGardens] = useState<GardenNode[] | null>(null);
@@ -69,11 +71,11 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
           />
           <div
             role="dialog"
-            aria-label="Plant a seed"
-            className="relative z-10 w-full max-w-md rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-4"
+            aria-label="Start something"
+            className="relative z-10 max-h-[88dvh] w-full max-w-md overflow-auto rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-4"
           >
-            <div className="mb-1 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-ink">🌱 Plant a seed</h2>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-ink">🌱 Start something</h2>
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Close"
@@ -82,15 +84,15 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
                 ✕
               </button>
             </div>
+
+            {/* Plant a seed — pick a garden to put your question in */}
+            <p className="eyebrow mb-1">🌱 Plant a seed</p>
             <p className="mb-3 text-xs text-ink-soft">
-              A seed is a question or decision for a group. Pick a garden to plant it in — or start a
-              new one.
+              A seed is a question or decision for a group. Pick a garden to plant it in:
             </p>
-
-            {loading && !gardens && <p className="py-3 text-sm text-ink-soft">Loading your gardens…</p>}
-
+            {loading && !gardens && <p className="py-2 text-sm text-ink-soft">Loading your gardens…</p>}
             {gardens && gardens.length > 0 && (
-              <div className="max-h-[45vh] space-y-1.5 overflow-auto">
+              <div className="space-y-1.5">
                 {gardens.map((g) => (
                   <Link
                     key={g.id}
@@ -105,20 +107,23 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
                 ))}
               </div>
             )}
-
             {gardens && gardens.length === 0 && !loading && (
-              <p className="mb-1 text-xs text-ink-soft">
-                You don’t have a garden yet — every seed lives in one. Start your first:
+              <p className="text-xs text-ink-soft">
+                No gardens yet — every seed lives in one. Start your first below. 👇
               </p>
             )}
 
-            <Link
-              href="/#new-garden"
-              onClick={() => setOpen(false)}
-              className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-[rgba(76,175,80,0.45)] bg-[rgba(76,175,80,0.12)] px-3 py-2.5 text-sm font-medium text-ink transition hover:border-accent active:scale-[0.98]"
-            >
-              ✚ New garden
-            </Link>
+            {/* Start a new garden */}
+            <div className="mt-5 border-t border-[rgba(255,255,255,0.08)] pt-4">
+              <p className="eyebrow mb-2">🌿 Start a new garden</p>
+              <CreateGardenForm />
+            </div>
+
+            {/* Waiting for them — invited people who haven't joined (renders
+                nothing when there are none). */}
+            <div className="mt-4">
+              <WaitingForThem />
+            </div>
           </div>
         </div>
       )}
