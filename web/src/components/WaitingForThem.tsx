@@ -136,20 +136,28 @@ export function WaitingForThem() {
 
   return (
     <div className="mb-5 rounded-2xl border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.05)] p-4">
-      <div className="flex items-start justify-between gap-2">
-        <button
-          onClick={toggleCollapsed}
-          aria-expanded={!isCollapsed}
-          className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink transition hover:text-accent"
-          title={isCollapsed ? "Expand" : "Collapse"}
-        >
-          <span aria-hidden className="text-[10px] text-ink-soft">{isCollapsed ? "▸" : "▾"}</span>
-          🕊️ Waiting for them
-          {isCollapsed && visible.length > 0 && (
-            <span className="text-[11px] font-normal text-ink-soft">({visible.length})</span>
+      <button
+        onClick={toggleCollapsed}
+        aria-expanded={!isCollapsed}
+        className="flex w-full items-center justify-between gap-2 text-sm font-medium text-ink transition hover:text-accent"
+        title={isCollapsed ? "Expand" : "Collapse"}
+      >
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span aria-hidden>🕊️</span>
+          <span className="truncate">Waiting for them</span>
+          {visible.length > 0 && (
+            <span className="shrink-0 text-[11px] font-normal text-ink-soft">({visible.length})</span>
           )}
-        </button>
-        {!isCollapsed && hiddenCount > 0 && (
+        </span>
+        <span aria-hidden className="shrink-0 text-xs text-ink-soft">{isCollapsed ? "▾" : "▴"}</span>
+      </button>
+      {isCollapsed ? null : (
+      <>
+      <div className="mt-2 flex items-start justify-between gap-2">
+        <p className="text-xs text-ink-soft">
+          People you invited who haven’t joined yet. A hello from you means far more than any reminder.
+        </p>
+        {hiddenCount > 0 && (
           <button
             onClick={() => setShowHiddenList((v) => !v)}
             aria-expanded={showHiddenList}
@@ -160,11 +168,7 @@ export function WaitingForThem() {
           </button>
         )}
       </div>
-      {isCollapsed ? null : (
-      <>
-      <p className="mb-3 mt-0.5 text-xs text-ink-soft">
-        People you invited who haven’t joined yet. A hello from you means far more than any reminder.
-      </p>
+      <div className="mb-3" />
 
       {/* Undo — a single mis-tapped cross-off is one tap away from coming back. */}
       {justHidden && (
