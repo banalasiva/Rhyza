@@ -35,13 +35,13 @@ export function ConnectButton({
     return (
       <button
         onClick={() => {
-          if (confirm("Remove this connection?")) void act("remove");
+          if (confirm("Remove them from your circle?")) void act("remove");
         }}
         disabled={busy}
         className="rounded-full border border-[rgba(76,175,80,0.4)] bg-[rgba(76,175,80,0.1)] px-4 py-1.5 text-xs font-medium text-accent transition hover:border-[rgba(76,175,80,0.6)] disabled:opacity-50"
-        title="Connected — tap to remove"
+        title="In your circle — tap to remove"
       >
-        🤝 Connected
+        ✓ In your circle
       </button>
     );
   }
@@ -86,8 +86,9 @@ export function ConnectButton({
       onClick={() => act("request")}
       disabled={busy}
       className="rounded-full border border-[rgba(76,175,80,0.4)] px-4 py-1.5 text-xs font-medium text-accent transition hover:bg-[rgba(76,175,80,0.1)] disabled:opacity-50"
+      title="Add to your circle so you can bring each other into private seeds"
     >
-      {busy ? "…" : "🤝 Connect"}
+      {busy ? "…" : "🤝 Add to circle"}
     </button>
   );
 }

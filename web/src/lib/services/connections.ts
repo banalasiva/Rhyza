@@ -85,17 +85,27 @@ export async function requestConnection(
   }
   if (status === "pending_outgoing") return { status: "pending_outgoing" };
 
+  // One-tap: connecting is instant now — no pending, no accept. Sharing a private
+  // seed already builds your circle automatically; this is the same idea for
+  // someone you've discovered but not yet shared a seed with. Add them and you
+  // can bring each other into private seeds right away.
   await db.connection.upsert({
     where: { requesterId_addresseeId: { requesterId: fromId, addresseeId: toId } },
-    create: { requesterId: fromId, addresseeId: toId, status: "pending" },
-    update: { status: "pending" },
+    create: { requesterId: fromId, addresseeId: toId, status: "accepted", respondedAt: new Date() },
+    update: { status: "accepted", respondedAt: new Date() },
   });
 
   const me = await db.user.findUnique({ where: { id: fromId }, select: { name: true } });
   const who = me?.name || "Someone";
-  await pingConnection(toId, fromId, "connect_request", `${who} wants to connect 🤝`, "Tap to accept");
+  await pingConnection(
+    toId,
+    fromId,
+    "connect_accepted",
+    `${who} added you to their circle 🤝`,
+    "You can add each other to private seeds now",
+  );
 
-  return { status: "pending_outgoing" };
+  return { status: "connected" };
 }
 
 // Respond to an incoming request. accept → connected + tell them; decline →
