@@ -19,7 +19,6 @@ type Pending = {
 // than any automated reminder. No vendor needed (wa.me opens WhatsApp for you to
 // pick the person); a WhatsApp Business / Exotel auto-send can layer on later.
 const HIDDEN_KEY = "tt-waiting-hidden";
-const COLLAPSE_KEY = "tt-waiting-collapsed";
 
 function loadHidden(): Set<string> {
   try {
@@ -36,9 +35,10 @@ export function WaitingForThem() {
   // Locally hidden rows — "cross off" people you're done with, restorable in
   // case you hid someone by mistake. Kept on the device (no backend needed).
   const [hidden, setHidden] = useState<Set<string>>(new Set());
-  // Whether the whole card is folded away. `null` = the user hasn't chosen, so
-  // we fall back to a sensible default (collapsed once you're all caught up).
-  const [collapsed, setCollapsed] = useState<boolean | null>(null);
+  // Always starts folded to a single line — expansion is in-memory only, so it
+  // re-collapses on every visit. It's an ambient reminder, not a panel to leave
+  // open.
+  const [expanded, setExpanded] = useState(false);
   // The person just crossed off — shows a one-tap Undo for a few seconds.
   const [justHidden, setJustHidden] = useState<string | null>(null);
   // Whether the "crossed off" list is expanded for per-person restore.
@@ -47,12 +47,6 @@ export function WaitingForThem() {
   useEffect(() => {
     setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
     setHidden(loadHidden());
-    try {
-      const c = localStorage.getItem(COLLAPSE_KEY);
-      if (c !== null) setCollapsed(c === "1");
-    } catch {
-      /* ignore */
-    }
     apiGet<{ invites: Pending[] }>("/api/invites/pending")
       .then((r) => setInvites(r.invites))
       .catch(() => setInvites([]));
@@ -90,17 +84,11 @@ export function WaitingForThem() {
   // Nothing left to show and nothing hidden → collapse entirely.
   if (visible.length === 0 && hiddenCount === 0) return null;
 
-  // Default to a single line — it's a quiet, ambient reminder, not something to
-  // eat the top of the home page. Tap the arrow to expand (remembered next time).
-  const isCollapsed = collapsed ?? true;
+  // Always a single line by default; tapping expands it just for this view and
+  // it re-collapses on the next visit (expansion isn't remembered).
+  const isCollapsed = !expanded;
   function toggleCollapsed() {
-    const next = !isCollapsed;
-    setCollapsed(next);
-    try {
-      localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0");
-    } catch {
-      /* ignore */
-    }
+    setExpanded((v) => !v);
   }
 
   const message = (p: Pending) =>
