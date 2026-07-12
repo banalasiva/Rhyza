@@ -427,4 +427,18 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
       CONSTRAINT "seed_mediator_nudges_pkey" PRIMARY KEY ("seed_id")
     )`,
   },
+
+  // One-time data backfill (idempotent): give people who joined via the email
+  // magic-link — and so have an empty name — a readable display name derived
+  // from their email ("siva.prasad@x" → "Siva Prasad"). Only touches rows whose
+  // name is still blank, so re-running is a harmless no-op. Going forward the
+  // first-sign-in NamePrompt asks new users directly.
+  {
+    label: "users.name_backfill_from_email",
+    sql: `UPDATE "users"
+      SET "name" = initcap(regexp_replace(split_part("email", '@', 1), '[._+-]+', ' ', 'g'))
+      WHERE COALESCE("name", '') = ''
+        AND "email" IS NOT NULL AND "email" <> ''
+        AND "deleted_at" IS NULL`,
+  },
 ];

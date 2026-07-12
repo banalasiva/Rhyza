@@ -7,13 +7,21 @@ import { BottomNav } from "@/components/BottomNav";
 import { TopNav } from "@/components/TopNav";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { FeedbackButton } from "@/components/FeedbackButton";
+import { NamePrompt } from "@/components/NamePrompt";
+import { displayName } from "@/lib/display-name";
 
 export async function NavBar({ name }: { name?: string }) {
   const session = await auth();
   const userId = session?.user?.id;
-  const unread = userId
-    ? await db.notification.count({ where: { recipientId: userId, readAt: null } })
-    : 0;
+  const [unread, me] = userId
+    ? await Promise.all([
+        db.notification.count({ where: { recipientId: userId, readAt: null } }),
+        db.user.findUnique({ where: { id: userId }, select: { name: true, email: true } }),
+      ])
+    : [0, null];
+  // First sign-in (esp. via email magic-link): no display name yet → greet once
+  // and ask what to call them, pre-filled with a guess from their email.
+  const needsName = !!me && !me.name?.trim();
 
   return (
     <>
@@ -55,6 +63,7 @@ export async function NavBar({ name }: { name?: string }) {
         </div>
       </header>
       <BottomNav unread={unread} />
+      {needsName && <NamePrompt suggested={displayName({ name: me?.name, email: me?.email })} />}
     </>
   );
 }
