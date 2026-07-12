@@ -12,6 +12,7 @@ import { FirstVisitIntro } from "@/components/FirstVisitIntro";
 import { MorningQuote } from "@/components/MorningQuote";
 import { DailyQuestion } from "@/components/DailyQuestion";
 import { WaitingForThem } from "@/components/WaitingForThem";
+import { PeopleToConnect } from "@/components/PeopleToConnect";
 import { NotificationSetup } from "@/components/NotificationSetup";
 import { PushHealer } from "@/components/PushHealer";
 import { YourTurn } from "@/components/YourTurn";
@@ -38,6 +39,9 @@ export default async function GardensHome() {
         <MorningQuote name={viewer.name} />
         <DailyQuestion />
         <NotificationSetup />
+        <Suspense fallback={null}>
+          <PeopleToConnect userId={viewer.userId} />
+        </Suspense>
         <Suspense fallback={null}>
           <YourTurnSection userId={viewer.userId} />
         </Suspense>

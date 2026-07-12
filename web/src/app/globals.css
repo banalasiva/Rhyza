@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 :root {
+  /* Tell the browser this site manages its own colours for the *dark* theme.
+     Without this, some engines (Android "Force dark", certain in-app browsers)
+     auto-invert the page and the light/dark toggle appears to do nothing. */
+  color-scheme: dark;
   --bg: #070d07;
   --bg-mid: #0d160d;
   --bg-surface: #111a11;
@@ -26,6 +30,7 @@
 /* Light theme — a warm, paper-toned garden in daylight. Set by adding `light`
    to <html> (see the no-flash script in layout + the toggle in the nav). */
 html.light {
+  color-scheme: light;
   --bg: #f5f6f0;
   --bg-mid: #eceee6;
   --bg-surface: #ffffff;

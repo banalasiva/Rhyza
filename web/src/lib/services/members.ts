@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { requireSeedAccess, requireSeedManager } from "@/lib/authz";
 import { deliver } from "@/lib/services/notify";
-import { connectedUserIds } from "@/lib/services/connections";
+import { connectedUserIds, getConnectionStatus, type ConnectionStatus } from "@/lib/services/connections";
 import { displayName } from "@/lib/display-name";
 
 export type SeedRole = "owner" | "admin" | "member" | "contributor";
@@ -217,6 +217,39 @@ export async function listMyNetwork(userId: string): Promise<NetworkPerson[]> {
     addUser(u);
   }
   return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export type SuggestedPerson = {
+  id: string;
+  name: string;
+  image: string | null;
+  status: Exclude<ConnectionStatus, "connected" | "self">;
+};
+
+// "People you may know" for fast onboarding: everyone the viewer already shares
+// a garden or seed with (or was invited alongside) whom they haven't connected
+// with yet — so a newcomer can send a wave of connects the moment they land,
+// WhatsApp-style, and then add those people straight into seeds. Excludes people
+// already connected (nothing to do) and the viewer themselves.
+export async function suggestedConnections(userId: string, limit = 12): Promise<SuggestedPerson[]> {
+  const [network, connectedIds] = await Promise.all([
+    listMyNetwork(userId),
+    connectedUserIds(userId).catch(() => [] as string[]),
+  ]);
+  const connected = new Set(connectedIds);
+  const notYet = network.filter((p) => !connected.has(p.id)).slice(0, limit);
+  if (notYet.length === 0) return [];
+  const withStatus = await Promise.all(
+    notYet.map(async (p) => ({
+      id: p.id,
+      name: p.name,
+      image: p.image,
+      status: await getConnectionStatus(userId, p.id),
+    })),
+  );
+  return withStatus.filter(
+    (p): p is SuggestedPerson => p.status !== "connected" && p.status !== "self",
+  );
 }
 
 // Who can add people to a seed: the same rule as inviting — anyone with access
