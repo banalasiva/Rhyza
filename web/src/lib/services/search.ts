@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { STAGES } from "@/lib/constants";
 import { deserializeMentions } from "@/lib/mentions";
+import { displayName } from "@/lib/display-name";
 
 // Search across everything a person can actually see — seeds (questions),
 // messages inside them, gardens, and people. Authorisation mirrors the feed:
@@ -138,10 +139,10 @@ export async function search(userId: string, orgId: string, raw: string): Promis
   }));
   const messageResults = messages; // already the final shape from searchMessages
   const gardenResults = gardens.map((g) => ({ id: g.id, name: g.name, emoji: g.emoji }));
-  // Fall back to email as the label so a person who hasn't set a name yet still
-  // shows up as something clickable (not a blank row).
+  // Humanize the email into a name so a person who hasn't set one yet still
+  // shows up as something readable and clickable (not a blank row).
   const peopleResults = (people as { id: string; name: string | null; email: string | null; image: string | null }[]).map(
-    (u) => ({ id: u.id, name: u.name || u.email || "Someone", image: u.image }),
+    (u) => ({ id: u.id, name: displayName(u), image: u.image }),
   );
 
   return {

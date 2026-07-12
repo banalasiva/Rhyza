@@ -55,16 +55,19 @@ export function RichEditor({
 
   const allItems: MentionItem[] = [
     ...AI_MENTIONS,
-    ...people.map((p) => ({
-      id: p.id,
-      name: p.name.toLowerCase(),
-      label: p.name,
-      image: p.image,
-      ai: false,
-      // Insert the readable "@Display Name" — the id-bearing token is built at
-      // submit time (serializeMentions), so the editor never shows a raw UUID.
-      insert: `@${p.name}`,
-    })),
+    ...people.map((p) => {
+      const label = p.name || "Someone";
+      return {
+        id: p.id,
+        name: label.toLowerCase(),
+        label,
+        image: p.image,
+        ai: false,
+        // Insert the readable "@Display Name" — the id-bearing token is built at
+        // submit time (serializeMentions), so the editor never shows a raw UUID.
+        insert: `@${label}`,
+      };
+    }),
   ];
   const matches = menu
     ? allItems.filter((it) => it.name.includes(menu.query.toLowerCase())).slice(0, 6)

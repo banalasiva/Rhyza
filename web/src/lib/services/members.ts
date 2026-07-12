@@ -3,6 +3,7 @@ import { ApiError } from "@/lib/api";
 import { requireSeedAccess, requireSeedManager } from "@/lib/authz";
 import { deliver } from "@/lib/services/notify";
 import { connectedUserIds } from "@/lib/services/connections";
+import { displayName } from "@/lib/display-name";
 
 export type SeedRole = "owner" | "admin" | "member" | "contributor";
 
@@ -51,15 +52,15 @@ export async function listSeedPeople(userId: string, seedId: string) {
   const [creator, members, contribs, canManage] = await Promise.all([
     db.user.findUnique({
       where: { id: seed.createdById },
-      select: { id: true, name: true, image: true },
+      select: { id: true, name: true, image: true, email: true },
     }),
     db.seedMember.findMany({
       where: { seedId },
-      include: { user: { select: { id: true, name: true, image: true } } },
+      include: { user: { select: { id: true, name: true, image: true, email: true } } },
     }),
     db.contribution.findMany({
       where: { seedId, deletedAt: null },
-      select: { author: { select: { id: true, name: true, image: true } } },
+      select: { author: { select: { id: true, name: true, image: true, email: true } } },
       distinct: ["authorId"],
     }),
     canManageSeed(userId, seed),
@@ -67,7 +68,7 @@ export async function listSeedPeople(userId: string, seedId: string) {
 
   const byId = new Map<string, SeedPerson>();
   const add = (
-    u: { id: string; name: string | null; image: string | null } | null,
+    u: { id: string; name: string | null; image: string | null; email: string | null } | null,
     role: SeedRole,
   ) => {
     if (!u) return;
@@ -76,7 +77,7 @@ export async function listSeedPeople(userId: string, seedId: string) {
     if (prev && ROLE_RANK[prev.role] >= ROLE_RANK[role]) return; // keep highest role
     byId.set(u.id, {
       id: u.id,
-      name: u.name || "Someone",
+      name: displayName(u),
       image: u.image,
       role,
       isYou: u.id === userId,
@@ -199,7 +200,7 @@ export async function listMyNetwork(userId: string): Promise<NetworkPerson[]> {
   const seen = new Map<string, NetworkPerson>();
   const addUser = (u: { id: string; name: string | null; email: string | null; image: string | null }) => {
     if (u?.id && u.email && !seen.has(u.id)) {
-      seen.set(u.id, { id: u.id, name: u.name || u.email, email: u.email, image: u.image });
+      seen.set(u.id, { id: u.id, name: displayName(u), email: u.email, image: u.image });
     }
   };
   for (const m of [...gardenPeople, ...seedPeople] as {

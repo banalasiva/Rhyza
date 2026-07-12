@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { DIMENSIONS } from "@/lib/constants";
+import { displayName } from "@/lib/display-name";
 import type { DimSlice } from "@/lib/fingerprint";
 import { getFollowContext } from "@/lib/services/follows";
 import {
@@ -376,7 +377,7 @@ export async function getAiTagCounts(userId: string): Promise<{ claude: number; 
 export async function getPublicProfile(userId: string, viewerId?: string) {
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, image: true, bio: true, createdAt: true, deletedAt: true },
+    select: { id: true, name: true, email: true, image: true, bio: true, createdAt: true, deletedAt: true },
   });
   if (!user || user.deletedAt || user.name === "Claude" || user.name === "ChatGPT") return null;
 
@@ -430,7 +431,7 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
 
   return {
     id: user.id,
-    name: user.name,
+    name: displayName(user),
     image: user.image,
     bio: user.bio,
     isOwner,

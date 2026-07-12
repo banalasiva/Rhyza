@@ -6,11 +6,13 @@ import { autoFollowOnView } from "@/lib/services/explore";
 import { notifyFollowersNewSeed, notifyGardenNewSeed } from "@/lib/services/follows";
 import { getJoinStatus } from "@/lib/services/joinreq";
 import { getMediatorNudge } from "@/lib/services/mediator";
+import { displayName } from "@/lib/display-name";
 
-// What a contribution carries for the room view — author, reactions (with the
-// reactor's name, so we can show *who* reacted), and endorsements.
+// What a contribution carries for the room view — author (with email so a
+// nameless magic-link user still gets a readable display name), reactions (with
+// the reactor's name, so we can show *who* reacted), and endorsements.
 const CONTRIB_INCLUDE = {
-  author: { select: { id: true, name: true, image: true } },
+  author: { select: { id: true, name: true, image: true, email: true } },
   reactions: { include: { user: { select: { name: true } } } },
   endorsements: true,
 } as const;
@@ -21,7 +23,7 @@ type ContribRow = {
   parentId: string | null;
   content: unknown;
   createdAt: Date;
-  author: { id: string; name: string; image: string | null };
+  author: { id: string; name: string | null; image: string | null; email: string | null };
   reactions: { reactionKey: string; userId: string; user: { name: string } | null }[];
   endorsements: { endorserId: string }[];
 };
@@ -50,7 +52,7 @@ function mapContribs(rows: ContribRow[], userId: string) {
       parentId: c.parentId,
       text: content?.text ?? "",
       attachments: content?.attachments ?? [],
-      author: c.author,
+      author: { id: c.author.id, name: displayName(c.author), image: c.author.image },
       createdAt: c.createdAt.toISOString(),
       reactionCounts,
       reactionPeople,
@@ -250,11 +252,11 @@ export async function getSeedDetail(userId: string, seedId: string) {
     seed.visibility === "private" || seed.listed
       ? db.seedMember.findMany({
           where: { seedId },
-          include: { user: { select: { id: true, name: true, image: true } } },
+          include: { user: { select: { id: true, name: true, image: true, email: true } } },
         })
       : db.gardenMember.findMany({
           where: { gardenId: seed.gardenId },
-          include: { user: { select: { id: true, name: true, image: true } } },
+          include: { user: { select: { id: true, name: true, image: true, email: true } } },
         });
 
   // One parallel batch: authorization + all the data, instead of 5 sequential
@@ -322,12 +324,12 @@ export async function getSeedDetail(userId: string, seedId: string) {
   for (const r of peopleRows) {
     const u = r.user;
     if (u.id === userId || u.name === "Claude") continue;
-    peopleMap.set(u.id, { id: u.id, name: u.name, image: u.image });
+    peopleMap.set(u.id, { id: u.id, name: displayName(u), image: u.image });
   }
   for (const c of contributions) {
     const a = c.author;
     if (!a || a.id === userId || a.name === "Claude" || peopleMap.has(a.id)) continue;
-    peopleMap.set(a.id, { id: a.id, name: a.name, image: a.image });
+    peopleMap.set(a.id, { id: a.id, name: displayName(a), image: a.image });
   }
   const people = [...peopleMap.values()];
 
