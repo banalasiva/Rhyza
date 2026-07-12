@@ -111,6 +111,10 @@ export function NotificationFix() {
     return (
       <div className="mb-5 rounded-2xl border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-4">
         <p className="text-sm text-ink">🔔 {label}</p>
+        <p className="mt-2 rounded-lg bg-[rgba(76,175,80,0.08)] px-2.5 py-2 text-xs text-ink-mid">
+          You&apos;re not missing out — we&apos;ll <span className="text-ink">email you the big moments</span>{" "}
+          (blooms, mentions, when your point lands). Manage that just below.
+        </p>
       </div>
     );
   }
@@ -150,6 +154,13 @@ export function NotificationFix() {
           )}
         </div>
       ) : null}
+      {status === "denied" && (
+        <p className="mt-2 rounded-lg bg-[rgba(76,175,80,0.08)] px-2.5 py-2 text-xs text-ink-mid">
+          Meanwhile you&apos;re not missing out — we&apos;ll still <span className="text-ink">email you the
+          big moments</span> (when a seed blooms, you&apos;re mentioned, or your point lands). Manage that
+          just below.
+        </p>
+      )}
       <div className="mt-3 flex items-center gap-2">
         {status === "denied" ? (
           <button onClick={recheck} disabled={busy} className="btn-primary text-sm disabled:opacity-60">
