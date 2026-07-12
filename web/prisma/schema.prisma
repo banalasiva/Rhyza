@@ -247,6 +247,20 @@ model AuthEvent {
   @@map("auth_events")
 }
 
+// A person the viewer dismissed from their "Suggested for you" list — because
+// they don't want to see them, or already sent a request and are waiting. Keeps
+// them out of future suggestions. Scalar ids (no Prisma relation); the DB FKs in
+// the migration enforce the cascade.
+model SuggestionDismissal {
+  userId      String   @map("user_id") @db.Uuid
+  dismissedId String   @map("dismissed_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@id([userId, dismissedId])
+  @@index([userId])
+  @@map("suggestion_dismissals")
+}
+
 // A "rhythm" the group sets on a seed so a decision doesn't drift forever:
 // "2 days to discuss, 1 day to decide, and Claude keeps us moving" — or the
 // deliberate opposite, "no deadline, we'll converge peacefully." When a phase's

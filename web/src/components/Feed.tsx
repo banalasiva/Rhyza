@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { apiGet } from "@/lib/client";
+import { apiGet, apiPost } from "@/lib/client";
 import { Avatar } from "@/components/Avatar";
 import { ConnectButton } from "@/components/ConnectButton";
 import type { FeedItem } from "@/lib/services/feed";
@@ -41,7 +41,7 @@ function buildSuggestionCards(people: SuggPerson[], gardens: SuggGarden[]): Sugg
   return cards;
 }
 
-function SuggestedForYou({ card }: { card: SuggCard }) {
+function SuggestedForYou({ card, onDismiss }: { card: SuggCard; onDismiss: (id: string) => void }) {
   return (
     <section className="rounded-2xl border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.05)] p-4">
       <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-ink-soft">
@@ -52,8 +52,17 @@ function SuggestedForYou({ card }: { card: SuggCard }) {
           {card.people.map((p) => (
             <div
               key={p.id}
-              className="flex w-32 shrink-0 flex-col items-center rounded-xl border border-[rgba(255,255,255,0.06)] bg-[rgba(7,13,7,0.35)] p-3 text-center"
+              className="relative flex w-32 shrink-0 flex-col items-center rounded-xl border border-[rgba(255,255,255,0.06)] bg-[rgba(7,13,7,0.35)] p-3 text-center"
             >
+              {/* Dismiss — hide someone you don't want to see, or already asked
+                  and are waiting on. */}
+              <button
+                onClick={() => onDismiss(p.id)}
+                aria-label={`Dismiss ${p.name}`}
+                className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-ink-soft transition hover:bg-white/10 hover:text-ink"
+              >
+                ✕
+              </button>
               <Link href={`/u/${p.id}`} aria-label={`View ${p.name}`}>
                 <Avatar name={p.name} image={p.image} size={44} />
               </Link>
@@ -206,6 +215,19 @@ export function Feed() {
       .catch(() => {});
   }, []);
 
+  // Cross someone off the suggestions — remove them everywhere immediately and
+  // remember it so they don't come back next time.
+  const dismissPerson = useCallback((id: string) => {
+    setSuggCards((prev) =>
+      prev
+        .map((c) =>
+          c.kind === "people" ? { ...c, people: c.people.filter((p) => p.id !== id) } : c,
+        )
+        .filter((c) => c.kind !== "people" || c.people.length > 0),
+    );
+    apiPost("/api/me/suggestions/dismiss", { userId: id }).catch(() => {});
+  }, []);
+
   // Infinite scroll — fetch the next page as the sentinel nears the viewport.
   useEffect(() => {
     const el = sentinel.current;
@@ -237,13 +259,13 @@ export function Feed() {
   items.forEach((item, i) => {
     rendered.push(<Card key={item.id} item={item} />);
     if ((i + 1) % SUGGEST_EVERY === 0 && si < suggCards.length) {
-      rendered.push(<SuggestedForYou key={`sugg-${si}`} card={suggCards[si]} />);
+      rendered.push(<SuggestedForYou key={`sugg-${si}`} card={suggCards[si]} onDismiss={dismissPerson} />);
       si += 1;
     }
   });
   if (done) {
     while (si < suggCards.length) {
-      rendered.push(<SuggestedForYou key={`sugg-${si}`} card={suggCards[si]} />);
+      rendered.push(<SuggestedForYou key={`sugg-${si}`} card={suggCards[si]} onDismiss={dismissPerson} />);
       si += 1;
     }
   }

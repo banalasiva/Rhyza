@@ -232,13 +232,32 @@ export type SuggestedPerson = {
 // with yet — so a newcomer can send a wave of connects the moment they land,
 // WhatsApp-style, and then add those people straight into seeds. Excludes people
 // already connected (nothing to do) and the viewer themselves.
+// Hide a person from your "Suggested for you" — because you don't want to see
+// them, or you already sent a request and are waiting. Idempotent.
+export async function dismissSuggestion(userId: string, dismissedId: string): Promise<void> {
+  if (userId === dismissedId) return;
+  await db.suggestionDismissal
+    .upsert({
+      where: { userId_dismissedId: { userId, dismissedId } },
+      update: {},
+      create: { userId, dismissedId },
+    })
+    .catch(() => {});
+}
+
 export async function suggestedConnections(userId: string, limit = 12): Promise<SuggestedPerson[]> {
-  const [network, connectedIds] = await Promise.all([
+  const [network, connectedIds, dismissed] = await Promise.all([
     listMyNetwork(userId),
     connectedUserIds(userId).catch(() => [] as string[]),
+    db.suggestionDismissal
+      .findMany({ where: { userId }, select: { dismissedId: true } })
+      .catch(() => [] as { dismissedId: string }[]),
   ]);
   const connected = new Set(connectedIds);
-  const notYet = network.filter((p) => !connected.has(p.id)).slice(0, limit);
+  const hidden = new Set((dismissed as { dismissedId: string }[]).map((d) => d.dismissedId));
+  const notYet = network
+    .filter((p) => !connected.has(p.id) && !hidden.has(p.id))
+    .slice(0, limit);
   if (notYet.length === 0) return [];
   const withStatus = await Promise.all(
     notYet.map(async (p) => ({
