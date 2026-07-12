@@ -39,15 +39,19 @@ Legend: `[ ]` to do · `[~]` needs a design call / bigger build · `[x]` shipped
 ### Bigger builds
 
 - [x] **#7 Timers / deadlines ("rhythm").** A group can put a gentle pace on a
-  seed — "N days to discuss, M more to decide" — or the deliberate opposite,
-  "🕊️ no deadline, converge peacefully." Shown as a slim bar above the
-  conversation (`SeedRhythm`); stewards set/change/clear it, everyone sees where
-  things stand. Nothing is ever force-closed: when a phase's time arrives, the
-  nudge cron has **Claude step into the thread** with a warm, specific message
-  moving the group toward the next step (converge → 🌸 bloom), with a plain
-  templated fallback if AI is off so a rhythm the group asked for always lands.
-  New `seed_deadlines` table (+ migration + pending-ddl), `/api/seeds/:id/deadline`
-  (GET any member · POST steward), `followUpOnDeadlines()` wired into
-  `/api/cron/nudge` (runs both slots, once-per-phase via `followupStage`).
+  seed — "N days to discuss, M more to decide" — shown as a **live HH:MM:SS
+  countdown** (with a `Xd` prefix past a day) that starts ticking immediately and
+  stays in sync across screens, so everyone works to the same clock. Owner/admins
+  can **add time** (+1h / +6h / +1d) or **freeze the current phase** ("End
+  discussion now" jumps to the decide clock; "Close decision now" ends it).
+  Or the deliberate opposite, "🕊️ no deadline, converge peacefully."
+  Nothing is ever force-closed against the group's will: when a phase's clock
+  runs out, the nudge cron has **Claude step into the thread** with a warm,
+  specific message moving the group toward the next step (converge → 🌸 bloom),
+  with a plain templated fallback if AI is off. A human freeze suppresses that
+  phase's nudge (they already made the call). New `seed_deadlines` table
+  (+ migration + pending-ddl), `/api/seeds/:id/deadline` (GET any member · POST
+  steward: set / extend / freeze), `followUpOnDeadlines()` wired into
+  `/api/cron/nudge` (both slots, once-per-phase via `followupStage`).
 - [ ] **#3 Dimensions beyond Foundations/Understanding/…** Deferred by request —
   people's dialogues are broader than these buckets; revisit after features land.

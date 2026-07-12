@@ -99,6 +99,89 @@ export async function clearDeadline(seedId: string): Promise<void> {
   await db.seedDeadline.delete({ where: { seedId } }).catch(() => {});
 }
 
+// Which phase a paced rhythm is in right now.
+function phaseOf(discussBy: Date | null, decideBy: Date | null, now: Date): "discuss" | "decide" | "over" {
+  if (discussBy && now < discussBy) return "discuss";
+  if (decideBy && now < decideBy) return "decide";
+  return "over";
+}
+
+// What followupStage should be so the cron fires exactly the nudges that are
+// still ahead: any phase whose deadline is already in the past counts as
+// "delivered" (so it never re-nudges), any phase still in the future stays open.
+function followupFor(discussBy: Date | null, decideBy: Date | null, now: Date): string | null {
+  if (decideBy && decideBy <= now) return "decide";
+  if (discussBy && discussBy <= now) return "discuss";
+  return null;
+}
+
+// Owner/admin adds time to the CURRENT phase — "we need a bit longer." In the
+// discuss phase both deadlines slide by the same amount (the decide window is
+// preserved); in the decide phase only decideBy moves; once it's already over,
+// this reopens a fresh decide window of `minutes`.
+export async function extendDeadline(
+  seedId: string,
+  minutes: number,
+  now = new Date(),
+): Promise<DeadlineView> {
+  const row = await db.seedDeadline.findUnique({ where: { seedId } }).catch(() => null);
+  if (!row || row.mode !== "paced") return getDeadline(seedId);
+
+  const addMs = Math.round(minutes) * 60 * 1000;
+  let discussBy = row.discussBy;
+  let decideBy = row.decideBy;
+  const phase = phaseOf(discussBy, decideBy, now);
+
+  if (phase === "discuss") {
+    if (discussBy) discussBy = new Date(discussBy.getTime() + addMs);
+    if (decideBy) decideBy = new Date(decideBy.getTime() + addMs);
+  } else if (phase === "decide") {
+    if (decideBy) decideBy = new Date(decideBy.getTime() + addMs);
+  } else {
+    // Over → reopen a fresh decide window.
+    decideBy = new Date(now.getTime() + addMs);
+  }
+
+  await db.seedDeadline.update({
+    where: { seedId },
+    data: { discussBy, decideBy, followupStage: followupFor(discussBy, decideBy, now), lastFollowupAt: null },
+  });
+  await db.seed.update({ where: { id: seedId }, data: { lastActivityAt: now } }).catch(() => {});
+  return getDeadline(seedId);
+}
+
+// Owner/admin "freezes" the current phase — takes the call that discussion (or
+// decision time) is over now. Freezing discussion starts the decide countdown
+// immediately, keeping the decide window's length; freezing the decision closes
+// the timer (it's bloom time). The corresponding Claude nudge is suppressed,
+// since a human just made the call.
+export async function endPhase(seedId: string, now = new Date()): Promise<DeadlineView> {
+  const row = await db.seedDeadline.findUnique({ where: { seedId } }).catch(() => null);
+  if (!row || row.mode !== "paced") return getDeadline(seedId);
+
+  let discussBy = row.discussBy;
+  let decideBy = row.decideBy;
+  const phase = phaseOf(discussBy, decideBy, now);
+
+  if (phase === "discuss") {
+    const decideWindow =
+      discussBy && decideBy ? Math.max(decideBy.getTime() - discussBy.getTime(), 0) : days(1);
+    discussBy = now;
+    decideBy = new Date(now.getTime() + decideWindow);
+  } else if (phase === "decide") {
+    decideBy = now;
+  } else {
+    return getDeadline(seedId); // already over — nothing to freeze
+  }
+
+  await db.seedDeadline.update({
+    where: { seedId },
+    data: { discussBy, decideBy, followupStage: followupFor(discussBy, decideBy, now), lastFollowupAt: null },
+  });
+  await db.seed.update({ where: { id: seedId }, data: { lastActivityAt: now } }).catch(() => {});
+  return getDeadline(seedId);
+}
+
 // ── Follow-up cron ────────────────────────────────────────────────────────────
 // Called from the nudge cron. Finds paced seeds whose current phase deadline has
 // arrived and where Claude hasn't yet followed up on that phase, and has Claude
