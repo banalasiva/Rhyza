@@ -116,6 +116,7 @@ export function SeedRoom({
   const [seedMenu, setSeedMenu] = useState(false); // tap-the-question details sheet
   const [membersOpen, setMembersOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false); // invite form within the details sheet
+  const [peopleModal, setPeopleModal] = useState(false); // the fresh-seed "bring your people in" flow
   const [editingSeed, setEditingSeed] = useState(false);
   const [seedTitleDraft, setSeedTitleDraft] = useState(seed.title);
   const [seedContentDraft, setSeedContentDraft] = useState(seed.content);
@@ -1381,8 +1382,23 @@ export function SeedRoom({
 
         {/* Contributions — one linear conversation */}
         <div className="space-y-3">
+          {/* The flywheel moment: while you're still the only person here, make
+              bringing your people in the obvious next step — ThinkThru's whole
+              point is deciding *together*, not alone with a bot. */}
+          {seed.people.filter((p) => p.id !== currentUserId).length === 0 && (
+            <div className="rounded-2xl border border-[rgba(76,175,80,0.3)] bg-[rgba(76,175,80,0.06)] p-4 text-center">
+              <p className="text-sm font-semibold text-ink">👨‍👩‍👧 Better with your people</p>
+              <p className="mx-auto mt-1 max-w-xs text-xs text-ink-mid">
+                Claude’s in — now bring the folks who should decide this with you. That’s where it
+                comes alive.
+              </p>
+              <button onClick={() => setPeopleModal(true)} className="btn-primary mt-3 text-sm">
+                ✨ Bring your people in
+              </button>
+            </div>
+          )}
           {timeline.length === 0 && (
-            <p className="text-sm text-ink-soft">Quiet so far — want to get things going? Share the first thought. 🌱</p>
+            <p className="text-sm text-ink-soft">🌱 Claude is reading your question — a first thought lands in a moment…</p>
           )}
           {timeline.map((it) => {
             if (it.kind === "poll") {
@@ -2272,6 +2288,40 @@ export function SeedRoom({
       )}
 
       {membersOpen && <MembersSheet seedId={seed.id} onClose={() => setMembersOpen(false)} />}
+
+      {/* Fresh-seed "bring your people in" — the same add/invite flow, front and
+          centre in its own sheet so the flywheel step is one tap, not buried. */}
+      {peopleModal && (
+        <div className="fixed inset-0 z-[140] flex items-end justify-center sm:items-center">
+          <button
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            aria-label="Close"
+            onClick={() => setPeopleModal(false)}
+          />
+          <div
+            role="dialog"
+            aria-label="Bring your people in"
+            className="relative z-10 max-h-[88dvh] w-full max-w-md overflow-auto rounded-t-2xl border border-[rgba(76,175,80,0.25)] bg-[#0B120B] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-4"
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-ink">👨‍👩‍👧 Bring your people in</h2>
+              <button
+                onClick={() => setPeopleModal(false)}
+                aria-label="Close"
+                className="text-ink-soft transition hover:text-ink"
+              >
+                ✕
+              </button>
+            </div>
+            <SeedInvite
+              seedId={seed.id}
+              gardenName={seed.garden.name}
+              isPrivate={visibility === "private"}
+              inline
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
