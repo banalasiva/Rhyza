@@ -18,6 +18,7 @@ import {
   mentionsClaude,
   wantsImage,
   generateImage,
+  seedOpener,
   type ContribForAI,
 } from "@/lib/ai";
 import { put } from "@vercel/blob";
@@ -548,6 +549,38 @@ export async function listContributions(userId: string, seedId: string, since?: 
 // email rolls into the digest (type "contribution" isn't a BIG_MOMENT). Excludes
 // the actor and anyone already @-mentioned (they got the mention ping instead).
 // Best-effort; never blocks posting. Uses createMany + one read-back so a busy
+// Kickstart a freshly-planted seed: Claude posts the first response to the
+// group's question, so asking a good question is rewarded instantly and the
+// thread starts with momentum. Best-effort and idempotent (only acts while the
+// thread is still empty), so it never blocks or double-posts.
+export async function kickstartSeed(seedId: string) {
+  try {
+    const seed = await db.seed.findUnique({
+      where: { id: seedId },
+      select: { id: true, title: true, content: true, createdById: true, deletedAt: true },
+    });
+    if (!seed || seed.deletedAt) return;
+    const existing = await db.contribution.count({ where: { seedId, deletedAt: null } });
+    if (existing > 0) return; // someone already spoke — don't butt in
+    const text = await seedOpener({ title: seed.title, content: seed.content ?? "" });
+    if (!text) return;
+    const claude = await getOrCreateClaudeUser();
+    const contribution = await db.contribution.create({
+      data: { seedId, authorId: claude.id, dimension: "understanding", content: { text } },
+    });
+    await db.seed.update({ where: { id: seedId }, data: { lastActivityAt: new Date() } }).catch(() => {});
+    await notifySeedActivity(
+      claude.id,
+      { id: seed.id, title: seed.title, createdById: seed.createdById },
+      contribution.id,
+      `Claude opened: ${text.slice(0, 120)}`,
+      [],
+    );
+  } catch (err) {
+    console.error("kickstartSeed failed", err);
+  }
+}
+
 // seed doesn't fan out into one INSERT per person.
 async function notifySeedActivity(
   actorId: string,

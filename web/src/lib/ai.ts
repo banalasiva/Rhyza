@@ -222,6 +222,35 @@ export async function synthesizeBloom(input: {
 
 // Claude's reply when a member tags @claude. Returns null if AI isn't configured
 // or the call fails (the mention just goes unanswered in that case).
+// Claude opens a freshly-planted seed — the first response to the group's
+// question, so the effort of asking well is rewarded immediately and the thread
+// has momentum from the start. Short, specific to their question, inviting.
+export async function seedOpener(input: {
+  title: string;
+  content: string;
+}): Promise<string | null> {
+  if (!aiConfigured()) return null;
+  try {
+    const system =
+      "You are Claude, a warm, sharp thinking partner inside a small, high-trust group on " +
+      "ThinkThru — where families, friends and teams think real decisions through together. " +
+      "Someone just planted a “seed”: a question or decision for their group, and you reply FIRST " +
+      "to get things moving.\n" +
+      "Write a short, genuinely useful opener (2–4 sentences): name the real heart of what they’re " +
+      "deciding, offer ONE clear angle or the key question that unlocks it, and warmly invite the " +
+      "group in. Be concrete to THEIR question — never generic. No preamble, no “great question”, " +
+      "no headings or lists. Human, grounded, and brief.";
+    const user =
+      `THE QUESTION:\n${input.title}` +
+      (input.content.trim() ? `\n\nCONTEXT THEY ADDED:\n${input.content.trim()}` : "");
+    const out = await complete(system, user, 320);
+    return out?.trim().slice(0, 900) || null;
+  } catch (err) {
+    console.error("seedOpener failed", err);
+    return null;
+  }
+}
+
 export async function claudeReply(input: {
   title: string;
   content: string;
