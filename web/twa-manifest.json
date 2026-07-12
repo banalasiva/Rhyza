@@ -24,8 +24,8 @@
   "appVersionName": "1.0.0",
   "appVersionCode": 1,
   "shortcuts": [
-    { "name": "Your gardens", "shortName": "Gardens", "url": "/", "chosenIconUrl": "https://thinkthru.app/icon-192.png" },
-    { "name": "Explore the world", "shortName": "Explore", "url": "/explore", "chosenIconUrl": "https://thinkthru.app/icon-192.png" },
+    { "name": "Home", "shortName": "Home", "url": "/", "chosenIconUrl": "https://thinkthru.app/icon-192.png" },
+    { "name": "Search people & seeds", "shortName": "Search", "url": "/search", "chosenIconUrl": "https://thinkthru.app/icon-192.png" },
     { "name": "Notifications", "shortName": "Alerts", "url": "/notifications", "chosenIconUrl": "https://thinkthru.app/icon-192.png" }
   ],
   "fallbackType": "customtabs",
