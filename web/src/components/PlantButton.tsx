@@ -77,7 +77,7 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
             className="relative z-10 max-h-[88dvh] w-full max-w-md overflow-auto rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-4"
           >
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-ink">🌱 Start something</h2>
+              <h2 className="text-sm font-semibold text-ink">🌱 What would you like to start?</h2>
               <button
                 onClick={() => setOpen(false)}
                 aria-label="Close"
@@ -90,7 +90,8 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
             {/* Plant a seed — pick a garden to put your question in */}
             <p className="eyebrow mb-1">🌱 Plant a seed</p>
             <p className="mb-3 text-xs text-ink-soft">
-              A seed is a question or decision for a group. Pick a garden to plant it in:
+              Got a thought or a decision you’d love to talk through together? Let’s plant it 🌱 —
+              which garden should it grow in?
             </p>
             {loading && !gardens && <p className="py-2 text-sm text-ink-soft">Loading your gardens…</p>}
             {gardens && gardens.length > 0 && (
@@ -111,13 +112,14 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
             )}
             {gardens && gardens.length === 0 && !loading && (
               <p className="text-xs text-ink-soft">
-                No gardens yet — every seed lives in one. Start your first below. 👇
+                No gardens yet — and every seed needs a home to grow in. Shall we start your first
+                one? 👇
               </p>
             )}
 
             {/* Start a new garden */}
             <div className="mt-5 border-t border-[rgba(255,255,255,0.08)] pt-4">
-              <p className="eyebrow mb-2">🌿 Start a new garden</p>
+              <p className="eyebrow mb-2">🌿 Need a fresh space?</p>
               <CreateGardenForm />
             </div>
 

@@ -108,7 +108,7 @@ export function PlantSeedForm({ gardenId }: { gardenId: string }) {
       </div>
       {error && <p className="text-sm text-[#e57373]">{error}</p>}
       <button type="submit" className="btn-primary" disabled={busy || title.trim().length < 4}>
-        {busy ? "Planting…" : "🌱 Plant seed"}
+        {busy ? "Planting…" : "🌱 Plant it — and let's begin"}
       </button>
     </form>
   );

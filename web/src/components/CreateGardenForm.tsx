@@ -44,13 +44,13 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
     <form onSubmit={submit} className="space-y-3">
       {!firstRun && (
         <p className="text-xs text-ink-soft">
-          A <span className="text-ink-mid">garden</span> is a private space for a group — your
-          family, friends, or team — to think decisions through together.
+          Who’s this space for? A <span className="text-ink-mid">garden</span> holds all the
+          decisions one group — your family, friends, or team — thinks through together.
         </p>
       )}
       {firstRun && (
         <div>
-          <p className="mb-1.5 text-xs text-ink-soft">Quick start:</p>
+          <p className="mb-1.5 text-xs text-ink-soft">Not sure where to begin? Try one of these:</p>
           <div className="flex flex-wrap gap-1.5">
             {QUICK_STARTS.map((q) => (
               <button
@@ -78,7 +78,7 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
         />
         <input
           className="input flex-1"
-          placeholder={firstRun ? "Name it — e.g. Home" : "Garden name — e.g. Home"}
+          placeholder={firstRun ? "What should we call it? e.g. Home" : "Give it a name — e.g. Home"}
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={80}
