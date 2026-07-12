@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { pushPermission, deviceSubscribed, enablePush, showLocalNotification } from "@/lib/push-client";
+import {
+  pushPermission,
+  deviceSubscribed,
+  enablePush,
+  reconnectPush,
+  showLocalNotification,
+} from "@/lib/push-client";
 
 // The one-time "get notifications actually working" step. Unlike a dismissible
 // banner, it keeps showing until this device is genuinely subscribed — because
@@ -36,12 +42,11 @@ function snoozed(): boolean {
   }
 }
 
-type Step = "loading" | "hidden" | "install" | "enable" | "denied" | "done";
+type Step = "loading" | "hidden" | "install" | "enable" | "denied" | "verify" | "done" | "failed";
 
 export function NotificationSetup() {
   const [step, setStep] = useState<Step>("loading");
   const [busy, setBusy] = useState(false);
-  const [tested, setTested] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -74,7 +79,7 @@ export function NotificationSetup() {
     setBusy(true);
     try {
       const r = await enablePush();
-      if (r === "on") setStep("done");
+      if (r === "on") await verify();
       else if (r === "denied") setStep("denied");
       else setStep("hidden");
     } finally {
@@ -82,11 +87,31 @@ export function NotificationSetup() {
     }
   }
 
-  async function sendTest() {
+  // Auto-verify: after enabling, actually push through the SERVER to this device
+  // and confirm it was delivered (sent > 0) — not just that a local notification
+  // can display. This is what catches a subscription that looks on but is dead.
+  async function verify() {
+    setStep("verify");
+    // A friendly immediate cue while the real push travels (best-effort).
+    showLocalNotification("ThinkThru 🌱", "Checking your notifications…").catch(() => {});
+    try {
+      const res = await fetch("/api/push/test", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      setStep(res.ok && (data.sent ?? 0) > 0 ? "done" : "failed");
+    } catch {
+      setStep("failed");
+    }
+  }
+
+  // The remedy when the test doesn't arrive: rebuild the subscription (even a
+  // stale one the browser still thinks is fine), then verify again.
+  async function reconnectAndRetry() {
     setBusy(true);
     try {
-      await showLocalNotification("ThinkThru 🌱", "Notifications are on — you're all set.");
-      setTested(true);
+      const r = await reconnectPush();
+      if (r === "denied") setStep("denied");
+      else if (r === "on") await verify();
+      else setStep("failed");
     } finally {
       setBusy(false);
     }
@@ -152,22 +177,46 @@ export function NotificationSetup() {
             </>
           )}
 
+          {step === "verify" && (
+            <>
+              <p className="text-sm font-medium text-ink">Making sure it actually arrives…</p>
+              <p className="mt-0.5 text-xs text-ink-soft">
+                Sending a real notification to this device — one moment.
+              </p>
+            </>
+          )}
+
           {step === "done" && (
             <>
               <p className="text-sm font-medium text-ink">You&apos;re all set 🎉</p>
               <p className="mt-0.5 text-xs text-ink-soft">
-                {tested
-                  ? "If you saw the test notification, you're good — ThinkThru will reach you."
-                  : "Send yourself a quick test to make sure it lands on this device."}
+                Verified — a real notification just landed on this device. ThinkThru will reach you.
+              </p>
+              <div className="mt-3">
+                <button onClick={() => setStep("hidden")} className="btn-primary text-sm">
+                  Done
+                </button>
+              </div>
+            </>
+          )}
+
+          {step === "failed" && (
+            <>
+              <p className="text-sm font-medium text-ink">Almost there — the test didn&apos;t arrive</p>
+              <p className="mt-0.5 text-xs text-ink-soft">
+                This device&apos;s link to our server has expired, so pushes won&apos;t come through
+                yet. Reconnect to fix it — takes a second.
               </p>
               <div className="mt-3 flex gap-2">
-                {!tested && (
-                  <button onClick={sendTest} disabled={busy} className="btn-primary text-sm disabled:opacity-60">
-                    {busy ? "Sending…" : "Send a test"}
-                  </button>
-                )}
-                <button onClick={() => setStep("hidden")} className="btn-ghost text-xs">
-                  {tested ? "Done" : "Skip"}
+                <button
+                  onClick={reconnectAndRetry}
+                  disabled={busy}
+                  className="btn-primary text-sm disabled:opacity-60"
+                >
+                  {busy ? "Reconnecting…" : "🔄 Reconnect & retry"}
+                </button>
+                <button onClick={snooze} className="btn-ghost text-xs">
+                  Later
                 </button>
               </div>
             </>
