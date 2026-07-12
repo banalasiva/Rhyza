@@ -34,10 +34,12 @@ html.light {
   --bg: #f5f6f0;
   --bg-mid: #eceee6;
   --bg-surface: #ffffff;
-  --ink: #1b2318;
-  --ink-mid: #49523f;
-  --ink-soft: #63705c;
-  --ink-muted: #aab3a2;
+  /* Deeper, higher-contrast inks — the old light-theme greys were too faint to
+     read comfortably on the paper background. */
+  --ink: #141a11;
+  --ink-mid: #333a29;
+  --ink-soft: #464f3c;
+  --ink-muted: #8b9682;
   --accent: #2e7d32;
   --accent-bright: #388e3c;
   --bloom: #b26a00;
@@ -105,6 +107,12 @@ body {
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+/* On the light theme, antialiasing thins the text and hurts readability on the
+   pale background — let it render at full weight instead. */
+html.light body {
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
 }
 
 /* Dark-forest atmosphere shared across screens */
@@ -303,6 +311,42 @@ body {
   100% {
     transform: scale(2.8);
     opacity: 0;
+  }
+}
+
+/* A slowly rotating ring of light rays behind the bloomed flower — so the
+   "circle of lights" is alive, not a static awkward halo. */
+.bloom-rays {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 340px;
+  height: 340px;
+  margin-left: -170px;
+  margin-top: -170px;
+  border-radius: 9999px;
+  background: conic-gradient(
+    from 0deg,
+    rgba(255, 213, 79, 0) 0deg,
+    rgba(255, 213, 79, 0.38) 18deg,
+    rgba(255, 213, 79, 0) 42deg,
+    rgba(255, 213, 79, 0.32) 82deg,
+    rgba(255, 213, 79, 0) 108deg,
+    rgba(255, 213, 79, 0.4) 158deg,
+    rgba(255, 213, 79, 0) 188deg,
+    rgba(255, 213, 79, 0.32) 232deg,
+    rgba(255, 213, 79, 0) 262deg,
+    rgba(255, 213, 79, 0.4) 312deg,
+    rgba(255, 213, 79, 0) 344deg
+  );
+  -webkit-mask: radial-gradient(circle, transparent 36%, #000 42%, #000 68%, transparent 74%);
+  mask: radial-gradient(circle, transparent 36%, #000 42%, #000 68%, transparent 74%);
+  animation: bloom-spin 9s linear infinite;
+  opacity: 0.85;
+}
+@keyframes bloom-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 

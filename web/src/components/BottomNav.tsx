@@ -36,15 +36,24 @@ export function BottomNav({ unread = 0 }: { unread?: number }) {
             className="flex flex-1 flex-col items-center gap-0.5 py-2 transition"
             style={{ color: on ? "var(--accent)" : "var(--ink-soft)" }}
           >
-            <span className="relative text-[20px] leading-none">
+            {/* The active tab gets a glowing pill behind its icon, so it's always
+                obvious which screen you're on. */}
+            <span
+              className="relative flex h-8 w-14 items-center justify-center rounded-full text-[20px] leading-none transition-all"
+              style={
+                on
+                  ? { background: "rgba(76,175,80,0.18)", boxShadow: "0 0 10px rgba(76,175,80,0.25)" }
+                  : undefined
+              }
+            >
               <span aria-hidden>{t.emoji}</span>
               {t.badge && unread > 0 && (
-                <span className="absolute -right-2.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-bg">
+                <span className="absolute right-2 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-bg">
                   {unread > 9 ? "9+" : unread}
                 </span>
               )}
             </span>
-            <span className="text-[11px] font-medium">{t.label}</span>
+            <span className={`text-[11px] ${on ? "font-semibold" : "font-medium"}`}>{t.label}</span>
           </Link>
         );
       })}

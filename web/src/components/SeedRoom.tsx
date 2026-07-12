@@ -1283,7 +1283,7 @@ export function SeedRoom({
             Tucked into one small menu so it doesn't eat space on mobile. */}
         <div className="relative mb-3 flex items-center justify-between gap-2">
           <p className="text-[11px] text-ink-soft">
-            ✨ Each message is auto-labelled by dimension — tap a label to change it.
+            💬 Share what you think — a thought, a question, a worry. Others reply, and it grows.
           </p>
           <button
             onClick={() => setAiMenu((v) => !v)}
@@ -2336,8 +2336,9 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
   );
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-[rgba(20,10,0,0.88)] px-6 text-center backdrop-blur">
-      {/* expanding glow rings behind the plant */}
+      {/* rotating light rays + expanding glow rings behind the plant */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <span className="bloom-rays" />
         <span className="bloom-glow" />
         <span className="bloom-glow" style={{ animationDelay: "0.5s" }} />
       </div>

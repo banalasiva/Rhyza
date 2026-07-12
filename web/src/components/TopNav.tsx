@@ -25,7 +25,10 @@ export function TopNav({ unread = 0 }: { unread?: number }) {
             aria-current={on ? "page" : undefined}
             title={t.label}
             className="relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition hover:bg-[rgba(76,175,80,0.1)]"
-            style={{ color: on ? "var(--accent)" : "var(--ink-mid)" }}
+            style={{
+              color: on ? "var(--accent)" : "var(--ink-mid)",
+              background: on ? "rgba(76,175,80,0.16)" : undefined,
+            }}
           >
             <span className="relative leading-none">
               <NavIcon name={t.key} size={18} />
