@@ -318,18 +318,20 @@ export async function addExistingMember(actorId: string, seedId: string, targetI
   if (!network.some((p) => p.id === targetId)) {
     throw new ApiError("BAD_REQUEST", "They're not in your circle yet — send them an invite instead.");
   }
-  // Access: they must belong to this garden's org, or garden access would reject
-  // them after we add them. In the normal single-org case a contact always is;
-  // this guards the cross-org edge — send an invite instead there.
-  const inOrg = await db.orgMember.findUnique({
-    where: { orgId_userId: { orgId: garden.orgId, userId: targetId } },
-    select: { userId: true },
-  });
-  if (!inOrg) {
-    throw new ApiError("BAD_REQUEST", "They're not in this space yet — send them an invite instead.");
-  }
-
+  // Address-book model: anyone you already share a private seed or garden with is
+  // in your circle, so you can drop them straight into another of your private
+  // seeds — instantly, no invite, no accept. If they aren't yet in this garden's
+  // org (the usual case — every Gmail user gets their own personal org), we
+  // BRIDGE them in automatically, exactly as accepting an invite would. That's
+  // the whole point: sharing one private seed makes every future add
+  // friction-free, so the invite-link + accept dance is confined to genuinely
+  // new people you've never shared anything with.
   await db.$transaction([
+    db.orgMember.upsert({
+      where: { orgId_userId: { orgId: garden.orgId, userId: targetId } },
+      update: {},
+      create: { orgId: garden.orgId, userId: targetId, role: "member" },
+    }),
     db.gardenMember.upsert({
       where: { gardenId_userId: { gardenId: garden.id, userId: targetId } },
       update: {},
