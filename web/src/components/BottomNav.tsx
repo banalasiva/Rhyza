@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/components/nav-items";
+import { PlantButton } from "@/components/PlantButton";
 
 // A WhatsApp-style labelled bottom tab bar — the main way to get around on
 // phones. Warm emoji glyphs with words under them, so it's obvious and friendly
@@ -25,6 +26,7 @@ export function BottomNav({ unread = 0 }: { unread?: number }) {
       }}
     >
       {NAV_ITEMS.map((t) => {
+        if (t.key === "plant") return <PlantButton key="plant" variant="bottom" />;
         const on = isActive(t.href);
         return (
           <Link

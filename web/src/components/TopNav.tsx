@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS, NavIcon } from "@/components/nav-items";
+import { PlantButton } from "@/components/PlantButton";
 
 // Desktop-only nav: the same five destinations as the mobile bottom bar, but as
 // a compact labelled row in the top header — where desktop eyes and cursor
@@ -15,6 +16,7 @@ export function TopNav({ unread = 0 }: { unread?: number }) {
   return (
     <nav aria-label="Main" className="hidden items-center gap-1 md:flex">
       {NAV_ITEMS.map((t) => {
+        if (t.key === "plant") return <PlantButton key="plant" variant="top" />;
         const on = isActive(t.href);
         return (
           <Link
