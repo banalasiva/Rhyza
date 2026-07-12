@@ -17,7 +17,6 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🌱");
-  const [description, setDescription] = useState("");
   // Private by default — families expect their space to be just theirs; they can
   // still flip a garden to Public to share it with the wider circle.
   const [visibility, setVisibility] = useState<"public" | "private">("private");
@@ -32,7 +31,6 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
       const { id } = await apiPost<{ id: string }>("/api/gardens", {
         name,
         emoji,
-        description: description || undefined,
         visibility,
       });
       router.push(`/gardens/${id}`);
@@ -86,13 +84,6 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
           maxLength={80}
         />
       </div>
-      <textarea
-        className="input min-h-[60px]"
-        placeholder="What's this garden about? (optional)"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        maxLength={500}
-      />
       <div className="flex items-center gap-2">
         <button
           type="button"

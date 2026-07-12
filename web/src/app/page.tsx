@@ -7,8 +7,6 @@ import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
 import { GettingStarted } from "@/components/GettingStarted";
 import { HashFocus } from "@/components/HashFocus";
-import { MorningQuote } from "@/components/MorningQuote";
-import { DailyQuestion } from "@/components/DailyQuestion";
 import { NotificationSetup } from "@/components/NotificationSetup";
 import { PushHealer } from "@/components/PushHealer";
 import { YourTurn } from "@/components/YourTurn";
@@ -32,8 +30,6 @@ export default async function GardensHome() {
       <div className="garden-bg" />
       <NavBar name={viewer.name} />
       <main id="main" className="relative z-10 mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
-        <MorningQuote name={viewer.name} />
-        <DailyQuestion />
         <NotificationSetup />
         {/* "It's your turn" stays — it's things waiting on YOU to act on, part of
             consuming the feed. Creating (gardens/seeds) and "waiting for them"

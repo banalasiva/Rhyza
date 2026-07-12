@@ -9,7 +9,6 @@ type GardenNode = { id: string; name: string; emoji: string };
 export function PlantSeedForm({ gardenId }: { gardenId: string }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +34,6 @@ export function PlantSeedForm({ gardenId }: { gardenId: string }) {
     try {
       const { id } = await apiPost<{ id: string }>(`/api/gardens/${garden}/seeds`, {
         title,
-        content: content || undefined,
         visibility,
       });
       router.push(`/seeds/${id}`);
@@ -87,23 +85,12 @@ export function PlantSeedForm({ gardenId }: { gardenId: string }) {
         )}
       </div>
 
-      <p className="text-xs text-ink-soft">
-        A <span className="text-ink-mid">seed</span> is a question your group thinks through
-        together — like “Where should we go this holiday?”
-      </p>
       <input
         className="input"
-        placeholder="Ask a question worth exploring…"
+        placeholder="Ask a question — e.g. “Where should we go this holiday?”"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         maxLength={200}
-      />
-      <textarea
-        className="input min-h-[70px]"
-        placeholder="Add context (optional)"
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        maxLength={5000}
       />
       <div className="flex items-center gap-2">
         <VisChip
