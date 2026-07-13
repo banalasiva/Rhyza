@@ -298,9 +298,10 @@ export async function claudeReply(input: {
       "further and richer; if they ask to compress, simplify, or 'ELI5', tighten it right down. " +
       "Structure it so it reads cleanly as plain text — open a point with a **bold label**, use " +
       "short numbered steps, and blank lines between ideas (avoid tables and code-diagrams, they " +
-      "don't render here). If a visual would truly help, tell them to ask you to draw or diagram " +
-      "it and it'll come back as an image. Write warmly and directly; output only your reply — no " +
-      "greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.",
+      "don't render here). You can't generate images yourself, but @chatgpt can — so if someone " +
+      "wants a picture, drawing, or diagram, warmly point them to tag @chatgpt with what they'd " +
+      "like; never claim images are impossible here. Write warmly and directly; output only your " +
+      "reply — no greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.",
     userMessage(prompt, collectImages(input.contributions)),
   );
   if (!text) return null;
@@ -883,12 +884,43 @@ function getOpenAI(): OpenAI {
 const OPENAI_IMAGE_MODEL = process.env.OPENAI_IMAGE_MODEL || "dall-e-3";
 
 // Does this message ask an AI to *make* a picture (rather than discuss one)?
-// A verb of creation near an image noun — deliberately broad but anchored so a
-// mention like "what do you think of this image" doesn't trigger a generation.
 export function wantsImage(text: string): boolean {
-  return /\b(draw|sketch|illustrate|generate|create|make|design|render|paint|imagine|show me|visualise|visualize)\b[^.?!\n]{0,40}\b(image|picture|photo|drawing|illustration|logo|art|artwork|design|visual|poster|icon|mockup|graphic|scene|wallpaper|diagram|chart|flowchart|flow chart|infographic|mind ?map|graph|timeline|sketch)\b/i.test(
-    text,
-  );
+  // Path 1 — a creation verb near an explicit image noun ("create an image",
+  // "make a logo", "generate some icons"). The trailing `s?` catches plurals
+  // ("images", "logos", "pictures") — without it, "create AI images" slips
+  // through to a text reply and the model wrongly says it can't make images.
+  const withNoun =
+    /\b(draw|sketch|illustrate|generate|create|make|design|render|paint|imagine|show me|visualise|visualize)\b[^.?!\n]{0,40}\b(image|picture|photo|drawing|illustration|logo|art|artwork|design|visual|poster|icon|mockup|graphic|scene|wallpaper|diagram|chart|flowchart|flow chart|infographic|mind ?map|graph|timeline|sketch)s?\b/i;
+  if (withNoun.test(text)) return true;
+
+  // Path 2 — a strongly pictorial verb with a subject ("draw a cat", "sketch my
+  // house", "paint a dragon"). These are almost always image requests even
+  // without the word "image", so families can just say "draw a cat". Exclude the
+  // common figurative idioms ("draw a conclusion", "draw the line", "draw on
+  // experience", "sketch out a plan") so they don't trigger a picture.
+  const pictorial =
+    /\b(draw|sketch|illustrate|paint|doodle)\s+(?:me|us|for\s+\w+)?\s*(?:a|an|the|some|my|our|your|his|her|their)\s+[a-z]/i;
+  if (pictorial.test(text)) {
+    const idiom =
+      /\bdraw\s+(?:a\s+|the\s+)?(?:conclusion|conclusions|line|blank|breath|parallel|parallels|comparison|comparisons|distinction|distinctions|attention|name|card|straw)\b|\bdraw\s+(?:on|up|out|from|down|near|closer|even|level)\b|\bsketch\s+out\b/i;
+    if (!idiom.test(text)) return true;
+  }
+  return false;
+}
+
+// Is this just a QUESTION about whether the AI can make images — with no concrete
+// subject given yet ("can you create images if I give you the proper prompt?")?
+// wantsImage() fires on these too, but there's nothing real to draw, so we should
+// answer with a warm "yes — tell me what you'd like" instead of generating a
+// literal, nonsense picture of the sentence. Keyed on the deferral itself ("if I
+// give/send you a/the prompt"), so "can you draw me a sunset" is NOT caught.
+export function asksImageCapabilityOnly(text: string): boolean {
+  const t = text.toLowerCase();
+  const question = /\b(can|could|are|do|will|would|able)\b/.test(t) || t.trim().endsWith("?");
+  const deferredSubject =
+    /\bif\s+(i|you|we)\s+(give|gave|provide|send|sent|share|shared|get|have|type|write|feed|pass)\b/.test(t) ||
+    /\b(the|a|right|proper|correct|good|detailed)\s+prompts?\b/.test(t);
+  return question && deferredSubject;
 }
 
 // Generate an image from a prompt. Returns a PNG buffer (uploadable to Blob) or
@@ -1021,10 +1053,15 @@ export async function chatgptReply(input: {
     "question is small. HONOUR the person's hints: if they ask you to expand, go further and richer; " +
     "if they ask to compress, simplify, or 'ELI5', tighten it right down. Structure it so it reads " +
     "cleanly as plain text — open a point with a **bold label**, use short numbered steps, and blank " +
-    "lines between ideas (avoid tables and code-diagrams, they don't render here). If a visual would " +
-    "truly help, tell them to ask you to draw or diagram it and it'll come back as an image. Write " +
-    "warmly and directly; output only your reply — no greeting like 'Sure!', no sign-off, and don't " +
-    "refer to yourself in the third person.";
+    "lines between ideas (avoid tables and code-diagrams, they don't render here). " +
+    // The truth about image generation, so it never denies a capability it has:
+    "IMPORTANT — you CAN generate images here: when someone gives you something concrete to draw, " +
+    "illustrate, paint, or diagram, the app creates the picture and posts it automatically. So NEVER " +
+    "say you can't create or render images. If someone simply asks whether you can make images, answer " +
+    "yes, warmly, and invite them to tell you exactly what they'd like you to draw; when a visual would " +
+    "genuinely help, offer to draw it. " +
+    "Write warmly and directly; output only your reply — no greeting like 'Sure!', no sign-off, and " +
+    "don't refer to yourself in the third person.";
   const images = collectImages(input.contributions);
 
   try {

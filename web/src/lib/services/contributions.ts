@@ -18,6 +18,7 @@ import {
   summarizeThread,
   mentionsClaude,
   wantsImage,
+  asksImageCapabilityOnly,
   generateImage,
   seedOpener,
   type ContribForAI,
@@ -141,12 +142,22 @@ async function respondWithImage(
   const prompt = deserializeMentions(mentionText)
     .replace(/@(chatgpt|openai|gpt|claude)\b/gi, "")
     .trim();
-  const png = await generateImage(prompt);
-  if (!png) return null;
 
-  // Upload to Blob (BLOB_READ_WRITE_TOKEN is read from the environment).
-  const key = `ai/chatgpt/${seedId}-${Date.now()}.png`;
-  const blob = await put(key, png, { access: "public", contentType: "image/png" });
+  // Generate + upload are the two failure-prone steps (OpenAI image access,
+  // Blob token). Wrap them so ANY failure returns null and the caller falls
+  // through to a normal text reply — never a hard "couldn't reply" with nothing.
+  let imageUrl: string;
+  try {
+    const png = await generateImage(prompt);
+    if (!png) return null;
+    // Upload to Blob (BLOB_READ_WRITE_TOKEN is read from the environment).
+    const key = `ai/chatgpt/${seedId}-${Date.now()}.png`;
+    const blob = await put(key, png, { access: "public", contentType: "image/png" });
+    imageUrl = blob.url;
+  } catch (err) {
+    console.error("[ai] image generate/upload failed", err);
+    return null;
+  }
 
   const bot = await getOrCreateChatGptUser();
   const caption = prompt ? `Here's what I imagined for "${prompt.slice(0, 120)}":` : "Here's what I imagined:";
@@ -156,7 +167,7 @@ async function respondWithImage(
       authorId: bot.id,
       dimension,
       parentId,
-      content: { text: caption, attachments: [{ url: blob.url, type: "image" }] },
+      content: { text: caption, attachments: [{ url: imageUrl, type: "image" }] },
     },
     include: { author: { select: { id: true, name: true, image: true } } },
   });
@@ -181,8 +192,11 @@ export async function respondAsChatGpt(
   const data = await threadForSeed(seedId);
   if (!data) return null;
 
-  // "@chatgpt draw me a …" → generate a picture instead of a text reply.
-  if (wantsImage(mentionText)) {
+  // "@chatgpt draw me a …" → generate a picture instead of a text reply. But a
+  // bare capability question ("can you make images if I give a prompt?") has no
+  // real subject yet — skip generation and let the text reply warmly say "yes,
+  // tell me what to draw" (its system prompt now states it truthfully can).
+  if (wantsImage(mentionText) && !asksImageCapabilityOnly(mentionText)) {
     const img = await respondWithImage(seedId, dimension, mentionText, parentId, data.seed, invokerId);
     if (img) return img;
     // fall through to a normal text reply if image generation failed
