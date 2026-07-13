@@ -59,7 +59,7 @@ const DECIDE_STEP = N;
 const BLOOM_STEP = N + 1;
 const DELAYS = [
   ...TRIP.msgs.map((m) => (m.ai ? 4200 : 2900)),
-  13000, // Decide — six questions ranked, then the reveal
+  21500, // Decide — six questions ranked (slow enough to read), then the reveal
   5200, // Bloom
   6000, // Tree
   3000, // Tree hold
@@ -117,7 +117,7 @@ export function LandingDemo() {
       return;
     }
     if (paused || !inView || decideIdx >= TRIP.weigh.length) return;
-    const t = setTimeout(() => setDecideIdx((i) => i + 1), 1500);
+    const t = setTimeout(() => setDecideIdx((i) => i + 1), 2800);
     return () => clearTimeout(t);
   }, [phase, decideIdx, paused, inView]);
 
