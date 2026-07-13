@@ -11,6 +11,12 @@ import {
 } from "@/lib/services/contributions";
 import { aiConfigured, openaiConfigured, mentionsClaude, mentionsChatGpt } from "@/lib/ai";
 
+// Posting can trigger an inline AI reply — and image generation (gpt-image-1)
+// regularly takes 15–30s. Without a raised ceiling this route would hit Vercel's
+// short default (~10–15s) and get killed mid-generation, silently falling back
+// to a text reply. 60s is the max on Hobby and comfortably fits image gen.
+export const maxDuration = 60;
+
 function toDTO(c: {
   id: string;
   dimension: string;
