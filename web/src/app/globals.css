@@ -127,14 +127,27 @@ html.light body {
 }
 
 @layer components {
+  /* Fraunces (our serif) is a variable font whose optical-size axis makes big
+     text very ornate — its "f" grows an exaggerated swash. Pin a calmer optical
+     size so headings stay elegant but the letterforms read normally. */
   .serif-xl {
     @apply font-serif font-light leading-tight text-ink;
     font-size: clamp(24px, 5vw, 34px);
+    font-optical-sizing: none;
+    font-variation-settings: "opsz" 34;
   }
   .serif-lg {
     @apply font-serif font-light text-ink;
     font-size: clamp(20px, 4vw, 27px);
     line-height: 1.28;
+    font-optical-sizing: none;
+    font-variation-settings: "opsz" 34;
+  }
+  /* Any inline serif text (e.g. the italic "ThinkThru") gets the same calmer
+     optical size, so the "f" never over-flourishes anywhere. */
+  .font-serif {
+    font-optical-sizing: none;
+    font-variation-settings: "opsz" 34;
   }
   .eyebrow {
     @apply text-accent;
