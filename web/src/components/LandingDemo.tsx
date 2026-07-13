@@ -266,8 +266,14 @@ export function LandingDemo() {
               </div>
               <p className="mt-2 text-center text-[11px] text-ink">
                 <span className="font-medium text-bloom">82%</span> of the weight says bloom — past
-                the halfway mark. Blooming…
+                the halfway mark.
               </p>
+              {/* The deliberate final step — so the flow lands, not jumps. */}
+              <div className="mt-3 flex justify-center">
+                <span className="inline-flex animate-pulse items-center gap-1.5 rounded-full bg-[linear-gradient(to_right,#FFD54F,#FF8F00)] px-5 py-2 text-sm font-semibold text-[#3a2600] shadow-[0_0_18px_rgba(255,179,0,0.4)]">
+                  🌸 Bloom now
+                </span>
+              </div>
             </div>
           ) : !showReveal ? (
             <div key={decideIdx} className="animate-[fadeUp_0.4s_ease-out]">
@@ -339,30 +345,23 @@ export function LandingDemo() {
         {/* ── BLOOM ── the celebration: the flower opens inside a ring of light */}
         <div className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-700 ${phase === "bloom" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <div className="relative flex h-[210px] w-full items-center justify-center overflow-hidden">
+            {/* a gentle petal burst as it opens — no disk, just the plant */}
             {phase === "bloom" && (
-              <>
-                {/* rotating ring of light + expanding glow — the app's celebration */}
-                <div className="pointer-events-none absolute left-1/2 top-1/2" style={{ transform: "scale(0.62)" }}>
-                  <span className="bloom-rays" />
-                  <span className="bloom-glow" />
-                </div>
-                {/* radial petal burst */}
-                <div className="pointer-events-none absolute left-1/2 top-1/2 h-0 w-0">
-                  {BURST.map((p, i) => (
-                    <span
-                      key={i}
-                      className="leaf-particle"
-                      style={{ fontSize: p.size, animationDelay: `${p.delay}s`, ["--bx"]: p.bx, ["--by"]: p.by, ["--bx2"]: p.bx, ["--by2"]: p.by } as CSSProperties}
-                    >
-                      {p.emoji}
-                    </span>
-                  ))}
-                </div>
-              </>
+              <div className="pointer-events-none absolute left-1/2 top-1/2 h-0 w-0">
+                {BURST.map((p, i) => (
+                  <span
+                    key={i}
+                    className="leaf-particle"
+                    style={{ fontSize: p.size, animationDelay: `${p.delay}s`, ["--bx"]: p.bx, ["--by"]: p.by, ["--bx2"]: p.bx, ["--by2"]: p.by } as CSSProperties}
+                  >
+                    {p.emoji}
+                  </span>
+                ))}
+              </div>
             )}
             {/* the real growing plant, fully bloomed */}
             <div
-              className="relative h-32 w-32 drop-shadow-[0_0_22px_rgba(255,213,79,0.85)]"
+              className="relative h-36 w-36 drop-shadow-[0_0_22px_rgba(255,213,79,0.7)]"
               style={{ animation: "fadeUp 0.7s ease-out" }}
             >
               <PlantSvg stage={4} />
