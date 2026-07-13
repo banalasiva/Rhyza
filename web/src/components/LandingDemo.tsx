@@ -1,9 +1,42 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { DIMENSIONS } from "@/lib/constants";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { DIMENSIONS, QUORUM_DIMENSIONS } from "@/lib/constants";
+import { PlantSvg } from "@/components/PlantSvg";
 
 type Msg = { who: string; ai?: boolean; dim: string; text: string };
+
+// Who the group ranks best-first for each of the SIX real Quorum questions.
+const RANKS: Record<string, string[]> = {
+  money: ["Ravi", "Priya", "Meera"],
+  effort: ["Meera", "Priya", "Ravi"],
+  emotions: ["Aarav", "Meera", "Priya"],
+  judgement: ["Priya", "Ravi", "Meera"],
+  capability: ["Ravi", "Meera", "Priya"],
+  consequence: ["Aarav", "Meera", "Ravi"],
+};
+// The exact questions the app asks — pulled straight from QUORUM_DIMENSIONS so
+// the demo and the product can never drift apart.
+const WEIGH = QUORUM_DIMENSIONS.map((d) => ({
+  emoji: d.emoji,
+  label: d.label,
+  q: d.question,
+  ranked: RANKS[d.key] ?? [],
+}));
+
+// A deterministic radial petal burst for the bloom (no Math.random, so it never
+// mismatches on hydration) — the same leaf-particle animation the app uses.
+const BURST = Array.from({ length: 16 }).map((_, i) => {
+  const rad = ((i / 16) * 360 * Math.PI) / 180;
+  const dist = 90 + (i % 3) * 30;
+  return {
+    emoji: ["🌸", "🌼", "🌺", "🍃", "✨", "💛"][i % 6],
+    bx: `${Math.round(Math.cos(rad) * dist)}%`,
+    by: `${Math.round(Math.sin(rad) * dist)}%`,
+    delay: (i % 8) * 0.05,
+    size: 14 + (i % 4) * 4,
+  };
+});
 
 // A looping storyboard built around ONE relatable decision — a family holiday —
 // that mirrors the REAL app: in Discuss, Claude auto-tags every point by
@@ -21,17 +54,9 @@ const TRIP = {
     { who: "Aarav", dim: "understanding", text: "@Claude which is better value in December — Goa or Thailand?" },
     { who: "Claude", ai: true, dim: "understanding", text: "Goa, for December — Thailand’s peak spikes flights. Calm beaches for you, water-sports for the kids, and it’s easy on everyone’s leave." },
   ] as Msg[],
-  // Decide: the real weigh-in. Each of the Quorum's six questions, you rank the
-  // people best-first, then Next → Next → Next. Turns one big argument into six
-  // small, fair calls.
-  weigh: [
-    { emoji: "💰", label: "Money", q: "Who’s spending the most?", ranked: ["Ravi", "Priya", "Meera"] },
-    { emoji: "⏳", label: "Work", q: "Who’ll do the planning?", ranked: ["Meera", "Priya", "Ravi"] },
-    { emoji: "❤️", label: "Feelings", q: "Who cares the most?", ranked: ["Aarav", "Meera", "Priya"] },
-    { emoji: "🧭", label: "Judgement", q: "Whose judgement do we trust?", ranked: ["Priya", "Ravi", "Meera"] },
-    { emoji: "🛠", label: "Skill", q: "Who can book it well?", ranked: ["Ravi", "Meera", "Priya"] },
-    { emoji: "⚖️", label: "Impact", q: "Who will it affect most?", ranked: ["Aarav", "Meera", "Ravi"] },
-  ],
+  // Decide: the real weigh-in — the app's exact six questions (from WEIGH). You
+  // rank the people best-first, then Next → Next → Next.
+  weigh: WEIGH,
   // The reveal: how the weight settled — plus the quiet magic, the room seeing
   // you differently than you saw yourself.
   weights: [
@@ -315,17 +340,32 @@ export function LandingDemo() {
         <div className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-700 ${phase === "bloom" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <div className="relative flex h-[210px] w-full items-center justify-center overflow-hidden">
             {phase === "bloom" && (
-              <div className="pointer-events-none absolute left-1/2 top-1/2" style={{ transform: "scale(0.6)" }}>
-                <span className="bloom-rays" />
-                <span className="bloom-glow" />
-              </div>
+              <>
+                {/* rotating ring of light + expanding glow — the app's celebration */}
+                <div className="pointer-events-none absolute left-1/2 top-1/2" style={{ transform: "scale(0.62)" }}>
+                  <span className="bloom-rays" />
+                  <span className="bloom-glow" />
+                </div>
+                {/* radial petal burst */}
+                <div className="pointer-events-none absolute left-1/2 top-1/2 h-0 w-0">
+                  {BURST.map((p, i) => (
+                    <span
+                      key={i}
+                      className="leaf-particle"
+                      style={{ fontSize: p.size, animationDelay: `${p.delay}s`, ["--bx"]: p.bx, ["--by"]: p.by, ["--bx2"]: p.bx, ["--by2"]: p.by } as CSSProperties}
+                    >
+                      {p.emoji}
+                    </span>
+                  ))}
+                </div>
+              </>
             )}
+            {/* the real growing plant, fully bloomed */}
             <div
-              className="relative leading-none"
-              style={{ fontSize: 58, filter: "drop-shadow(0 0 22px rgba(255,213,79,0.9))", animation: "fadeUp 0.7s ease-out" }}
-              aria-hidden
+              className="relative h-32 w-32 drop-shadow-[0_0_22px_rgba(255,213,79,0.85)]"
+              style={{ animation: "fadeUp 0.7s ease-out" }}
             >
-              🌸
+              <PlantSvg stage={4} />
             </div>
           </div>
           <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-bloom">🌸 It bloomed!</p>
