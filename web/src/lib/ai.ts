@@ -929,16 +929,21 @@ export function asksImageCapabilityOnly(text: string): boolean {
 export async function generateImage(prompt: string): Promise<Buffer | null> {
   if (!openaiConfigured() || !prompt.trim()) return null;
   try {
-    const res = await getOpenAI().images.generate({
-      model: OPENAI_IMAGE_MODEL,
-      prompt: prompt.trim().slice(0, 900),
-      size: "1024x1024",
-      n: 1,
-      // gpt-image-1 supports a quality tier; "high" matches the ChatGPT app's
-      // look. Only sent for gpt-image-1 — dall-e-3 uses different values and
-      // would reject "high".
-      ...(OPENAI_IMAGE_MODEL === "gpt-image-1" ? { quality: "high" as const } : {}),
-    });
+    const res = await getOpenAI().images.generate(
+      {
+        model: OPENAI_IMAGE_MODEL,
+        prompt: prompt.trim().slice(0, 900),
+        size: "1024x1024",
+        n: 1,
+        // gpt-image-1 supports a quality tier; "high" matches the ChatGPT app's
+        // look. Only sent for gpt-image-1 — dall-e-3 uses different values and
+        // would reject "high".
+        ...(OPENAI_IMAGE_MODEL === "gpt-image-1" ? { quality: "high" as const } : {}),
+      },
+      // Don't let the client's 60s default / retries cut a slow high-quality
+      // render short; the Vercel maxDuration is the real ceiling.
+      { timeout: 180_000, maxRetries: 0 },
+    );
     const item = res.data?.[0];
     if (item?.b64_json) return Buffer.from(item.b64_json, "base64");
     if (item?.url) {
@@ -986,20 +991,27 @@ export async function editImage(imageUrl: string, prompt: string): Promise<Buffe
     const bytes = Buffer.from(await src.arrayBuffer());
     const type = src.headers.get("content-type") || "image/png";
     const file = await toFile(bytes, "source.png", { type });
-    const res = await getOpenAI().images.edit({
-      model: OPENAI_EDIT_MODEL,
-      image: file,
-      prompt: prompt.trim().slice(0, 900),
-      // "auto" preserves the source aspect ratio (portraits stay portrait)
-      // instead of forcing a square crop.
-      size: "auto",
-      // The two settings that separate a rough edit from what the ChatGPT app
-      // produces: high quality for detail, and — crucially for photos of people
-      // — high input fidelity so the model PRESERVES the original face/features
-      // instead of re-imagining them (the default is "low").
-      quality: "high",
-      input_fidelity: "high",
-    });
+    const res = await getOpenAI().images.edit(
+      {
+        model: OPENAI_EDIT_MODEL,
+        image: file,
+        prompt: prompt.trim().slice(0, 900),
+        // "auto" preserves the source aspect ratio (portraits stay portrait)
+        // instead of forcing a square crop.
+        size: "auto",
+        // The two settings that separate a rough edit from what the ChatGPT app
+        // produces: high quality for detail, and — crucially for photos of people
+        // — high input fidelity so the model PRESERVES the original face/features
+        // instead of re-imagining them (the default is "low").
+        quality: "high",
+        input_fidelity: "high",
+      },
+      // High-quality edits can take a couple of minutes — override the client's
+      // 60s default so the SDK doesn't abort early, and DON'T retry (a retry just
+      // doubles an already-slow call). The Vercel function's maxDuration is the
+      // real ceiling; this keeps the SDK from cutting it short first.
+      { timeout: 240_000, maxRetries: 0 },
+    );
     const item = res.data?.[0];
     if (item?.b64_json) return Buffer.from(item.b64_json, "base64");
     if (item?.url) {
