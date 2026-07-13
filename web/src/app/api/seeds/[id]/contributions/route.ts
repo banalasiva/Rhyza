@@ -11,11 +11,12 @@ import {
 } from "@/lib/services/contributions";
 import { aiConfigured, openaiConfigured, mentionsClaude, mentionsChatGpt } from "@/lib/ai";
 
-// Posting can trigger an inline AI reply — and image generation (gpt-image-1)
-// regularly takes 15–30s. Without a raised ceiling this route would hit Vercel's
-// short default (~10–15s) and get killed mid-generation, silently falling back
-// to a text reply. 60s is the max on Hobby and comfortably fits image gen.
-export const maxDuration = 60;
+// Posting can trigger an inline AI reply, and high-quality gpt-image-1 edits
+// (input_fidelity "high") can take 1–2 min. 300s is the Vercel Pro ceiling —
+// enough headroom for the slowest edit so the request finishes instead of being
+// killed mid-generation. (The OpenAI SDK image calls cap at 240s/180s, inside
+// this.) NOTE: 300 requires the Pro plan; on Hobby the build caps at 60.
+export const maxDuration = 300;
 
 function toDTO(c: {
   id: string;
