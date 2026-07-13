@@ -1,38 +1,38 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { DIMENSIONS } from "@/lib/constants";
 
-type Msg = { who: string; ai?: boolean; text: string };
+type Msg = { who: string; ai?: boolean; dim: string; text: string };
 
-// A looping, self-explaining storyboard built around ONE relatable decision —
-// where to go on a family holiday. It shows the real dynamic: the group talks,
-// someone asks Claude a question, Claude ANSWERS with something useful, and that
-// helps everyone come together — then they Decide (weighted by who has the most
-// at stake) and it Blooms into one answer they keep. Phases cross-fade in a
-// fixed-height stage so it never jumps.
+// A looping storyboard built around ONE relatable decision — a family holiday —
+// that mirrors the REAL app: in Discuss, Claude auto-tags every point by
+// dimension (as it does in a live seed); in Decide, the group answers the same
+// six questions the real Quorum asks, turning one big argument into six small
+// ones; then it Blooms into a durable answer, kept in the Sacred Tree. It plays
+// itself — the only controls are back / play / replay / next.
 const TRIP = {
   q: "Where should we go for our holiday?",
   msgs: [
-    { who: "Meera", text: "Somewhere the kids can run wild, or somewhere we can actually rest?" },
-    { who: "Aarav", text: "Adventure! Can we do Thailand? 🏝️" },
-    { who: "Priya", text: "Thailand’s a stretch on the budget this year, though." },
-    { who: "Ravi", text: "Manali’s cheaper — but it’s a long drive with the parents." },
-    { who: "Aarav", text: "@Claude which is better value in December — Goa or Thailand?" },
-    { who: "Claude", ai: true, text: "Goa, for December — Thailand’s peak spikes flights. Calm beaches for you, water-sports for the kids, and it’s easy on everyone’s leave." },
+    { who: "Meera", dim: "foundations", text: "Somewhere the kids can run wild, or somewhere we can actually rest?" },
+    { who: "Aarav", dim: "application", text: "Adventure! Can we do Thailand? 🏝️" },
+    { who: "Priya", dim: "debate", text: "Thailand’s a stretch on the budget this year, though." },
+    { who: "Ravi", dim: "debate", text: "Manali’s cheaper — but it’s a long drive with the parents." },
+    { who: "Aarav", dim: "understanding", text: "@Claude which is better value in December — Goa or Thailand?" },
+    { who: "Claude", ai: true, dim: "understanding", text: "Goa, for December — Thailand’s peak spikes flights. Calm beaches for you, water-sports for the kids, and it’s easy on everyone’s leave." },
   ] as Msg[],
-  // Decide: not every voice weighs the same on every question — money, time,
-  // experience. The person with the most at stake leads each one.
-  weighed: [
-    { q: "💰 Whose budget carries it?", a: "Ravi" },
-    { q: "⏳ Who’s short on leave?", a: "Meera" },
-    { q: "✨ Who’s it really for?", a: "the kids" },
+  // Decide: the real Quorum's six questions. Answering them one at a time is the
+  // whole trick — it turns "where should we go?!" into six small, fair calls.
+  decideIntro: "Six small questions instead of one big argument:",
+  questions: [
+    { emoji: "💰", q: "Who’s spending the most?", a: "Ravi" },
+    { emoji: "⏳", q: "Who’ll do the planning?", a: "Meera" },
+    { emoji: "❤️", q: "Who cares the most?", a: "the kids" },
+    { emoji: "🧭", q: "Whose judgement do we trust?", a: "Priya" },
+    { emoji: "🛠", q: "Who can book it well?", a: "Ravi" },
+    { emoji: "⚖️", q: "Who will it affect most?", a: "the kids" },
   ],
-  voters: [
-    { who: "Meera", voted: true },
-    { who: "Ravi", voted: true },
-    { who: "Aarav", voted: false },
-  ],
-  pct: 64, // revealed weight behind "ready" — past the majority, it blooms
+  result: "Goa — 64%",
   bloom: "Goa — beaches to unwind, water-sports for the kids, and it fits the budget and everyone’s leave.",
   treeSummary: "Goa: adventure and rest in one, within budget — and why we chose it, kept for next time.",
 };
@@ -43,35 +43,34 @@ const STEPS = [
   { key: "bloom", emoji: "🌸", label: "Bloom" },
 ] as const;
 
-// Phase boundaries derived from the message count, so the discussion can be as
-// long as it needs to be. Steps 0..N-1 reveal the conversation one line at a
-// time, then Decide, Bloom, and two Sacred-Tree holds. Paced slow — give people
-// time to actually read each line before the next arrives.
+// Phase boundaries derived from the message count. Steps 0..N-1 reveal the
+// conversation one line at a time; then Decide (long, so all six questions get
+// answered), Bloom, and two Sacred-Tree holds. Paced slow — time to read.
 const N = TRIP.msgs.length;
 const DECIDE_STEP = N;
 const BLOOM_STEP = N + 1;
-// A comfortable reading beat per message, longer for Claude's answer, then a
-// generous hold on Decide and Bloom.
 const DELAYS = [
   ...TRIP.msgs.map((m) => (m.ai ? 4200 : 2900)),
-  7000, // Decide
+  8500, // Decide — long enough to answer all six questions
   5200, // Bloom
   6000, // Tree
   3000, // Tree hold
 ];
 
+function dimMeta(key: string) {
+  return DIMENSIONS.find((d) => d.key === key) ?? DIMENSIONS[1];
+}
+
 export function LandingDemo() {
   const [step, setStep] = useState(0);
-  // Auto-plays until the visitor touches it — then it's fully in their hands so
-  // they can go back and sit on any moment (the "let me touch and go back" ask).
   const [paused, setPaused] = useState(false);
-  // Don't run off-screen: start cleanly from the very first line (Meera) the
-  // moment the card scrolls into view, so no one arrives to find it already at
-  // the Sacred Tree.
+  const [decideIdx, setDecideIdx] = useState(0); // how many of the six answered
   const cardRef = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(false);
   const startedRef = useRef(false);
 
+  // Start cleanly from Meera's first line the moment it scrolls into view — never
+  // greet someone mid-way at the Sacred Tree. Pause while off-screen.
   useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
@@ -90,44 +89,54 @@ export function LandingDemo() {
     return () => obs.disconnect();
   }, []);
 
+  const phase =
+    step < DECIDE_STEP ? "think" : step === DECIDE_STEP ? "decide" : step === BLOOM_STEP ? "bloom" : "tree";
+  const phaseIndex = phase === "think" ? 0 : phase === "decide" ? 1 : 2;
+
+  // Main phase clock.
   useEffect(() => {
     if (paused || !inView) return;
     const t = setTimeout(() => setStep((s) => (s + 1 >= DELAYS.length ? 0 : s + 1)), DELAYS[step]);
     return () => clearTimeout(t);
   }, [step, paused, inView]);
 
-  // Manual step — pauses auto-play and wraps around so it never dead-ends.
+  // Sub-clock: while Decide is on screen, answer the six questions one by one so
+  // you can see the framework doing the work — not just a bare percentage.
+  useEffect(() => {
+    if (phase !== "decide") {
+      setDecideIdx(0);
+      return;
+    }
+    if (paused || !inView || decideIdx >= TRIP.questions.length) return;
+    const t = setTimeout(() => setDecideIdx((i) => i + 1), 1050);
+    return () => clearTimeout(t);
+  }, [phase, decideIdx, paused, inView]);
+
   const go = (dir: -1 | 1) => {
     setPaused(true);
     setStep((s) => (s + dir + DELAYS.length) % DELAYS.length);
   };
-
-  // Play from the very start (Meera's first line), pressed or auto on entry.
   const replay = () => {
     setStep(0);
     setPaused(false);
   };
   const atEnd = step >= DELAYS.length - 1;
-
-  const phase =
-    step < DECIDE_STEP ? "think" : step === DECIDE_STEP ? "decide" : step === BLOOM_STEP ? "bloom" : "tree";
-  // The 3-step mantra: Bloom stays lit through the Sacred-Tree payoff.
-  const phaseIndex = phase === "think" ? 0 : phase === "decide" ? 1 : 2;
+  const allAnswered = decideIdx >= TRIP.questions.length;
 
   return (
     <div ref={cardRef} className="card mx-auto w-full max-w-sm p-4">
-      {/* Think · Decide · Bloom — the three steps, lighting up as it plays */}
+      {/* Discuss · Decide · Bloom — lights up as it plays */}
       <div className="mb-4 flex items-center justify-center gap-1">
         {STEPS.map((s, i) => {
           const active = i === phaseIndex;
-          const done = i < phaseIndex;
+          const doneStep = i < phaseIndex;
           return (
             <div key={s.key} className="flex items-center gap-1">
               <span
                 className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-all duration-500"
                 style={{
                   background: active ? "rgba(76,175,80,0.18)" : "transparent",
-                  color: active ? "#66BB6A" : done ? "#4C7A4E" : "#5A6456",
+                  color: active ? "#66BB6A" : doneStep ? "#4C7A4E" : "#5A6456",
                 }}
               >
                 <span aria-hidden>{s.emoji}</span>
@@ -149,10 +158,11 @@ export function LandingDemo() {
 
       {/* Stage — phases cross-fade in a fixed-height frame so the card is steady */}
       <div className="relative min-h-[340px]">
-        {/* ── THINK ── the group talks; someone asks Claude, Claude answers */}
+        {/* ── DISCUSS ── real app view: Claude auto-tags each point by dimension */}
         <div className={`absolute inset-0 overflow-y-auto transition-opacity duration-700 ${phase === "think" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <div className="space-y-2.5">
             {TRIP.msgs.map((m, i) => {
+              const d = dimMeta(m.dim);
               const revealed = phase !== "think" || i <= step;
               return (
                 <div key={i} className={`flex items-start gap-2 transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-0"}`}>
@@ -163,11 +173,15 @@ export function LandingDemo() {
                     {m.ai ? "✦" : m.who[0]}
                   </span>
                   <div className="min-w-0">
-                    <span className="text-xs font-medium text-ink">{m.who === "Claude" ? "Claude · answering" : m.who}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-medium text-ink">{m.who}</span>
+                      {/* Claude's auto-tag — exactly as it appears in the app */}
+                      <span className="rounded-full px-1.5 py-0.5 text-[9px]" style={{ color: d.color, background: `${d.color}1A` }}>
+                        {d.emoji} {d.label}
+                      </span>
+                    </div>
                     <p
-                      className={`mt-0.5 rounded-xl px-2.5 py-1.5 text-xs leading-relaxed ${
-                        m.ai ? "text-ink" : "text-ink-mid"
-                      }`}
+                      className={`mt-0.5 rounded-xl px-2.5 py-1.5 text-xs leading-relaxed ${m.ai ? "text-ink" : "text-ink-mid"}`}
                       style={{ background: m.ai ? "rgba(76,175,80,0.1)" : "rgba(255,255,255,0.04)" }}
                     >
                       {m.text}
@@ -179,49 +193,40 @@ export function LandingDemo() {
           </div>
         </div>
 
-        {/* ── DECIDE ── people vote; weight is spread and revealed */}
+        {/* ── DECIDE ── the six questions, answered one at a time (the framework) */}
         <div className={`absolute inset-0 transition-opacity duration-700 ${phase === "decide" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
-          <p className="mb-2 text-[11px] leading-relaxed text-ink-soft">
-            Everyone weighs in — and each question is carried by whoever has the most at stake.
-          </p>
-          <ul className="space-y-1">
-            {TRIP.weighed.map((d) => (
-              <li key={d.q} className="text-xs leading-relaxed text-ink-mid">
-                <span className="text-ink-soft">{d.q}</span> <span className="text-ink">→ {d.a}</span>
-              </li>
-            ))}
+          <p className="mb-2.5 text-[11px] leading-relaxed text-ink-soft">{TRIP.decideIntro}</p>
+          <ul className="space-y-1.5">
+            {TRIP.questions.map((qq, i) => {
+              const answered = phase !== "decide" || i < decideIdx;
+              return (
+                <li
+                  key={qq.q}
+                  className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs transition-all duration-300"
+                  style={{ background: answered ? "rgba(76,175,80,0.07)" : "rgba(255,255,255,0.02)", opacity: answered ? 1 : 0.45 }}
+                >
+                  <span className="flex items-center gap-1.5 text-ink-mid">
+                    <span aria-hidden>{qq.emoji}</span> {qq.q}
+                  </span>
+                  {answered ? (
+                    <span className="shrink-0 rounded-full bg-[rgba(76,175,80,0.16)] px-2 py-0.5 text-[11px] font-medium text-accent">
+                      {qq.a}
+                    </span>
+                  ) : (
+                    <span className="shrink-0 text-ink-soft">·</span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
-          {/* Voters cast their read */}
-          <div className="mt-3 flex items-center gap-2">
-            {TRIP.voters.map((v) => (
-              <span
-                key={v.who}
-                className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px]"
-                style={{
-                  background: v.voted ? "rgba(76,175,80,0.14)" : "rgba(255,255,255,0.04)",
-                  color: v.voted ? "#66BB6A" : "#5A6456",
-                }}
-              >
-                {v.voted ? "✓" : "…"} {v.who}
-              </span>
-            ))}
+          <div className={`mt-3 text-center transition-opacity duration-500 ${allAnswered ? "opacity-100" : "opacity-0"}`}>
+            <p className="text-[11px] text-ink-soft">
+              Weighed together → <span className="font-medium text-bloom">{TRIP.result}</span>. Ready to bloom.
+            </p>
           </div>
-          {/* Weight revealed — a majority marker at 50%; the fill crosses it */}
-          <div className="relative mt-3 h-1.5 rounded-full bg-[rgba(255,255,255,0.08)]">
-            <div
-              className="h-full rounded-full transition-[width] duration-1000"
-              style={{ width: phase === "decide" ? `${TRIP.pct}%` : "0%", background: "linear-gradient(to right,#FFD54F,#FF8F00)" }}
-            />
-            <span aria-hidden className="absolute -top-0.5 h-[10px] w-px bg-[rgba(255,255,255,0.45)]" style={{ left: "50%" }} />
-          </div>
-          <p className="mt-1.5 text-[11px] leading-relaxed text-ink-soft">
-            Just 2 of 3 voted — but they carry <span className="text-ink">{TRIP.pct}%</span> of the weight. Past the majority, it blooms.
-          </p>
         </div>
 
-        {/* ── BLOOM & SACRED TREE ── the joyful payoff: a bloom blossoming on the
-            Sacred Tree (the real artwork), while the words move from "it bloomed"
-            to "it's kept forever". */}
+        {/* ── BLOOM & SACRED TREE ── the payoff blossoms on its own */}
         <div className={`absolute inset-0 flex flex-col items-center transition-opacity duration-700 ${phase === "bloom" || phase === "tree" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <div className="relative h-[188px] w-full shrink-0 overflow-hidden rounded-xl bg-black">
             <div
@@ -233,7 +238,6 @@ export function LandingDemo() {
                 backgroundRepeat: "no-repeat",
               }}
             />
-            {/* the bloom, blossoming in the canopy */}
             <div
               className="absolute left-1/2 top-2 -translate-x-1/2 animate-pulse text-3xl leading-none"
               style={{ filter: "drop-shadow(0 0 12px rgba(255,213,79,0.85))" }}
@@ -242,7 +246,6 @@ export function LandingDemo() {
               🌸
             </div>
           </div>
-          {/* Caption swaps between Bloom and Tree in a small reserved area */}
           <div className="relative mt-1 w-full flex-1">
             <div className={`absolute inset-0 text-center transition-opacity duration-500 ${phase === "bloom" ? "opacity-100" : "opacity-0"}`}>
               <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-bloom">🌸 Bloomed</p>
@@ -263,7 +266,7 @@ export function LandingDemo() {
         </div>
       </div>
 
-      {/* ── Controls: tap to step back or forward, or play/pause ── */}
+      {/* ── Controls: the ONLY things you tap — back · play/replay/pause · next ── */}
       <div className="mt-3 flex items-center justify-between gap-2 border-t border-[rgba(255,255,255,0.06)] pt-3">
         <button
           onClick={() => go(-1)}
@@ -274,7 +277,6 @@ export function LandingDemo() {
         </button>
 
         <div className="flex items-center gap-2">
-          {/* progress dots — tap any to jump there */}
           <div className="flex items-center gap-1">
             {DELAYS.map((_, i) => (
               <button
@@ -285,15 +287,10 @@ export function LandingDemo() {
                   setStep(i);
                 }}
                 className="h-1.5 rounded-full transition-all"
-                style={{
-                  width: i === step ? 14 : 6,
-                  background: i === step ? "#66BB6A" : "rgba(255,255,255,0.18)",
-                }}
+                style={{ width: i === step ? 14 : 6, background: i === step ? "#66BB6A" : "rgba(255,255,255,0.18)" }}
               />
             ))}
           </div>
-          {/* Play from the start when it's over or paused at the end; otherwise
-              a simple pause/resume. */}
           {paused || atEnd ? (
             <button
               onClick={atEnd ? replay : () => setPaused(false)}
