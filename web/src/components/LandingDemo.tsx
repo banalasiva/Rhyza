@@ -345,7 +345,12 @@ export function LandingDemo() {
         {/* ── BLOOM ── the celebration: the flower opens inside a ring of light */}
         <div className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-700 ${phase === "bloom" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <div className="relative flex h-[210px] w-full items-center justify-center overflow-hidden">
-            {/* a gentle petal burst as it opens — no disk, just the plant */}
+            {phase === "bloom" && (
+              /* Soft glow disk behind the plant (no rotating ring) + petal burst */
+              <div className="pointer-events-none absolute left-1/2 top-1/2">
+                <span className="bloom-glow" />
+              </div>
+            )}
             {phase === "bloom" && (
               <div className="pointer-events-none absolute left-1/2 top-1/2 h-0 w-0">
                 {BURST.map((p, i) => (
