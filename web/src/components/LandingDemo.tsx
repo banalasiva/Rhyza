@@ -59,7 +59,7 @@ const DECIDE_STEP = N;
 const BLOOM_STEP = N + 1;
 const DELAYS = [
   ...TRIP.msgs.map((m) => (m.ai ? 4200 : 2900)),
-  30000, // Decide — six questions ranked (slow enough to read), then the reveal
+  34000, // Decide — six questions, the reveal, then the vote to bloom
   5200, // Bloom
   6000, // Tree
   3000, // Tree hold
@@ -109,17 +109,19 @@ export function LandingDemo() {
   }, [step, paused, inView]);
 
   // Sub-clock: while Decide is on screen, step through the six weigh-in questions
-  // one at a time (ranking people best-first), then land on the reveal — exactly
-  // the real flow. decideIdx 0..5 = questions, 6 = reveal.
+  // (ranking people best-first), then the reveal, then the vote to bloom — the
+  // real flow. decideIdx 0..5 = questions, 6 = reveal, 7 = proceed-to-bloom.
+  const REVEAL_IDX = TRIP.weigh.length; // 6
+  const PROCEED_IDX = TRIP.weigh.length + 1; // 7
   useEffect(() => {
     if (phase !== "decide") {
       setDecideIdx(0);
       return;
     }
-    if (paused || !inView || decideIdx >= TRIP.weigh.length) return;
+    if (paused || !inView || decideIdx >= PROCEED_IDX) return;
     const t = setTimeout(() => setDecideIdx((i) => i + 1), 4200);
     return () => clearTimeout(t);
-  }, [phase, decideIdx, paused, inView]);
+  }, [phase, decideIdx, paused, inView, PROCEED_IDX]);
 
   const go = (dir: -1 | 1) => {
     setPaused(true);
@@ -130,7 +132,8 @@ export function LandingDemo() {
     setPaused(false);
   };
   const atEnd = step >= DELAYS.length - 1;
-  const showReveal = decideIdx >= TRIP.weigh.length; // past the six questions
+  const showReveal = decideIdx === REVEAL_IDX; // the weights + mirror
+  const showProceed = decideIdx >= PROCEED_IDX; // vote to bloom
   const weighQ = TRIP.weigh[Math.min(decideIdx, TRIP.weigh.length - 1)];
 
   return (
@@ -206,7 +209,42 @@ export function LandingDemo() {
         {/* ── DECIDE ── the real weigh-in: rank people per question, Next ×6,
             then the reveal (with the room seeing you differently than you did) */}
         <div className={`absolute inset-0 transition-opacity duration-700 ${phase === "decide" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
-          {!showReveal ? (
+          {showProceed ? (
+            // ── Proceed to bloom: only the weighted voices vote; it needs >50% ──
+            <div className="animate-[fadeUp_0.5s_ease-out]">
+              <p className="mb-2.5 text-[11px] text-ink-soft">
+                Now the ones carrying the weight vote to bloom — it needs more than half. 🌸
+              </p>
+              <div className="space-y-1.5">
+                {TRIP.weights.map((w, i) => {
+                  const voted = i < 3; // Ravi + Meera + Priya = 82%
+                  return (
+                    <div key={w.who} className="flex items-center gap-2 rounded-lg bg-[rgba(76,175,80,0.06)] px-2.5 py-1.5">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-[11px] font-medium text-ink-mid">
+                        {w.who[0]}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-ink">{w.who}</span>
+                      <span className="text-[11px] text-ink-soft">{w.pct}%</span>
+                      <span className={`w-4 text-center text-sm ${voted ? "text-accent" : "text-ink-soft"}`}>
+                        {voted ? "✓" : "·"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="relative mt-3 h-2.5 rounded-full bg-[rgba(255,255,255,0.08)]">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: "82%", background: "linear-gradient(to right,#FFD54F,#FF8F00)", transition: "width 1.1s ease-out" }}
+                />
+                <span aria-hidden className="absolute -top-1 h-[18px] w-px bg-white/50" style={{ left: "50%" }} />
+              </div>
+              <p className="mt-2 text-center text-[11px] text-ink">
+                <span className="font-medium text-bloom">82%</span> of the weight says bloom — past
+                the halfway mark. Blooming…
+              </p>
+            </div>
+          ) : !showReveal ? (
             <div key={decideIdx} className="animate-[fadeUp_0.4s_ease-out]">
               <p className="mb-2 text-[11px] text-ink-soft">Everyone weighs in privately — one question at a time.</p>
               {/* progress dots across the six questions */}
@@ -273,8 +311,31 @@ export function LandingDemo() {
           )}
         </div>
 
-        {/* ── BLOOM & SACRED TREE ── the payoff blossoms on its own */}
-        <div className={`absolute inset-0 flex flex-col items-center transition-opacity duration-700 ${phase === "bloom" || phase === "tree" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+        {/* ── BLOOM ── the celebration: the flower opens inside a ring of light */}
+        <div className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-700 ${phase === "bloom" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
+          <div className="relative flex h-[210px] w-full items-center justify-center overflow-hidden">
+            {phase === "bloom" && (
+              <div className="pointer-events-none absolute left-1/2 top-1/2" style={{ transform: "scale(0.6)" }}>
+                <span className="bloom-rays" />
+                <span className="bloom-glow" />
+              </div>
+            )}
+            <div
+              className="relative leading-none"
+              style={{ fontSize: 58, filter: "drop-shadow(0 0 22px rgba(255,213,79,0.9))", animation: "fadeUp 0.7s ease-out" }}
+              aria-hidden
+            >
+              🌸
+            </div>
+          </div>
+          <p className="mt-1 text-[11px] font-medium uppercase tracking-wide text-bloom">🌸 It bloomed!</p>
+          <div className="mx-auto mt-2 max-w-[19rem] rounded-xl border p-3 text-center" style={{ borderColor: "rgba(255,179,0,0.4)", background: "rgba(255,179,0,0.08)" }}>
+            <p className="text-xs leading-relaxed text-ink">{TRIP.bloom}</p>
+          </div>
+        </div>
+
+        {/* ── SACRED TREE ── where the bloom is kept, forever */}
+        <div className={`absolute inset-0 flex flex-col items-center transition-opacity duration-700 ${phase === "tree" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <div className="relative h-[188px] w-full shrink-0 overflow-hidden rounded-xl bg-black">
             <div
               className="absolute inset-0"
@@ -293,21 +354,13 @@ export function LandingDemo() {
               🌸
             </div>
           </div>
-          <div className="relative mt-1 w-full flex-1">
-            <div className={`absolute inset-0 text-center transition-opacity duration-500 ${phase === "bloom" ? "opacity-100" : "opacity-0"}`}>
-              <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-bloom">🌸 Bloomed</p>
-              <div className="mx-auto max-w-[19rem] rounded-xl border p-3" style={{ borderColor: "rgba(255,179,0,0.4)", background: "rgba(255,179,0,0.08)" }}>
-                <p className="text-xs leading-relaxed text-ink">{TRIP.bloom}</p>
-              </div>
-            </div>
-            <div className={`absolute inset-0 transition-opacity duration-500 ${phase === "tree" ? "opacity-100" : "opacity-0"}`}>
-              <p className="mb-2 text-center text-[11px] font-medium uppercase tracking-wide" style={{ color: "#66BB6A" }}>
-                🌳 Kept in your Sacred Tree
-              </p>
-              <div className="mx-auto max-w-[19rem] rounded-xl border p-3 text-left" style={{ borderColor: "rgba(76,175,80,0.3)", background: "rgba(76,175,80,0.06)" }}>
-                <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-ink">🌸 Where should we holiday?</p>
-                <p className="text-[11px] leading-relaxed text-ink-mid">{TRIP.treeSummary}</p>
-              </div>
+          <div className="mt-2 w-full">
+            <p className="mb-2 text-center text-[11px] font-medium uppercase tracking-wide" style={{ color: "#66BB6A" }}>
+              🌳 Your bloom is on the Sacred Tree
+            </p>
+            <div className="mx-auto max-w-[19rem] rounded-xl border p-3 text-left" style={{ borderColor: "rgba(76,175,80,0.3)", background: "rgba(76,175,80,0.06)" }}>
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-ink">🌸 Where should we holiday?</p>
+              <p className="text-[11px] leading-relaxed text-ink-mid">{TRIP.treeSummary}</p>
             </div>
           </div>
         </div>
