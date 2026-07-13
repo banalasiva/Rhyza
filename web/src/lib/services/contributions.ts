@@ -3,6 +3,7 @@ import { ApiError } from "@/lib/api";
 import {
   ensureSeedParticipant,
   requireSeedAccess,
+  requireSeedManager,
   requireGardenSteward,
 } from "@/lib/authz";
 import {
@@ -757,7 +758,10 @@ export async function classifyContribution(userId: string, contributionId: strin
     include: { seed: { select: { title: true, content: true } } },
   });
   if (!c || c.deletedAt) throw new ApiError("NOT_FOUND", "Contribution not found");
-  await requireSeedAccess(userId, c.seedId);
+  // Only the author (or a steward) may re-tag a message's dimension — not any
+  // reader who happens to have seed access.
+  if (c.authorId === userId) await requireSeedAccess(userId, c.seedId);
+  else await requireSeedManager(userId, c.seedId);
 
   const text = (c.content as { text?: string } | null)?.text ?? "";
   const dim = await classifyDimension({
@@ -779,7 +783,9 @@ export async function retagContribution(
 ) {
   const c = await db.contribution.findUnique({ where: { id: contributionId } });
   if (!c || c.deletedAt) throw new ApiError("NOT_FOUND", "Contribution not found");
-  await requireSeedAccess(userId, c.seedId);
+  // Author or steward only — same rule as classify.
+  if (c.authorId === userId) await requireSeedAccess(userId, c.seedId);
+  else await requireSeedManager(userId, c.seedId);
   await db.contribution.update({ where: { id: contributionId }, data: { dimension } });
   return { dimension };
 }

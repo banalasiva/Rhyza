@@ -5,6 +5,10 @@ import { appUrl, emailConfigured, sendEmail, digestEmailHtml } from "@/lib/email
 import { cronAuthorized, markCronRun } from "@/lib/cron";
 
 export const dynamic = "force-dynamic";
+// Give the (currently sequential) email loop room; default timeout kills it
+// mid-send and those notifications fall outside the next run's 24h window and
+// are lost. 60s is plan-safe; a queue is the real fix (see roadmap).
+export const maxDuration = 60;
 
 // Relative link for a notification's entity.
 function linkFor(entityType: string | null, entityId: string | null): string {

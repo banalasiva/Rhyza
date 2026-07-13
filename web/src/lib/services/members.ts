@@ -347,7 +347,10 @@ export async function searchAllPeople(
   });
   return rows
     .filter((u) => !exclude.has(u.id))
-    .map((u) => ({ id: u.id, name: displayName(u), email: u.email ?? "", image: u.image }))
+    // NEVER return raw email for strangers found via open search — that would let
+    // any signed-in user scrape the whole user directory's emails. Circle members
+    // (the no-query path) still carry email since you already share a space.
+    .map((u) => ({ id: u.id, name: displayName(u), email: "", image: u.image }))
     .slice(0, cap);
 }
 

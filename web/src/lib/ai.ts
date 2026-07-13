@@ -33,7 +33,10 @@ export function aiConfigured(): boolean {
 }
 
 function getClient(): Anthropic {
-  if (!client) client = new Anthropic();
+  // Explicit timeout + bounded retries so a slow/hung provider can't hold a
+  // serverless invocation (and its DB connection) open indefinitely during an
+  // AI brownout — which would cascade into connection exhaustion.
+  if (!client) client = new Anthropic({ timeout: 60_000, maxRetries: 2 });
   return client;
 }
 
@@ -870,7 +873,7 @@ export function openaiConfigured(): boolean {
 }
 
 function getOpenAI(): OpenAI {
-  if (!openaiClient) openaiClient = new OpenAI();
+  if (!openaiClient) openaiClient = new OpenAI({ timeout: 60_000, maxRetries: 2 });
   return openaiClient;
 }
 

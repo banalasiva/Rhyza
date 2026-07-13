@@ -8,6 +8,10 @@ import { rekindleStallingThreads } from "@/lib/services/rekindle";
 import { followUpOnDeadlines } from "@/lib/services/deadlines";
 
 export const dynamic = "force-dynamic";
+// Fan-out jobs need room to run; the default timeout kills them mid-loop and
+// silently drops recipients. 60s is safe across plans (Pro can raise to 300).
+// The real fix is a job queue — see the scaling roadmap.
+export const maxDuration = 60;
 
 // A twice-daily re-engagement push (morning + evening, see vercel.json).
 //

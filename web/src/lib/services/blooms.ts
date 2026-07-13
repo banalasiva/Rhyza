@@ -281,7 +281,10 @@ export async function updateBloom(
 ) {
   const bloom = await db.bloom.findUnique({ where: { id: bloomId } });
   if (!bloom) throw new ApiError("NOT_FOUND", "Bloom not found");
-  await requireSeedAccess(userId, bloom.seedId);
+  // A bloom is the group's durable, canonical decision — editing it is a steward
+  // action, not something any reader (incl. a stranger on a listed public seed)
+  // can do.
+  await requireSeedManager(userId, bloom.seedId);
 
   const summary = input.summary?.trim();
   const title = input.title?.trim();

@@ -614,6 +614,10 @@ model Contribution {
   // Distinct-author lookups (participant lists, quorum roster) filter by seed
   // and group by author — this keeps that off a per-seed contribution scan.
   @@index([seedId, authorId])
+  // THE hottest query in the app: every thread read + every 4s sync poll filters
+  // by seed and ORDERs BY createdAt. Without this the DB index-scans then sorts
+  // the whole thread each time. Highest-value index in the schema.
+  @@index([seedId, createdAt])
   @@map("contributions")
 }
 

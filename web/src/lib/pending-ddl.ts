@@ -482,6 +482,15 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     sql: `CREATE INDEX IF NOT EXISTS "suggestion_dismissals_user_id_idx" ON "suggestion_dismissals" ("user_id")`,
   },
 
+  // 20260712180000_contrib_seed_created_idx — the hottest query (thread reads +
+  // 4s sync poll) filters seed_id and orders by created_at. CONCURRENTLY can't
+  // run inside the admin migrate transaction, so this is a plain CREATE; on a
+  // large existing table prefer running the CONCURRENTLY variant by hand.
+  {
+    label: "contributions_seed_id_created_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "contributions_seed_id_created_at_idx" ON "contributions" ("seed_id", "created_at")`,
+  },
+
   // One-time data backfill (idempotent): give people who joined via the email
   // magic-link — and so have an empty name — a readable display name derived
   // from their email ("siva.prasad@x" → "Siva Prasad"). Only touches rows whose

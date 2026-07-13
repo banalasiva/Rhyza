@@ -15,9 +15,11 @@ export function cronAuthorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
   if (secret) return req.headers.get("authorization") === `Bearer ${secret}`;
 
-  const isVercelCron =
-    req.headers.get("x-vercel-cron") != null ||
-    (req.headers.get("user-agent") ?? "").toLowerCase().includes("vercel-cron");
+  // Trust ONLY Vercel's own `x-vercel-cron` marker (Vercel strips this header
+  // from inbound external requests, so it can't be forged). The old user-agent
+  // fallback was client-spoofable — any `curl -H 'User-Agent: vercel-cron'`
+  // could trigger the paid AI fan-out jobs — so it's removed.
+  const isVercelCron = req.headers.get("x-vercel-cron") != null;
   if (isVercelCron) {
     console.warn("[cron] fired without CRON_SECRET set — set it in Vercel env to lock this down.");
   }

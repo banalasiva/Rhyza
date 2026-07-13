@@ -35,7 +35,10 @@ if (process.env.AUTH_SSO_ISSUER && process.env.AUTH_SSO_CLIENT_ID) {
     clientSecret: process.env.AUTH_SSO_CLIENT_SECRET,
     // Most enterprise IdPs require explicit scopes.
     authorization: { params: { scope: "openid profile email" } },
-    allowDangerousEmailAccountLinking: true,
+    // NB: deliberately NOT allowDangerousEmailAccountLinking here. A generic OIDC
+    // IdP may let a user self-assert an unverified `email`, which with linking on
+    // would silently merge into a victim's existing account (takeover). Linking
+    // stays only on Google, which verifies email ownership.
   });
 }
 
