@@ -307,6 +307,22 @@ model SeedFollow {
   @@map("seed_follows")
 }
 
+// A one-time "you were added by someone outside your circle" heads-up. Written
+// ONLY when a stranger (not in the target's network) adds them to a seat, read
+// best-effort (a missing table must never block opening a seed), and deleted
+// when the target either leaves or dismisses it. Kept as its OWN table — with
+// no relations to the hot Seed/User models — precisely so it can never make the
+// core seed reads select a column the live DB hasn't migrated yet.
+model SeedAddNotice {
+  seedId    String   @map("seed_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  addedById String   @map("added_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([seedId, userId])
+  @@map("seed_add_notices")
+}
+
 // A report on public content (a seed or a contribution) for moderation. Keeps
 // the public square safe: anyone can flag, owners/admins act on it.
 model SeedReport {

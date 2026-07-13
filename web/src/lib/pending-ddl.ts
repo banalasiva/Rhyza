@@ -491,6 +491,20 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     sql: `CREATE INDEX IF NOT EXISTS "contributions_seed_id_created_at_idx" ON "contributions" ("seed_id", "created_at")`,
   },
 
+  // 20260713120000_seed_add_notices — its own table (NOT columns on the hot
+  // seed_members) so core seed reads never select a column the DB hasn't
+  // migrated; read best-effort so a missing table can't lock anyone out.
+  {
+    label: "seed_add_notices",
+    sql: `CREATE TABLE IF NOT EXISTS "seed_add_notices" (
+      "seed_id"    UUID NOT NULL REFERENCES "seeds" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "user_id"    UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "added_by"   UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "seed_add_notices_pkey" PRIMARY KEY ("seed_id", "user_id")
+    )`,
+  },
+
   // One-time data backfill (idempotent): give people who joined via the email
   // magic-link — and so have an empty name — a readable display name derived
   // from their email ("siva.prasad@x" → "Siva Prasad"). Only touches rows whose

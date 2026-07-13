@@ -152,6 +152,16 @@ export async function leaveSeed(userId: string, seedId: string) {
     throw new ApiError("BAD_REQUEST", "You created this seed — delete it instead of leaving.");
   }
   await db.seedMember.deleteMany({ where: { seedId, userId } });
+  await db.seedAddNotice.deleteMany({ where: { seedId, userId } }).catch(() => {});
+  return { ok: true };
+}
+
+// "I'm happy to be here" — clear the one-time stranger-add heads-up so it never
+// shows again on any device. Best-effort (a missing table is a no-op); safe to
+// call whether or not a notice exists, and requires only seed access.
+export async function dismissAddNotice(userId: string, seedId: string) {
+  await requireSeedAccess(userId, seedId);
+  await db.seedAddNotice.deleteMany({ where: { seedId, userId } }).catch(() => {});
   return { ok: true };
 }
 
@@ -378,6 +388,10 @@ export async function addExistingMember(actorId: string, seedId: string, targetI
   if (!target) {
     throw new ApiError("BAD_REQUEST", "That person can't be added.");
   }
+  // Is the adder already in the target's circle? If not, we'll leave a one-time
+  // "added by someone outside your circle" heads-up so the target can bow out.
+  const network = await listMyNetwork(actorId);
+  const stranger = !network.some((p) => p.id === targetId);
   await db.$transaction([
     db.orgMember.upsert({
       where: { orgId_userId: { orgId: garden.orgId, userId: targetId } },
@@ -395,6 +409,23 @@ export async function addExistingMember(actorId: string, seedId: string, targetI
       create: { seedId, userId: targetId, role: "member" },
     }),
   ]);
+
+  // Best-effort, in its OWN table so it can never make the core seed reads fail
+  // on an un-migrated DB (the lockout this replaces). A stranger-add records the
+  // notice; a circle-add clears any stale one so re-adding a friend is silent.
+  if (stranger) {
+    await db.seedAddNotice
+      .upsert({
+        where: { seedId_userId: { seedId, userId: targetId } },
+        update: { addedById: actorId },
+        create: { seedId, userId: targetId, addedById: actorId },
+      })
+      .catch(() => {});
+  } else {
+    await db.seedAddNotice
+      .deleteMany({ where: { seedId, userId: targetId } })
+      .catch(() => {});
+  }
 
   // Tell the person they were added.
   try {

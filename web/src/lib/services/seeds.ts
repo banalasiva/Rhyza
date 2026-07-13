@@ -263,7 +263,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
 
   // One parallel batch: authorization + all the data, instead of 5 sequential
   // round-trips (this dominates latency when the DB is far away).
-  const [orgMember, member, seedMember, distribution, myVote, contributions, peopleRows, follow] =
+  const [orgMember, member, seedMember, distribution, myVote, contributions, peopleRows, follow, addNotice] =
     await Promise.all([
       db.orgMember.findUnique({
         where: { orgId_userId: { orgId: seed.garden.orgId, userId } },
@@ -286,6 +286,9 @@ export async function getSeedDetail(userId: string, seedId: string) {
       peoplePromise,
       // Resilient: the seed_follows table may not be migrated yet.
       db.seedFollow.findUnique({ where: { seedId_userId: { seedId, userId } } }).catch(() => null),
+      // Best-effort: "added by someone outside your circle" heads-up. Its own
+      // table + .catch() so a missing table can NEVER block opening the seed.
+      db.seedAddNotice.findUnique({ where: { seedId_userId: { seedId, userId } } }).catch(() => null),
     ]);
   // World-public seeds are viewable across orgs; everyone else must be an org member.
   if (!orgMember && !(seed.listed && seed.visibility === "public")) {
@@ -337,6 +340,17 @@ export async function getSeedDetail(userId: string, seedId: string) {
 
   const contribs = mapContribs(contributions as ContribRow[], userId);
 
+  // If a stranger added you to this seat, surface a gentle "added by someone you
+  // don't know — leave?" notice. Only the rare stranger-add has a row here, so
+  // the extra name lookup runs almost never. Best-effort throughout.
+  let addedNotice: { byName: string } | null = null;
+  if (addNotice?.addedById) {
+    const adder = await db.user
+      .findUnique({ where: { id: addNotice.addedById }, select: { name: true, email: true } })
+      .catch(() => null);
+    addedNotice = { byName: displayName(adder ?? {}) };
+  }
+
   // Auto-follow (quietly) the first time a pure outsider opens this seed — puts
   // it on their radar without any per-reply spam. Skips anyone already involved
   // (creator, member, contributor, or already following) so it never downgrades
@@ -372,6 +386,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
     people,
     distribution,
     myVote: myVote?.stage ?? null,
+    addedNotice,
     contributions: contribs,
   };
 }
