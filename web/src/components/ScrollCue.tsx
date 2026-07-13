@@ -9,7 +9,16 @@ export function ScrollCue() {
   const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setHidden(window.scrollY > 60);
+    // Stay visible the whole way down the story — only bow out once the sign-up
+    // section itself comes into view (nothing left to scroll for).
+    const onScroll = () => {
+      const start = document.getElementById("start");
+      if (start) {
+        setHidden(start.getBoundingClientRect().top < window.innerHeight * 0.85);
+      } else {
+        setHidden(window.scrollY > 60);
+      }
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);

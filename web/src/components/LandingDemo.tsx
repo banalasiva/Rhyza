@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Msg = { who: string; ai?: boolean; text: string };
 
@@ -65,12 +65,36 @@ export function LandingDemo() {
   // Auto-plays until the visitor touches it — then it's fully in their hands so
   // they can go back and sit on any moment (the "let me touch and go back" ask).
   const [paused, setPaused] = useState(false);
+  // Don't run off-screen: start cleanly from the very first line (Meera) the
+  // moment the card scrolls into view, so no one arrives to find it already at
+  // the Sacred Tree.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [inView, setInView] = useState(false);
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    if (paused) return;
+    const el = cardRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        setInView(e.isIntersecting);
+        if (e.isIntersecting && !startedRef.current) {
+          startedRef.current = true;
+          setStep(0);
+          setPaused(false);
+        }
+      },
+      { threshold: 0.4 },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (paused || !inView) return;
     const t = setTimeout(() => setStep((s) => (s + 1 >= DELAYS.length ? 0 : s + 1)), DELAYS[step]);
     return () => clearTimeout(t);
-  }, [step, paused]);
+  }, [step, paused, inView]);
 
   // Manual step — pauses auto-play and wraps around so it never dead-ends.
   const go = (dir: -1 | 1) => {
@@ -78,13 +102,20 @@ export function LandingDemo() {
     setStep((s) => (s + dir + DELAYS.length) % DELAYS.length);
   };
 
+  // Play from the very start (Meera's first line), pressed or auto on entry.
+  const replay = () => {
+    setStep(0);
+    setPaused(false);
+  };
+  const atEnd = step >= DELAYS.length - 1;
+
   const phase =
     step < DECIDE_STEP ? "think" : step === DECIDE_STEP ? "decide" : step === BLOOM_STEP ? "bloom" : "tree";
   // The 3-step mantra: Bloom stays lit through the Sacred-Tree payoff.
   const phaseIndex = phase === "think" ? 0 : phase === "decide" ? 1 : 2;
 
   return (
-    <div className="card mx-auto w-full max-w-sm p-4">
+    <div ref={cardRef} className="card mx-auto w-full max-w-sm p-4">
       {/* Think · Decide · Bloom — the three steps, lighting up as it plays */}
       <div className="mb-4 flex items-center justify-center gap-1">
         {STEPS.map((s, i) => {
@@ -261,13 +292,25 @@ export function LandingDemo() {
               />
             ))}
           </div>
-          <button
-            onClick={() => setPaused((p) => !p)}
-            aria-label={paused ? "Play" : "Pause"}
-            className="rounded-full px-1.5 py-0.5 text-xs text-ink-soft transition hover:text-ink"
-          >
-            {paused ? "▶" : "❚❚"}
-          </button>
+          {/* Play from the start when it's over or paused at the end; otherwise
+              a simple pause/resume. */}
+          {paused || atEnd ? (
+            <button
+              onClick={atEnd ? replay : () => setPaused(false)}
+              aria-label={atEnd ? "Play from start" : "Play"}
+              className="rounded-full px-1.5 py-0.5 text-xs text-accent transition hover:text-ink"
+            >
+              {atEnd ? "↺ Replay" : "▶"}
+            </button>
+          ) : (
+            <button
+              onClick={() => setPaused(true)}
+              aria-label="Pause"
+              className="rounded-full px-1.5 py-0.5 text-xs text-ink-soft transition hover:text-ink"
+            >
+              ❚❚
+            </button>
+          )}
         </div>
 
         <button
