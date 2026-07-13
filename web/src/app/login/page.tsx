@@ -144,7 +144,11 @@ export default async function LoginPage({
             <h2 className="serif-lg mb-2 mt-1 text-2xl">
               What’s the next conversation waiting to happen?
             </h2>
-            <p className="mb-6 text-2xl">🌱 Plant your first Seed.</p>
+            <p className="mb-1 text-2xl">🌱 Plant your first Seed.</p>
+            <p className="mb-6 text-sm text-ink-mid">
+              A Seed is just a question or decision — bring your people, and grow it into an answer
+              together.
+            </p>
 
             <div className="rounded-2xl border border-[rgba(76,175,80,0.4)] bg-[rgba(76,175,80,0.06)] p-5 text-left shadow-[0_0_30px_rgba(76,175,80,0.14)]">
               {errorCode && (
