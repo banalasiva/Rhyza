@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DIMENSIONS, QUORUM_DIMENSIONS } from "@/lib/constants";
 import { PlantSvg } from "@/components/PlantSvg";
 
@@ -23,20 +23,6 @@ const WEIGH = QUORUM_DIMENSIONS.map((d) => ({
   q: d.question,
   ranked: RANKS[d.key] ?? [],
 }));
-
-// A deterministic radial petal burst for the bloom (no Math.random, so it never
-// mismatches on hydration) — the same leaf-particle animation the app uses.
-const BURST = Array.from({ length: 16 }).map((_, i) => {
-  const rad = ((i / 16) * 360 * Math.PI) / 180;
-  const dist = 90 + (i % 3) * 30;
-  return {
-    emoji: ["🌸", "🌼", "🌺", "🍃", "✨", "💛"][i % 6],
-    bx: `${Math.round(Math.cos(rad) * dist)}%`,
-    by: `${Math.round(Math.sin(rad) * dist)}%`,
-    delay: (i % 8) * 0.05,
-    size: 14 + (i % 4) * 4,
-  };
-});
 
 // A looping storyboard built around ONE relatable decision — a family holiday —
 // that mirrors the REAL app: in Discuss, Claude auto-tags every point by
@@ -346,22 +332,9 @@ export function LandingDemo() {
         <div className={`absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-700 ${phase === "bloom" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <div className="relative flex h-[210px] w-full items-center justify-center overflow-hidden">
             {phase === "bloom" && (
-              /* Soft glow disk behind the plant (no rotating ring) + petal burst */
+              /* Just the soft glow disk behind the plant — no ring, no petals */
               <div className="pointer-events-none absolute left-1/2 top-1/2">
                 <span className="bloom-glow" />
-              </div>
-            )}
-            {phase === "bloom" && (
-              <div className="pointer-events-none absolute left-1/2 top-1/2 h-0 w-0">
-                {BURST.map((p, i) => (
-                  <span
-                    key={i}
-                    className="leaf-particle"
-                    style={{ fontSize: p.size, animationDelay: `${p.delay}s`, ["--bx"]: p.bx, ["--by"]: p.by, ["--bx2"]: p.bx, ["--by2"]: p.by } as CSSProperties}
-                  >
-                    {p.emoji}
-                  </span>
-                ))}
               </div>
             )}
             {/* the real growing plant, fully bloomed */}
