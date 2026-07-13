@@ -5,7 +5,36 @@ import { LandingDemo } from "@/components/LandingDemo";
 import { AuthPanel } from "@/components/AuthPanel";
 import { AuthErrorBanner } from "@/components/AuthErrorBanner";
 import { ScrollCue } from "@/components/ScrollCue";
+import { Reveal } from "@/components/Reveal";
 import { authErrorMessage } from "@/lib/services/auth-events";
+
+// Familiar decisions — "this is me."
+const FAMILIAR = [
+  "🏖️ Where should we go for our holiday?",
+  "🏡 Should we buy this house?",
+  "💼 Should I take the new job?",
+  "🚀 Which feature should we build first?",
+];
+
+// The perspectives no one holds alone.
+const PERSPECTIVES = [
+  "💰 One person worries about the money.",
+  "💪 Another about the effort.",
+  "⚠️ Someone sees the risks.",
+  "🌟 Someone sees the opportunity.",
+  "❓ Someone asks the question everyone else missed.",
+];
+
+// What happens inside a ThinkThru conversation.
+const VERBS = [
+  "💬 Discuss.",
+  "🔥 Debate.",
+  "🧩 Challenge ideas.",
+  "👂 Hear every perspective.",
+  "✦ Ask AI when you need another point of view.",
+  "⚖️ Decide together.",
+  "🌸 Bloom into something your whole community understands — and remembers.",
+];
 
 export default async function LoginPage({
   searchParams,
@@ -21,62 +50,134 @@ export default async function LoginPage({
   const errorCode = searchParams?.error;
 
   return (
-    <main id="main" className="relative flex min-h-screen flex-col items-center px-6 py-10">
+    <main id="main" className="relative flex min-h-screen flex-col items-center overflow-x-hidden px-6">
       <div className="garden-bg" />
 
-      {/* One clean column: a line, the story, then sign up. */}
+      {/* Returning? Jump straight to sign in. */}
+      <a
+        href="#start"
+        className="fixed right-4 top-4 z-20 rounded-full border border-[rgba(255,255,255,0.14)] bg-[rgba(7,13,7,0.6)] px-3 py-1.5 text-xs text-ink-soft backdrop-blur transition hover:text-ink"
+      >
+        Sign in
+      </a>
+
       <div className="relative z-10 w-full max-w-md text-center">
-        <Image
-          src="/logo-source.png"
-          alt="ThinkThru — Think together. Grow together."
-          width={200}
-          height={200}
-          priority
-          className="mx-auto mb-4 h-auto w-32 sm:w-40"
-        />
-
-        {/* ── The hero — let the feeling do the selling ── */}
-        <h1 className="serif-xl mb-4">What should we do?</h1>
-        <p className="text-lg text-ink-mid">
-          Life’s biggest decisions rarely have one right answer.
-        </p>
-        <p className="mt-3 text-base text-ink-soft">Before we decide…</p>
-        <p className="mt-1 font-serif text-2xl italic text-bloom">Let’s ThinkThru.</p>
-
-        {/* ── Start free — the hero action, right here ── */}
-        <div className="mt-7 rounded-2xl border border-[rgba(76,175,80,0.4)] bg-[rgba(76,175,80,0.06)] p-5 shadow-[0_0_30px_rgba(76,175,80,0.12)]">
-          {errorCode && (
-            <AuthErrorBanner code={errorCode} message={authErrorMessage(errorCode)} />
-          )}
-          <AuthPanel
-            defaultMode="signup"
-            emailEnabled={emailEnabled}
-            ssoEnabled={ssoEnabled}
-            ssoName={ssoName}
-            googleAction={async () => {
-              "use server";
-              await signIn("google", { redirectTo: "/" });
-            }}
-            emailAction={async (formData: FormData) => {
-              "use server";
-              const email = String(formData.get("email") || "").trim();
-              if (!email) return;
-              await signIn("resend", { email, redirectTo: "/" });
-            }}
-            ssoAction={async () => {
-              "use server";
-              await signIn("sso", { redirectTo: "/" });
-            }}
+        {/* ── Beat 1 · the question ── */}
+        <section className="flex min-h-[88vh] flex-col items-center justify-center">
+          <Image
+            src="/logo-source.png"
+            alt="ThinkThru — Think together. Grow together."
+            width={200}
+            height={200}
+            priority
+            className="mx-auto mb-6 h-auto w-28 sm:w-32"
           />
-          <p className="mt-3 text-[11px] text-ink-soft">Free · takes 10 seconds</p>
-        </div>
+          <h1 className="serif-xl mb-3 text-4xl sm:text-5xl">What should we do?</h1>
+          <p className="text-lg text-ink-soft">Feels familiar?</p>
+          <div className="mt-6 space-y-2">
+            {FAMILIAR.map((f, i) => (
+              <Reveal key={f} delay={i * 80}>
+                <p className="rounded-full border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.05)] px-4 py-2 text-sm text-ink-mid">
+                  {f}
+                </p>
+              </Reveal>
+            ))}
+          </div>
+        </section>
 
-        {/* ── The story, for anyone who wants to see how it works ── */}
-        <p className="mb-3 mt-10 eyebrow">See it in action 👇</p>
-        <LandingDemo />
+        {/* ── Beat 2 · a conversation ── */}
+        <section className="flex min-h-[80vh] flex-col items-center justify-center">
+          <Reveal>
+            <h2 className="serif-lg mb-3 text-2xl">Every important decision begins with a conversation.</h2>
+            <p className="text-lg text-ink-mid">Because no one sees the whole picture alone.</p>
+          </Reveal>
+          <div className="mt-7 space-y-2.5 text-left">
+            {PERSPECTIVES.map((p, i) => (
+              <Reveal key={p} delay={i * 90}>
+                <p className="text-base text-ink-mid">{p}</p>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal className="mt-7">
+            <p className="text-lg text-ink">
+              The best decisions happen when <span className="text-bloom">every perspective</span> has
+              a place.
+            </p>
+          </Reveal>
+        </section>
+
+        {/* ── Beat 3 · that's why ── */}
+        <section className="flex min-h-[85vh] flex-col items-center justify-center">
+          <Reveal>
+            <p className="eyebrow mb-2">That’s why we built</p>
+            <p className="mb-6 font-serif text-4xl italic text-bloom">ThinkThru</p>
+            <p className="text-lg text-ink-mid">Bring everyone who matters into one conversation.</p>
+          </Reveal>
+          <div className="mt-7 space-y-2 text-left">
+            {VERBS.map((v, i) => (
+              <Reveal key={v} delay={i * 70}>
+                <p className="text-base text-ink-mid">{v}</p>
+              </Reveal>
+            ))}
+          </div>
+          {/* The animation shows it happening. */}
+          <Reveal className="mt-8 w-full">
+            <LandingDemo />
+          </Reveal>
+        </section>
+
+        {/* ── Beat 4 · the call ── */}
+        <section id="start" className="flex min-h-[92vh] scroll-mt-6 flex-col items-center justify-center">
+          <Reveal className="w-full">
+            <p className="text-lg text-ink-mid">So…</p>
+            <h2 className="serif-lg mb-2 mt-1 text-2xl">
+              What’s the next conversation waiting to happen?
+            </h2>
+            <p className="mb-6 text-2xl">🌱 Plant your first Seed.</p>
+
+            <div className="rounded-2xl border border-[rgba(76,175,80,0.4)] bg-[rgba(76,175,80,0.06)] p-5 text-left shadow-[0_0_30px_rgba(76,175,80,0.14)]">
+              {errorCode && (
+                <AuthErrorBanner code={errorCode} message={authErrorMessage(errorCode)} />
+              )}
+              <AuthPanel
+                defaultMode="signup"
+                emailEnabled={emailEnabled}
+                ssoEnabled={ssoEnabled}
+                ssoName={ssoName}
+                googleAction={async () => {
+                  "use server";
+                  await signIn("google", { redirectTo: "/" });
+                }}
+                emailAction={async (formData: FormData) => {
+                  "use server";
+                  const email = String(formData.get("email") || "").trim();
+                  if (!email) return;
+                  await signIn("resend", { email, redirectTo: "/" });
+                }}
+                ssoAction={async () => {
+                  "use server";
+                  await signIn("sso", { redirectTo: "/" });
+                }}
+              />
+              <p className="mt-3 text-center text-[11px] text-ink-soft">Free · takes 10 seconds</p>
+            </div>
+          </Reveal>
+        </section>
+
+        {/* ── Beat 5 · the closing breath ── */}
+        <section className="flex min-h-[70vh] flex-col items-center justify-center pb-16">
+          <Reveal>
+            <p className="text-base text-ink-soft">Before we decide…</p>
+            <p className="mb-8 mt-1 font-serif text-3xl italic text-bloom">Let’s ThinkThru.</p>
+            <p className="mx-auto max-w-xs text-sm leading-relaxed text-ink-mid">
+              Every important decision begins with a conversation. Because no one sees the whole
+              picture alone. <span className="text-ink">Together… we do.</span>
+            </p>
+          </Reveal>
+        </section>
       </div>
 
-      {/* Mobile-only "scroll for more" hint. */}
+      {/* Mobile-only "scroll for more" hint on the first screen. */}
       <ScrollCue />
     </main>
   );
