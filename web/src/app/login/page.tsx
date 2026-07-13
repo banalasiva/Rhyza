@@ -96,6 +96,7 @@ export default async function LoginPage({
         {/* ── Beat 2 · a conversation ── */}
         <section className="flex min-h-[80vh] flex-col items-center justify-center">
           <Reveal>
+            <p className="mb-2 font-serif text-lg italic text-ink-soft">Then…</p>
             <h2 className="serif-lg mb-3 text-2xl">Why is decision making so hard?</h2>
             <p className="text-lg text-ink-mid">Because no one sees the whole picture alone.</p>
           </Reveal>
