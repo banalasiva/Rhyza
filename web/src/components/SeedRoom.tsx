@@ -15,6 +15,7 @@ import { apiPost, apiGet } from "@/lib/client";
 import { playNatureSound, setMuted } from "@/lib/sound";
 import { timeAgo } from "@/lib/time";
 import { upload } from "@vercel/blob/client";
+import { compressImage } from "@/lib/image-compress";
 import { PlantSvg } from "@/components/PlantSvg";
 import { HowItWorks } from "@/components/HowItWorks";
 import { RichEditor } from "@/components/RichEditor";
@@ -452,16 +453,22 @@ export function SeedRoom({
     setUploading(true);
     setError(null);
     try {
-      for (const file of Array.from(files)) {
-        const blob = await upload(file.name, file, {
-          access: "public",
-          handleUploadUrl: "/api/upload",
-        });
-        setDraftAttachments((prev) => [
-          ...prev,
-          { url: blob.url, type: attachmentType(file.type), name: file.name },
-        ]);
-      }
+      // Compress each image on-device (WhatsApp-style), then upload them ALL in
+      // parallel — so N photos take about as long as the single slowest one,
+      // not the sum. Each attachment appears the moment its own upload lands.
+      await Promise.all(
+        Array.from(files).map(async (file) => {
+          const toSend = await compressImage(file);
+          const blob = await upload(toSend.name, toSend, {
+            access: "public",
+            handleUploadUrl: "/api/upload",
+          });
+          setDraftAttachments((prev) => [
+            ...prev,
+            { url: blob.url, type: attachmentType(toSend.type), name: file.name },
+          ]);
+        }),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -1760,10 +1767,15 @@ export function SeedRoom({
                   disabled={busy || uploading}
                   title="Attach image, video, or screenshot"
                   aria-label="Attach image, video, or screenshot"
-                  className="flex h-7 items-center rounded-md border px-2 text-sm text-ink-mid transition hover:text-ink disabled:opacity-40"
+                  className="relative flex h-7 items-center rounded-md border px-2 text-sm text-ink-mid transition hover:text-ink disabled:opacity-40"
                   style={{ borderColor: "rgba(76,175,80,0.2)" }}
                 >
-                  {uploading ? "⏳" : <Icon name="attach" size={15} />}
+                  {/* Keep the pin ALWAYS visible so it never looks like it
+                      vanished mid-upload; a small pulsing dot signals progress. */}
+                  <Icon name="attach" size={15} />
+                  {uploading && (
+                    <span className="absolute -right-1 -top-1 h-2 w-2 animate-ping rounded-full bg-accent" />
+                  )}
                 </button>
                 <button
                   type="button"
@@ -1781,8 +1793,14 @@ export function SeedRoom({
             />
 
             {/* Attachment previews */}
-            {draftAttachments.length > 0 && (
+            {(draftAttachments.length > 0 || uploading) && (
               <div className="mt-3 flex flex-wrap gap-2">
+                {uploading && (
+                  <div className="flex items-center gap-2 rounded-lg border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.5)] px-2 py-1 text-xs text-ink-mid">
+                    <span className="h-3 w-3 animate-spin rounded-full border border-accent border-t-transparent" />
+                    <span>Compressing &amp; uploading…</span>
+                  </div>
+                )}
                 {draftAttachments.map((a, i) => (
                   <div
                     key={i}
