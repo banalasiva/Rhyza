@@ -154,15 +154,6 @@ export function SeedRoom({
   const [labelFx, setLabelFx] = useState<{ id: number; text: string; x: number; y: number }[]>([]);
   const burstId = useRef(0);
   const [showHelp, setShowHelp] = useState(false);
-  // "You were added by someone not in your circle" notice — dismissible per seed.
-  const [addedDismissed, setAddedDismissed] = useState(true);
-  useEffect(() => {
-    try {
-      setAddedDismissed(!!localStorage.getItem(`addednotice:${seed.id}`));
-    } catch {
-      setAddedDismissed(false);
-    }
-  }, [seed.id]);
   // The wise presence's live offer, sensed server-side and delivered to every
   // screen via the sync poll. When set, the presence glows and asks to step in.
   const [nudge, setNudge] = useState<{ mode: "peace" | "guide"; reason: string } | null>(null);
@@ -1036,47 +1027,8 @@ export function SeedRoom({
   // endorsements stay current while the sheet is showing).
   const sheetC = sheetForId ? contributions.find((c) => c.id === sheetForId) ?? null : null;
 
-  const addedNotice = seed.addedNotice;
-
   return (
     <div className="relative mt-3 grid gap-6 lg:grid-cols-[1fr_360px]">
-      {/* Added by someone not in your circle → a gentle, dismissible heads-up
-          with a one-tap way out. Open discoverability, but never a trap. */}
-      {addedNotice && !addedDismissed && (
-        <div className="lg:col-span-2 rounded-xl border border-[rgba(255,179,0,0.35)] bg-[rgba(255,179,0,0.07)] px-3 py-2.5">
-          <div className="flex items-start gap-2">
-            <span aria-hidden className="mt-0.5 text-sm">👋</span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-ink">
-                <span className="font-medium">{addedNotice.byName}</span> added you here — someone you
-                haven’t connected with yet. Happy to be here, or would you like to leave?
-              </p>
-              <div className="mt-2 flex items-center gap-2">
-                <button
-                  onClick={leaveSeed}
-                  disabled={busy}
-                  className="rounded-full border border-[rgba(255,255,255,0.15)] px-3 py-1 text-xs text-ink-mid transition hover:border-[#e57373] hover:text-ink disabled:opacity-50"
-                >
-                  Leave this seed
-                </button>
-                <button
-                  onClick={() => {
-                    try {
-                      localStorage.setItem(`addednotice:${seed.id}`, "1");
-                    } catch {
-                      /* ignore */
-                    }
-                    setAddedDismissed(true);
-                  }}
-                  className="rounded-full px-3 py-1 text-xs text-accent transition hover:bg-[rgba(76,175,80,0.12)]"
-                >
-                  I’m happy to be here
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       {/* Screen-reader status announcements (WCAG 4.1.3) */}
       <div aria-live="polite" className="sr-only">
         {thinking
