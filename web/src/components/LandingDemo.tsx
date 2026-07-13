@@ -13,10 +13,12 @@ type Msg = { who: string; ai?: boolean; text: string };
 const TRIP = {
   q: "Where should we go for our holiday?",
   msgs: [
-    { who: "Meera", text: "Somewhere the kids can run wild, or somewhere we actually rest?" },
+    { who: "Meera", text: "Somewhere the kids can run wild, or somewhere we can actually rest?" },
     { who: "Aarav", text: "Adventure! Can we do Thailand? 🏝️" },
-    { who: "Ravi", text: "@Claude — better value in December for a family: Goa or Thailand?" },
-    { who: "Claude", ai: true, text: "Goa, easily — December is Thailand’s peak, so flights spike. Goa gives you calm beaches to rest and water-sports for the kids." },
+    { who: "Priya", text: "Thailand’s a stretch on the budget this year, though." },
+    { who: "Ravi", text: "Manali’s cheaper — but it’s a long drive with the parents." },
+    { who: "Aarav", text: "@Claude which is better value in December — Goa or Thailand?" },
+    { who: "Claude", ai: true, text: "Goa, for December — Thailand’s peak spikes flights. Calm beaches for you, water-sports for the kids, and it’s easy on everyone’s leave." },
   ] as Msg[],
   // Decide: not every voice weighs the same on every question — money, time,
   // experience. The person with the most at stake leads each one.
@@ -36,15 +38,27 @@ const TRIP = {
 };
 
 const STEPS = [
-  { key: "think", emoji: "💬", label: "Think" },
+  { key: "think", emoji: "💬", label: "Discuss" },
   { key: "decide", emoji: "⚖️", label: "Decide" },
   { key: "bloom", emoji: "🌸", label: "Bloom" },
 ] as const;
 
-// step timeline: 0–3 reveal messages (Think) · 4 Decide · 5 Bloom · 6–7 Sacred
-// Tree + hold, then loop. Paced slow enough to actually read and absorb each
-// stage — this is the story, not a flash.
-const DELAYS = [2200, 2400, 2600, 3200, 5000, 3800, 5000, 2000];
+// Phase boundaries derived from the message count, so the discussion can be as
+// long as it needs to be. Steps 0..N-1 reveal the conversation one line at a
+// time, then Decide, Bloom, and two Sacred-Tree holds. Paced slow — give people
+// time to actually read each line before the next arrives.
+const N = TRIP.msgs.length;
+const DECIDE_STEP = N;
+const BLOOM_STEP = N + 1;
+// A comfortable reading beat per message, longer for Claude's answer, then a
+// generous hold on Decide and Bloom.
+const DELAYS = [
+  ...TRIP.msgs.map((m) => (m.ai ? 4200 : 2900)),
+  7000, // Decide
+  5200, // Bloom
+  6000, // Tree
+  3000, // Tree hold
+];
 
 export function LandingDemo() {
   const [step, setStep] = useState(0);
@@ -64,7 +78,8 @@ export function LandingDemo() {
     setStep((s) => (s + dir + DELAYS.length) % DELAYS.length);
   };
 
-  const phase = step <= 3 ? "think" : step === 4 ? "decide" : step === 5 ? "bloom" : "tree";
+  const phase =
+    step < DECIDE_STEP ? "think" : step === DECIDE_STEP ? "decide" : step === BLOOM_STEP ? "bloom" : "tree";
   // The 3-step mantra: Bloom stays lit through the Sacred-Tree payoff.
   const phaseIndex = phase === "think" ? 0 : phase === "decide" ? 1 : 2;
 
@@ -102,13 +117,9 @@ export function LandingDemo() {
       <p className="serif-lg mb-3 min-h-[3.25rem]">{TRIP.q}</p>
 
       {/* Stage — phases cross-fade in a fixed-height frame so the card is steady */}
-      <div className="relative min-h-[300px]">
+      <div className="relative min-h-[340px]">
         {/* ── THINK ── the group talks; someone asks Claude, Claude answers */}
-        <div className={`absolute inset-0 transition-opacity duration-700 ${phase === "think" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
-          <p className="mb-3 text-[11px] leading-relaxed text-ink-soft">
-            Everyone talks it through together — and when a real question comes up, they just ask
-            Claude.
-          </p>
+        <div className={`absolute inset-0 overflow-y-auto transition-opacity duration-700 ${phase === "think" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <div className="space-y-2.5">
             {TRIP.msgs.map((m, i) => {
               const revealed = phase !== "think" || i <= step;
@@ -213,7 +224,7 @@ export function LandingDemo() {
                 🌳 Kept in your Sacred Tree
               </p>
               <div className="mx-auto max-w-[19rem] rounded-xl border p-3 text-left" style={{ borderColor: "rgba(76,175,80,0.3)", background: "rgba(76,175,80,0.06)" }}>
-                <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-ink">🌸 Choosing Aria’s school</p>
+                <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-ink">🌸 Where should we holiday?</p>
                 <p className="text-[11px] leading-relaxed text-ink-mid">{TRIP.treeSummary}</p>
               </div>
             </div>

@@ -25,15 +25,23 @@ const PERSPECTIVES = [
   "❓ Someone asks the question everyone else missed.",
 ];
 
-// What happens inside a ThinkThru conversation.
-const VERBS = [
-  "💬 Discuss.",
-  "🔥 Debate.",
-  "🧩 Challenge ideas.",
-  "👂 Hear every perspective.",
-  "✦ Ask AI when you need another point of view.",
-  "⚖️ Decide together.",
-  "🌸 Bloom into something your whole community understands — and remembers.",
+// The three steps — one clean idea each, not a shower of emoji.
+const STEPS3 = [
+  {
+    emoji: "💬",
+    title: "Discuss",
+    body: "Discuss, debate, challenge ideas, hear every perspective — and ask AI when you need another point of view.",
+  },
+  {
+    emoji: "⚖️",
+    title: "Weigh in",
+    body: "Who carries the money, the effort, the focus, the judgement — everyone votes on what matters most.",
+  },
+  {
+    emoji: "🌸",
+    title: "Bloom",
+    body: "Into one shared understanding your community keeps — and remembers.",
+  },
 ];
 
 export default async function LoginPage({
@@ -106,27 +114,29 @@ export default async function LoginPage({
           </Reveal>
         </section>
 
-        {/* ── Beat 3 · that's why ── */}
+        {/* ── Beat 3 · that's why → three steps ── */}
         <section className="flex min-h-[85vh] flex-col items-center justify-center">
           <Reveal>
             <p className="eyebrow mb-2">That’s why we built</p>
             <p className="mb-6 font-serif text-4xl italic text-bloom">ThinkThru</p>
             <p className="text-lg text-ink-mid">Bring everyone who matters into one conversation.</p>
           </Reveal>
-          <div className="mt-7 space-y-2 text-left">
-            {VERBS.map((v, i) => (
-              <Reveal key={v} delay={i * 70}>
-                <p className="text-base text-ink-mid">{v}</p>
+          <div className="mt-7 w-full space-y-3 text-left">
+            {STEPS3.map((s, i) => (
+              <Reveal key={s.title} delay={i * 90}>
+                <div className="rounded-2xl border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.05)] p-4">
+                  <p className="text-base font-semibold text-ink">
+                    <span aria-hidden className="mr-1.5">{s.emoji}</span>
+                    {s.title}
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-ink-mid">{s.body}</p>
+                </div>
               </Reveal>
             ))}
           </div>
-          {/* The animation shows it happening. */}
-          <Reveal className="mt-8 w-full">
-            <LandingDemo />
-          </Reveal>
         </section>
 
-        {/* ── Beat 4 · the call ── */}
+        {/* ── Beat 4 · the call — sign up right here ── */}
         <section id="start" className="flex min-h-[92vh] scroll-mt-6 flex-col items-center justify-center">
           <Reveal className="w-full">
             <p className="text-lg text-ink-mid">So…</p>
@@ -161,6 +171,14 @@ export default async function LoginPage({
               />
               <p className="mt-3 text-center text-[11px] text-ink-soft">Free · takes 10 seconds</p>
             </div>
+          </Reveal>
+        </section>
+
+        {/* ── The example — below the call, for anyone who wants to see it play out ── */}
+        <section className="flex min-h-[80vh] flex-col items-center justify-center">
+          <Reveal className="w-full">
+            <p className="mb-3 eyebrow">Curious how it plays out? Watch 👇</p>
+            <LandingDemo />
           </Reveal>
         </section>
 
