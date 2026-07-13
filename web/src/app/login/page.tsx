@@ -80,8 +80,8 @@ export default async function LoginPage({
             priority
             className="mx-auto mb-6 h-auto w-28 sm:w-32"
           />
-          <h1 className="serif-xl mb-3 text-4xl sm:text-5xl">What should we do?</h1>
-          <p className="text-lg text-ink-soft">Feels familiar?</p>
+          <h1 className="serif-xl mb-3 text-4xl sm:text-5xl">Need to figure something out together?</h1>
+          <p className="text-lg text-ink-soft">Like…</p>
           <div className="mt-6 space-y-2">
             {FAMILIAR.map((f, i) => (
               <Reveal key={f} delay={i * 80}>
