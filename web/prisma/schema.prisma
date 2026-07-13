@@ -364,6 +364,12 @@ model SeedMember {
   userId   String   @map("user_id") @db.Uuid
   role     String   @default("member") // member | steward
   joinedAt DateTime @default(now()) @map("joined_at")
+  // Who added this person (null = self-joined / invite / request). If the adder
+  // wasn't already in their circle, addedByStranger is set so the seed room can
+  // show a "you were added by someone you don't know — leave?" banner. Open
+  // discoverability with consent-after-the-fact, not a hard gate.
+  addedById       String?  @map("added_by") @db.Uuid
+  addedByStranger Boolean  @default(false) @map("added_by_stranger")
 
   seed Seed @relation(fields: [seedId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

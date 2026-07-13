@@ -378,6 +378,10 @@ export async function addExistingMember(actorId: string, seedId: string, targetI
   if (!target) {
     throw new ApiError("BAD_REQUEST", "That person can't be added.");
   }
+  // Is the adder already in the target's circle? If not, we mark the seat so the
+  // target gets a "you were added by someone you don't know — leave?" banner.
+  const network = await listMyNetwork(actorId);
+  const stranger = !network.some((p) => p.id === targetId);
   await db.$transaction([
     db.orgMember.upsert({
       where: { orgId_userId: { orgId: garden.orgId, userId: targetId } },
@@ -392,7 +396,7 @@ export async function addExistingMember(actorId: string, seedId: string, targetI
     db.seedMember.upsert({
       where: { seedId_userId: { seedId, userId: targetId } },
       update: {},
-      create: { seedId, userId: targetId, role: "member" },
+      create: { seedId, userId: targetId, role: "member", addedById: actorId, addedByStranger: stranger },
     }),
   ]);
 

@@ -491,6 +491,16 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     sql: `CREATE INDEX IF NOT EXISTS "contributions_seed_id_created_at_idx" ON "contributions" ("seed_id", "created_at")`,
   },
 
+  // 20260712190000_seed_member_added_by
+  {
+    label: "seed_members.added_by",
+    sql: `ALTER TABLE "seed_members" ADD COLUMN IF NOT EXISTS "added_by" UUID`,
+  },
+  {
+    label: "seed_members.added_by_stranger",
+    sql: `ALTER TABLE "seed_members" ADD COLUMN IF NOT EXISTS "added_by_stranger" BOOLEAN NOT NULL DEFAULT false`,
+  },
+
   // One-time data backfill (idempotent): give people who joined via the email
   // magic-link — and so have an empty name — a readable display name derived
   // from their email ("siva.prasad@x" → "Siva Prasad"). Only touches rows whose

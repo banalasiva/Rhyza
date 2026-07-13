@@ -337,6 +337,18 @@ export async function getSeedDetail(userId: string, seedId: string) {
 
   const contribs = mapContribs(contributions as ContribRow[], userId);
 
+  // If a stranger (someone not in your circle) added you to this seat, surface a
+  // gentle "you were added by someone you don't know — leave?" notice. Only runs
+  // the extra lookup in that rare case.
+  let addedNotice: { byName: string } | null = null;
+  const sm = seedMember as { addedById?: string | null; addedByStranger?: boolean } | null;
+  if (sm?.addedByStranger && sm.addedById) {
+    const adder = await db.user
+      .findUnique({ where: { id: sm.addedById }, select: { name: true, email: true } })
+      .catch(() => null);
+    addedNotice = { byName: displayName(adder ?? {}) };
+  }
+
   // Auto-follow (quietly) the first time a pure outsider opens this seed — puts
   // it on their radar without any per-reply spam. Skips anyone already involved
   // (creator, member, contributor, or already following) so it never downgrades
@@ -372,6 +384,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
     people,
     distribution,
     myVote: myVote?.stage ?? null,
+    addedNotice,
     contributions: contribs,
   };
 }

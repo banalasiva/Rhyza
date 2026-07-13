@@ -79,6 +79,7 @@ export function QuorumV2({ seedId }: { seedId: string }) {
     // in-progress weigh-in keeps its local state; this only refreshes the shared
     // view.) Stops once the quorum is locked.
     const t = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
       if (phaseRef.current !== "locked" && !busyRef.current) load();
     }, 4000);
     return () => clearInterval(t);
