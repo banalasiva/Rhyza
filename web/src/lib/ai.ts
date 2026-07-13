@@ -8,7 +8,7 @@
 // @claude mentions simply don't get a reply).
 
 import Anthropic from "@anthropic-ai/sdk";
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 import { STAGE_KEYS } from "@/lib/constants";
 
 // Claude model — Sonnet 4.6 is the cost-effective default for these
@@ -948,6 +948,61 @@ export async function generateImage(prompt: string): Promise<Buffer | null> {
   }
 }
 
+// Image EDIT model — must be gpt-image-1 (dall-e-3 has no edit endpoint; dall-e-2
+// needs a mask). Reuses OPENAI_IMAGE_MODEL when that's already gpt-image-1, else
+// forces gpt-image-1 so "add a hat to this photo" works even if generation is
+// pointed elsewhere.
+const OPENAI_EDIT_MODEL =
+  process.env.OPENAI_IMAGE_MODEL === "gpt-image-1" ? process.env.OPENAI_IMAGE_MODEL : "gpt-image-1";
+
+// Does this message ask to MODIFY an existing image (add/remove/change something
+// in it) rather than draw a fresh one? The caller only routes here when there's
+// actually an image in the thread, so this just needs an edit verb plus a
+// reference back to that image ("this", "the photo", "it").
+export function wantsImageEdit(text: string): boolean {
+  const editVerb =
+    /\b(add|put|place|remove|erase|delete|change|replace|edit|modify|swap|give|turn|make|draw|paint|recolou?r|colou?r|enhance|retouch|restyle|redesign|fix|blur|crop|adjust)\b/i.test(
+      text,
+    );
+  const refToImage =
+    /\b(this|that|it|image|images|photo|photos|picture|pictures|pic|pics|selfie|portrait)\b/i.test(text);
+  return editVerb && refToImage;
+}
+
+// Edit an existing image from its URL with a natural-language instruction ("add a
+// party hat", "change the background to a beach") via gpt-image-1's edit
+// endpoint. Fetches the source, sends it as the input image, returns a PNG buffer
+// (uploadable to Blob) or null on failure. Errors are caught and logged, never
+// surfaced raw — the caller then falls back to a text reply.
+export async function editImage(imageUrl: string, prompt: string): Promise<Buffer | null> {
+  if (!openaiConfigured() || !prompt.trim() || !imageUrl) return null;
+  try {
+    const src = await fetch(imageUrl);
+    if (!src.ok) return null;
+    const bytes = Buffer.from(await src.arrayBuffer());
+    const type = src.headers.get("content-type") || "image/png";
+    const file = await toFile(bytes, "source.png", { type });
+    const res = await getOpenAI().images.edit({
+      model: OPENAI_EDIT_MODEL,
+      image: file,
+      prompt: prompt.trim().slice(0, 900),
+      // "auto" preserves the source aspect ratio (portraits stay portrait)
+      // instead of forcing a square crop.
+      size: "auto",
+    });
+    const item = res.data?.[0];
+    if (item?.b64_json) return Buffer.from(item.b64_json, "base64");
+    if (item?.url) {
+      const r = await fetch(item.url);
+      if (r.ok) return Buffer.from(await r.arrayBuffer());
+    }
+    return null;
+  } catch (err) {
+    console.error("[ai] image edit failed", err);
+    return null;
+  }
+}
+
 // Does this text tag ChatGPT? Matches @chatgpt / @openai / @gpt.
 export function mentionsChatGpt(text: string): boolean {
   return /(^|[^a-zA-Z0-9])@(chatgpt|openai|gpt)\b/i.test(text);
@@ -1054,12 +1109,13 @@ export async function chatgptReply(input: {
     "if they ask to compress, simplify, or 'ELI5', tighten it right down. Structure it so it reads " +
     "cleanly as plain text — open a point with a **bold label**, use short numbered steps, and blank " +
     "lines between ideas (avoid tables and code-diagrams, they don't render here). " +
-    // The truth about image generation, so it never denies a capability it has:
-    "IMPORTANT — you CAN generate images here: when someone gives you something concrete to draw, " +
-    "illustrate, paint, or diagram, the app creates the picture and posts it automatically. So NEVER " +
-    "say you can't create or render images. If someone simply asks whether you can make images, answer " +
-    "yes, warmly, and invite them to tell you exactly what they'd like you to draw; when a visual would " +
-    "genuinely help, offer to draw it. " +
+    // The truth about image generation + editing, so it never denies a capability it has:
+    "IMPORTANT — you CAN both generate AND edit images here: when someone gives you something concrete " +
+    "to draw, illustrate, paint, or diagram, the app creates the picture and posts it automatically; " +
+    "and when someone shares a photo and asks you to modify it (add/remove/change something in it), the " +
+    "app edits that photo and posts the result. So NEVER say you can't create, render, or modify " +
+    "images or photos. If someone asks whether you can make or edit images, answer yes, warmly, and " +
+    "invite them to tell you exactly what they'd like; when a visual would genuinely help, offer it. " +
     "Write warmly and directly; output only your reply — no greeting like 'Sure!', no sign-off, and " +
     "don't refer to yourself in the third person.";
   const images = collectImages(input.contributions);

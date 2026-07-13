@@ -19,7 +19,9 @@ import {
   mentionsClaude,
   wantsImage,
   asksImageCapabilityOnly,
+  wantsImageEdit,
   generateImage,
+  editImage,
   seedOpener,
   type ContribForAI,
 } from "@/lib/ai";
@@ -181,6 +183,56 @@ async function respondWithImage(
   return contribution;
 }
 
+// When someone asks ChatGPT to modify a photo already in the thread ("add a hat
+// to this image"), edit that source image and post the result. `sourceUrl` is
+// the most recent image in the thread. Returns the new contribution, or null if
+// the edit/upload failed (caller falls back to a text reply).
+async function respondWithImageEdit(
+  seedId: string,
+  dimension: string,
+  mentionText: string,
+  parentId: string,
+  seed: { id: string; title: string; createdById: string },
+  sourceUrl: string,
+) {
+  const prompt = deserializeMentions(mentionText)
+    .replace(/@(chatgpt|openai|gpt|claude)\b/gi, "")
+    .trim();
+
+  let imageUrl: string;
+  try {
+    const png = await editImage(sourceUrl, prompt);
+    if (!png) return null;
+    const key = `ai/chatgpt/${seedId}-${Date.now()}-edit.png`;
+    const blob = await put(key, png, { access: "public", contentType: "image/png" });
+    imageUrl = blob.url;
+  } catch (err) {
+    console.error("[ai] image edit/upload failed", err);
+    return null;
+  }
+
+  const bot = await getOrCreateChatGptUser();
+  const caption = prompt ? `Here's your edit — ${prompt.slice(0, 120)}:` : "Here's the edited image:";
+  const contribution = await db.contribution.create({
+    data: {
+      seedId,
+      authorId: bot.id,
+      dimension,
+      parentId,
+      content: { text: caption, attachments: [{ url: imageUrl, type: "image" }] },
+    },
+    include: { author: { select: { id: true, name: true, image: true } } },
+  });
+  await notifySeedActivity(
+    bot.id,
+    { id: seed.id, title: seed.title, createdById: seed.createdById },
+    contribution.id,
+    "ChatGPT edited an image",
+    [],
+  );
+  return contribution;
+}
+
 // ChatGPT's reply to an @chatgpt mention, posted as the ChatGPT system user.
 export async function respondAsChatGpt(
   seedId: string,
@@ -191,6 +243,24 @@ export async function respondAsChatGpt(
 ) {
   const data = await threadForSeed(seedId);
   if (!data) return null;
+
+  // "@chatgpt add a hat to this photo" → EDIT the most recent image in the thread
+  // (checked before generation: a request that references "this photo" while an
+  // image is present means modify it, not draw a fresh one).
+  const threadImages = data.thread.flatMap((c) => c.images ?? []);
+  const sourceImage = threadImages[threadImages.length - 1];
+  if (sourceImage && wantsImageEdit(mentionText)) {
+    const edited = await respondWithImageEdit(
+      seedId,
+      dimension,
+      mentionText,
+      parentId,
+      data.seed,
+      sourceImage,
+    );
+    if (edited) return edited;
+    // fall through to generation / text if the edit failed
+  }
 
   // "@chatgpt draw me a …" → generate a picture instead of a text reply. But a
   // bare capability question ("can you make images if I give a prompt?") has no
