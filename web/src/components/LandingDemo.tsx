@@ -21,18 +21,26 @@ const TRIP = {
     { who: "Aarav", dim: "understanding", text: "@Claude which is better value in December — Goa or Thailand?" },
     { who: "Claude", ai: true, dim: "understanding", text: "Goa, for December — Thailand’s peak spikes flights. Calm beaches for you, water-sports for the kids, and it’s easy on everyone’s leave." },
   ] as Msg[],
-  // Decide: the real Quorum's six questions. Answering them one at a time is the
-  // whole trick — it turns "where should we go?!" into six small, fair calls.
-  decideIntro: "Six small questions instead of one big argument:",
-  questions: [
-    { emoji: "💰", q: "Who’s spending the most?", a: "Ravi" },
-    { emoji: "⏳", q: "Who’ll do the planning?", a: "Meera" },
-    { emoji: "❤️", q: "Who cares the most?", a: "the kids" },
-    { emoji: "🧭", q: "Whose judgement do we trust?", a: "Priya" },
-    { emoji: "🛠", q: "Who can book it well?", a: "Ravi" },
-    { emoji: "⚖️", q: "Who will it affect most?", a: "the kids" },
+  // Decide: the real weigh-in. Each of the Quorum's six questions, you rank the
+  // people best-first, then Next → Next → Next. Turns one big argument into six
+  // small, fair calls.
+  weigh: [
+    { emoji: "💰", label: "Money", q: "Who’s spending the most?", ranked: ["Ravi", "Priya", "Meera"] },
+    { emoji: "⏳", label: "Work", q: "Who’ll do the planning?", ranked: ["Meera", "Priya", "Ravi"] },
+    { emoji: "❤️", label: "Feelings", q: "Who cares the most?", ranked: ["Aarav", "Meera", "Priya"] },
+    { emoji: "🧭", label: "Judgement", q: "Whose judgement do we trust?", ranked: ["Priya", "Ravi", "Meera"] },
+    { emoji: "🛠", label: "Skill", q: "Who can book it well?", ranked: ["Ravi", "Meera", "Priya"] },
+    { emoji: "⚖️", label: "Impact", q: "Who will it affect most?", ranked: ["Aarav", "Meera", "Ravi"] },
   ],
-  result: "Goa — 64%",
+  // The reveal: how the weight settled — plus the quiet magic, the room seeing
+  // you differently than you saw yourself.
+  weights: [
+    { who: "Ravi", pct: 31 },
+    { who: "Meera", pct: 28 },
+    { who: "Priya", pct: 23 },
+    { who: "Aarav", pct: 18 },
+  ],
+  mirror: "Priya — the room trusts your judgement more than you did. You ranked yourself 3rd; they put you 1st. 🌱",
   bloom: "Goa — beaches to unwind, water-sports for the kids, and it fits the budget and everyone’s leave.",
   treeSummary: "Goa: adventure and rest in one, within budget — and why we chose it, kept for next time.",
 };
@@ -51,7 +59,7 @@ const DECIDE_STEP = N;
 const BLOOM_STEP = N + 1;
 const DELAYS = [
   ...TRIP.msgs.map((m) => (m.ai ? 4200 : 2900)),
-  8500, // Decide — long enough to answer all six questions
+  13000, // Decide — six questions ranked, then the reveal
   5200, // Bloom
   6000, // Tree
   3000, // Tree hold
@@ -100,15 +108,16 @@ export function LandingDemo() {
     return () => clearTimeout(t);
   }, [step, paused, inView]);
 
-  // Sub-clock: while Decide is on screen, answer the six questions one by one so
-  // you can see the framework doing the work — not just a bare percentage.
+  // Sub-clock: while Decide is on screen, step through the six weigh-in questions
+  // one at a time (ranking people best-first), then land on the reveal — exactly
+  // the real flow. decideIdx 0..5 = questions, 6 = reveal.
   useEffect(() => {
     if (phase !== "decide") {
       setDecideIdx(0);
       return;
     }
-    if (paused || !inView || decideIdx >= TRIP.questions.length) return;
-    const t = setTimeout(() => setDecideIdx((i) => i + 1), 1050);
+    if (paused || !inView || decideIdx >= TRIP.weigh.length) return;
+    const t = setTimeout(() => setDecideIdx((i) => i + 1), 1500);
     return () => clearTimeout(t);
   }, [phase, decideIdx, paused, inView]);
 
@@ -121,7 +130,8 @@ export function LandingDemo() {
     setPaused(false);
   };
   const atEnd = step >= DELAYS.length - 1;
-  const allAnswered = decideIdx >= TRIP.questions.length;
+  const showReveal = decideIdx >= TRIP.weigh.length; // past the six questions
+  const weighQ = TRIP.weigh[Math.min(decideIdx, TRIP.weigh.length - 1)];
 
   return (
     <div ref={cardRef} className="card mx-auto w-full max-w-sm p-4">
@@ -193,37 +203,74 @@ export function LandingDemo() {
           </div>
         </div>
 
-        {/* ── DECIDE ── the six questions, answered one at a time (the framework) */}
+        {/* ── DECIDE ── the real weigh-in: rank people per question, Next ×6,
+            then the reveal (with the room seeing you differently than you did) */}
         <div className={`absolute inset-0 transition-opacity duration-700 ${phase === "decide" ? "opacity-100" : "pointer-events-none opacity-0"}`}>
-          <p className="mb-2.5 text-[11px] leading-relaxed text-ink-soft">{TRIP.decideIntro}</p>
-          <ul className="space-y-1.5">
-            {TRIP.questions.map((qq, i) => {
-              const answered = phase !== "decide" || i < decideIdx;
-              return (
-                <li
-                  key={qq.q}
-                  className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-xs transition-all duration-300"
-                  style={{ background: answered ? "rgba(76,175,80,0.07)" : "rgba(255,255,255,0.02)", opacity: answered ? 1 : 0.45 }}
-                >
-                  <span className="flex items-center gap-1.5 text-ink-mid">
-                    <span aria-hidden>{qq.emoji}</span> {qq.q}
-                  </span>
-                  {answered ? (
-                    <span className="shrink-0 rounded-full bg-[rgba(76,175,80,0.16)] px-2 py-0.5 text-[11px] font-medium text-accent">
-                      {qq.a}
+          {!showReveal ? (
+            <div key={decideIdx} className="animate-[fadeUp_0.4s_ease-out]">
+              <p className="mb-2 text-[11px] text-ink-soft">Everyone weighs in privately — one question at a time.</p>
+              {/* progress dots across the six questions */}
+              <div className="mb-3 flex items-center justify-center gap-1.5">
+                {TRIP.weigh.map((_, i) => (
+                  <span
+                    key={i}
+                    className="h-1.5 rounded-full transition-all"
+                    style={{ width: i === decideIdx ? 20 : 7, background: i < decideIdx ? "rgba(76,175,80,0.6)" : i === decideIdx ? "#66BB6A" : "rgba(255,255,255,0.15)" }}
+                  />
+                ))}
+              </div>
+              <div className="mb-1 flex items-center gap-1.5">
+                <span className="text-lg">{weighQ.emoji}</span>
+                <span className="text-[10px] uppercase tracking-wide text-ink-soft">
+                  {weighQ.label} · {Math.min(decideIdx + 1, TRIP.weigh.length)} of {TRIP.weigh.length}
+                </span>
+              </div>
+              <p className="serif-lg mb-2 text-lg">{weighQ.q}</p>
+              {/* ranked best-first */}
+              <ol className="space-y-1.5">
+                {weighQ.ranked.map((who, i) => (
+                  <li
+                    key={who}
+                    className="flex items-center gap-2 rounded-xl border border-[rgba(76,175,80,0.25)] bg-[rgba(76,175,80,0.06)] px-2 py-1.5"
+                    style={{ animation: `fadeUp 0.35s ease-out ${i * 0.12}s both` }}
+                  >
+                    <span className="w-5 shrink-0 text-center text-sm font-semibold text-accent">{i + 1}</span>
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.08)] text-[11px] font-medium text-ink-mid">
+                      {who[0]}
                     </span>
-                  ) : (
-                    <span className="shrink-0 text-ink-soft">·</span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          <div className={`mt-3 text-center transition-opacity duration-500 ${allAnswered ? "opacity-100" : "opacity-0"}`}>
-            <p className="text-[11px] text-ink-soft">
-              Weighed together → <span className="font-medium text-bloom">{TRIP.result}</span>. Ready to bloom.
-            </p>
-          </div>
+                    <span className="min-w-0 flex-1 truncate text-sm text-ink">{who}</span>
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-2.5 text-right">
+                <span className="inline-block rounded-full bg-[rgba(76,175,80,0.14)] px-3 py-1 text-[11px] font-medium text-accent">
+                  {decideIdx === TRIP.weigh.length - 1 ? "Done ✓" : "Next ›"}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="animate-[fadeUp_0.5s_ease-out]">
+              <p className="mb-2.5 text-[11px] text-ink-soft">The room’s read is in — here’s how the say settles:</p>
+              <div className="space-y-2">
+                {TRIP.weights.map((w) => (
+                  <div key={w.who} className="flex items-center gap-2">
+                    <span className="w-12 shrink-0 text-xs text-ink-mid">{w.who}</span>
+                    <div className="relative h-3 flex-1 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${w.pct}%`, background: "linear-gradient(to right,#66BB6A,#4CAF50)", transition: "width 0.9s ease-out" }}
+                      />
+                    </div>
+                    <span className="w-9 shrink-0 text-right text-xs font-semibold text-ink">{w.pct}%</span>
+                  </div>
+                ))}
+              </div>
+              {/* the quiet magic — the mirror */}
+              <div className="mt-3 rounded-xl border border-[rgba(255,179,0,0.35)] bg-[rgba(255,179,0,0.07)] p-2.5">
+                <p className="text-[11px] leading-relaxed text-ink-mid">{TRIP.mirror}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── BLOOM & SACRED TREE ── the payoff blossoms on its own */}
