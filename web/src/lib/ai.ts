@@ -964,18 +964,22 @@ export async function generateImage(prompt: string): Promise<Buffer | null> {
 const OPENAI_EDIT_MODEL =
   process.env.OPENAI_IMAGE_MODEL === "gpt-image-1" ? process.env.OPENAI_IMAGE_MODEL : "gpt-image-1";
 
-// Does this message ask to MODIFY an existing image (add/remove/change something
-// in it) rather than draw a fresh one? The caller only routes here when there's
-// actually an image in the thread, so this just needs an edit verb plus a
-// reference back to that image ("this", "the photo", "it").
+// Does this message ask to MODIFY the existing image in the thread rather than
+// draw a fresh one? The caller only asks when an image is actually present.
+// Two ways to qualify:
+//   • a STRONG modify verb (add/remove/change/…) — implies changing what's there;
+//   • a soft/ambiguous verb (make/render/draw/…) ONLY when the text also refers
+//     back to the existing photo ("the person", "this", "her"). This is what
+//     stops "render an image with a hat above the person" from generating a
+//     random new picture while a real photo is sitting right there — yet keeps
+//     "draw a cat" / "render a mountain" on the generate path.
 export function wantsImageEdit(text: string): boolean {
-  const editVerb =
-    /\b(add|put|place|remove|erase|delete|change|replace|edit|modify|swap|give|turn|make|draw|paint|recolou?r|colou?r|enhance|retouch|restyle|redesign|fix|blur|crop|adjust)\b/i.test(
-      text,
-    );
-  const refToImage =
-    /\b(this|that|it|image|images|photo|photos|picture|pictures|pic|pics|selfie|portrait)\b/i.test(text);
-  return editVerb && refToImage;
+  const modifyVerb =
+    /\b(add|put|place|remove|erase|delete|change|replace|edit|modify|swap|turn|recolou?r|colou?r|enhance|retouch|restyle|redesign|fix|blur|crop|adjust)\b/i;
+  const softVerb = /\b(make|give|draw|paint|render|generate|create|sketch|illustrate|show)\b/i;
+  const refsExisting =
+    /\b(this|that|it|the image|the photo|the picture|the pic|the person|the man|the woman|the guy|the girl|the kid|the baby|the face|the selfie|the portrait|her|him|his|hers)\b/i;
+  return modifyVerb.test(text) || (softVerb.test(text) && refsExisting.test(text));
 }
 
 // Edit an existing image from its URL with a natural-language instruction ("add a

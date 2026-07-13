@@ -259,14 +259,14 @@ export async function respondAsChatGpt(
       sourceImage,
     );
     if (edited) return edited;
-    // fall through to generation / text if the edit failed
-  }
-
-  // "@chatgpt draw me a …" → generate a picture instead of a text reply. But a
-  // bare capability question ("can you make images if I give a prompt?") has no
-  // real subject yet — skip generation and let the text reply warmly say "yes,
-  // tell me what to draw" (its system prompt now states it truthfully can).
-  if (wantsImage(mentionText) && !asksImageCapabilityOnly(mentionText)) {
+    // Edit was intended but failed — fall through to a TEXT reply, NOT a
+    // from-scratch generation. Inventing a random new image when the person
+    // asked to edit their own photo is worse than a plain explanation.
+  } else if (wantsImage(mentionText) && !asksImageCapabilityOnly(mentionText)) {
+    // "@chatgpt draw me a …" → generate a fresh picture. A bare capability
+    // question ("can you make images if I give a prompt?") has no real subject
+    // yet — skip generation and let the text reply warmly say "yes, tell me
+    // what to draw" (its system prompt now states it truthfully can).
     const img = await respondWithImage(seedId, dimension, mentionText, parentId, data.seed, invokerId);
     if (img) return img;
     // fall through to a normal text reply if image generation failed
