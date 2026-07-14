@@ -3,8 +3,9 @@ import { db } from "@/lib/db";
 
 // Reaction types are product configuration that changes rarely (it's seeded, and
 // extended by inserting rows). Cache it across requests so the seed page doesn't
-// hit the database for it on every view. Revalidates hourly; bump the tag if you
-// add reactions and want them live immediately.
+// hit the database for it on every view. Revalidate is kept SHORT (60s) so that
+// adding reactions via /admin migrate shows up within a minute without needing a
+// redeploy — the query is tiny and rarely runs, so the cost is negligible.
 export const getReactionTypes = unstable_cache(
   async () =>
     db.reactionType.findMany({
@@ -13,5 +14,5 @@ export const getReactionTypes = unstable_cache(
       select: { key: true, emoji: true, label: true },
     }),
   ["reaction-types"],
-  { revalidate: 3600, tags: ["reaction-types"] },
+  { revalidate: 60, tags: ["reaction-types"] },
 );
