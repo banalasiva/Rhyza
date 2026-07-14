@@ -11,9 +11,6 @@ export function PlantSvg({ stage }: { stage: number }) {
   const rootSpread = [0, 0.4, 0.7, 1, 1][stage] ?? 0;
   const leafScale = [0, 0, 0.6, 1, 1][stage] ?? 0;
   const bloomScale = stage === 4 ? 1 : 0;
-  const outerPetals = [0, 45, 90, 135, 180, 225, 270, 315];
-  const innerPetals = [22, 67, 112, 157, 202, 247, 292, 337];
-  const stamens = [0, 60, 120, 180, 240, 300];
 
   return (
     <svg
@@ -35,6 +32,11 @@ export function PlantSvg({ stage }: { stage: number }) {
           <stop offset="0%" stopColor="#FFD54F" stopOpacity="0.8" />
           <stop offset="100%" stopColor="#FF8F00" stopOpacity="0" />
         </radialGradient>
+        <linearGradient id="bulbGr" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#FFE082" />
+          <stop offset="55%" stopColor="#FFB300" />
+          <stop offset="100%" stopColor="#FB8C00" />
+        </linearGradient>
         <filter id="softGlow">
           <feGaussianBlur stdDeviation="4" result="b" />
           <feMerge>
@@ -143,7 +145,7 @@ export function PlantSvg({ stage }: { stage: number }) {
         </g>
       )}
 
-      {/* Bloom */}
+      {/* Bloom — a single glowing oval bulb on top (not a full flower). */}
       {stage >= 4 && (
         <g
           style={{
@@ -152,49 +154,16 @@ export function PlantSvg({ stage }: { stage: number }) {
             transition: "transform 1.4s cubic-bezier(0.34,1.56,0.64,1) 0.3s",
           }}
         >
+          {/* the glow */}
           <circle cx={150} cy={stemTop} r={52} fill="url(#bloomGlow)">
             <animate attributeName="r" values="50;66;50" dur="2.2s" repeatCount="indefinite" />
             <animate attributeName="opacity" values="0.7;0.4;0.7" dur="2.2s" repeatCount="indefinite" />
           </circle>
-          {outerPetals.map((deg, i) => (
-            <ellipse
-              key={deg}
-              cx={150}
-              cy={stemTop}
-              rx={8}
-              ry={22}
-              fill={i % 2 === 0 ? "#FFB300" : "#FF8F00"}
-              opacity={0.92}
-              transform={`rotate(${deg} 150 ${stemTop})`}
-              style={{ transformOrigin: `150px ${stemTop}px` }}
-            />
-          ))}
-          {innerPetals.map((deg) => (
-            <ellipse
-              key={`i${deg}`}
-              cx={150}
-              cy={stemTop}
-              rx={5}
-              ry={14}
-              fill="#FFD54F"
-              opacity={0.8}
-              transform={`rotate(${deg} 150 ${stemTop})`}
-            />
-          ))}
-          <circle cx={150} cy={stemTop} r={11} fill="#FFF9C4" />
-          <circle cx={150} cy={stemTop} r={6} fill="#FFFFFF" opacity={0.9} />
-          {stamens.map((deg) => {
-            const rad = (deg * Math.PI) / 180;
-            return (
-              <circle
-                key={`s${deg}`}
-                cx={150 + 9 * Math.cos(rad)}
-                cy={stemTop + 9 * Math.sin(rad)}
-                r={1.5}
-                fill="#FFB300"
-              />
-            );
-          })}
+          {/* the oval bulb */}
+          <ellipse cx={150} cy={stemTop} rx={15} ry={22} fill="url(#bulbGr)" filter="url(#softGlow)" />
+          {/* the white sparkle core inside the bulb (the look you liked) */}
+          <circle cx={150} cy={stemTop} r={6} fill="#FFF9C4" />
+          <circle cx={150} cy={stemTop} r={3} fill="#FFFFFF" opacity={0.95} />
         </g>
       )}
     </svg>
