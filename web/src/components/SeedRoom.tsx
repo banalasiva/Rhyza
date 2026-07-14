@@ -2499,12 +2499,6 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
       // Now it's a clean stage: just the plant, its glow, and the petals.
       style={{ background: "radial-gradient(circle at 50% 44%, #241300 0%, #0A0600 68%)" }}
     >
-      {/* One soft, warm glow that gently breathes behind the plant — no ring,
-          no spinning halo (those read as an awkward disk). */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <span className="bloom-halo" />
-      </div>
-
       {/* petal rain — soft CSS petals drifting downward */}
       <div className="pointer-events-none absolute inset-0">
         {petals.map((p, i) => (
@@ -2532,7 +2526,9 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
       </div>
 
       <div className="relative animate-[fadeUp_0.8s_ease-out]">
-        <div className="mx-auto mb-2 h-44 w-44 drop-shadow-[0_0_40px_rgba(255,179,0,0.55)]">
+        {/* Just the plant. Its own bloom flower + glow come from PlantSvg —
+            no extra halo circle or drop-shadow stacked on top. */}
+        <div className="mx-auto mb-2 h-44 w-44">
           <PlantSvg stage={4} />
         </div>
         <p className="eyebrow mb-2 text-bloom">✨ You decided it together 🌸 ✨</p>
