@@ -404,6 +404,33 @@ html.light body {
   will-change: transform, opacity;
 }
 
+/* Festive confetti shooting UP from the bottom — energetic launch (fast off the
+   floor, easing out as it rises), with sideways spread + spin, then fade. */
+.celebrate-rise {
+  position: absolute;
+  bottom: -6%;
+  animation-name: celebrateRise;
+  animation-timing-function: cubic-bezier(0.15, 0.55, 0.35, 1);
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+@keyframes celebrateRise {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(0.5);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--drift, 0px), var(--rise, -90vh)) rotate(var(--spin, 360deg)) scale(1);
+    opacity: 0;
+  }
+}
+
 /* A big, warm celebration glow behind the bloomed plant — soft radial, gently
    breathing, no hard edge. Larger + fuller than the old halo for a grander feel. */
 .celebrate-glow {

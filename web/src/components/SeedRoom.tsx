@@ -2481,15 +2481,17 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
   const PETAL = ["#FFC1CC", "#FFD98A", "#FF9FB0", "#FFE0B2"];
   const confetti = useMemo(
     () =>
-      Array.from({ length: 36 }).map((_, i) => ({
+      Array.from({ length: 40 }).map((_, i) => ({
         isEmoji: i % 4 !== 0, // ~75% festive emoji, ~25% soft petals
         char: EMOJI[i % EMOJI.length],
         color: PETAL[i % PETAL.length],
-        left: Math.round((i / 36) * 100 + Math.random() * 6),
-        delay: Math.random() * 3.2,
-        dur: 4 + Math.random() * 4,
+        left: Math.round(Math.random() * 100), // launch from anywhere along the bottom
+        delay: Math.random() * 2.6,
+        dur: 2.6 + Math.random() * 2.2, // quicker = more energetic
         size: 16 + Math.round(Math.random() * 22),
-        sway: `${(Math.random() * 90 - 45).toFixed(0)}px`,
+        drift: `${(Math.random() * 220 - 110).toFixed(0)}px`, // sideways spread as it flies up
+        rise: `-${(72 + Math.random() * 34).toFixed(0)}vh`, // how high it shoots
+        spin: `${Math.round(Math.random() * 900 - 450)}deg`,
         rot: Math.round(Math.random() * 360),
       })),
     [],
@@ -2505,17 +2507,20 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
         <span className="celebrate-glow" />
       </div>
 
-      {/* festive fall — party poppers, flowers, confetti + soft petals */}
+      {/* festive burst — party poppers, flowers, confetti + soft petals shooting
+          UP from the bottom (energetic), not drifting down. */}
       <div className="pointer-events-none absolute inset-0">
         {confetti.map((c, i) => (
           <span
             key={i}
-            className="petal-fall"
+            className="celebrate-rise"
             style={{
               left: `${c.left}%`,
               animationDelay: `${c.delay}s`,
               animationDuration: `${c.dur}s`,
-              ["--sway" as string]: c.sway,
+              ["--drift" as string]: c.drift,
+              ["--rise" as string]: c.rise,
+              ["--spin" as string]: c.spin,
             } as React.CSSProperties}
           >
             {c.isEmoji ? (
