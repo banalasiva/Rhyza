@@ -2492,7 +2492,13 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
     [],
   );
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-[rgba(20,10,0,0.88)] px-6 text-center backdrop-blur">
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden px-6 text-center"
+      // Fully OPAQUE warm backdrop — the old 88% overlay let the thread's cards
+      // bleed through behind the plant, which read as a stray "stored image" box.
+      // Now it's a clean stage: just the plant, its glow, and the petals.
+      style={{ background: "radial-gradient(circle at 50% 44%, #241300 0%, #0A0600 68%)" }}
+    >
       {/* One soft, warm glow that gently breathes behind the plant — no ring,
           no spinning halo (those read as an awkward disk). */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
