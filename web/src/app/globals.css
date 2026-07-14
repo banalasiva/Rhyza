@@ -426,6 +426,35 @@ html.light body {
   animation: bloomHalo 3.4s ease-in-out infinite;
 }
 
+/* A soft glowing halo RING encircling the bloomed plant — a defined ring of
+   golden light (breathing, not spinning). */
+.bloom-halo-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 112%;
+  height: 112%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 213, 79, 0.45);
+  box-shadow:
+    0 0 26px 4px rgba(255, 213, 79, 0.45),
+    inset 0 0 26px 2px rgba(255, 213, 79, 0.3);
+  pointer-events: none;
+  animation: haloBreathe 3s ease-in-out infinite;
+}
+@keyframes haloBreathe {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.05);
+    opacity: 1;
+  }
+}
+
 /* A single soft petal shape (device-independent — no emoji). The lopsided
    border-radius gives a rounded petal/teardrop rather than a plain oval. */
 .petal-shape {

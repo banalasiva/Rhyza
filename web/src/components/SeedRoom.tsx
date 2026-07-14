@@ -2538,9 +2538,11 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
       </div>
 
       <div className="relative animate-[fadeUp_0.8s_ease-out]">
-        {/* The plant — bigger for the celebration. Its bloom bulb + glow come
-            from PlantSvg; the big warm glow behind is celebrate-glow. */}
-        <div className="mx-auto mb-2 h-56 w-56">
+        {/* The plant — bigger for the celebration, with a soft halo ring around
+            it. Its bloom bulb + glow come from PlantSvg; the big warm glow behind
+            is celebrate-glow. */}
+        <div className="relative mx-auto mb-2 h-56 w-56">
+          <span className="bloom-halo-ring" />
           <PlantSvg stage={4} />
         </div>
         <p className="eyebrow mb-2 text-bloom">✨ You decided it together 🌸 ✨</p>
