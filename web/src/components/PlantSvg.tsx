@@ -162,7 +162,7 @@ export function PlantSvg({ stage }: { stage: number }) {
           {/* the bulb — a SHARP pointed almond/leaf shape (crisp edges: no blur
               filter), pointed at top and bottom like the reference. */}
           <path
-            d={`M150,${stemTop - 18} Q160,${stemTop} 150,${stemTop + 18} Q140,${stemTop} 150,${stemTop - 18} Z`}
+            d={`M150,${stemTop - 18} Q170,${stemTop} 150,${stemTop + 18} Q130,${stemTop} 150,${stemTop - 18} Z`}
             fill="url(#bulbGr)"
           />
           {/* the white sparkle core */}
