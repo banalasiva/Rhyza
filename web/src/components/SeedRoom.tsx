@@ -2170,11 +2170,14 @@ export function SeedRoom({
             className="relative z-10 max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 pb-[calc(1rem+4.75rem+env(safe-area-inset-bottom))] shadow-2xl sm:max-h-[85vh] sm:rounded-2xl sm:pb-4"
           >
             <div className="mb-3 flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
                 <Avatar name={sheetC.author?.name} image={sheetC.author?.image} size={28} />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-ink">{sheetC.author?.name || "Someone"}</p>
-                  <p className="truncate text-[11px] text-ink-soft">{sheetC.text || "attachment"}</p>
+                  {/* Preview only — this sheet is for reacting/acting, not
+                      re-reading. Clamp to 2 lines so a long thought can't grow
+                      the card past the screen and push the ✕ out of reach. */}
+                  <p className="line-clamp-2 text-[11px] text-ink-soft">{sheetC.text || "attachment"}</p>
                 </div>
               </div>
               <button
