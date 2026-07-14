@@ -2475,18 +2475,21 @@ function Requirement({ met, label }: { met: boolean; label: string }) {
 }
 
 function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => void }) {
-  // A gentle rain of petals drifting DOWN. Rendered as CSS petal SHAPES (not
-  // emoji) so every device draws the same soft rose/gold petals — emoji rendered
-  // inconsistently (as plain orange ovals on some phones).
-  const petals = useMemo(
+  // A big, festive fall: emoji confetti (party poppers, round flowers, balloons,
+  // sparkles, stars, ribbons) mixed with soft CSS petals raining down.
+  const EMOJI = ["🎉", "🎊", "🎈", "✨", "🌟", "🎀", "🌸", "🌺", "💐", "💫", "🏵️", "🌼"];
+  const PETAL = ["#FFC1CC", "#FFD98A", "#FF9FB0", "#FFE0B2"];
+  const confetti = useMemo(
     () =>
-      Array.from({ length: 16 }).map((_, i) => ({
-        color: ["#FFC1CC", "#FFD98A", "#FF9FB0", "#FFE0B2"][i % 4],
-        left: Math.round((i / 16) * 100 + Math.random() * 6),
-        delay: Math.random() * 2.4,
-        dur: 5 + Math.random() * 3,
-        size: 9 + Math.round(Math.random() * 7),
-        sway: `${(Math.random() * 60 - 30).toFixed(0)}px`,
+      Array.from({ length: 36 }).map((_, i) => ({
+        isEmoji: i % 4 !== 0, // ~75% festive emoji, ~25% soft petals
+        char: EMOJI[i % EMOJI.length],
+        color: PETAL[i % PETAL.length],
+        left: Math.round((i / 36) * 100 + Math.random() * 6),
+        delay: Math.random() * 3.2,
+        dur: 4 + Math.random() * 4,
+        size: 16 + Math.round(Math.random() * 22),
+        sway: `${(Math.random() * 90 - 45).toFixed(0)}px`,
         rot: Math.round(Math.random() * 360),
       })),
     [],
@@ -2494,41 +2497,50 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
   return (
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden px-6 text-center"
-      // Fully OPAQUE warm backdrop — the old 88% overlay let the thread's cards
-      // bleed through behind the plant, which read as a stray "stored image" box.
-      // Now it's a clean stage: just the plant, its glow, and the petals.
+      // Fully OPAQUE warm backdrop — nothing behind bleeds through.
       style={{ background: "radial-gradient(circle at 50% 44%, #241300 0%, #0A0600 68%)" }}
     >
-      {/* petal rain — soft CSS petals drifting downward */}
+      {/* big, warm celebration glow behind the plant */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <span className="celebrate-glow" />
+      </div>
+
+      {/* festive fall — party poppers, flowers, confetti + soft petals */}
       <div className="pointer-events-none absolute inset-0">
-        {petals.map((p, i) => (
+        {confetti.map((c, i) => (
           <span
             key={i}
             className="petal-fall"
             style={{
-              left: `${p.left}%`,
-              animationDelay: `${p.delay}s`,
-              animationDuration: `${p.dur}s`,
-              ["--sway" as string]: p.sway,
+              left: `${c.left}%`,
+              animationDelay: `${c.delay}s`,
+              animationDuration: `${c.dur}s`,
+              ["--sway" as string]: c.sway,
             } as React.CSSProperties}
           >
-            <span
-              className="petal-shape"
-              style={{
-                width: p.size,
-                height: Math.round(p.size * 1.4),
-                background: `linear-gradient(135deg, ${p.color}, rgba(255,255,255,0.25))`,
-                transform: `rotate(${p.rot}deg)`,
-              }}
-            />
+            {c.isEmoji ? (
+              <span style={{ fontSize: c.size, display: "inline-block", transform: `rotate(${c.rot}deg)` }}>
+                {c.char}
+              </span>
+            ) : (
+              <span
+                className="petal-shape"
+                style={{
+                  width: Math.round(c.size * 0.5),
+                  height: Math.round(c.size * 0.7),
+                  background: `linear-gradient(135deg, ${c.color}, rgba(255,255,255,0.25))`,
+                  transform: `rotate(${c.rot}deg)`,
+                }}
+              />
+            )}
           </span>
         ))}
       </div>
 
       <div className="relative animate-[fadeUp_0.8s_ease-out]">
-        {/* Just the plant. Its own bloom flower + glow come from PlantSvg —
-            no extra halo circle or drop-shadow stacked on top. */}
-        <div className="mx-auto mb-2 h-44 w-44">
+        {/* The plant — bigger for the celebration. Its bloom bulb + glow come
+            from PlantSvg; the big warm glow behind is celebrate-glow. */}
+        <div className="mx-auto mb-2 h-56 w-56">
           <PlantSvg stage={4} />
         </div>
         <p className="eyebrow mb-2 text-bloom">✨ You decided it together 🌸 ✨</p>

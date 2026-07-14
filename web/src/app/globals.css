@@ -404,6 +404,28 @@ html.light body {
   will-change: transform, opacity;
 }
 
+/* A big, warm celebration glow behind the bloomed plant — soft radial, gently
+   breathing, no hard edge. Larger + fuller than the old halo for a grander feel. */
+.celebrate-glow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 660px;
+  height: 660px;
+  margin-left: -330px;
+  margin-top: -330px;
+  max-width: 96vw;
+  max-height: 96vw;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 213, 79, 0.4),
+    rgba(255, 143, 0, 0.14) 40%,
+    transparent 66%
+  );
+  animation: bloomHalo 3.4s ease-in-out infinite;
+}
+
 /* A single soft petal shape (device-independent — no emoji). The lopsided
    border-radius gives a rounded petal/teardrop rather than a plain oval. */
 .petal-shape {
