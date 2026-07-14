@@ -135,6 +135,7 @@ export function SeedRoom({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [blooming, setBlooming] = useState(false);
+  const [bloomPending, setBloomPending] = useState(false); // request in flight, before the celebration
   const [muted, setMutedState] = useState(false);
   const [glowing, setGlowing] = useState<Set<string>>(new Set());
   const [thinking, setThinking] = useState(false);
@@ -920,8 +921,14 @@ export function SeedRoom({
   }
 
   async function bloomNow() {
-    if (!confirm("Bloom this seed now? This creates a permanent bloom.")) return;
+    if (
+      !confirm(
+        "Bloom this seed now? This closes the conversation into a shared decision, kept in your Sacred Tree. You can reopen it anytime.",
+      )
+    )
+      return;
     setBusy(true);
+    setBloomPending(true); // show a loading state instantly — synthesis takes a few seconds
     try {
       const res = await fetch(`/api/seeds/${seed.id}/bloom`, { method: "POST" });
       const data = await res.json();
@@ -930,6 +937,7 @@ export function SeedRoom({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to bloom");
       setBusy(false);
+      setBloomPending(false);
     }
   }
 
@@ -1101,6 +1109,16 @@ export function SeedRoom({
           {l.text}
         </span>
       ))}
+
+      {/* Instant feedback the moment bloom is triggered — synthesis takes a few
+          seconds, so never leave the tap feeling like nothing happened. */}
+      {bloomPending && !blooming && (
+        <div className="fixed inset-0 z-[190] flex flex-col items-center justify-center bg-[rgba(20,10,0,0.85)] px-6 text-center backdrop-blur">
+          <div className="h-10 w-10 animate-spin rounded-full border-2 border-bloom border-t-transparent" />
+          <p className="serif-lg mt-4 text-bloom">Blooming your decision…</p>
+          <p className="mt-1 text-sm text-ink-mid">Weaving the thread into a keepsake — just a moment.</p>
+        </div>
+      )}
 
       {blooming && (
         <BloomCelebration
@@ -2448,23 +2466,6 @@ function Requirement({ met, label }: { met: boolean; label: string }) {
 }
 
 function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => void }) {
-  // A radial burst of petals + sparkles fanning out from the centre.
-  const burst = useMemo(
-    () =>
-      Array.from({ length: 30 }).map((_, i) => {
-        const angle = (i / 30) * 360 + Math.random() * 10;
-        const dist = 130 + Math.random() * 160;
-        const rad = (angle * Math.PI) / 180;
-        return {
-          emoji: ["🌸", "🌼", "🌺", "🍃", "✨", "💛"][i % 6],
-          bx: `${Math.cos(rad) * dist}%`,
-          by: `${Math.sin(rad) * dist}%`,
-          delay: (i % 10) * 0.05,
-          size: 16 + Math.round(Math.random() * 16),
-        };
-      }),
-    [],
-  );
   // A gentle rain of petals drifting down across the screen.
   const petals = useMemo(
     () =>
@@ -2480,11 +2481,10 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
   );
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-[rgba(20,10,0,0.88)] px-6 text-center backdrop-blur">
-      {/* rotating light rays + expanding glow rings behind the plant */}
+      {/* One soft, warm glow that gently breathes behind the plant — no ring,
+          no spinning halo (those read as an awkward disk). */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-        <span className="bloom-rays" />
-        <span className="bloom-glow" />
-        <span className="bloom-glow" style={{ animationDelay: "0.5s" }} />
+        <span className="bloom-halo" />
       </div>
 
       {/* petal rain */}
@@ -2502,19 +2502,6 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
             } as React.CSSProperties}
           >
             {p.emoji}
-          </span>
-        ))}
-      </div>
-
-      {/* radial burst */}
-      <div className="pointer-events-none absolute inset-0">
-        {burst.map((l, i) => (
-          <span
-            key={i}
-            className="leaf-particle"
-            style={{ fontSize: l.size, animationDelay: `${l.delay}s`, ["--bx" as string]: l.bx, ["--by" as string]: l.by, ["--bx2" as string]: l.bx, ["--by2" as string]: l.by } as React.CSSProperties}
-          >
-            {l.emoji}
           </span>
         ))}
       </div>

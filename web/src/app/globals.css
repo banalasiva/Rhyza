@@ -327,8 +327,40 @@ html.light body {
   }
 }
 
-/* A slowly rotating ring of light rays behind the bloomed flower — so the
-   "circle of lights" is alive, not a static awkward halo. */
+/* A soft, warm ambient glow behind the bloomed flower — no hard ring edge, no
+   spin, just a gentle breathing light. Replaces the old rotating-ray halo,
+   which read as an awkward disk. */
+.bloom-halo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 460px;
+  height: 460px;
+  margin-left: -230px;
+  margin-top: -230px;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(255, 213, 79, 0.32),
+    rgba(255, 143, 0, 0.08) 45%,
+    transparent 68%
+  );
+  animation: bloomHalo 3.4s ease-in-out infinite;
+}
+@keyframes bloomHalo {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scale(1.09);
+    opacity: 0.95;
+  }
+}
+
+/* (Legacy) slowly rotating ring of light rays — no longer used by the bloom
+   celebration, kept only so any other reference doesn't break. */
 .bloom-rays {
   position: absolute;
   left: 0;
