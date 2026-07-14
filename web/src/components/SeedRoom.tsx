@@ -16,6 +16,7 @@ import { playNatureSound, setMuted } from "@/lib/sound";
 import { timeAgo } from "@/lib/time";
 import { upload } from "@vercel/blob/client";
 import { compressImage } from "@/lib/image-compress";
+import { isSignalReaction } from "@/lib/reactions";
 import { PlantSvg } from "@/components/PlantSvg";
 import { HowItWorks } from "@/components/HowItWorks";
 import { RichEditor } from "@/components/RichEditor";
@@ -245,7 +246,17 @@ export function SeedRoom({
   const [bloomConfirm, setBloomConfirm] = useState(false); // confirm modal open
   const [previewBloom, setPreviewBloom] = useState(false); // flower the plant as a preview
   const [bursts, setBursts] = useState<
-    { id: number; emoji: string; x: number; y: number; dx: number }[]
+    {
+      id: number;
+      emoji: string;
+      x: number;
+      y: number;
+      dx: number;
+      dy: number;
+      rot: number;
+      scale: number;
+      delay: number;
+    }[]
   >([]);
   const [labelFx, setLabelFx] = useState<{ id: number; text: string; x: number; y: number }[]>([]);
   const burstId = useRef(0);
@@ -932,16 +943,26 @@ export function SeedRoom({
 
   function spawnBurst(emoji: string, x: number, y: number) {
     const id = ++burstId.current;
-    // A few emojis fan out for a little celebratory pop.
-    const particles = Array.from({ length: 5 }).map((_, i) => ({
-      id: id * 100 + i,
-      emoji,
-      x,
-      y,
-      dx: (i - 2) * 16 + (Math.random() * 8 - 4),
-    }));
+    // A little cluster of the emoji springs up and fans out — varied angle,
+    // rise, spin, scale and a touch of stagger so it feels alive, not uniform.
+    const N = 8;
+    const particles = Array.from({ length: N }).map((_, i) => {
+      const angle = -Math.PI / 2 + (i / (N - 1) - 0.5) * (Math.PI * 0.85); // fan upward
+      const dist = 46 + Math.random() * 46;
+      return {
+        id: id * 100 + i,
+        emoji,
+        x,
+        y,
+        dx: Math.round(Math.cos(angle) * dist),
+        dy: Math.round(Math.sin(angle) * dist - 18), // bias upward
+        rot: Math.round(Math.random() * 140 - 70),
+        scale: 0.8 + Math.random() * 0.9,
+        delay: Math.round(Math.random() * 90),
+      };
+    });
     setBursts((b) => [...b, ...particles]);
-    setTimeout(() => setBursts((b) => b.filter((p) => Math.floor(p.id / 100) !== id)), 900);
+    setTimeout(() => setBursts((b) => b.filter((p) => Math.floor(p.id / 100) !== id)), 1100);
   }
 
   function spawnLabel(text: string, x: number, y: number) {
@@ -1225,7 +1246,17 @@ export function SeedRoom({
         <span
           key={b.id}
           className="reaction-burst"
-          style={{ left: b.x, top: b.y, ["--dx" as string]: `${b.dx}px` } as React.CSSProperties}
+          style={
+            {
+              left: b.x,
+              top: b.y,
+              ["--dx" as string]: `${b.dx}px`,
+              ["--dy" as string]: `${b.dy}px`,
+              ["--rot" as string]: `${b.rot}deg`,
+              ["--scale" as string]: b.scale,
+              animationDelay: `${b.delay}ms`,
+            } as React.CSSProperties
+          }
         >
           {b.emoji}
         </span>
@@ -2155,29 +2186,56 @@ export function SeedRoom({
               </button>
             </div>
 
-            {/* Reactions */}
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {reactions.map((r) => {
+            {/* Reactions — SIGNAL (a labelled read the group + AI use) first,
+                then EXPRESSIVE (warmth, animated, excluded from the quorum). */}
+            {(() => {
+              const reactBtn = (r: ReactionType) => {
                 const mine = sheetC.myReactions.includes(r.key);
                 const n = sheetC.reactionCounts[r.key] ?? 0;
+                const expressive = !isSignalReaction(r.key);
                 return (
                   <button
                     key={r.key}
                     onClick={(e) => react(sheetC.id, r.key, e.currentTarget)}
                     aria-pressed={mine}
-                    className={`inline-flex min-h-[34px] items-center gap-1 rounded-full border px-3 py-1 text-xs transition active:scale-110 ${
+                    aria-label={r.label}
+                    className={`reaction-chip inline-flex min-h-[34px] items-center gap-1 rounded-full border px-3 py-1 text-xs transition active:scale-125 ${
                       mine
                         ? "border-accent text-accent"
                         : "border-[rgba(255,255,255,0.1)] text-ink-soft hover:text-ink"
                     }`}
                   >
-                    <span aria-hidden>{r.emoji}</span>
-                    <span>{r.label}</span>
+                    <span aria-hidden className="text-sm">{r.emoji}</span>
+                    {/* Expressive reactions are emoji-forward; hide the label so
+                        the row reads as a quick emotional palette, not more text. */}
+                    {!expressive && <span>{r.label}</span>}
                     {n > 0 && <span className="font-medium">· {n}</span>}
                   </button>
                 );
-              })}
-            </div>
+              };
+              const signal = reactions.filter((r) => isSignalReaction(r.key));
+              const expressive = reactions.filter((r) => !isSignalReaction(r.key));
+              return (
+                <>
+                  {signal.length > 0 && (
+                    <>
+                      <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-ink-soft">
+                        How it landed
+                      </p>
+                      <div className="mb-3 flex flex-wrap gap-1.5">{signal.map(reactBtn)}</div>
+                    </>
+                  )}
+                  {expressive.length > 0 && (
+                    <>
+                      <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-ink-soft">
+                        React
+                      </p>
+                      <div className="mb-3 flex flex-wrap gap-1.5">{expressive.map(reactBtn)}</div>
+                    </>
+                  )}
+                </>
+              );
+            })()}
 
             {/* Who reacted — so it's clear on touch (where hover doesn't exist)
                 exactly who left each reaction. */}

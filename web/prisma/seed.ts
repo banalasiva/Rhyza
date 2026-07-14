@@ -7,13 +7,27 @@ const db = new PrismaClient();
 // docs/ARCHITECTURE.md. There is intentionally no demo user, org, garden, or
 // seed content here: the app starts empty and real.
 
+// Two tiers — SIGNAL (feeds the group read + AI quorum) then EXPRESSIVE (warmth,
+// excluded from the quorum). Kept in sync with src/lib/reactions.ts, which is the
+// runtime source of truth for which keys are signal vs expressive.
 const reactionTypes = [
+  // signal
   { key: "clicked", emoji: "💥", label: "It clicked", sortOrder: 1 },
-  { key: "beauty", emoji: "✨", label: "Beautifully said", sortOrder: 2 },
-  { key: "mind", emoji: "🧠", label: "Changed thinking", sortOrder: 3 },
-  { key: "impl", emoji: "🛠", label: "I tried this", sortOrder: 4 },
-  { key: "ref", emoji: "📚", label: "Great reference", sortOrder: 5 },
+  { key: "point", emoji: "💡", label: "Good point", sortOrder: 2 },
+  { key: "agree", emoji: "✅", label: "I'm with this", sortOrder: 3 },
+  { key: "mind", emoji: "🧠", label: "Changed thinking", sortOrder: 4 },
+  { key: "fence", emoji: "⚖️", label: "On the fence", sortOrder: 5 },
   { key: "confuse", emoji: "🤔", label: "Still confused", sortOrder: 6 },
+  { key: "impl", emoji: "🛠️", label: "I tried this", sortOrder: 7 },
+  { key: "ref", emoji: "📚", label: "Great reference", sortOrder: 8 },
+  { key: "beauty", emoji: "✨", label: "Beautifully said", sortOrder: 9 },
+  // expressive
+  { key: "love", emoji: "❤️", label: "Love", sortOrder: 20 },
+  { key: "clap", emoji: "👏", label: "Applause", sortOrder: 21 },
+  { key: "haha", emoji: "😂", label: "Haha", sortOrder: 22 },
+  { key: "fire", emoji: "🔥", label: "Fire", sortOrder: 23 },
+  { key: "party", emoji: "🎉", label: "Celebrate", sortOrder: 24 },
+  { key: "praise", emoji: "🙌", label: "Yes!", sortOrder: 25 },
 ];
 
 const recognitionLabels = [

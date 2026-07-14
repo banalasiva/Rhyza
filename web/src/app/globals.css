@@ -561,22 +561,48 @@ html.light body {
   pointer-events: none;
   font-size: 22px;
   transform: translate(-50%, -50%);
-  animation: reactionFloat 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: reactionFloat 1.05s cubic-bezier(0.18, 1.3, 0.4, 1) forwards;
   will-change: transform, opacity;
 }
 
+/* A springy pop out from the tap point, fanning along (dx, dy) with a spin, then
+   drifting up and fading. Each particle carries its own --dx/--dy/--rot/--scale. */
 @keyframes reactionFloat {
   0% {
     opacity: 0;
-    transform: translate(-50%, -20%) scale(0.4);
+    transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
   }
-  25% {
+  22% {
     opacity: 1;
-    transform: translate(calc(-50% + var(--dx, 0px) * 0.5), -70%) scale(1.35);
+    transform: translate(
+        calc(-50% + var(--dx, 0px) * 0.55),
+        calc(-50% + var(--dy, 0px) * 0.55)
+      )
+      scale(calc(var(--scale, 1) * 1.35)) rotate(calc(var(--rot, 0deg) * 0.6));
   }
   100% {
     opacity: 0;
-    transform: translate(calc(-50% + var(--dx, 0px)), -200%) scale(0.9);
+    transform: translate(
+        calc(-50% + var(--dx, 0px)),
+        calc(-50% + var(--dy, 0px) - 90px)
+      )
+      scale(calc(var(--scale, 1) * 0.7)) rotate(var(--rot, 0deg));
+  }
+}
+
+/* The reaction chip itself pops when tapped (satisfying tactile feedback). */
+.reaction-chip:active {
+  animation: reactionChipPop 0.32s cubic-bezier(0.18, 1.4, 0.4, 1);
+}
+@keyframes reactionChipPop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.28);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 

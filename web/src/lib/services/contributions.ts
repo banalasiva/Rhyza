@@ -36,6 +36,7 @@ import { notifyFollowersJoinedDiscussion } from "@/lib/services/follows";
 import { markAsksAnswered } from "@/lib/services/asks";
 import { maybeSenseRoom, resolveMediatorNudge } from "@/lib/services/mediator";
 import { getReactionTypes } from "@/lib/registry";
+import { isSignalReaction } from "@/lib/reactions";
 
 async function seedOrThrow(seedId: string) {
   let seed;
@@ -483,7 +484,10 @@ export async function mediateSeed(
   const thread: ContribForAI[] = seed.contributions.map((c) => {
     const counts: Record<string, number> = {};
     for (const r of c.reactions) counts[r.reactionKey] = (counts[r.reactionKey] ?? 0) + 1;
+    // Only SIGNAL reactions feed the AI's read of the room — expressive ones
+    // (love/applause/…) are warmth, not signal, so they never dilute the quorum.
     const reactions = Object.entries(counts)
+      .filter(([k]) => isSignalReaction(k))
       .map(([k, n]) => {
         const t = rmap.get(k);
         return `${t?.emoji ?? ""} ${t?.label ?? k} ×${n}`;
