@@ -2475,17 +2475,19 @@ function Requirement({ met, label }: { met: boolean; label: string }) {
 }
 
 function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => void }) {
-  // A gentle rain of petals drifting DOWN across the screen (kept — this is the
-  // nice part). The circular ring/burst of petals is what was removed.
+  // A gentle rain of petals drifting DOWN. Rendered as CSS petal SHAPES (not
+  // emoji) so every device draws the same soft rose/gold petals — emoji rendered
+  // inconsistently (as plain orange ovals on some phones).
   const petals = useMemo(
     () =>
-      Array.from({ length: 18 }).map((_, i) => ({
-        emoji: ["🌸", "🌼", "🌺", "🍃"][i % 4],
-        left: Math.round((i / 18) * 100 + Math.random() * 5),
-        delay: Math.random() * 2.2,
-        dur: 4 + Math.random() * 3,
-        size: 14 + Math.round(Math.random() * 16),
+      Array.from({ length: 16 }).map((_, i) => ({
+        color: ["#FFC1CC", "#FFD98A", "#FF9FB0", "#FFE0B2"][i % 4],
+        left: Math.round((i / 16) * 100 + Math.random() * 6),
+        delay: Math.random() * 2.4,
+        dur: 5 + Math.random() * 3,
+        size: 9 + Math.round(Math.random() * 7),
         sway: `${(Math.random() * 60 - 30).toFixed(0)}px`,
+        rot: Math.round(Math.random() * 360),
       })),
     [],
   );
@@ -2497,7 +2499,7 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
         <span className="bloom-halo" />
       </div>
 
-      {/* petal rain — a soft drift downward */}
+      {/* petal rain — soft CSS petals drifting downward */}
       <div className="pointer-events-none absolute inset-0">
         {petals.map((p, i) => (
           <span
@@ -2505,13 +2507,20 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
             className="petal-fall"
             style={{
               left: `${p.left}%`,
-              fontSize: p.size,
               animationDelay: `${p.delay}s`,
               animationDuration: `${p.dur}s`,
               ["--sway" as string]: p.sway,
             } as React.CSSProperties}
           >
-            {p.emoji}
+            <span
+              className="petal-shape"
+              style={{
+                width: p.size,
+                height: Math.round(p.size * 1.4),
+                background: `linear-gradient(135deg, ${p.color}, rgba(255,255,255,0.25))`,
+                transform: `rotate(${p.rot}deg)`,
+              }}
+            />
           </span>
         ))}
       </div>

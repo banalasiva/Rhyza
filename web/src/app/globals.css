@@ -404,6 +404,15 @@ html.light body {
   will-change: transform, opacity;
 }
 
+/* A single soft petal shape (device-independent — no emoji). The lopsided
+   border-radius gives a rounded petal/teardrop rather than a plain oval. */
+.petal-shape {
+  display: inline-block;
+  border-radius: 100% 0 100% 0;
+  opacity: 0.9;
+  box-shadow: 0 0 5px rgba(255, 200, 210, 0.25);
+}
+
 @keyframes petalFall {
   0% {
     transform: translateY(-10vh) translateX(0) rotate(0deg);
