@@ -979,6 +979,11 @@ export function SeedRoom({
 
   function confirmBloom() {
     setBloomConfirm(false);
+    // If this vote is the one that tips the seed over the bloom threshold, the
+    // server runs synthesis right now — show the loading state instantly so the
+    // tipping voter isn't left staring at a still screen. (Non-tipping votes
+    // return fast and skip this, so there's no flicker.)
+    if (bloomedVotes + 1 >= bloomTarget) setBloomPending(true);
     castVote("bloomed");
   }
 
@@ -1012,12 +1017,16 @@ export function SeedRoom({
       if (res.bloomed && res.bloomId) {
         triggerBloom();
       } else {
-        // Not enough bloom votes yet — drop the preview back to the real stage.
+        // Not enough bloom votes yet — drop the preview back to the real stage
+        // and clear any loading state (our tip prediction was off, e.g. a vote
+        // changed underneath us).
         setPreviewBloom(false);
+        setBloomPending(false);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to vote");
       setPreviewBloom(false);
+      setBloomPending(false);
       router.refresh();
     }
   }
