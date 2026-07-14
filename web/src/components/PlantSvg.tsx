@@ -4,7 +4,10 @@
 // (seed → germinating → sprouting → growing → bloomed). It animates between
 // stages via CSS transitions on the SVG.
 
-export function PlantSvg({ stage }: { stage: number }) {
+// `hideGround` drops the soil rect, roots, and seed husk so the plant can float
+// cleanly in the bloom celebration (where a dark ground box + dangling roots
+// looked like a stray artifact). Everywhere else the ground stays.
+export function PlantSvg({ stage, hideGround = false }: { stage: number; hideGround?: boolean }) {
   const soilY = 178;
   const stemTop =
     [soilY - 2, soilY - 28, soilY - 70, soilY - 108, soilY - 138][stage] ?? soilY - 2;
@@ -45,9 +48,13 @@ export function PlantSvg({ stage }: { stage: number }) {
       </defs>
 
       {/* Soil */}
-      <rect x={0} y={soilY} width={300} height={125} fill="url(#soilGr)" className="plant-soil" />
-      <line x1={55} y1={soilY + 14} x2={100} y2={soilY + 11} stroke="#3D2A16" strokeWidth={1} opacity={0.5} />
-      <line x1={185} y1={soilY + 18} x2={235} y2={soilY + 14} stroke="#3D2A16" strokeWidth={1} opacity={0.4} />
+      {!hideGround && (
+        <>
+          <rect x={0} y={soilY} width={300} height={125} fill="url(#soilGr)" className="plant-soil" />
+          <line x1={55} y1={soilY + 14} x2={100} y2={soilY + 11} stroke="#3D2A16" strokeWidth={1} opacity={0.5} />
+          <line x1={185} y1={soilY + 18} x2={235} y2={soilY + 14} stroke="#3D2A16" strokeWidth={1} opacity={0.4} />
+        </>
+      )}
 
       {/* Seed glow halo */}
       <ellipse
@@ -60,7 +67,7 @@ export function PlantSvg({ stage }: { stage: number }) {
       />
 
       {/* Roots */}
-      {stage >= 1 && (
+      {!hideGround && stage >= 1 && (
         <g opacity={rootSpread} style={{ transition: "opacity 1s" }}>
           <path d="M150,182 Q150,215 148,242" stroke="#5D4037" strokeWidth={2.5} fill="none" strokeLinecap="round" />
           {stage >= 2 && (
@@ -96,7 +103,7 @@ export function PlantSvg({ stage }: { stage: number }) {
           <line x1={150} y1={soilY - 14} x2={152} y2={soilY - 2} stroke="#BCAAA4" strokeWidth={1} opacity={0.7} />
         </g>
       )}
-      {stage >= 1 && (
+      {!hideGround && stage >= 1 && (
         <g>
           <ellipse cx={147} cy={soilY + 1} rx={18} ry={12} fill="#6D4C41" />
           <ellipse cx={153} cy={soilY + 1} rx={18} ry={12} fill="#5D4037" opacity={0.7} />
