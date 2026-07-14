@@ -154,16 +154,16 @@ export function PlantSvg({ stage }: { stage: number }) {
             transition: "transform 1.4s cubic-bezier(0.34,1.56,0.64,1) 0.3s",
           }}
         >
-          {/* the glow */}
-          <circle cx={150} cy={stemTop} r={52} fill="url(#bloomGlow)">
-            <animate attributeName="r" values="50;66;50" dur="2.2s" repeatCount="indefinite" />
+          {/* the glow (sized to the smaller bulb) */}
+          <circle cx={150} cy={stemTop} r={38} fill="url(#bloomGlow)">
+            <animate attributeName="r" values="34;46;34" dur="2.2s" repeatCount="indefinite" />
             <animate attributeName="opacity" values="0.7;0.4;0.7" dur="2.2s" repeatCount="indefinite" />
           </circle>
-          {/* the oval bulb */}
-          <ellipse cx={150} cy={stemTop} rx={15} ry={22} fill="url(#bulbGr)" filter="url(#softGlow)" />
+          {/* the oval bulb — small */}
+          <ellipse cx={150} cy={stemTop} rx={10} ry={15} fill="url(#bulbGr)" filter="url(#softGlow)" />
           {/* the white sparkle core inside the bulb (the look you liked) */}
-          <circle cx={150} cy={stemTop} r={6} fill="#FFF9C4" />
-          <circle cx={150} cy={stemTop} r={3} fill="#FFFFFF" opacity={0.95} />
+          <circle cx={150} cy={stemTop} r={4} fill="#FFF9C4" />
+          <circle cx={150} cy={stemTop} r={2} fill="#FFFFFF" opacity={0.95} />
         </g>
       )}
     </svg>
