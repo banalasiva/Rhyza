@@ -4,6 +4,7 @@ import { requireViewer } from "@/lib/session";
 import { getMyRoots } from "@/lib/services/roots";
 import { NavBar } from "@/components/NavBar";
 import { ProfilePhoto } from "@/components/ProfilePhoto";
+import { ProfileEnrich } from "@/components/ProfileEnrich";
 import { ConnectionRequests } from "@/components/ConnectionRequests";
 import { DisplayNameEditor } from "@/components/DisplayNameEditor";
 import { ProfileTopicsEditor } from "@/components/ProfileTopicsEditor";
@@ -27,6 +28,7 @@ export default async function RootsPage() {
       <div className="garden-bg" />
       <NavBar name={viewer.name} />
       <main id="main" className="relative z-10 mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+        <ProfileEnrich enabled={roots.needsEnrich} />
         <Link href="/" className="btn-ghost mb-5 inline-flex px-3 py-1.5 text-xs">
           ← Your gardens
         </Link>

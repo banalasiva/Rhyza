@@ -12,6 +12,7 @@ import { ShareButton } from "@/components/ShareButton";
 import { FollowUserButton } from "@/components/FollowUserButton";
 import { FollowCounts } from "@/components/FollowCounts";
 import { ConnectButton } from "@/components/ConnectButton";
+import { ProfileEnrich } from "@/components/ProfileEnrich";
 import { getConnectionStatus, type ConnectionStatus } from "@/lib/services/connections";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +57,7 @@ export default async function ProfilePage({ params }: { params: { id: string } }
         </header>
       )}
       <main id="main" className="relative z-10 mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
+        <ProfileEnrich enabled={profile.needsEnrich} />
         {signedIn && (
           <Link href="/" className="btn-ghost mb-5 inline-flex px-3 py-1.5 text-xs">
             ← Home

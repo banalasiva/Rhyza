@@ -414,18 +414,18 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
     })),
   ]);
 
-  // Only the owner's own view lazily generates topics/reflection (an AI call);
-  // everyone else just reads what's stored, so a stranger opening a shared link
-  // never drives generation.
+  // Topics/reflection are READ-ONLY here — generating them is a Claude call
+  // (seconds) that must never block the page render. When the owner's are missing
+  // but they have enough activity, `needsEnrich` tells the owner's client to kick
+  // generation off out-of-band and refresh once it's ready.
   const [topics, reflection] = await Promise.all([
-    (isOwner
-      ? ensureUserTopics(userId, contributions > 0 || seedsPlanted > 0)
-      : getUserTopics(userId)
-    ).catch(() => [] as string[]),
-    (isOwner ? ensureUserReflection(userId, contributions) : getUserReflection(userId)).catch(
-      () => "",
-    ),
+    getUserTopics(userId).catch(() => [] as string[]),
+    getUserReflection(userId).catch(() => ""),
   ]);
+  const needsEnrich =
+    isOwner &&
+    ((topics.length === 0 && (contributions > 0 || seedsPlanted > 0)) ||
+      (!reflection && contributions >= 3));
 
   // Aggregate recognitions by label (across gardens) — count, not garden names.
   const byLabel = new Map<string, { emoji: string; label: string; count: number }>();
@@ -456,5 +456,6 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
     involvedSeeds: canSee("seeds") ? involvedSeeds : [],
     dimensions: canSee("fingerprint") ? dimensions : [],
     recognitions: [...byLabel.values()].sort((a, b) => b.count - a.count),
+    needsEnrich,
   };
 }
