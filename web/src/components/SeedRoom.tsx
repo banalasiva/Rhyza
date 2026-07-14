@@ -2475,44 +2475,12 @@ function Requirement({ met, label }: { met: boolean; label: string }) {
 }
 
 function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => void }) {
-  // A gentle rain of petals drifting down across the screen.
-  const petals = useMemo(
-    () =>
-      Array.from({ length: 18 }).map((_, i) => ({
-        emoji: ["🌸", "🌼", "🌺", "🍃"][i % 4],
-        left: Math.round((i / 18) * 100 + Math.random() * 5),
-        delay: Math.random() * 2.2,
-        dur: 4 + Math.random() * 3,
-        size: 14 + Math.round(Math.random() * 16),
-        sway: `${(Math.random() * 60 - 30).toFixed(0)}px`,
-      })),
-    [],
-  );
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-[rgba(20,10,0,0.88)] px-6 text-center backdrop-blur">
       {/* One soft, warm glow that gently breathes behind the plant — no ring,
-          no spinning halo (those read as an awkward disk). */}
+          no spinning halo, no floating petals. Just the plant and the light. */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
         <span className="bloom-halo" />
-      </div>
-
-      {/* petal rain */}
-      <div className="pointer-events-none absolute inset-0">
-        {petals.map((p, i) => (
-          <span
-            key={i}
-            className="petal-fall"
-            style={{
-              left: `${p.left}%`,
-              fontSize: p.size,
-              animationDelay: `${p.delay}s`,
-              animationDuration: `${p.dur}s`,
-              ["--sway" as string]: p.sway,
-            } as React.CSSProperties}
-          >
-            {p.emoji}
-          </span>
-        ))}
       </div>
 
       <div className="relative animate-[fadeUp_0.8s_ease-out]">
