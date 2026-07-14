@@ -159,11 +159,15 @@ export function PlantSvg({ stage }: { stage: number }) {
             <animate attributeName="r" values="34;46;34" dur="2.2s" repeatCount="indefinite" />
             <animate attributeName="opacity" values="0.7;0.4;0.7" dur="2.2s" repeatCount="indefinite" />
           </circle>
-          {/* the oval bulb — small */}
-          <ellipse cx={150} cy={stemTop} rx={10} ry={15} fill="url(#bulbGr)" filter="url(#softGlow)" />
-          {/* the white sparkle core inside the bulb (the look you liked) */}
-          <circle cx={150} cy={stemTop} r={4} fill="#FFF9C4" />
-          <circle cx={150} cy={stemTop} r={2} fill="#FFFFFF" opacity={0.95} />
+          {/* the bulb — a SHARP pointed almond/leaf shape (crisp edges: no blur
+              filter), pointed at top and bottom like the reference. */}
+          <path
+            d={`M150,${stemTop - 18} Q160,${stemTop} 150,${stemTop + 18} Q140,${stemTop} 150,${stemTop - 18} Z`}
+            fill="url(#bulbGr)"
+          />
+          {/* the white sparkle core */}
+          <circle cx={150} cy={stemTop} r={4.5} fill="#FFF9C4" />
+          <circle cx={150} cy={stemTop} r={2.2} fill="#FFFFFF" opacity={0.95} />
         </g>
       )}
     </svg>
