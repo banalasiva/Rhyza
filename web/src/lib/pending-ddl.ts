@@ -505,6 +505,26 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     )`,
   },
 
+  // 20260714120000_perf_indexes — cover hot read paths that had no matching index:
+  //   • profile/roots counts + personMessages filter contributions by author_id
+  //     (the existing (seed_id, author_id) index can't serve an author-only scan);
+  //   • roots "blooms helped" scans bloom_contributors by user_id (only a
+  //     (bloom_id, user_id) unique existed);
+  //   • the unread-bell badge counts notifications per recipient where unread — a
+  //     partial index keeps it tiny and fast.
+  {
+    label: "contributions_author_id_deleted_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "contributions_author_id_deleted_at_idx" ON "contributions" ("author_id", "deleted_at")`,
+  },
+  {
+    label: "bloom_contributors_user_id_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "bloom_contributors_user_id_idx" ON "bloom_contributors" ("user_id")`,
+  },
+  {
+    label: "notifications_recipient_unread_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "notifications_recipient_unread_idx" ON "notifications" ("recipient_id") WHERE "read_at" IS NULL`,
+  },
+
   // One-time data backfill (idempotent): give people who joined via the email
   // magic-link — and so have an empty name — a readable display name derived
   // from their email ("siva.prasad@x" → "Siva Prasad"). Only touches rows whose
