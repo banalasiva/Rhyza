@@ -6,6 +6,7 @@ import { autoFollowOnView } from "@/lib/services/explore";
 import { notifyFollowersNewSeed, notifyGardenNewSeed } from "@/lib/services/follows";
 import { getJoinStatus } from "@/lib/services/joinreq";
 import { getMediatorNudge } from "@/lib/services/mediator";
+import { getDraft } from "@/lib/services/drafts";
 import { displayName } from "@/lib/display-name";
 
 // What a contribution carries for the room view — author (with email so a
@@ -263,7 +264,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
 
   // One parallel batch: authorization + all the data, instead of 5 sequential
   // round-trips (this dominates latency when the DB is far away).
-  const [orgMember, member, seedMember, distribution, myVote, contributions, peopleRows, follow, addNotice] =
+  const [orgMember, member, seedMember, distribution, myVote, contributions, peopleRows, follow, addNotice, draft] =
     await Promise.all([
       db.orgMember.findUnique({
         where: { orgId_userId: { orgId: seed.garden.orgId, userId } },
@@ -289,6 +290,9 @@ export async function getSeedDetail(userId: string, seedId: string) {
       // Best-effort: "added by someone outside your circle" heads-up. Its own
       // table + .catch() so a missing table can NEVER block opening the seed.
       db.seedAddNotice.findUnique({ where: { seedId_userId: { seedId, userId } } }).catch(() => null),
+      // Best-effort: the viewer's unsent draft, for editor autofill (server copy;
+      // the client's localStorage is the offline-first source that wins if newer).
+      getDraft(userId, seedId),
     ]);
   // World-public seeds are viewable across orgs; everyone else must be an org member.
   if (!orgMember && !(seed.listed && seed.visibility === "public")) {
@@ -387,6 +391,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
     distribution,
     myVote: myVote?.stage ?? null,
     addedNotice,
+    draft,
     contributions: contribs,
   };
 }

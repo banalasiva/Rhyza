@@ -323,6 +323,24 @@ model SeedAddNotice {
   @@map("seed_add_notices")
 }
 
+// An unsent message draft — what a person typed in a seed but hasn't sent yet.
+// The client keeps a local copy (localStorage, offline-first) for instant
+// autofill; this server row is the durable, cross-device + notifications copy,
+// synced debounced as they type and deleted the moment they send. Its OWN table,
+// no relations to the hot models, read best-effort — a missing table must never
+// block opening a seed (the SEV0 lesson).
+model SeedDraft {
+  seedId      String   @map("seed_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  text        String   @default("")
+  attachments Json?
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@id([seedId, userId])
+  @@index([userId, updatedAt])
+  @@map("seed_drafts")
+}
+
 // A report on public content (a seed or a contribution) for moderation. Keeps
 // the public square safe: anyone can flag, owners/admins act on it.
 model SeedReport {

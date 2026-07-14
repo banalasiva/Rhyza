@@ -125,10 +125,104 @@ export function SeedRoom({
   const [sheetForId, setSheetForId] = useState<string | null>(null);
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
   const [retagId, setRetagId] = useState<string | null>(null); // open re-tag menu
-  const [draft, setDraft] = useState("");
-  const [draftAttachments, setDraftAttachments] = useState<Attachment[]>([]);
+  // Initial draft = the server copy the page loaded with (SSR-safe). A newer
+  // LOCAL draft (offline-first) overrides it on mount, below.
+  const [draft, setDraft] = useState(seed.draft?.text ?? "");
+  const [draftAttachments, setDraftAttachments] = useState<Attachment[]>(
+    (seed.draft?.attachments ?? []) as Attachment[],
+  );
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // ── Draft persistence — a typed-but-unsent message survives refresh, backpress,
+  // a mid-type deploy, or going offline. localStorage is the instant offline-first
+  // copy that autofills the editor; a debounced server copy powers the "drafts"
+  // list in notifications + cross-device. Cleared the moment a message is sent.
+  const draftKey = `draft:${seed.id}`;
+  const draftDirty = useRef(false);
+  const draftSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftLatest = useRef({ text: draft, attachments: draftAttachments });
+  draftLatest.current = { text: draft, attachments: draftAttachments };
+
+  // On open, a newer LOCAL draft (this device) wins over the loaded server copy.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const d = JSON.parse(raw) as { text?: string; attachments?: Attachment[] };
+      if ((d.text && d.text.trim()) || (d.attachments && d.attachments.length)) {
+        setDraft(d.text ?? "");
+        setDraftAttachments(d.attachments ?? []);
+      }
+    } catch {
+      /* localStorage unavailable — the server draft (initial state) still shows */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed.id]);
+
+  // Persist on every change: localStorage instantly (offline), server debounced.
+  useEffect(() => {
+    if (!draftDirty.current) {
+      draftDirty.current = true; // skip the initial mount value (nothing to save)
+      return;
+    }
+    const payload = { text: draft, attachments: draftAttachments };
+    try {
+      if (draft.trim() || draftAttachments.length) localStorage.setItem(draftKey, JSON.stringify(payload));
+      else localStorage.removeItem(draftKey);
+    } catch {
+      /* ignore */
+    }
+    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    draftSaveTimer.current = setTimeout(() => {
+      void fetch(`/api/seeds/${seed.id}/draft`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).catch(() => {});
+    }, 900);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, draftAttachments]);
+
+  // On tab-hide / navigate-away, flush the pending debounce with keepalive so the
+  // last keystrokes reach the server even if they refresh right after typing.
+  useEffect(() => {
+    const flush = () => {
+      if (!draftDirty.current) return;
+      const { text, attachments } = draftLatest.current;
+      if (!text.trim() && attachments.length === 0) return;
+      try {
+        fetch(`/api/seeds/${seed.id}/draft`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, attachments }),
+          keepalive: true,
+        }).catch(() => {});
+      } catch {
+        /* ignore */
+      }
+    };
+    const onVis = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed.id]);
+
+  // Clear the draft everywhere the moment a message is actually sent.
+  function clearDraftEverywhere() {
+    try {
+      localStorage.removeItem(draftKey);
+    } catch {
+      /* ignore */
+    }
+    if (draftSaveTimer.current) clearTimeout(draftSaveTimer.current);
+    void fetch(`/api/seeds/${seed.id}/draft`, { method: "DELETE" }).catch(() => {});
+  }
   const tabsRef = useRef<HTMLDivElement>(null); // scroll target when switching tabs
   const threadEndRef = useRef<HTMLDivElement>(null); // scroll target for the latest message
   const tabsMounted = useRef(false);
@@ -509,6 +603,7 @@ export function SeedRoom({
     setContributions((prev) => [...prev, optimistic]);
     setDraft("");
     setDraftAttachments([]);
+    clearDraftEverywhere();
     playNatureSound("drop");
 
     try {

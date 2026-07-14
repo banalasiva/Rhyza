@@ -5,6 +5,7 @@ import { NavBar } from "@/components/NavBar";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { NotificationList } from "@/components/NotificationList";
 import { NotificationFix } from "@/components/NotificationFix";
+import { listMyDrafts } from "@/lib/services/drafts";
 
 function href(
   entityType: string | null,
@@ -63,12 +64,13 @@ async function loadNotifications(userId: string) {
 
 export default async function NotificationsPage() {
   const viewer = await requireViewer();
-  const [notifications, prefs] = await Promise.all([
+  const [notifications, prefs, drafts] = await Promise.all([
     loadNotifications(viewer.userId),
     db.user.findUnique({
       where: { id: viewer.userId },
       select: { emailNotify: true, pushNotify: true, digestNotify: true },
     }),
+    listMyDrafts(viewer.userId),
   ]);
   // Mark everything read on view so the bell badge clears.
   await db.notification.updateMany({
@@ -89,6 +91,29 @@ export default async function NotificationsPage() {
         <NotificationSettings
           initial={prefs ?? { emailNotify: true, pushNotify: true, digestNotify: true }}
         />
+
+        {/* Message drafts — things you started typing but didn't send. Tapping
+            one drops you back in that seed with the draft autofilled. */}
+        {drafts.length > 0 && (
+          <section className="mb-6">
+            <h2 className="eyebrow mb-2">✍️ Drafts</h2>
+            <div className="space-y-2">
+              {drafts.map((d) => (
+                <Link
+                  key={d.seedId}
+                  href={`/seeds/${d.seedId}`}
+                  className="block rounded-xl border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.05)] px-3 py-2.5 transition hover:border-[rgba(76,175,80,0.4)]"
+                >
+                  <p className="truncate text-sm font-medium text-ink">{d.seedTitle}</p>
+                  <p className="mt-0.5 line-clamp-2 text-xs text-ink-mid">
+                    {d.preview || (d.hasAttachments ? "📎 Attachment" : "Draft")}
+                    {d.preview && d.hasAttachments ? " · 📎" : ""}
+                  </p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
         {notifications.length === 0 ? (
           <p className="text-sm text-ink-soft">Nothing yet. Go plant something. 🌱</p>
         ) : (

@@ -505,6 +505,24 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     )`,
   },
 
+  // 20260714130000_seed_drafts — unsent message drafts per (seed, user). Read
+  // best-effort so a missing table never blocks a seed.
+  {
+    label: "seed_drafts",
+    sql: `CREATE TABLE IF NOT EXISTS "seed_drafts" (
+      "seed_id"     UUID NOT NULL REFERENCES "seeds" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "user_id"     UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "text"        TEXT NOT NULL DEFAULT '',
+      "attachments" JSONB,
+      "updated_at"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "seed_drafts_pkey" PRIMARY KEY ("seed_id", "user_id")
+    )`,
+  },
+  {
+    label: "seed_drafts_user_id_updated_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "seed_drafts_user_id_updated_at_idx" ON "seed_drafts" ("user_id", "updated_at")`,
+  },
+
   // 20260714120000_perf_indexes — cover hot read paths that had no matching index:
   //   • profile/roots counts + personMessages filter contributions by author_id
   //     (the existing (seed_id, author_id) index can't serve an author-only scan);
