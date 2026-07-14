@@ -2517,7 +2517,7 @@ function BloomCelebration({ title, onEnter }: { title: string; onEnter: () => vo
 
       <div className="relative animate-[fadeUp_0.8s_ease-out]">
         <div className="mx-auto mb-2 h-44 w-44 drop-shadow-[0_0_40px_rgba(255,179,0,0.55)]">
-          <PlantSvg stage={4} hideGround />
+          <PlantSvg stage={4} />
         </div>
         <p className="eyebrow mb-2 text-bloom">✨ You decided it together 🌸 ✨</p>
         <h2 className="serif-lg mx-auto max-w-md bloom-shimmer">{title}</h2>
