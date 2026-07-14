@@ -400,6 +400,11 @@ export function SeedRoom({
   // (deletes) with a short time window.
   const pendingRef = useRef<Map<string, number>>(new Map());
   const removedRef = useRef<Map<string, number>>(new Map());
+  // Incremental sync: the last thread fingerprint we saw, and a poll counter so
+  // we periodically force a full refresh (ignoring the fingerprint) as a
+  // self-healing safety net in case a delta was ever missed.
+  const syncVersionRef = useRef<string | null>(null);
+  const syncPollCountRef = useRef(0);
   // How many of the viewer's own posts are in flight. While > 0 the live poll
   // leaves the thread alone, so the server's copy of a just-sent message can't
   // appear alongside its optimistic twin (the "two then one" flash).
@@ -419,12 +424,22 @@ export function SeedRoom({
       // and this is the heaviest poll. Resumes the moment the tab is visible again.
       if (typeof document !== "undefined" && document.hidden) return;
       try {
-        const res = await fetch(`/api/seeds/${seed.id}/sync`, { cache: "no-store" });
+        // Send our last fingerprint so the server can skip the heavy thread fetch
+        // when nothing changed. Every 6th poll (~24s) we force a full refresh
+        // (omit `since`) so any missed delta self-heals within seconds.
+        syncPollCountRef.current += 1;
+        const forceFull = syncPollCountRef.current % 6 === 0;
+        const sinceQ =
+          !forceFull && syncVersionRef.current
+            ? `?since=${encodeURIComponent(syncVersionRef.current)}`
+            : "";
+        const res = await fetch(`/api/seeds/${seed.id}/sync${sinceQ}`, { cache: "no-store" });
         if (!res.ok) return;
         const json = await res.json();
         const snap = json as
           | {
-              contributions: Contribution[];
+              version?: string;
+              contributions: Contribution[] | null;
               distribution: typeof distribution;
               stage: string;
               myVote: string | null;
@@ -433,8 +448,23 @@ export function SeedRoom({
           | undefined;
         if (!snap) return;
 
+        if (snap.version) syncVersionRef.current = snap.version;
+
         // The presence's live offer, sensed server-side — shown to everyone.
         setNudge(snap.mediatorNudge ?? null);
+
+        // The cheap live bits are always fresh; apply them every poll.
+        setDistribution(snap.distribution);
+        if (!pendingRef.current.has("__vote__")) {
+          setStage(snap.stage);
+          setMyVote(snap.myVote);
+        }
+
+        // Thread unchanged since our last fingerprint → no contributions body to
+        // merge. Skip the whole reconcile (the big win: no re-processing the
+        // entire thread every 4s when nothing was said).
+        if (snap.contributions == null) return;
+        const incoming = snap.contributions;
 
         const now = Date.now();
         for (const [id, t0] of pendingRef.current) if (now - t0 > 8000) pendingRef.current.delete(id);
@@ -447,7 +477,7 @@ export function SeedRoom({
           const prevById = new Map(prev.map((c) => [c.id, c]));
           const temps = prev.filter((c) => c.id.startsWith("temp-"));
           const merged: Contribution[] = [];
-          for (const s of snap.contributions) {
+          for (const s of incoming) {
             if (removedRef.current.has(s.id)) continue; // viewer just deleted it
             // Keep the local copy for anything the viewer just acted on, so a
             // mid-flight reaction/edit isn't briefly reverted by the poll.
@@ -458,13 +488,6 @@ export function SeedRoom({
           next.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
           return next;
         });
-
-        setDistribution(snap.distribution);
-        // Don't yank the plant/vote out from under a vote the viewer just cast.
-        if (!pendingRef.current.has("__vote__")) {
-          setStage(snap.stage);
-          setMyVote(snap.myVote);
-        }
       } catch {
         /* transient — keep polling */
       }

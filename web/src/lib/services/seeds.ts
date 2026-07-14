@@ -398,32 +398,69 @@ export async function getSeedDetail(userId: string, seedId: string) {
 
 export type SeedSync = Awaited<ReturnType<typeof getSeedSync>>;
 
-// Lean live snapshot for polling the open room — the full current contributions
-// (so reactions, edits, deletes and endorsements by *other* people show up
-// without a refresh) plus the readiness distribution and the viewer's own vote.
-// Authorization only: no garden roster, no people pool — those don't change mid
-// conversation, so the poll stays cheap.
-export async function getSeedSync(userId: string, seedId: string) {
+// Lean live snapshot for polling the open room. INCREMENTAL: the client sends
+// its last `since` version; we compute a cheap fingerprint of the thread (a few
+// scalar aggregates — count + max-timestamp of contributions, reactions and
+// endorsements) that changes on any new message, edit, delete, reaction or
+// endorsement. If it matches `since`, we skip the expensive full contributions
+// fetch and return `contributions: null` (a tiny payload). The always-cheap live
+// bits — readiness distribution, stage, the viewer's own vote, the mediator's
+// offer — are returned EVERY poll regardless, so they stay fresh; only the thread
+// body is gated. The client periodically forces a full refresh as a safety net.
+export async function getSeedSync(userId: string, seedId: string, since?: string) {
   await requireSeedAccess(userId, seedId);
-  const [rows, distribution, myVote, seed, mediatorNudge] = await Promise.all([
-    db.contribution.findMany({
+  const [cAgg, rAgg, eAgg, distribution, myVote, seed, mediatorNudge] = await Promise.all([
+    db.contribution.aggregate({
       where: { seedId, deletedAt: null },
-      orderBy: { createdAt: "asc" },
-      include: CONTRIB_INCLUDE,
+      _count: true,
+      _max: { updatedAt: true },
+    }),
+    db.contributionReaction.aggregate({
+      where: { contribution: { seedId } },
+      _count: true,
+      _max: { reactedAt: true },
+    }),
+    db.contributionEndorsement.aggregate({
+      where: { contribution: { seedId } },
+      _count: true,
+      _max: { endorsedAt: true },
     }),
     stageDistribution(seedId),
     db.seedStageVote.findUnique({ where: { seedId_userId: { seedId, userId } } }),
     db.seed.findUnique({ where: { id: seedId }, select: { stage: true, bloomId: true } }),
     getMediatorNudge(seedId),
   ]);
+
+  const ms = (d: Date | null | undefined) => (d ? d.getTime() : 0);
+  const version = [
+    cAgg._count,
+    ms(cAgg._max.updatedAt),
+    rAgg._count,
+    ms(rAgg._max.reactedAt),
+    eAgg._count,
+    ms(eAgg._max.endorsedAt),
+  ].join(".");
+
   const stage = (seed?.stage === "bloomed" && !seed.bloomId ? "growing" : seed?.stage ?? "seed") as StageKey;
-  return {
-    contributions: mapContribs(rows as ContribRow[], userId),
+  const base = {
+    version,
     distribution,
     stage,
     myVote: myVote?.stage ?? null,
     mediatorNudge, // { mode, reason } | null — the presence's live offer, for everyone
   };
+
+  // Thread unchanged since the client last saw it → skip the heavy fetch.
+  if (since && since === version) {
+    return { ...base, contributions: null as ReturnType<typeof mapContribs> | null };
+  }
+
+  const rows = await db.contribution.findMany({
+    where: { seedId, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    include: CONTRIB_INCLUDE,
+  });
+  return { ...base, contributions: mapContribs(rows as ContribRow[], userId) as ReturnType<typeof mapContribs> | null };
 }
 
 // A "locked" preview of a private seed for someone who doesn't have access yet —
