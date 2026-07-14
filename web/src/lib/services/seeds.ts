@@ -18,6 +18,13 @@ const CONTRIB_INCLUDE = {
   endorsements: true,
 } as const;
 
+// The live room shows the most-recent THREAD_WINDOW messages. Real threads never
+// approach this, so it's a no-op for normal use; it just bounds the payload +
+// query cost so a single pathological thread can't fetch thousands of rows (with
+// all their reactions/endorsements) on every open/sync. The durable bloom
+// synthesises from the full thread separately, so nothing is lost from the record.
+const THREAD_WINDOW = 500;
+
 type ContribRow = {
   id: string;
   dimension: string;
@@ -279,9 +286,11 @@ export async function getSeedDetail(userId: string, seedId: string) {
       db.seedStageVote.findUnique({
         where: { seedId_userId: { seedId, userId } },
       }),
+      // Most-recent window (desc + take), reversed to ascending below for display.
       db.contribution.findMany({
         where: { seedId, deletedAt: null },
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: "desc" },
+        take: THREAD_WINDOW,
         include: CONTRIB_INCLUDE,
       }),
       peoplePromise,
@@ -294,6 +303,9 @@ export async function getSeedDetail(userId: string, seedId: string) {
       // the client's localStorage is the offline-first source that wins if newer).
       getDraft(userId, seedId),
     ]);
+  // Fetched newest-first (windowed); flip to ascending for display + all the
+  // order-independent reads below.
+  contributions.reverse();
   // World-public seeds are viewable across orgs; everyone else must be an org member.
   if (!orgMember && !(seed.listed && seed.visibility === "public")) {
     throw new ApiError("FORBIDDEN", "Not a member of this organization");
@@ -455,11 +467,15 @@ export async function getSeedSync(userId: string, seedId: string, since?: string
     return { ...base, contributions: null as ReturnType<typeof mapContribs> | null };
   }
 
+  // Same most-recent window as getSeedDetail, so the poll and the initial load
+  // stay consistent (desc + take, reversed to ascending for display).
   const rows = await db.contribution.findMany({
     where: { seedId, deletedAt: null },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
+    take: THREAD_WINDOW,
     include: CONTRIB_INCLUDE,
   });
+  rows.reverse();
   return { ...base, contributions: mapContribs(rows as ContribRow[], userId) as ReturnType<typeof mapContribs> | null };
 }
 
