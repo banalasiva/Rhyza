@@ -383,25 +383,36 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
 
   const isOwner = viewerId === userId;
 
-  const [contributions, seedsPlanted, bloomsHelped, recognitions, aiTags, visibility, involvedSeeds] =
-    await Promise.all([
-      db.contribution.count({ where: { authorId: userId, deletedAt: null } }),
-      db.seed.count({ where: { createdById: userId, deletedAt: null } }),
-      db.seed.count({ where: { createdById: userId, deletedAt: null, bloomId: { not: null } } }),
-      db.userRecognition
-        .findMany({ where: { userId }, include: { label: true } })
-        .catch(() => [] as { labelKey: string; label: { emoji: string | null; label: string | null } | null }[]),
-      getAiTagCounts(userId),
-      getSectionVisibility(userId),
-      getInvolvedPublicSeeds(userId).catch(() => [] as InvolvedSeed[]),
-    ]);
-
-  const dimensions = await getThinkingDimensions(userId).catch(() => [] as DimSlice[]);
-  const follow = await getFollowContext(userId, viewerId).catch(() => ({
-    followers: 0,
-    following: 0,
-    isFollowing: false,
-  }));
+  // One parallel batch. `dimensions` and `follow` only need userId/viewerId
+  // (known up front), so they join the batch instead of running as two extra
+  // sequential round-trips after it.
+  const [
+    contributions,
+    seedsPlanted,
+    bloomsHelped,
+    recognitions,
+    aiTags,
+    visibility,
+    involvedSeeds,
+    dimensions,
+    follow,
+  ] = await Promise.all([
+    db.contribution.count({ where: { authorId: userId, deletedAt: null } }),
+    db.seed.count({ where: { createdById: userId, deletedAt: null } }),
+    db.seed.count({ where: { createdById: userId, deletedAt: null, bloomId: { not: null } } }),
+    db.userRecognition
+      .findMany({ where: { userId }, include: { label: true } })
+      .catch(() => [] as { labelKey: string; label: { emoji: string | null; label: string | null } | null }[]),
+    getAiTagCounts(userId),
+    getSectionVisibility(userId),
+    getInvolvedPublicSeeds(userId).catch(() => [] as InvolvedSeed[]),
+    getThinkingDimensions(userId).catch(() => [] as DimSlice[]),
+    getFollowContext(userId, viewerId).catch(() => ({
+      followers: 0,
+      following: 0,
+      isFollowing: false,
+    })),
+  ]);
 
   // Only the owner's own view lazily generates topics/reflection (an AI call);
   // everyone else just reads what's stored, so a stranger opening a shared link

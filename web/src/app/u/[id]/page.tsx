@@ -20,13 +20,19 @@ export const dynamic = "force-dynamic";
 // even signed out (only the sections marked public are shown to non-owners).
 export default async function ProfilePage({ params }: { params: { id: string } }) {
   const viewer = await getViewer();
-  const profile = await getPublicProfile(params.id, viewer?.userId);
+  // isOwner is just viewer.userId === params.id, so we can decide whether to load
+  // the connection status WITHOUT waiting for the profile — run both in parallel.
+  const isOwnerViewer = viewer?.userId === params.id;
+  const [profile, connectStatus] = await Promise.all([
+    getPublicProfile(params.id, viewer?.userId),
+    viewer && !isOwnerViewer
+      ? getConnectionStatus(viewer.userId, params.id)
+      : Promise.resolve<ConnectionStatus | null>(null),
+  ]);
   if (!profile) notFound();
 
   const isMe = profile.isOwner;
   const signedIn = !!viewer;
-  const connectStatus: ConnectionStatus | null =
-    viewer && !profile.isOwner ? await getConnectionStatus(viewer.userId, profile.id) : null;
   const joined = new Date(profile.joinedAt).toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",

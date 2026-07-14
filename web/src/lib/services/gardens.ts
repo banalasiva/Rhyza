@@ -123,6 +123,28 @@ export async function createGarden(
   });
 }
 
+// Lightweight garden header (just id/name/emoji) + the same access check — for
+// pages that only need the garden's identity (e.g. the Sacred Tree), so they
+// don't pull the full active + bloomed seed lists getGardenDetail fetches.
+export async function getGardenHeader(userId: string, gardenId: string) {
+  const garden = await db.garden.findUnique({
+    where: { id: gardenId },
+    select: { id: true, name: true, emoji: true, orgId: true, visibility: true, createdById: true },
+  });
+  if (!garden) throw new ApiError("NOT_FOUND", "Garden not found");
+  const [orgMember, member] = await Promise.all([
+    db.orgMember.findUnique({ where: { orgId_userId: { orgId: garden.orgId, userId } } }),
+    db.gardenMember.findUnique({ where: { gardenId_userId: { gardenId, userId } } }),
+  ]);
+  if (garden.visibility !== "public" && !orgMember) {
+    throw new ApiError("FORBIDDEN", "Not a member of this organization");
+  }
+  if (garden.visibility === "private" && garden.createdById !== userId && !member) {
+    throw new ApiError("NOT_FOUND", "Garden not found");
+  }
+  return { garden: { id: garden.id, name: garden.name, emoji: garden.emoji } };
+}
+
 // Garden detail + its open seeds (not yet bloomed) and recent members.
 export async function getGardenDetail(userId: string, gardenId: string) {
   const garden = await db.garden.findUnique({ where: { id: gardenId } });

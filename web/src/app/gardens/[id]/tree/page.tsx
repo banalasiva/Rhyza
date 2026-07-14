@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireViewer } from "@/lib/session";
-import { getSacredTree, getGardenDetail } from "@/lib/services/gardens";
+import { getSacredTree, getGardenHeader } from "@/lib/services/gardens";
 import { NavBar } from "@/components/NavBar";
 import { SacredTreeView } from "@/components/SacredTreeView";
 
@@ -11,7 +11,7 @@ export default async function SacredTreePage({
 }) {
   const viewer = await requireViewer();
   const [{ garden }, blooms] = await Promise.all([
-    getGardenDetail(viewer.userId, params.id),
+    getGardenHeader(viewer.userId, params.id),
     getSacredTree(viewer.userId, params.id),
   ]);
 
