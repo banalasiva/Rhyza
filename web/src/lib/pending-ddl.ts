@@ -581,6 +581,26 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
       SET "name" = initcap(regexp_replace(split_part("email", '@', 1), '[._+-]+', ' ', 'g'))
       WHERE COALESCE("name", '') = ''
         AND "email" IS NOT NULL AND "email" <> ''
+        AND "email" NOT LIKE '%@phone.thinkthru.app'
         AND "deleted_at" IS NULL`,
+  },
+
+  // Phone sign-in (Twilio Verify). Auth keys the user by a synthetic email so it
+  // works with zero schema change; this standalone table is an auxiliary
+  // phone → user lookup for the future "people from your network joined" contact
+  // graph. Deliberately NO foreign key / relation to "users" — it stays off the
+  // hot User/Seed read path (SEV0 discipline), so a missing table can never break
+  // core reads, and sign-in writes it best-effort.
+  {
+    label: "phone_identities",
+    sql: `CREATE TABLE IF NOT EXISTS "phone_identities" (
+      "phone"      TEXT NOT NULL PRIMARY KEY,
+      "user_id"    UUID NOT NULL,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    label: "phone_identities_user_id_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "phone_identities_user_id_idx" ON "phone_identities" ("user_id")`,
   },
 ];

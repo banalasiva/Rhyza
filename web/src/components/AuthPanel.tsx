@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { signIn } from "next-auth/react";
 import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
 
 // The sign-in / sign-up panel. Auth.js treats Google and the email magic-link
@@ -12,6 +13,8 @@ export function AuthPanel({
   emailEnabled,
   ssoEnabled,
   ssoName,
+  phoneEnabled = false,
+  phoneStartAction,
   googleAction,
   emailAction,
   ssoAction,
@@ -20,6 +23,8 @@ export function AuthPanel({
   emailEnabled: boolean;
   ssoEnabled: boolean;
   ssoName: string;
+  phoneEnabled?: boolean;
+  phoneStartAction?: (phone: string) => Promise<{ ok: boolean; error?: string }>;
   googleAction: () => Promise<void>;
   emailAction: (formData: FormData) => Promise<void>;
   ssoAction: () => Promise<void>;
@@ -27,6 +32,44 @@ export function AuthPanel({
 }) {
   const [mode, setMode] = useState<"signin" | "signup">(defaultMode);
   const signup = mode === "signup";
+
+  // Phone (Telegram-style: number → SMS code → in). Two steps managed here so a
+  // wrong code shows inline instead of bouncing to an error page.
+  const [phoneStep, setPhoneStep] = useState<"enter" | "code">("enter");
+  const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+
+  async function sendCode() {
+    if (!phoneStartAction || phoneBusy) return;
+    setPhoneBusy(true);
+    setPhoneError(null);
+    try {
+      const res = await phoneStartAction(phone);
+      if (res.ok) setPhoneStep("code");
+      else setPhoneError(res.error ?? "Couldn't send the code. Try again.");
+    } catch {
+      setPhoneError("Couldn't send the code. Try again.");
+    } finally {
+      setPhoneBusy(false);
+    }
+  }
+
+  async function verifyCode() {
+    if (phoneBusy) return;
+    setPhoneBusy(true);
+    setPhoneError(null);
+    try {
+      const res = await signIn("phone", { phone, code, redirect: false });
+      if (res?.error) setPhoneError("That code didn't match. Check it and try again.");
+      else window.location.href = "/";
+    } catch {
+      setPhoneError("Couldn't sign you in. Try again.");
+    } finally {
+      setPhoneBusy(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-sm lg:mx-0">
@@ -59,6 +102,91 @@ export function AuthPanel({
           {signup ? "Start free with Google" : "Continue with Google"}
         </button>
       </form>
+
+      {phoneEnabled && phoneStartAction && (
+        <>
+          <div className="my-4 flex items-center gap-3 text-[11px] text-ink-soft">
+            <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
+            or with your phone
+            <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
+          </div>
+          {phoneStep === "enter" ? (
+            <form
+              className="space-y-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void sendCode();
+              }}
+            >
+              <input
+                name="phone"
+                type="tel"
+                required
+                autoComplete="tel"
+                inputMode="tel"
+                placeholder="+91 98765 43210"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-base text-ink outline-none focus:border-accent"
+              />
+              <button type="submit" disabled={phoneBusy} className="btn-ghost w-full disabled:opacity-60">
+                {phoneBusy ? "Sending…" : "Text me a code"}
+              </button>
+              <p className="text-[11px] text-ink-soft">
+                Include your country code. Standard message rates may apply.
+              </p>
+            </form>
+          ) : (
+            <form
+              className="space-y-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void verifyCode();
+              }}
+            >
+              <p className="text-[11px] text-ink-soft">
+                Code sent to <span className="text-ink-mid">{phone}</span> ·{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhoneStep("enter");
+                    setCode("");
+                    setPhoneError(null);
+                  }}
+                  className="font-medium text-accent"
+                >
+                  change
+                </button>
+              </p>
+              <input
+                name="code"
+                type="text"
+                required
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={8}
+                placeholder="6-digit code"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                className="w-full rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-center text-lg tracking-[0.3em] text-ink outline-none focus:border-accent"
+              />
+              <button type="submit" disabled={phoneBusy} className="btn-ghost w-full disabled:opacity-60">
+                {phoneBusy ? "Verifying…" : "Verify & continue"}
+              </button>
+              <button
+                type="button"
+                disabled={phoneBusy}
+                onClick={() => void sendCode()}
+                className="w-full text-center text-[11px] text-ink-soft hover:text-ink disabled:opacity-60"
+              >
+                Didn’t get it? Resend
+              </button>
+            </form>
+          )}
+          {phoneError && <p className="mt-2 text-[11px] text-red-400">{phoneError}</p>}
+        </>
+      )}
 
       {emailEnabled && (
         <>

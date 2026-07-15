@@ -7,6 +7,7 @@ import { AuthErrorBanner } from "@/components/AuthErrorBanner";
 import { ScrollCue } from "@/components/ScrollCue";
 import { Reveal } from "@/components/Reveal";
 import { authErrorMessage } from "@/lib/services/auth-events";
+import { twilioConfigured, sendVerification, normalizeE164 } from "@/lib/twilio";
 
 // Familiar decisions — "this is me."
 const FAMILIAR = [
@@ -55,6 +56,7 @@ export default async function LoginPage({
   const ssoEnabled = !!process.env.AUTH_SSO_ISSUER;
   const ssoName = process.env.AUTH_SSO_NAME || "SSO";
   const emailEnabled = !!process.env.RESEND_API_KEY;
+  const phoneEnabled = twilioConfigured();
   const errorCode = searchParams?.error;
 
   return (
@@ -155,6 +157,11 @@ export default async function LoginPage({
                 emailEnabled={emailEnabled}
                 ssoEnabled={ssoEnabled}
                 ssoName={ssoName}
+                phoneEnabled={phoneEnabled}
+                phoneStartAction={async (phone: string) => {
+                  "use server";
+                  return sendVerification(normalizeE164(phone));
+                }}
                 googleAction={async () => {
                   "use server";
                   await signIn("google", { redirectTo: "/" });
