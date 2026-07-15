@@ -40,6 +40,21 @@ async function adminAuth(): Promise<Auth> {
   return getAuth(cachedApp);
 }
 
+// Health check for the /api/admin/firebase-check endpoint: proves the private
+// key actually parses and signs, without any external input. createCustomToken
+// signs locally with the service-account key, so a malformed key (stray quotes,
+// mangled newlines) throws here with a descriptive — but non-secret — error.
+export async function firebaseAdminSelfTest(): Promise<{ ok: boolean; error?: string }> {
+  if (!firebaseAdminConfigured()) return { ok: false, error: "Admin env not fully set." };
+  try {
+    const auth = await adminAuth();
+    await auth.createCustomToken("healthcheck");
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 // Verify a Firebase ID token from a client phone sign-in and return the verified
 // E.164 phone number, or null if the token is invalid / carries no phone. Only a
 // token Google actually signed passes — the client can't forge a phone number.
