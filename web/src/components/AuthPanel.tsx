@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { signIn } from "next-auth/react";
+import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
+import { getFirebaseAuth } from "@/lib/firebase-client";
 import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
 
 // The sign-in / sign-up panel. Auth.js treats Google and the email magic-link
@@ -14,8 +16,6 @@ export function AuthPanel({
   ssoEnabled,
   ssoName,
   phoneEnabled = false,
-  phoneChannel = "sms",
-  phoneStartAction,
   googleAction,
   emailAction,
   ssoAction,
@@ -25,8 +25,6 @@ export function AuthPanel({
   ssoEnabled: boolean;
   ssoName: string;
   phoneEnabled?: boolean;
-  phoneChannel?: string;
-  phoneStartAction?: (phone: string, channel?: string) => Promise<{ ok: boolean; error?: string }>;
   googleAction: () => Promise<void>;
   emailAction: (formData: FormData) => Promise<void>;
   ssoAction: () => Promise<void>;
@@ -35,62 +33,73 @@ export function AuthPanel({
   const [mode, setMode] = useState<"signin" | "signup">(defaultMode);
   const signup = mode === "signup";
 
-  // Phone (Telegram-style: number → SMS code → in). Two steps managed here so a
+  // Phone (Telegram-style: number → SMS code → in) via Firebase Phone Auth. The
+  // OTP send + confirm run in the browser through the Firebase SDK; we then hand
+  // the resulting ID token to NextAuth to mint our own session. Two steps so a
   // wrong code shows inline instead of bouncing to an error page.
   const [phoneStep, setPhoneStep] = useState<"enter" | "code">("enter");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [sentVia, setSentVia] = useState(phoneChannel);
+  // Firebase's invisible reCAPTCHA verifier + the pending confirmation handle.
+  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
+  const confirmationRef = useRef<ConfirmationResult | null>(null);
 
-  async function sendCode(channel?: string) {
-    if (!phoneStartAction || phoneBusy) return;
+  function recaptcha(): RecaptchaVerifier {
+    if (!recaptchaRef.current) {
+      recaptchaRef.current = new RecaptchaVerifier(getFirebaseAuth(), "recaptcha-container", {
+        size: "invisible",
+      });
+    }
+    return recaptchaRef.current;
+  }
+
+  async function sendCode() {
+    if (phoneBusy) return;
+    const e164 = "+" + phone.replace(/\D/g, "");
+    if (e164.length < 9) {
+      setPhoneError("Enter your number with country code, e.g. +91…");
+      return;
+    }
     setPhoneBusy(true);
     setPhoneError(null);
     try {
-      const res = await phoneStartAction(phone, channel);
-      if (res.ok) {
-        setSentVia(channel ?? phoneChannel);
-        setPhoneStep("code");
-      } else setPhoneError(res.error ?? "Couldn't send the code. Try again.");
-    } catch {
-      setPhoneError("Couldn't send the code. Try again.");
+      confirmationRef.current = await signInWithPhoneNumber(getFirebaseAuth(), e164, recaptcha());
+      setPhoneStep("code");
+    } catch (err) {
+      const c = (err as { code?: string })?.code ?? "";
+      setPhoneError(
+        c.includes("invalid-phone")
+          ? "That doesn't look like a valid number — include your country code."
+          : c.includes("too-many-requests")
+            ? "Too many attempts. Wait a minute and try again."
+            : "Couldn't send the code. Check the number and try again.",
+      );
+      // A failed attempt burns the reCAPTCHA token; reset so a retry re-solves.
+      try {
+        recaptchaRef.current?.clear();
+      } catch {
+        /* ignore */
+      }
+      recaptchaRef.current = null;
     } finally {
       setPhoneBusy(false);
     }
   }
 
-  // Channel-aware copy so the button reads as the actual delivery method.
-  const primaryCta =
-    phoneChannel === "whatsapp"
-      ? "WhatsApp me a code"
-      : phoneChannel === "call"
-        ? "Call me with a code"
-        : "Text me a code";
-  const sentPhrase =
-    sentVia === "whatsapp"
-      ? "Code sent on WhatsApp to"
-      : sentVia === "call"
-        ? "Calling"
-        : "Code sent by text to";
-  const enterHint =
-    phoneChannel === "whatsapp"
-      ? "Include your country code — we’ll message your code on WhatsApp."
-      : phoneChannel === "call"
-        ? "Include your country code — we’ll call and read out your code."
-        : "Include your country code. Standard message rates may apply.";
-
   async function verifyCode() {
-    if (phoneBusy) return;
+    if (phoneBusy || !confirmationRef.current) return;
     setPhoneBusy(true);
     setPhoneError(null);
     try {
-      const res = await signIn("phone", { phone, code, redirect: false });
-      if (res?.error) setPhoneError("That code didn't match. Check it and try again.");
+      const cred = await confirmationRef.current.confirm(code);
+      const idToken = await cred.user.getIdToken();
+      const res = await signIn("phone", { idToken, redirect: false });
+      if (res?.error) setPhoneError("Couldn't sign you in. Try again.");
       else window.location.href = "/";
     } catch {
-      setPhoneError("Couldn't sign you in. Try again.");
+      setPhoneError("That code didn’t match. Check it and try again.");
     } finally {
       setPhoneBusy(false);
     }
@@ -128,7 +137,7 @@ export function AuthPanel({
         </button>
       </form>
 
-      {phoneEnabled && phoneStartAction && (
+      {phoneEnabled && (
         <>
           <div className="my-4 flex items-center gap-3 text-[11px] text-ink-soft">
             <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
@@ -155,9 +164,11 @@ export function AuthPanel({
                 className="w-full rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-base text-ink outline-none focus:border-accent"
               />
               <button type="submit" disabled={phoneBusy} className="btn-ghost w-full disabled:opacity-60">
-                {phoneBusy ? "Sending…" : primaryCta}
+                {phoneBusy ? "Sending…" : "Text me a code"}
               </button>
-              <p className="text-[11px] text-ink-soft">{enterHint}</p>
+              <p className="text-[11px] text-ink-soft">
+                Include your country code. Standard message rates may apply.
+              </p>
             </form>
           ) : (
             <form
@@ -168,7 +179,7 @@ export function AuthPanel({
               }}
             >
               <p className="text-[11px] text-ink-soft">
-                {sentPhrase} <span className="text-ink-mid">{phone}</span> ·{" "}
+                Code sent by text to <span className="text-ink-mid">{phone}</span> ·{" "}
                 <button
                   type="button"
                   onClick={() => {
@@ -197,34 +208,23 @@ export function AuthPanel({
               <button type="submit" disabled={phoneBusy} className="btn-ghost w-full disabled:opacity-60">
                 {phoneBusy ? "Verifying…" : "Verify & continue"}
               </button>
-              <div className="flex items-center justify-center gap-3 text-[11px] text-ink-soft">
-                <button
-                  type="button"
-                  disabled={phoneBusy}
-                  onClick={() => void sendCode(sentVia)}
-                  className="hover:text-ink disabled:opacity-60"
-                >
-                  Didn’t get it? Resend
-                </button>
-                {/* Voice is the universal fallback — a call reaches any phone and
-                    rides a different rail than SMS, so it lands when texts don't. */}
-                {sentVia !== "call" && (
-                  <>
-                    <span aria-hidden>·</span>
-                    <button
-                      type="button"
-                      disabled={phoneBusy}
-                      onClick={() => void sendCode("call")}
-                      className="hover:text-ink disabled:opacity-60"
-                    >
-                      Get a call instead
-                    </button>
-                  </>
-                )}
-              </div>
+              <button
+                type="button"
+                disabled={phoneBusy}
+                onClick={() => {
+                  setPhoneStep("enter");
+                  setCode("");
+                  setPhoneError(null);
+                }}
+                className="w-full text-center text-[11px] text-ink-soft hover:text-ink disabled:opacity-60"
+              >
+                Didn’t get it? Start over
+              </button>
             </form>
           )}
           {phoneError && <p className="mt-2 text-[11px] text-red-400">{phoneError}</p>}
+          {/* Firebase renders its invisible reCAPTCHA challenge into this node. */}
+          <div id="recaptcha-container" />
         </>
       )}
 

@@ -7,7 +7,7 @@ import { AuthErrorBanner } from "@/components/AuthErrorBanner";
 import { ScrollCue } from "@/components/ScrollCue";
 import { Reveal } from "@/components/Reveal";
 import { authErrorMessage } from "@/lib/services/auth-events";
-import { twilioConfigured, sendVerification, normalizeE164, verifyChannel } from "@/lib/twilio";
+import { firebaseAdminConfigured } from "@/lib/firebase-admin";
 
 // Familiar decisions — "this is me."
 const FAMILIAR = [
@@ -56,7 +56,13 @@ export default async function LoginPage({
   const ssoEnabled = !!process.env.AUTH_SSO_ISSUER;
   const ssoName = process.env.AUTH_SSO_NAME || "SSO";
   const emailEnabled = !!process.env.RESEND_API_KEY;
-  const phoneEnabled = twilioConfigured();
+  // Show phone sign-in only when BOTH the browser (client config) can run the
+  // Firebase OTP and the server (admin config) can verify the resulting token.
+  const phoneEnabled =
+    firebaseAdminConfigured() &&
+    !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+    !!process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN &&
+    !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
   const errorCode = searchParams?.error;
 
   return (
@@ -158,11 +164,6 @@ export default async function LoginPage({
                 ssoEnabled={ssoEnabled}
                 ssoName={ssoName}
                 phoneEnabled={phoneEnabled}
-                phoneChannel={phoneEnabled ? verifyChannel() : "sms"}
-                phoneStartAction={async (phone: string, channel?: string) => {
-                  "use server";
-                  return sendVerification(normalizeE164(phone), channel);
-                }}
                 googleAction={async () => {
                   "use server";
                   await signIn("google", { redirectTo: "/" });

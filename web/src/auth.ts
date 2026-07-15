@@ -5,7 +5,7 @@ import Credentials from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
 import { authConfig } from "@/auth.config";
 import { sendEmail, magicLinkEmailHtml } from "@/lib/email";
-import { twilioConfigured, checkVerification, normalizeE164 } from "@/lib/twilio";
+import { firebaseAdminConfigured, verifyFirebasePhone } from "@/lib/firebase-admin";
 
 // Passwordless email sign-in (magic link) — a no-Google way in, with no new
 // vendor: it reuses our existing Resend setup. Added ONLY here (the Node
@@ -33,24 +33,24 @@ const emailProviders = process.env.RESEND_API_KEY
     ]
   : [];
 
-// Phone sign-in (Twilio Verify) — Telegram-style "number + code, you're in".
-// Added ONLY here (Node instance), like Resend: authorize() touches Postgres and
-// calls Twilio, neither of which is edge-safe. Gated on the Twilio env so it's
-// absent until configured. The step-1 "send code" call lives in the /login
-// server action; this provider only runs the final check-and-sign-in.
-const phoneProviders = twilioConfigured()
+// Phone sign-in (Firebase Phone Auth) — Telegram-style "number + code, you're
+// in". The OTP send/confirm happens client-side via the Firebase SDK; this
+// provider only VERIFIES the resulting ID token and signs the person in. Added
+// ONLY here (Node instance), like Resend: authorize() touches Postgres and
+// firebase-admin, neither edge-safe. Gated on the Firebase service-account env
+// so it's absent until configured — and there's no SMS-gateway KYC to clear.
+const phoneProviders = firebaseAdminConfigured()
   ? [
       Credentials({
         id: "phone",
         name: "Phone",
-        credentials: { phone: {}, code: {} },
+        credentials: { idToken: {} },
         authorize: async (creds) => {
-          const phone = normalizeE164(String(creds?.phone ?? ""));
-          const code = String(creds?.code ?? "").trim();
-          if (!phone || !code) return null;
-          // Only Twilio's "approved" lets someone in — never trust the client.
-          const approved = await checkVerification(phone, code);
-          if (!approved) return null;
+          const idToken = String(creds?.idToken ?? "");
+          // Only a token Google actually signed passes; the phone number comes
+          // from the verified token, never from the client.
+          const phone = await verifyFirebasePhone(idToken);
+          if (!phone) return null;
           // Identity is keyed by a synthetic email so phone sign-in works with
           // zero schema change (email is the existing unique key). The
           // phone_identities row is an auxiliary lookup for the future contact
