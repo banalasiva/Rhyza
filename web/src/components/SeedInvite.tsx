@@ -6,6 +6,7 @@ import { apiPost, apiGet } from "@/lib/client";
 import { toWhatsAppNumber } from "@/lib/phone";
 import { inviteMessage } from "@/lib/invite";
 import { Avatar } from "@/components/Avatar";
+import { WhatsAppIcon } from "@/components/WhatsAppIcon";
 
 type NetworkPerson = { id: string; name: string; email: string };
 type Addable = { id: string; name: string; email: string; image: string | null };
@@ -135,6 +136,14 @@ export function SeedInvite({
     }
   }
 
+  // Direct WhatsApp — no number, so WhatsApp opens its own contact chooser with
+  // the warm invite prefilled. Works on every device (incl. iOS) and rides the
+  // inviter's own WhatsApp — no SMS gateway / Twilio.
+  function whatsapp() {
+    if (!result) return;
+    window.location.href = `https://wa.me/?text=${encodeURIComponent(message())}`;
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -262,9 +271,16 @@ export function SeedInvite({
         <div className="mt-3 rounded-xl border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.4)] p-3">
           <p className="mb-2 text-xs text-ink-mid">
             {result.emailed
-              ? "✉️ A warm invite is on its way to their inbox. Share or copy it too:"
-              : "🔗 Invite ready — Share or Copy sends a warm message, not just a link:"}
+              ? "✉️ A warm invite is on its way to their inbox. Send it directly too:"
+              : "🔗 Invite ready — every option sends a warm message, not just a link:"}
           </p>
+          <button
+            onClick={whatsapp}
+            className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] px-3 py-2.5 text-sm font-semibold text-[#04310f] transition active:scale-95"
+          >
+            <WhatsAppIcon />
+            Invite on WhatsApp
+          </button>
           <div className="flex items-center gap-2">
             <code className="flex-1 truncate text-xs text-ink-soft">{result.link}</code>
             {canShare && (
