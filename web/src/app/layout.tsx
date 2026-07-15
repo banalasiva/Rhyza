@@ -3,6 +3,7 @@ import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { VersionWatcher } from "@/components/VersionWatcher";
+import { Analytics } from "@/components/Analytics";
 
 export const metadata: Metadata = {
   title: "ThinkThru — The Learning Garden",
@@ -64,6 +65,7 @@ export default function RootLayout({
           Skip to main content
         </a>
         {children}
+        <Analytics />
         <ServiceWorkerRegister />
         <VersionWatcher />
         <InstallPrompt />

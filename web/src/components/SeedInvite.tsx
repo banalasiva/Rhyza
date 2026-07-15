@@ -7,6 +7,7 @@ import { toWhatsAppNumber } from "@/lib/phone";
 import { inviteMessage } from "@/lib/invite";
 import { Avatar } from "@/components/Avatar";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { track } from "@/lib/analytics";
 
 type NetworkPerson = { id: string; name: string; email: string };
 type Addable = { id: string; name: string; email: string; image: string | null };
@@ -141,6 +142,7 @@ export function SeedInvite({
   // inviter's own WhatsApp — no SMS gateway / Twilio.
   function whatsapp() {
     if (!result) return;
+    track("invite_shared", { via: "whatsapp", scope: "seed" });
     window.location.href = `https://wa.me/?text=${encodeURIComponent(message())}`;
   }
 

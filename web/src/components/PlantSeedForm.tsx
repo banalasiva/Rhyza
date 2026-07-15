@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/client";
+import { track } from "@/lib/analytics";
 
 type GardenNode = { id: string; name: string; emoji: string };
 
@@ -36,6 +37,7 @@ export function PlantSeedForm({ gardenId }: { gardenId: string }) {
         title,
         visibility,
       });
+      track("seed_planted", { visibility });
       router.push(`/seeds/${id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");

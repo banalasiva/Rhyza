@@ -5,6 +5,7 @@ import { apiPost, apiGet } from "@/lib/client";
 import { toWhatsAppNumber } from "@/lib/phone";
 import { inviteMessage } from "@/lib/invite";
 import { WhatsAppIcon } from "@/components/WhatsAppIcon";
+import { track } from "@/lib/analytics";
 
 type NetworkPerson = { id: string; name: string; email: string };
 
@@ -125,6 +126,7 @@ export function InviteForm({ gardenId, gardenName }: { gardenId: string; gardenN
   // so there's no SMS gateway / Twilio in the loop at all.
   function whatsapp() {
     if (!result) return;
+    track("invite_shared", { via: "whatsapp", scope: "garden" });
     window.location.href = `https://wa.me/?text=${encodeURIComponent(message())}`;
   }
 
