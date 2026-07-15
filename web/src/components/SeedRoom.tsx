@@ -277,7 +277,11 @@ export function SeedRoom({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [blooming, setBlooming] = useState(false);
-  const [bloomPending, setBloomPending] = useState(false); // request in flight, before the celebration
+  // The in-flight bloom synthesis (a slow server-side Claude call). The
+  // celebration plays the INSTANT you click bloom; navigation to the Sacred Tree
+  // waits on this so we never land on a half-finished bloom — but the animation
+  // itself never waits on the server.
+  const bloomWork = useRef<Promise<unknown> | null>(null);
   const [muted, setMutedState] = useState(false);
   const [glowing, setGlowing] = useState<Set<string>>(new Set());
   const [thinking, setThinking] = useState(false);
@@ -1114,17 +1118,17 @@ export function SeedRoom({
     )
       return;
     setBusy(true);
-    setBloomPending(true); // show a loading state instantly — synthesis takes a few seconds
-    try {
-      const res = await fetch(`/api/seeds/${seed.id}/bloom`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message ?? "Failed to bloom");
-      triggerBloom();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to bloom");
-      setBusy(false);
-      setBloomPending(false);
-    }
+    // Fire the synthesis in the background and remember it, then celebrate
+    // immediately — the animation no longer waits on the (slow) Claude synthesis.
+    bloomWork.current = fetch(`/api/seeds/${seed.id}/bloom`, { method: "POST" }).then(
+      async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.error?.message ?? "Failed to bloom");
+        }
+      },
+    );
+    triggerBloom();
   }
 
   async function removeSeed() {
@@ -1165,12 +1169,14 @@ export function SeedRoom({
 
   function confirmBloom() {
     setBloomConfirm(false);
-    // If this vote is the one that tips the seed over the bloom threshold, the
-    // server runs synthesis right now — show the loading state instantly so the
-    // tipping voter isn't left staring at a still screen. (Non-tipping votes
-    // return fast and skip this, so there's no flicker.)
-    if (bloomedVotes + 1 >= bloomTarget) setBloomPending(true);
+    // If this vote tips the seed over the bloom threshold, the server runs
+    // synthesis right now. Cast the vote first (it synchronously records the
+    // in-flight request in bloomWork), THEN celebrate immediately — so the
+    // tipping voter sees the animation play out, not a spinner, while synthesis
+    // finishes behind it. Non-tipping votes return fast and skip the celebration.
+    const willBloom = bloomedVotes + 1 >= bloomTarget;
     castVote("bloomed");
+    if (willBloom) triggerBloom();
   }
 
   async function castVote(targetStage: string) {
@@ -1193,26 +1199,29 @@ export function SeedRoom({
     }
     playNatureSound("wind");
 
+    // Create the request up front so a bloom-tipping vote can record it in
+    // bloomWork BEFORE any await — that's what lets confirmBloom celebrate
+    // immediately while navigation still waits on this synthesis.
+    const req = apiPost<{ distribution: typeof distribution; stage: string; bloomed: boolean; bloomId: string | null }>(
+      `/api/seeds/${seed.id}/stage-votes`,
+      { stage: targetStage },
+    );
+    if (targetStage === "bloomed") bloomWork.current = req;
+
     try {
-      const res = await apiPost<{ distribution: typeof distribution; stage: string; bloomed: boolean; bloomId: string | null }>(
-        `/api/seeds/${seed.id}/stage-votes`,
-        { stage: targetStage },
-      );
+      const res = await req;
       setDistribution(res.distribution);
       setStage(res.stage);
       if (res.bloomed && res.bloomId) {
         triggerBloom();
       } else {
         // Not enough bloom votes yet — drop the preview back to the real stage
-        // and clear any loading state (our tip prediction was off, e.g. a vote
-        // changed underneath us).
+        // (our tip prediction was off, e.g. a vote changed underneath us).
         setPreviewBloom(false);
-        setBloomPending(false);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to vote");
       setPreviewBloom(false);
-      setBloomPending(false);
       router.refresh();
     }
   }
@@ -1221,9 +1230,23 @@ export function SeedRoom({
     if (blooming) return; // guard against double-trigger (vote + poll)
     playNatureSound("bloom");
     setStage("bloomed");
-    setBlooming(true);
-    // Auto-advance to the Sacred Tree; the celebration also has a manual button.
-    setTimeout(() => router.push(`/gardens/${seed.garden.id}/tree`), 6000);
+    setBlooming(true); // celebration plays NOW — never gated on the server
+    // Auto-advance to the Sacred Tree once the celebration has played AND the
+    // synthesis is actually done (bloomWork). The animation is never delayed;
+    // only the hand-off waits, so we don't land on a half-finished bloom. If the
+    // synthesis failed, surface the error and stop instead of navigating.
+    const played = new Promise((r) => setTimeout(r, 5000));
+    const work = bloomWork.current ?? Promise.resolve();
+    void Promise.allSettled([played, work]).then((results) => {
+      const w = results[1];
+      if (w.status === "rejected") {
+        setError(w.reason instanceof Error ? w.reason.message : "Failed to bloom");
+        setBlooming(false);
+        setBusy(false);
+        return;
+      }
+      router.push(`/gardens/${seed.garden.id}/tree`);
+    });
   }
 
   // One linear conversation, chronological. (Dimensions live as per-message
@@ -1314,16 +1337,6 @@ export function SeedRoom({
           {l.text}
         </span>
       ))}
-
-      {/* Instant feedback the moment bloom is triggered — synthesis takes a few
-          seconds, so never leave the tap feeling like nothing happened. */}
-      {bloomPending && !blooming && (
-        <div className="fixed inset-0 z-[190] flex flex-col items-center justify-center bg-[rgba(20,10,0,0.85)] px-6 text-center backdrop-blur">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-bloom border-t-transparent" />
-          <p className="serif-lg mt-4 text-bloom">Blooming your decision…</p>
-          <p className="mt-1 text-sm text-ink-mid">Weaving the thread into a keepsake — just a moment.</p>
-        </div>
-      )}
 
       {blooming && (
         <BloomCelebration
