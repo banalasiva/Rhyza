@@ -1,12 +1,15 @@
 import { handle, ok, ApiError } from "@/lib/api";
 import { getViewer } from "@/lib/session";
-import { firebaseAdminSelfTest } from "@/lib/firebase-admin";
+import { firebaseVerifySelfTest } from "@/lib/firebase-verify";
 
 // GET /api/admin/firebase-check — owner-only sanity check for the Firebase env
 // vars, so the setup can be validated without pasting any secret anywhere. It
 // reports only the SHAPE of each value (present? right prefix? stray quotes?)
-// and whether the private key actually signs — NEVER the values themselves.
+// and whether the server can reach Google's public keys — NEVER the values.
 // Same fail-closed gating as /api/admin/migrate.
+//
+// Note: verification is done with jose against Google's PUBLIC keys, so NO
+// service account is needed — phone sign-in works with just the client config.
 export const maxDuration = 30;
 
 const quoted = (s: string) => /^["']|["']$/.test(s);
@@ -25,47 +28,25 @@ export const GET = handle(async () => {
 
   const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? "";
   const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ?? "";
-  const projectIdPublic = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "";
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ?? "";
   const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "";
-  const projectId = process.env.FIREBASE_PROJECT_ID ?? "";
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL ?? "";
-  const key = process.env.FIREBASE_PRIVATE_KEY ?? "";
-  const bareKey = key.replace(/^["']/, "").replace(/["']$/, "");
 
-  // Only booleans / lengths — no secret material is ever returned.
+  // Only booleans — no secret material is ever returned. Service-account vars are
+  // intentionally NOT checked here: they're no longer used.
   const report = {
-    client: {
-      apiKey: { present: !!apiKey, looksValid: apiKey.startsWith("AIza"), hasQuotes: quoted(apiKey) },
-      authDomain: {
-        present: !!authDomain,
-        looksValid: authDomain.endsWith(".firebaseapp.com"),
-        hasQuotes: quoted(authDomain),
-      },
-      projectId: { present: !!projectIdPublic, hasQuotes: quoted(projectIdPublic) },
-      appId: { present: !!appId, hasQuotes: quoted(appId) },
+    apiKey: { present: !!apiKey, looksValid: apiKey.startsWith("AIza"), hasQuotes: quoted(apiKey) },
+    authDomain: {
+      present: !!authDomain,
+      looksValid: authDomain.endsWith(".firebaseapp.com"),
+      hasQuotes: quoted(authDomain),
     },
-    admin: {
-      projectId: { present: !!projectId, hasQuotes: quoted(projectId) },
-      clientEmail: {
-        present: !!clientEmail,
-        looksValid: clientEmail.endsWith("gserviceaccount.com"),
-        hasQuotes: quoted(clientEmail),
-      },
-      privateKey: {
-        present: !!key,
-        startsWithBegin: bareKey.startsWith("-----BEGIN PRIVATE KEY-----"),
-        containsEnd: bareKey.includes("-----END PRIVATE KEY-----"),
-        hasSurroundingQuotes: quoted(key),
-        hasEscapedNewlines: key.includes("\\n"),
-        hasRealNewlines: key.includes("\n"),
-        length: key.length,
-      },
-    },
-    projectIdMatch: !!projectId && projectId === projectIdPublic,
+    projectId: { present: !!projectId, hasQuotes: quoted(projectId) },
+    appId: { present: !!appId, hasQuotes: quoted(appId) },
   };
 
-  // The definitive check: does the private key actually parse and sign?
-  const signs = await firebaseAdminSelfTest();
+  // Confirms the project id is set and Google's public keys are reachable — i.e.
+  // a real token verify will succeed.
+  const verify = await firebaseVerifySelfTest();
 
-  return ok({ report, signs });
+  return ok({ report, verify });
 });

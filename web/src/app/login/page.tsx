@@ -7,7 +7,7 @@ import { AuthErrorBanner } from "@/components/AuthErrorBanner";
 import { ScrollCue } from "@/components/ScrollCue";
 import { Reveal } from "@/components/Reveal";
 import { authErrorMessage } from "@/lib/services/auth-events";
-import { firebaseAdminConfigured } from "@/lib/firebase-admin";
+import { firebaseVerifyConfigured } from "@/lib/firebase-verify";
 
 // Familiar decisions — "this is me."
 const FAMILIAR = [
@@ -56,10 +56,10 @@ export default async function LoginPage({
   const ssoEnabled = !!process.env.AUTH_SSO_ISSUER;
   const ssoName = process.env.AUTH_SSO_NAME || "SSO";
   const emailEnabled = !!process.env.RESEND_API_KEY;
-  // Show phone sign-in only when BOTH the browser (client config) can run the
-  // Firebase OTP and the server (admin config) can verify the resulting token.
+  // Show phone sign-in only when the browser can run the Firebase OTP (client
+  // config present) and the server can verify the token (project id present).
   const phoneEnabled =
-    firebaseAdminConfigured() &&
+    firebaseVerifyConfigured() &&
     !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
     !!process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN &&
     !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;

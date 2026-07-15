@@ -5,7 +5,7 @@ import Credentials from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
 import { authConfig } from "@/auth.config";
 import { sendEmail, magicLinkEmailHtml } from "@/lib/email";
-import { firebaseAdminConfigured, verifyFirebasePhone } from "@/lib/firebase-admin";
+import { firebaseVerifyConfigured, verifyFirebasePhone } from "@/lib/firebase-verify";
 
 // Passwordless email sign-in (magic link) — a no-Google way in, with no new
 // vendor: it reuses our existing Resend setup. Added ONLY here (the Node
@@ -35,11 +35,12 @@ const emailProviders = process.env.RESEND_API_KEY
 
 // Phone sign-in (Firebase Phone Auth) — Telegram-style "number + code, you're
 // in". The OTP send/confirm happens client-side via the Firebase SDK; this
-// provider only VERIFIES the resulting ID token and signs the person in. Added
-// ONLY here (Node instance), like Resend: authorize() touches Postgres and
-// firebase-admin, neither edge-safe. Gated on the Firebase service-account env
-// so it's absent until configured — and there's no SMS-gateway KYC to clear.
-const phoneProviders = firebaseAdminConfigured()
+// provider only VERIFIES the resulting ID token (with jose against Google's
+// public keys — no firebase-admin, no service account) and signs the person in.
+// Added ONLY here (Node instance), like Resend, since authorize() touches
+// Postgres. Gated on the Firebase project id so it's absent until configured —
+// and there's no SMS-gateway KYC to clear.
+const phoneProviders = firebaseVerifyConfigured()
   ? [
       Credentials({
         id: "phone",

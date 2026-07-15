@@ -4,7 +4,8 @@ import { getAuth, type Auth } from "firebase/auth";
 // Client-side Firebase — runs the phone OTP flow (send code, confirm code) in
 // the browser. The config values are public by design (NEXT_PUBLIC_*): Firebase
 // security comes from the Authorized Domains list + reCAPTCHA, not from hiding
-// the API key. The resulting ID token is verified server-side (firebase-admin).
+// the API key. The resulting ID token is verified server-side (jose, in
+// firebase-verify.ts) against Google's public keys.
 //
 // Required env (Firebase console → Project settings → your web app config):
 //   NEXT_PUBLIC_FIREBASE_API_KEY
