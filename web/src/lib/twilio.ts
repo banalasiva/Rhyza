@@ -15,6 +15,11 @@
 const SID = process.env.TWILIO_ACCOUNT_SID;
 const TOKEN = process.env.TWILIO_AUTH_TOKEN;
 const SERVICE = process.env.TWILIO_VERIFY_SERVICE_SID;
+// Delivery channel. Defaults to "sms", but in strict-SMS markets (notably India,
+// where unregistered SMS is throttled by the DLT regime) "whatsapp" is far
+// faster and dodges carrier throttling — set TWILIO_VERIFY_CHANNEL=whatsapp once
+// WhatsApp is enabled on the Verify Service. Also supports "call".
+const CHANNEL = (process.env.TWILIO_VERIFY_CHANNEL || "sms").trim().toLowerCase();
 
 export function twilioConfigured(): boolean {
   return !!(SID && TOKEN && SERVICE);
@@ -49,7 +54,7 @@ export async function sendVerification(
         Authorization: authHeader(),
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({ To: phone, Channel: "sms" }),
+      body: new URLSearchParams({ To: phone, Channel: CHANNEL }),
     });
     if (res.ok) return { ok: true };
     const body = (await res.json().catch(() => ({}))) as { code?: number };
