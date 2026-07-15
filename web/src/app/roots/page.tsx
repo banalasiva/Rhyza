@@ -5,6 +5,7 @@ import { getMyRoots } from "@/lib/services/roots";
 import { NavBar } from "@/components/NavBar";
 import { ProfilePhoto } from "@/components/ProfilePhoto";
 import { ProfileEnrich } from "@/components/ProfileEnrich";
+import { ProfileRefreshButton } from "@/components/ProfileRefreshButton";
 import { ConnectionRequests } from "@/components/ConnectionRequests";
 import { DisplayNameEditor } from "@/components/DisplayNameEditor";
 import { ProfileTopicsEditor } from "@/components/ProfileTopicsEditor";
@@ -54,10 +55,22 @@ export default async function RootsPage() {
           />
         </div>
 
-        <p className="mb-6 -mt-3 text-[11px] text-ink-soft">
+        <p className="mb-3 -mt-3 text-[11px] text-ink-soft">
           Your profile is a shareable link — anyone who opens it sees only what you&apos;ve marked
           public.
         </p>
+
+        {/* Re-run the AI mirror on demand. "How you show up" and "Mostly involved
+            in" are read from your activity; this regenerates both after you've
+            been active. */}
+        {!nothingYet && (
+          <div className="mb-6 flex items-center gap-2">
+            <ProfileRefreshButton />
+            <span className="text-[11px] text-ink-soft">
+              Updates “How you show up” &amp; “Mostly involved in”
+            </span>
+          </div>
+        )}
 
         {/* How you show up — Claude's honest mirror of what you bring to a
             conversation, read from your real messages. Yours to edit. */}
