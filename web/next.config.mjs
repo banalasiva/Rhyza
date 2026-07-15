@@ -9,6 +9,13 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_BUILD_ID: buildId,
   },
+  // firebase-admin has native/dynamic deps (gRPC, protobufjs) that break when
+  // Next tries to bundle them into the serverless output. Keep it external so
+  // it's required from node_modules at runtime instead. (It's also loaded
+  // lazily in src/lib/firebase-admin.ts, so it never touches non-phone routes.)
+  experimental: {
+    serverComponentsExternalPackages: ["firebase-admin"],
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "lh3.googleusercontent.com" }, // Google avatars

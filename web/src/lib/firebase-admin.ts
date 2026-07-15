@@ -1,10 +1,16 @@
-import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
+import type { App } from "firebase-admin/app";
+import type { Auth } from "firebase-admin/auth";
 
 // Server-side Firebase Admin — used only to VERIFY the ID token the client gets
 // after a successful phone sign-in. Node-only (imported from auth.ts, never the
 // edge middleware). Gated on the service-account env so phone sign-in is simply
 // absent until Firebase is configured — no KYC, unlike an SMS gateway.
+//
+// IMPORTANT: firebase-admin is loaded LAZILY (dynamic import inside the verify
+// function), never at module top level. auth.ts imports this file, and auth() is
+// called by nearly every server route/page — so if firebase-admin were in this
+// module's static graph, any bundling/runtime issue with it would 500 the whole
+// app. The type-only imports above are erased at compile time and load nothing.
 //
 // Required env (from a Firebase service-account JSON, Project settings →
 // Service accounts → Generate new private key):
@@ -22,14 +28,16 @@ export function firebaseAdminConfigured(): boolean {
   return !!(projectId && clientEmail && privateKey);
 }
 
-let cached: App | undefined;
-function adminApp(): App {
-  if (!cached) {
-    cached =
+let cachedApp: App | undefined;
+async function adminAuth(): Promise<Auth> {
+  const { cert, getApps, initializeApp } = await import("firebase-admin/app");
+  const { getAuth } = await import("firebase-admin/auth");
+  if (!cachedApp) {
+    cachedApp =
       getApps()[0] ??
       initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
   }
-  return cached;
+  return getAuth(cachedApp);
 }
 
 // Verify a Firebase ID token from a client phone sign-in and return the verified
@@ -38,7 +46,8 @@ function adminApp(): App {
 export async function verifyFirebasePhone(idToken: string): Promise<string | null> {
   if (!firebaseAdminConfigured() || !idToken) return null;
   try {
-    const decoded = await getAuth(adminApp()).verifyIdToken(idToken);
+    const auth = await adminAuth();
+    const decoded = await auth.verifyIdToken(idToken);
     return decoded.phone_number ?? null;
   } catch (err) {
     console.error("firebase verifyIdToken failed", err);
