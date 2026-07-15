@@ -25,6 +25,16 @@ export function twilioConfigured(): boolean {
   return !!(SID && TOKEN && SERVICE);
 }
 
+// Channels Twilio Verify can deliver on. The default primary is env-driven; the
+// UI also offers "call" as a universal fallback when the primary doesn't arrive.
+const ALLOWED_CHANNELS = new Set(["sms", "whatsapp", "call"]);
+
+// The configured primary channel, surfaced to the sign-in UI so the button copy
+// matches ("WhatsApp me a code" vs "Text me a code").
+export function verifyChannel(): string {
+  return ALLOWED_CHANNELS.has(CHANNEL) ? CHANNEL : "sms";
+}
+
 // Best-effort E.164: strip everything but digits and prefix "+". We deliberately
 // don't guess the country code server-side — the sign-in UI collects the number
 // with its country code — so a bad number simply fails Twilio's own validation
@@ -43,10 +53,14 @@ function authHeader(): string {
 // a person can act on.
 export async function sendVerification(
   phone: string,
+  channel?: string,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!twilioConfigured()) return { ok: false, error: "Phone sign-in isn't set up yet." };
   if (!phone || phone.replace(/\D/g, "").length < 8)
     return { ok: false, error: "Enter your number with country code, e.g. +91…" };
+  // Explicit channel (e.g. the "call me instead" fallback) wins; otherwise the
+  // configured primary. Anything unrecognised falls back to SMS.
+  const ch = channel && ALLOWED_CHANNELS.has(channel) ? channel : verifyChannel();
   try {
     const res = await fetch(`https://verify.twilio.com/v2/Services/${SERVICE}/Verifications`, {
       method: "POST",
@@ -54,7 +68,7 @@ export async function sendVerification(
         Authorization: authHeader(),
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({ To: phone, Channel: CHANNEL }),
+      body: new URLSearchParams({ To: phone, Channel: ch }),
     });
     if (res.ok) return { ok: true };
     const body = (await res.json().catch(() => ({}))) as { code?: number };

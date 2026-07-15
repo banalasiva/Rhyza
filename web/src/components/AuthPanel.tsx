@@ -14,6 +14,7 @@ export function AuthPanel({
   ssoEnabled,
   ssoName,
   phoneEnabled = false,
+  phoneChannel = "sms",
   phoneStartAction,
   googleAction,
   emailAction,
@@ -24,7 +25,8 @@ export function AuthPanel({
   ssoEnabled: boolean;
   ssoName: string;
   phoneEnabled?: boolean;
-  phoneStartAction?: (phone: string) => Promise<{ ok: boolean; error?: string }>;
+  phoneChannel?: string;
+  phoneStartAction?: (phone: string, channel?: string) => Promise<{ ok: boolean; error?: string }>;
   googleAction: () => Promise<void>;
   emailAction: (formData: FormData) => Promise<void>;
   ssoAction: () => Promise<void>;
@@ -40,21 +42,44 @@ export function AuthPanel({
   const [code, setCode] = useState("");
   const [phoneBusy, setPhoneBusy] = useState(false);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [sentVia, setSentVia] = useState(phoneChannel);
 
-  async function sendCode() {
+  async function sendCode(channel?: string) {
     if (!phoneStartAction || phoneBusy) return;
     setPhoneBusy(true);
     setPhoneError(null);
     try {
-      const res = await phoneStartAction(phone);
-      if (res.ok) setPhoneStep("code");
-      else setPhoneError(res.error ?? "Couldn't send the code. Try again.");
+      const res = await phoneStartAction(phone, channel);
+      if (res.ok) {
+        setSentVia(channel ?? phoneChannel);
+        setPhoneStep("code");
+      } else setPhoneError(res.error ?? "Couldn't send the code. Try again.");
     } catch {
       setPhoneError("Couldn't send the code. Try again.");
     } finally {
       setPhoneBusy(false);
     }
   }
+
+  // Channel-aware copy so the button reads as the actual delivery method.
+  const primaryCta =
+    phoneChannel === "whatsapp"
+      ? "WhatsApp me a code"
+      : phoneChannel === "call"
+        ? "Call me with a code"
+        : "Text me a code";
+  const sentPhrase =
+    sentVia === "whatsapp"
+      ? "Code sent on WhatsApp to"
+      : sentVia === "call"
+        ? "Calling"
+        : "Code sent by text to";
+  const enterHint =
+    phoneChannel === "whatsapp"
+      ? "Include your country code — we’ll message your code on WhatsApp."
+      : phoneChannel === "call"
+        ? "Include your country code — we’ll call and read out your code."
+        : "Include your country code. Standard message rates may apply.";
 
   async function verifyCode() {
     if (phoneBusy) return;
@@ -130,11 +155,9 @@ export function AuthPanel({
                 className="w-full rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-base text-ink outline-none focus:border-accent"
               />
               <button type="submit" disabled={phoneBusy} className="btn-ghost w-full disabled:opacity-60">
-                {phoneBusy ? "Sending…" : "Text me a code"}
+                {phoneBusy ? "Sending…" : primaryCta}
               </button>
-              <p className="text-[11px] text-ink-soft">
-                Include your country code. Standard message rates may apply.
-              </p>
+              <p className="text-[11px] text-ink-soft">{enterHint}</p>
             </form>
           ) : (
             <form
@@ -145,7 +168,7 @@ export function AuthPanel({
               }}
             >
               <p className="text-[11px] text-ink-soft">
-                Code sent to <span className="text-ink-mid">{phone}</span> ·{" "}
+                {sentPhrase} <span className="text-ink-mid">{phone}</span> ·{" "}
                 <button
                   type="button"
                   onClick={() => {
@@ -174,14 +197,31 @@ export function AuthPanel({
               <button type="submit" disabled={phoneBusy} className="btn-ghost w-full disabled:opacity-60">
                 {phoneBusy ? "Verifying…" : "Verify & continue"}
               </button>
-              <button
-                type="button"
-                disabled={phoneBusy}
-                onClick={() => void sendCode()}
-                className="w-full text-center text-[11px] text-ink-soft hover:text-ink disabled:opacity-60"
-              >
-                Didn’t get it? Resend
-              </button>
+              <div className="flex items-center justify-center gap-3 text-[11px] text-ink-soft">
+                <button
+                  type="button"
+                  disabled={phoneBusy}
+                  onClick={() => void sendCode(sentVia)}
+                  className="hover:text-ink disabled:opacity-60"
+                >
+                  Didn’t get it? Resend
+                </button>
+                {/* Voice is the universal fallback — a call reaches any phone and
+                    rides a different rail than SMS, so it lands when texts don't. */}
+                {sentVia !== "call" && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <button
+                      type="button"
+                      disabled={phoneBusy}
+                      onClick={() => void sendCode("call")}
+                      className="hover:text-ink disabled:opacity-60"
+                    >
+                      Get a call instead
+                    </button>
+                  </>
+                )}
+              </div>
             </form>
           )}
           {phoneError && <p className="mt-2 text-[11px] text-red-400">{phoneError}</p>}

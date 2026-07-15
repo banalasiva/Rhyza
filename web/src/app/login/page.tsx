@@ -7,7 +7,7 @@ import { AuthErrorBanner } from "@/components/AuthErrorBanner";
 import { ScrollCue } from "@/components/ScrollCue";
 import { Reveal } from "@/components/Reveal";
 import { authErrorMessage } from "@/lib/services/auth-events";
-import { twilioConfigured, sendVerification, normalizeE164 } from "@/lib/twilio";
+import { twilioConfigured, sendVerification, normalizeE164, verifyChannel } from "@/lib/twilio";
 
 // Familiar decisions — "this is me."
 const FAMILIAR = [
@@ -158,9 +158,10 @@ export default async function LoginPage({
                 ssoEnabled={ssoEnabled}
                 ssoName={ssoName}
                 phoneEnabled={phoneEnabled}
-                phoneStartAction={async (phone: string) => {
+                phoneChannel={phoneEnabled ? verifyChannel() : "sms"}
+                phoneStartAction={async (phone: string, channel?: string) => {
                   "use server";
-                  return sendVerification(normalizeE164(phone));
+                  return sendVerification(normalizeE164(phone), channel);
                 }}
                 googleAction={async () => {
                   "use server";
