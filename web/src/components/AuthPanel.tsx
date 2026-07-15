@@ -72,9 +72,15 @@ export function AuthPanel({
       setPhoneError(
         c.includes("invalid-phone")
           ? "That doesn't look like a valid number — include your country code."
-          : c.includes("too-many-requests")
-            ? "Too many attempts. Wait a minute and try again."
-            : "Couldn't send the code. Check the number and try again.",
+          : c.includes("too-many-requests") || c.includes("quota")
+            ? "Too many attempts (or daily limit hit). Wait a bit and try again."
+            : c.includes("operation-not-allowed") || c.includes("admin-restricted")
+              ? "Phone sign-in isn’t enabled in Firebase yet."
+              : c.includes("billing")
+                ? "Firebase needs the Blaze (pay-as-you-go) plan for phone sign-in."
+                : c.includes("captcha") || c.includes("invalid-app-credential")
+                  ? "This domain isn’t authorized in Firebase (add thinkthru.app)."
+                  : `Couldn't send the code (${c || "unknown error"}).`,
       );
       // A failed attempt burns the reCAPTCHA token; reset so a retry re-solves.
       try {
