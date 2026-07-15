@@ -160,6 +160,37 @@ export function SeedRoom({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed.id]);
 
+  // Bring the invite TO you right after planting. The single highest-leverage
+  // cold-start moment is the instant a fresh seed exists but is still empty of
+  // people — deciding *together* is the whole point. When the planter opens a
+  // seed they own that has no one else in it yet, auto-open the "bring your
+  // people in" sheet once (per seed, remembered in localStorage), after a short
+  // beat so it doesn't feel jarring. It's fully dismissible and never nags again.
+  const inviteNudged = useRef(false);
+  useEffect(() => {
+    if (inviteNudged.current) return;
+    if (!seed.canManage) return; // only the planter/owner, not a passing viewer
+    if (seed.people.filter((p) => p.id !== currentUserId).length > 0) return; // already has people
+    const key = `invite-nudge:${seed.id}`;
+    try {
+      if (localStorage.getItem(key)) return; // already nudged for this seed
+    } catch {
+      /* localStorage unavailable — just skip the auto-nudge */
+      return;
+    }
+    inviteNudged.current = true;
+    const t = setTimeout(() => {
+      setPeopleModal(true);
+      try {
+        localStorage.setItem(key, "1");
+      } catch {
+        /* ignore */
+      }
+    }, 1400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed.id]);
+
   // On open, a newer LOCAL draft (this device) wins over the loaded server copy.
   useEffect(() => {
     try {
