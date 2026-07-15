@@ -6,6 +6,18 @@ import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } fro
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
 
+// Country codes offered in the phone sign-in dropdown. Kept to the regions the
+// Firebase SMS region policy allows (India first / default), so people can't pick
+// a country whose codes we don't deliver to. US and Canada share +1.
+const COUNTRY_CODES = [
+  { flag: "🇮🇳", dial: "+91", name: "India" },
+  { flag: "🇺🇸", dial: "+1", name: "US / Canada" },
+  { flag: "🇬🇧", dial: "+44", name: "UK" },
+  { flag: "🇦🇺", dial: "+61", name: "Australia" },
+  { flag: "🇸🇬", dial: "+65", name: "Singapore" },
+  { flag: "🇦🇪", dial: "+971", name: "UAE" },
+];
+
 // The sign-in / sign-up panel. Auth.js treats Google and the email magic-link
 // the same for new vs returning people (both sign in an existing account OR
 // create one), so the two tabs mainly reframe the copy — but that's what people
@@ -38,6 +50,7 @@ export function AuthPanel({
   // the resulting ID token to NextAuth to mint our own session. Two steps so a
   // wrong code shows inline instead of bouncing to an error page.
   const [phoneStep, setPhoneStep] = useState<"enter" | "code">("enter");
+  const [dialCode, setDialCode] = useState("+91");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [phoneBusy, setPhoneBusy] = useState(false);
@@ -55,11 +68,15 @@ export function AuthPanel({
     return recaptchaRef.current;
   }
 
+  // Combine the picked country code with the local digits (dropping a local
+  // trunk "0"), so users type only their number, not the country code.
+  const fullNumber = () => dialCode + phone.replace(/\D/g, "").replace(/^0+/, "");
+
   async function sendCode() {
     if (phoneBusy) return;
-    const e164 = "+" + phone.replace(/\D/g, "");
+    const e164 = fullNumber();
     if (e164.length < 9) {
-      setPhoneError("Enter your number with country code, e.g. +91…");
+      setPhoneError("Enter your phone number.");
       return;
     }
     setPhoneBusy(true);
@@ -158,22 +175,36 @@ export function AuthPanel({
                 void sendCode();
               }}
             >
-              <input
-                name="phone"
-                type="tel"
-                required
-                autoComplete="tel"
-                inputMode="tel"
-                placeholder="+91 98765 43210"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-base text-ink outline-none focus:border-accent"
-              />
+              <div className="flex gap-2">
+                <select
+                  aria-label="Country code"
+                  value={dialCode}
+                  onChange={(e) => setDialCode(e.target.value)}
+                  className="shrink-0 rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-2 py-2.5 text-base text-ink outline-none focus:border-accent"
+                >
+                  {COUNTRY_CODES.map((c) => (
+                    <option key={c.name} value={c.dial}>
+                      {c.flag} {c.dial}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  name="phone"
+                  type="tel"
+                  required
+                  autoComplete="tel-national"
+                  inputMode="tel"
+                  placeholder="98765 43210"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full flex-1 rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-base text-ink outline-none focus:border-accent"
+                />
+              </div>
               <button type="submit" disabled={phoneBusy} className="btn-ghost w-full disabled:opacity-60">
                 {phoneBusy ? "Sending…" : "Text me a code"}
               </button>
               <p className="text-[11px] text-ink-soft">
-                Include your country code. Standard message rates may apply.
+                Pick your country, then your number. Standard message rates may apply.
               </p>
             </form>
           ) : (
@@ -185,7 +216,11 @@ export function AuthPanel({
               }}
             >
               <p className="text-[11px] text-ink-soft">
-                Code sent by text to <span className="text-ink-mid">{phone}</span> ·{" "}
+                Code sent by text to{" "}
+                <span className="text-ink-mid">
+                  {dialCode} {phone}
+                </span>{" "}
+                ·{" "}
                 <button
                   type="button"
                   onClick={() => {
