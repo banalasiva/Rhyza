@@ -144,6 +144,22 @@ export function SeedRoom({
   const draftLatest = useRef({ text: draft, attachments: draftAttachments });
   draftLatest.current = { text: draft, attachments: draftAttachments };
 
+  // Reliable Claude opener. The plant route fires kickstartSeed fire-and-forget,
+  // but a serverless instance can freeze right after returning the response and
+  // drop that work — leaving a fresh seed silent, the worst first-five-minutes
+  // experience. So when the room opens on an empty thread, we (re)trigger the
+  // opener from the client. The endpoint is idempotent (only acts on an empty
+  // thread, only ever posts one Claude opener), so this can never double-post;
+  // the next sync poll surfaces Claude's message when it lands.
+  const kickstartFired = useRef(false);
+  useEffect(() => {
+    if (kickstartFired.current) return;
+    if (contributions.length > 0) return; // already opened / has replies
+    kickstartFired.current = true;
+    void fetch(`/api/seeds/${seed.id}/kickstart`, { method: "POST" }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed.id]);
+
   // On open, a newer LOCAL draft (this device) wins over the loaded server copy.
   useEffect(() => {
     try {
