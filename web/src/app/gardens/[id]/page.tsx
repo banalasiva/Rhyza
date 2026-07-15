@@ -141,7 +141,7 @@ export default async function GardenPage({ params }: { params: { id: string } })
         {garden.viewerBelongs ? (
           <>
             <div id="plant-seed" className="card mb-4 p-5">
-              <p className="eyebrow mb-3">Plant a seed</p>
+              <p className="eyebrow mb-3">Plant a seed <span className="normal-case tracking-normal">· start a decision</span></p>
               <PlantSeedForm gardenId={garden.id} />
             </div>
 

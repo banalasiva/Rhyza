@@ -1411,6 +1411,17 @@ export function SeedRoom({
           })}
         </div>
 
+        {/* Plain-language "what this step is for". The tabs use the garden words
+            (Discuss · Decide · Bloom); this line says, in ordinary language, what
+            you actually DO here — so a first-timer is never left guessing. */}
+        <p className="mb-4 -mt-1 px-1 text-center text-[11px] leading-relaxed text-ink-soft">
+          {tab === "discuss"
+            ? "💬 Talk it through — share every angle, and ask AI when you want another view."
+            : tab === "decide"
+              ? "⚖️ Weigh in on what matters most — everyone’s read shapes the call."
+              : "🌸 Close the conversation into one shared decision your group keeps."}
+        </p>
+
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "decide" ? (
           <div className="space-y-4">
@@ -1463,7 +1474,7 @@ export function SeedRoom({
             ) : (
               <div className="card p-5">
                 <p className="eyebrow mb-2" style={{ color: bloomReady ? "#FFB300" : "#5A6456" }}>
-                  🌸 Ready to bloom?
+                  🌸 Ready to bloom? <span className="normal-case tracking-normal">· close into a decision</span>
                 </p>
                 <div className="mb-2 h-2 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
                   <div

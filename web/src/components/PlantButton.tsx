@@ -88,7 +88,7 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
             </div>
 
             {/* Plant a seed — pick a garden to put your question in */}
-            <p className="eyebrow mb-1">🌱 Plant a seed</p>
+            <p className="eyebrow mb-1">🌱 Plant a seed <span className="normal-case tracking-normal">· start a decision</span></p>
             <p className="mb-3 text-xs text-ink-soft">
               Got a thought or a decision you’d love to talk through together? Let’s plant it 🌱 —
               which garden should it grow in?
