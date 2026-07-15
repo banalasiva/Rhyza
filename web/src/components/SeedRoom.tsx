@@ -34,6 +34,7 @@ import { ReadAloud } from "@/components/ReadAloud";
 import { MicButton } from "@/components/MicButton";
 import { MessageActions } from "@/components/MessageActions";
 import { SeedInvite } from "@/components/SeedInvite";
+import { RecognitionRow } from "@/components/RecognitionRow";
 import { MembersSheet } from "@/components/MembersSheet";
 import { AskPeople } from "@/components/AskPeople";
 import { JoinRequests } from "@/components/JoinRequests";
@@ -2259,6 +2260,17 @@ export function SeedRoom({
                 ✕
               </button>
             </div>
+
+            {/* Recognize the PERSON for a virtue — the reputation economy. Only
+                on other people's human messages (you can't recognize yourself or
+                the AI). Distinct from reactions below, which are how it landed
+                for you. */}
+            {sheetC.author?.id &&
+              sheetC.author.id !== currentUserId &&
+              sheetC.author.name !== "Claude" &&
+              sheetC.author.name !== "ChatGPT" && (
+                <RecognitionRow contributionId={sheetC.id} authorName={sheetC.author.name} />
+              )}
 
             {/* Reactions — SIGNAL (a labelled read the group + AI use) first,
                 then EXPRESSIVE (warmth, animated, excluded from the quorum). */}

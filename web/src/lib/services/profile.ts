@@ -3,6 +3,7 @@ import { DIMENSIONS } from "@/lib/constants";
 import { displayName } from "@/lib/display-name";
 import type { DimSlice } from "@/lib/fingerprint";
 import { getFollowContext } from "@/lib/services/follows";
+import { getUserRecognitionSummary } from "@/lib/services/recognition";
 import {
   inferPersonTopics,
   describeContributionStyle,
@@ -391,6 +392,7 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
     seedsPlanted,
     bloomsHelped,
     recognitions,
+    virtues,
     aiTags,
     visibility,
     involvedSeeds,
@@ -403,6 +405,7 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
     db.userRecognition
       .findMany({ where: { userId }, include: { label: true } })
       .catch(() => [] as { labelKey: string; label: { emoji: string | null; label: string | null } | null }[]),
+    getUserRecognitionSummary(userId),
     getAiTagCounts(userId),
     getSectionVisibility(userId),
     getInvolvedPublicSeeds(userId).catch(() => [] as InvolvedSeed[]),
@@ -456,6 +459,7 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
     involvedSeeds: canSee("seeds") ? involvedSeeds : [],
     dimensions: canSee("fingerprint") ? dimensions : [],
     recognitions: [...byLabel.values()].sort((a, b) => b.count - a.count),
+    virtues,
     needsEnrich,
   };
 }

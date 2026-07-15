@@ -228,6 +228,27 @@ export default async function ProfilePage({ params }: { params: { id: string } }
           )}
         </div>
 
+        {/* Recognized for — the virtues peers credited them with, each earned on
+            a real message. Earned reputation, not a score. */}
+        {profile.virtues.length > 0 && (
+          <div className="card mt-4 p-5">
+            <p className="eyebrow mb-3">✨ Recognized for</p>
+            <div className="flex flex-wrap gap-2">
+              {profile.virtues.map((v) => (
+                <span
+                  key={v.key}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.28)] bg-[rgba(76,175,80,0.07)] px-3 py-1.5 text-sm text-ink"
+                >
+                  <span aria-hidden>{v.emoji}</span> {v.label}
+                  <span className="text-xs text-ink-soft">
+                    · {v.people} {v.people === 1 ? "person" : "people"}
+                  </span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Recognition from the community */}
         {profile.recognitions.length > 0 && (
           <div className="card mt-4 p-5">

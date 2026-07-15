@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { DIMENSIONS } from "@/lib/constants";
+import { getUserRecognitionSummary } from "@/lib/services/recognition";
 import {
   getUserTopics,
   getAiTagCounts,
@@ -21,6 +22,7 @@ export async function getMyRoots(userId: string) {
     plantedSeeds,
     endorsementsReceived,
     recognitions,
+    virtues,
     topics,
     aiTags,
     reflection,
@@ -59,6 +61,7 @@ export async function getMyRoots(userId: string) {
       where: { userId },
       include: { label: true, garden: { select: { name: true } } },
     }),
+    getUserRecognitionSummary(userId),
     getUserTopics(userId).catch(() => [] as string[]),
     getAiTagCounts(userId),
     getUserReflection(userId).catch(() => ""),
@@ -97,6 +100,7 @@ export async function getMyRoots(userId: string) {
     reflection,
     visibility,
     involvedSeeds,
+    virtues,
     needsEnrich,
     stats: {
       bloomsHelped: bloomContribs.length,

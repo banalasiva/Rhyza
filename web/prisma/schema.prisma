@@ -770,6 +770,25 @@ model UserRecognition {
   @@map("user_recognition")
 }
 
+// Peer recognition of a person for a virtue (depth / judgement / taste /
+// empathy), earned IN CONTEXT on a specific message — the contribution is the
+// evidence, the profile aggregates. Deliberately STANDALONE (no relations to the
+// hot User/Contribution models): a missing table can never break core seed or
+// profile reads (SEV0 discipline), and it's always read best-effort. authorId is
+// denormalized so a profile can aggregate its virtues without a join.
+model ContributionRecognition {
+  contributionId String   @map("contribution_id") @db.Uuid
+  authorId       String   @map("author_id") @db.Uuid
+  byId           String   @map("by_id") @db.Uuid
+  virtue         String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@id([contributionId, byId, virtue])
+  @@index([authorId, virtue])
+  @@index([contributionId])
+  @@map("contribution_recognitions")
+}
+
 // ─────────────────────────────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────────────────────────────

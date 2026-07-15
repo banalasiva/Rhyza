@@ -603,4 +603,27 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "phone_identities_user_id_idx",
     sql: `CREATE INDEX IF NOT EXISTS "phone_identities_user_id_idx" ON "phone_identities" ("user_id")`,
   },
+
+  // Peer recognition for virtues (depth/judgement/taste/empathy), earned on a
+  // specific message. Standalone (no FK to the hot users/contributions tables)
+  // so a missing table can never break core reads; read best-effort everywhere.
+  {
+    label: "contribution_recognitions",
+    sql: `CREATE TABLE IF NOT EXISTS "contribution_recognitions" (
+      "contribution_id" UUID NOT NULL,
+      "author_id"       UUID NOT NULL,
+      "by_id"           UUID NOT NULL,
+      "virtue"          TEXT NOT NULL,
+      "created_at"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY ("contribution_id", "by_id", "virtue")
+    )`,
+  },
+  {
+    label: "contribution_recognitions_author_virtue_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "contribution_recognitions_author_virtue_idx" ON "contribution_recognitions" ("author_id", "virtue")`,
+  },
+  {
+    label: "contribution_recognitions_contribution_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "contribution_recognitions_contribution_idx" ON "contribution_recognitions" ("contribution_id")`,
+  },
 ];
