@@ -56,9 +56,15 @@ export default async function LoginPage({
   const ssoEnabled = !!process.env.AUTH_SSO_ISSUER;
   const ssoName = process.env.AUTH_SSO_NAME || "SSO";
   const emailEnabled = !!process.env.RESEND_API_KEY;
-  // Show phone sign-in only when the browser can run the Firebase OTP (client
-  // config present) and the server can verify the token (project id present).
+  // Show phone sign-in only when it actually works end-to-end. Firebase config
+  // being present isn't enough — SMS also needs the Firebase project on an active
+  // Blaze plan. Since we can't detect billing from env, phone is an EXPLICIT
+  // opt-in: it stays hidden until PHONE_SIGNIN_ENABLED="true" is set (flip it on
+  // only after a real test sign-in succeeds). This keeps the Firebase config in
+  // place while a pending billing review resolves, without showing a broken
+  // "or with your phone" option.
   const phoneEnabled =
+    process.env.PHONE_SIGNIN_ENABLED === "true" &&
     firebaseVerifyConfigured() &&
     !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
     !!process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN &&
