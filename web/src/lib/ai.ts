@@ -25,6 +25,13 @@ const MODEL_FAST = process.env.ANTHROPIC_MODEL_FAST || "claude-haiku-4-5";
 // choice, not a hardcode that can drift out of date.
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
 
+// Bound every ChatGPT reply's output. OpenAI reserves max_tokens against your
+// per-minute token limit (TPM) up front — an UNBOUNDED reply reserves the
+// model's full output window and can trip rate_limit_exceeded (429) by itself on
+// lower usage tiers, even with credits to spare. A tight cap keeps replies under
+// the ceiling (and faster). Replies are conversational, not essays.
+const OPENAI_REPLY_MAX_TOKENS = 1200;
+
 let client: Anthropic | null = null;
 let openaiClient: OpenAI | null = null;
 
@@ -1146,24 +1153,33 @@ export async function chatgptReply(input: {
     "don't refer to yourself in the third person.";
   const images = collectImages(input.contributions);
 
-  try {
-    const resp = await getOpenAI().responses.create({
-      model: OPENAI_MODEL,
-      instructions: system,
-      input: openaiResponseInput(prompt, images),
-      tools: [{ type: "web_search" }],
-      max_output_tokens: 4096,
-    });
-    const text = resp.output_text.trim();
-    if (text) return text + sourcesFooter(openaiCitedSources(resp));
-  } catch (err) {
-    // Some OpenAI models don't support the Responses web_search tool. Rather
-    // than leave the mention unanswered, fall back to a plain reply below.
-    console.error("chatgptReply web search failed, falling back", err);
+  // Web search via the Responses API is heavy: an extra round-trip that eats
+  // into OpenAI's per-minute rate limit and adds latency. Keep it OFF by default
+  // (turn on with OPENAI_WEB_SEARCH=on once the account's rate tier is high
+  // enough). This is the single biggest cause of both the rate_limit_exceeded
+  // errors and the slow ChatGPT replies.
+  if (process.env.OPENAI_WEB_SEARCH === "on") {
+    try {
+      const resp = await getOpenAI().responses.create({
+        model: OPENAI_MODEL,
+        instructions: system,
+        input: openaiResponseInput(prompt, images),
+        tools: [{ type: "web_search" }],
+        max_output_tokens: OPENAI_REPLY_MAX_TOKENS,
+      });
+      const text = resp.output_text.trim();
+      if (text) return text + sourcesFooter(openaiCitedSources(resp));
+    } catch (err) {
+      // e.g. the model doesn't support the web_search tool — fall through.
+      console.error("chatgptReply web search failed, falling back", err);
+    }
   }
 
+  // Lean default: one chat completion with a BOUNDED output budget so it doesn't
+  // reserve the whole context window against the rate limit.
   const resp = await getOpenAI().chat.completions.create({
     model: OPENAI_MODEL,
+    max_tokens: OPENAI_REPLY_MAX_TOKENS,
     messages: [
       { role: "system", content: system },
       { role: "user", content: openaiUserContent(prompt, images) },
