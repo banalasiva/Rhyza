@@ -692,6 +692,14 @@ export function SeedRoom({
     clearDraftEverywhere();
     playNatureSound("drop");
 
+    // Your message is posted and the composer is clear — free the button NOW.
+    // When an AI is tagged, its reply arrives on the SAME request (which can take
+    // several seconds), but it has its own "thinking…" indicator, so there's no
+    // reason to keep the send button spinning while the AI writes. The composer
+    // is ready for your next thought immediately.
+    setBusy(false);
+    sendingRef.current = false;
+
     try {
       // If an AI is tagged, show a "thinking" placeholder while it replies.
       if (tagsAI) {
@@ -738,9 +746,9 @@ export function SeedRoom({
       setDraftAttachments(sentAttachments);
       setError(err instanceof Error ? err.message : "Failed to contribute");
     } finally {
+      // busy + sendingRef were already released right after the optimistic post;
+      // here we just clear the AI "thinking" state and resume the live poll.
       setThinking(false);
-      setBusy(false);
-      sendingRef.current = false;
       postingRef.current = Math.max(0, postingRef.current - 1);
     }
   }
