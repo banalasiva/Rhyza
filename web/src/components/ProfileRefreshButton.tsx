@@ -37,10 +37,15 @@ export function ProfileRefreshButton() {
     <button
       onClick={run}
       disabled={busy}
-      className="btn-ghost inline-flex items-center gap-1.5 px-3 py-1.5 text-xs disabled:opacity-60"
-      title="Regenerate 'How you show up' and 'Mostly involved in' from your recent activity"
+      aria-label="Refresh “How you show up” and “Mostly involved in” from your recent activity"
+      title="Refresh from my recent activity — updates “How you show up” & “Mostly involved in”"
+      className={`shrink-0 rounded-full p-1 text-base leading-none transition hover:text-accent disabled:opacity-60 ${
+        done ? "text-accent" : "text-ink-soft"
+      }`}
     >
-      {busy ? "✨ Updating…" : done ? "✓ Updated" : "✨ Refresh from my activity"}
+      <span aria-hidden className={busy ? "inline-block animate-pulse" : ""}>
+        {done ? "✓" : "✨"}
+      </span>
     </button>
   );
 }

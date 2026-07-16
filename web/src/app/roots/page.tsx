@@ -60,18 +60,6 @@ export default async function RootsPage() {
           public.
         </p>
 
-        {/* Re-run the AI mirror on demand. "How you show up" and "Mostly involved
-            in" are read from your activity; this regenerates both after you've
-            been active. */}
-        {!nothingYet && (
-          <div className="mb-6 flex items-center gap-2">
-            <ProfileRefreshButton />
-            <span className="text-[11px] text-ink-soft">
-              Updates “How you show up” &amp; “Mostly involved in”
-            </span>
-          </div>
-        )}
-
         {/* Recognized for — virtues peers credited you with, each earned on a
             real message. Earned reputation, not a score. */}
         {roots.virtues.length > 0 && (
@@ -100,7 +88,10 @@ export default async function RootsPage() {
           <section className="mb-8">
             <div className="mb-3 flex items-center justify-between gap-2">
               <p className="eyebrow">🪞 How you show up</p>
-              <SectionPrivacyToggle section="reflection" initialPublic={roots.visibility.reflection} />
+              <div className="flex items-center gap-1">
+                {!nothingYet && <ProfileRefreshButton />}
+                <SectionPrivacyToggle section="reflection" initialPublic={roots.visibility.reflection} />
+              </div>
             </div>
             <div className="card p-4">
               <ReflectionEditor initial={roots.reflection} />
