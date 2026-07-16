@@ -1052,7 +1052,9 @@ function openaiUserContent(
     ...images.map(
       (url): OpenAI.Chat.Completions.ChatCompletionContentPart => ({
         type: "image_url",
-        image_url: { url },
+        // Low detail keeps each image ~85 tokens instead of 1000+, so a reply
+        // with photos doesn't blow past the per-request token limit.
+        image_url: { url, detail: "low" },
       }),
     ),
   ];
@@ -1071,7 +1073,7 @@ function openaiResponseInput(
       (url): OpenAI.Responses.ResponseInputContent => ({
         type: "input_image",
         image_url: url,
-        detail: "auto",
+        detail: "low",
       }),
     ),
   ];
@@ -1113,10 +1115,16 @@ export async function chatgptReply(input: {
 }): Promise<string | null> {
   if (!openaiConfigured()) return null;
   const dim = DIMENSION_LABEL[input.dimension] ?? input.dimension;
+  // Bound the request so a long thread + images can't exceed the per-request /
+  // per-minute token limit (OpenAI reports that as rate_limit_exceeded /
+  // "request too large", which is the actual cause of the @chatgpt failures on
+  // lower usage tiers). Last 40 messages is plenty context; older ones rarely
+  // change the reply.
+  const recent = input.contributions.slice(-40);
   const prompt = [
     `SEED: ${input.title}`,
     input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
-    `\nCONVERSATION SO FAR:\n${renderThread(input.contributions)}`,
+    `\nCONVERSATION SO FAR:\n${renderThread(recent)}`,
     `\nYou were tagged in the "${dim}" dimension. The message tagging you:\n"${input.mention}"`,
     `\nReply as a participant.`,
   ]
@@ -1151,7 +1159,9 @@ export async function chatgptReply(input: {
     "invite them to tell you exactly what they'd like; when a visual would genuinely help, offer it. " +
     "Write warmly and directly; output only your reply — no greeting like 'Sure!', no sign-off, and " +
     "don't refer to yourself in the third person.";
-  const images = collectImages(input.contributions);
+  // Cap images tightly for ChatGPT — vision tokens dominate a request's size,
+  // and the low-detail path below shrinks each one ~10x.
+  const images = collectImages(recent, 3);
 
   // Web search via the Responses API is heavy: an extra round-trip that eats
   // into OpenAI's per-minute rate limit and adds latency. Keep it OFF by default

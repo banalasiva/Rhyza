@@ -83,8 +83,20 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   // "insufficient_quota", "model_not_found", "rate_limit_exceeded", "HTTP 401")
   // so a failed AI reply says WHY instead of a blank "couldn't reply".
   const reason = (err: unknown): string => {
-    const e = err as { code?: string; type?: string; status?: number };
-    return e?.code || e?.type || (e?.status ? `HTTP ${e.status}` : "");
+    const e = err as {
+      code?: string;
+      type?: string;
+      status?: number;
+      message?: string;
+      error?: { message?: string };
+    };
+    const label = e?.code || e?.type || (e?.status ? `HTTP ${e.status}` : "");
+    // OpenAI/Anthropic put the actionable detail in the message ("Rate limit
+    // reached … TPM: Limit 30000, Requested 45000", "You exceeded your quota",
+    // "Request too large", etc.). Surface a trimmed version so we can see the
+    // real cause, not just the code. No secrets live in these messages.
+    const msg = (e?.error?.message || e?.message || "").replace(/\s+/g, " ").trim().slice(0, 220);
+    return [label, msg].filter(Boolean).join(": ");
   };
 
   if (wantsClaude) {
