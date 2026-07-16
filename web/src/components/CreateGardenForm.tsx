@@ -44,8 +44,10 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
     <form onSubmit={submit} className="space-y-3">
       {!firstRun && (
         <p className="text-xs text-ink-soft">
-          Who’s this space for? A <span className="text-ink-mid">garden</span> holds all the
-          decisions one group — your family, friends, or team — thinks through together.
+          A <span className="text-ink-mid">garden</span> is a topic one group — your family,
+          friends, or team — thinks through together. Name it something like{" "}
+          <span className="text-ink-mid">Home furniture</span>, and each decision inside becomes a{" "}
+          <span className="text-ink-mid">seed</span> — the sofa set, the clocks, the rug.
         </p>
       )}
       {firstRun && (
