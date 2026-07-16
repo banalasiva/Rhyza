@@ -79,6 +79,14 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
     /* metering is best-effort */
   }
 
+  // Pull a short, non-secret reason out of a provider error (e.g.
+  // "insufficient_quota", "model_not_found", "rate_limit_exceeded", "HTTP 401")
+  // so a failed AI reply says WHY instead of a blank "couldn't reply".
+  const reason = (err: unknown): string => {
+    const e = err as { code?: string; type?: string; status?: number };
+    return e?.code || e?.type || (e?.status ? `HTTP ${e.status}` : "");
+  };
+
   if (wantsClaude) {
     if (!aiConfigured()) aiError = "not_configured";
     else {
@@ -88,7 +96,8 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
         else aiError = aiError ?? "Claude couldn't reply just now.";
       } catch (err) {
         console.error("[ai] claude reply failed", err);
-        aiError = aiError ?? "Claude couldn't reply just now.";
+        const r = reason(err);
+        aiError = aiError ?? (r ? `Claude couldn't reply (${r}).` : "Claude couldn't reply just now.");
       }
     }
   }
@@ -102,7 +111,8 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
         else aiError = aiError ?? "ChatGPT couldn't reply just now.";
       } catch (err) {
         console.error("[ai] chatgpt reply failed", err);
-        aiError = aiError ?? "ChatGPT couldn't reply just now.";
+        const r = reason(err);
+        aiError = aiError ?? (r ? `ChatGPT couldn't reply (${r}).` : "ChatGPT couldn't reply just now.");
       }
     }
   }
