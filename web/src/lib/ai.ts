@@ -171,6 +171,48 @@ const DIMENSION_LABEL: Record<string, string> = {
   bloom: "Bloom (distilled answers)",
 };
 
+// Fold a batch of older messages into a seed's rolling memory — the compaction
+// that lets the AI keep full-thread context without resending the transcript.
+// Uses the FAST model (this runs in the background, off the reply path) and is
+// best-effort: on any failure it returns the previous summary unchanged.
+export async function summarizeThreadMemory(
+  title: string,
+  oldSummary: string,
+  newMessages: ContribForAI[],
+): Promise<string | null> {
+  if (!aiConfigured() || newMessages.length === 0) return oldSummary || null;
+  const system =
+    "You maintain a running memory of a group's discussion so a participant who " +
+    "reads only your summary can follow everything that matters. Be faithful and " +
+    "specific — never invent.";
+  const prompt = [
+    `The group is thinking through: "${title}".`,
+    oldSummary ? `\nMEMORY SO FAR:\n${oldSummary}` : "",
+    `\nNEW MESSAGES TO FOLD IN (oldest first):\n${renderThread(newMessages)}`,
+    "\nRewrite the memory to incorporate the new messages. Keep it COMPRESSED " +
+      "(aim under ~350 words) but preserve: the key points and arguments, WHO made " +
+      "the ones that mattered, decisions or leanings, open disagreements, and any " +
+      "concrete facts/numbers a newcomer would need. Write a dense briefing in prose, " +
+      "not a bulleted 'X said Y' log. Output ONLY the updated memory.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  try {
+    const text = await complete(system, prompt, 700, MODEL_FAST);
+    return text.trim() || oldSummary || null;
+  } catch (err) {
+    console.error("summarizeThreadMemory failed", err);
+    return oldSummary || null;
+  }
+}
+
+// Render the "earlier in this thread" memory block for a reply prompt.
+function memoryBlock(memory?: string): string {
+  return memory && memory.trim()
+    ? `\nEARLIER IN THIS THREAD (compressed summary of older messages — treat as real context you remember):\n${memory.trim()}\n`
+    : "";
+}
+
 function renderThread(contributions: ContribForAI[]): string {
   if (contributions.length === 0) return "(no contributions yet)";
   return contributions
@@ -267,15 +309,17 @@ export async function claudeReply(input: {
   dimension: string;
   mention: string;
   contributions: ContribForAI[];
+  memory?: string;
 }): Promise<string | null> {
   if (!aiConfigured()) return null;
   const dim = DIMENSION_LABEL[input.dimension] ?? input.dimension;
   const prompt = [
     `SEED: ${input.title}`,
     input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
-    `\nCONVERSATION SO FAR:\n${renderThread(input.contributions)}`,
+    memoryBlock(input.memory),
+    `\nCONVERSATION SO FAR (most recent messages):\n${renderThread(input.contributions)}`,
     `\nYou were tagged in the "${dim}" dimension. The message tagging you:\n"${input.mention}"`,
-    `\nReply as a participant.`,
+    `\nReply as a participant, drawing on the earlier-thread memory above so you build on the whole discussion — don't just summarise the latest message.`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -1112,19 +1156,21 @@ export async function chatgptReply(input: {
   dimension: string;
   mention: string;
   contributions: ContribForAI[];
+  memory?: string;
 }): Promise<string | null> {
   if (!openaiConfigured()) return null;
   const dim = DIMENSION_LABEL[input.dimension] ?? input.dimension;
   // Bound the request so a long thread + images can't exceed the per-request /
   // per-minute token limit (OpenAI reports that as rate_limit_exceeded /
   // "request too large", which is the actual cause of the @chatgpt failures on
-  // lower usage tiers). Last 40 messages is plenty context; older ones rarely
-  // change the reply.
+  // lower usage tiers). The older thread is carried as a compressed memory
+  // (input.memory) instead of raw messages, so context isn't lost.
   const recent = input.contributions.slice(-40);
   const prompt = [
     `SEED: ${input.title}`,
     input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
-    `\nCONVERSATION SO FAR:\n${renderThread(recent)}`,
+    memoryBlock(input.memory),
+    `\nCONVERSATION SO FAR (most recent messages):\n${renderThread(recent)}`,
     `\nYou were tagged in the "${dim}" dimension. The message tagging you:\n"${input.mention}"`,
     `\nReply as a participant.`,
   ]

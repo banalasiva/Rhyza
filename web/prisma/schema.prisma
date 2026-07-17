@@ -789,6 +789,21 @@ model ContributionRecognition {
   @@map("contribution_recognitions")
 }
 
+// A per-seed rolling memory of the discussion — a compressed summary of the
+// OLDER messages, so the AI can reply with full-thread context without sending
+// the whole (token-blowing) transcript. Exactly the compaction pattern a long
+// assistant conversation uses: keep recent messages verbatim, fold everything
+// older into a running summary. Standalone + best-effort (SEV0 discipline): a
+// missing table just means the AI falls back to the recent window only.
+model SeedThreadMemory {
+  seedId          String   @id @map("seed_id") @db.Uuid
+  summary         String
+  summarizedCount Int      @default(0) @map("summarized_count")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("seed_thread_memory")
+}
+
 // ─────────────────────────────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────────────────────────────

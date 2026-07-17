@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
+import { getThreadMemory, refreshThreadMemory } from "@/lib/services/thread-memory";
 import {
   ensureSeedParticipant,
   requireSeedAccess,
@@ -273,14 +274,18 @@ export async function respondAsChatGpt(
     // fall through to a normal text reply if image generation failed
   }
 
+  const memory = await getThreadMemory(seedId).catch(() => "");
   const reply = await chatgptReply({
     title: data.seed.title,
     content: data.seed.content,
     dimension,
     mention: mentionText,
     contributions: data.thread,
+    memory,
   });
   if (!reply) return null;
+  // Keep the rolling memory current (background, best-effort).
+  void refreshThreadMemory(seedId, data.seed.title);
 
   const bot = await getOrCreateChatGptUser();
   const contribution = await db.contribution.create({
@@ -335,14 +340,18 @@ export async function respondAsClaude(
     return contribution;
   }
 
+  const memory = await getThreadMemory(seedId).catch(() => "");
   const reply = await claudeReply({
     title: seed.title,
     content: seed.content,
     dimension,
     mention: mentionText,
     contributions: thread,
+    memory,
   });
   if (!reply) return null;
+  // Keep the rolling memory current (background, best-effort).
+  void refreshThreadMemory(seedId, seed.title);
 
   const claude = await getOrCreateClaudeUser();
   const contribution = await db.contribution.create({

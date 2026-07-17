@@ -626,4 +626,17 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "contribution_recognitions_contribution_idx",
     sql: `CREATE INDEX IF NOT EXISTS "contribution_recognitions_contribution_idx" ON "contribution_recognitions" ("contribution_id")`,
   },
+
+  // Per-seed rolling AI memory (compressed summary of older messages), so the
+  // AI can reply with full-thread context without sending the whole transcript.
+  // Standalone, read best-effort.
+  {
+    label: "seed_thread_memory",
+    sql: `CREATE TABLE IF NOT EXISTS "seed_thread_memory" (
+      "seed_id"          UUID NOT NULL PRIMARY KEY,
+      "summary"          TEXT NOT NULL DEFAULT '',
+      "summarized_count" INTEGER NOT NULL DEFAULT 0,
+      "updated_at"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
 ];
