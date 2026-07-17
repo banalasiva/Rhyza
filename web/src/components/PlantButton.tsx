@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { NavIcon } from "@/components/nav-items";
 import { CreateGardenForm } from "@/components/CreateGardenForm";
@@ -13,6 +14,7 @@ type GardenNode = { id: string; name: string; emoji: string };
 // in a garden, start a new garden, and the people you invited who haven't joined
 // yet ("waiting for them"). Home stays purely for consuming seeds.
 export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [gardens, setGardens] = useState<GardenNode[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -34,6 +36,27 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
     setOpen(true);
     void load();
   }
+
+  // Open the Plant sheet when navigated in with #new-garden or #plant — this is
+  // how the side-panel "✚ New garden" / "Plant a seed" links reach the create
+  // form, which now lives in this modal rather than on the home page. Only the
+  // bottom-nav instance listens (it's always mounted) so we never open two
+  // sheets. The hash is cleared after opening so clicking the same link again
+  // re-fires it.
+  useEffect(() => {
+    if (variant !== "bottom") return;
+    const check = () => {
+      const h = window.location.hash;
+      if (h === "#new-garden" || h === "#plant") {
+        openSheet();
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+    };
+    check(); // on mount AND whenever the route changes (covers cross-page nav)
+    window.addEventListener("hashchange", check); // covers same-page hash clicks
+    return () => window.removeEventListener("hashchange", check);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant, pathname]);
 
   const trigger =
     variant === "bottom" ? (
