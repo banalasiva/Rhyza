@@ -1254,7 +1254,10 @@ export function SeedRoom({
         setBusy(false);
         return;
       }
-      router.push(`/gardens/${seed.garden.id}/tree`);
+      // Full navigation (not router.push) so the Sacred Tree is fetched fresh —
+      // the client router cache can otherwise serve a previously-visited tree
+      // that doesn't yet include the bloom we just created.
+      window.location.href = `/gardens/${seed.garden.id}/tree`;
     });
   }
 
