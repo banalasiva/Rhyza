@@ -7,7 +7,21 @@ export type Attachment = { url: string; type: "image" | "video" | "file"; name?:
 // download via an object URL, which works cross-origin on desktop and Android.
 // On anything where that fails (iOS Safari is finicky), fall back to opening the
 // file so the user can long-press → Save.
-async function saveFile(url: string, name?: string) {
+async function saveFile(url: string, name?: string, heavy = false) {
+  // Large media (video) must NOT be fetched into memory to download — a 100s-of-MB
+  // res.blob() OOMs/hangs on mobile. Vercel Blob honours ?download=1
+  // (Content-Disposition: attachment), so let the browser stream it to disk. If
+  // the param isn't honoured the file just opens, which is still fine.
+  if (heavy) {
+    const sep = url.includes("?") ? "&" : "?";
+    const a = document.createElement("a");
+    a.href = `${url}${sep}download=1`;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return;
+  }
   const filename = name || url.split("/").pop()?.split("?")[0] || "download";
   try {
     const res = await fetch(url);
@@ -77,7 +91,7 @@ export function Attachments({ items }: { items: Attachment[] }) {
               </video>
               <button
                 type="button"
-                onClick={() => void saveFile(a.url, a.name)}
+                onClick={() => void saveFile(a.url, a.name, true)}
                 aria-label="Save video"
                 title="Save video"
                 className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-sm transition hover:bg-black/75 active:scale-95"

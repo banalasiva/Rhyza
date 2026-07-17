@@ -31,12 +31,22 @@ export async function POST(request: Request): Promise<NextResponse> {
             "image/gif",
             "image/webp",
             "image/heic",
+            "image/heif",
+            // Broad video coverage so real phone/desktop videos upload (mp4 +
+            // iPhone .mov + webm play inline; the rest still upload + download).
             "video/mp4",
             "video/webm",
             "video/quicktime",
+            "video/x-matroska",
+            "video/x-msvideo",
+            "video/mpeg",
+            "video/3gpp",
+            "video/ogg",
             "application/pdf",
           ],
-          maximumSizeInBytes: 100 * 1024 * 1024, // 100 MB
+          // Real videos are big — 100 MB was too small. Default 500 MB, raise via
+          // MAX_UPLOAD_MB if you need more (Vercel Blob supports up to 5 TB).
+          maximumSizeInBytes: (Number(process.env.MAX_UPLOAD_MB) || 500) * 1024 * 1024,
           addRandomSuffix: true,
         };
       },

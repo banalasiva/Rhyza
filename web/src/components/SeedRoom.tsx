@@ -639,10 +639,13 @@ export function SeedRoom({
       // not the sum. Each attachment appears the moment its own upload lands.
       await Promise.all(
         Array.from(files).map(async (file) => {
-          const toSend = await compressImage(file);
+          const toSend = await compressImage(file); // no-op for video/pdf
           const blob = await upload(toSend.name, toSend, {
             access: "public",
             handleUploadUrl: "/api/upload",
+            // Chunk large files (videos) so a big upload is reliable and
+            // resumable rather than one giant PUT that can time out on mobile.
+            multipart: toSend.size > 20 * 1024 * 1024,
           });
           setDraftAttachments((prev) => [
             ...prev,
