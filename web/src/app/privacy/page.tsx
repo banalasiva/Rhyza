@@ -63,6 +63,8 @@ export default function PrivacyPolicy() {
               <li>
                 To power AI features (summaries, mediation, the AI participants) — when you invoke
                 them, the relevant discussion text is sent to our AI providers to generate a response.
+                We ask you to acknowledge this in the app before you first use a thread, so it is
+                never a surprise.
               </li>
               <li>To keep the service secure and prevent abuse.</li>
             </ul>

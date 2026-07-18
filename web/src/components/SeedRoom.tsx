@@ -18,6 +18,7 @@ import { upload } from "@vercel/blob/client";
 import { compressImage } from "@/lib/image-compress";
 import { isSignalReaction, REACTION_ANIM, reactionAnimates } from "@/lib/reactions";
 import { AnimatedEmoji } from "@/components/AnimatedEmoji";
+import { AiConsent } from "@/components/AiConsent";
 import { PlantSvg } from "@/components/PlantSvg";
 import { HowItWorks } from "@/components/HowItWorks";
 import { RichEditor } from "@/components/RichEditor";
@@ -1322,6 +1323,9 @@ export function SeedRoom({
 
   return (
     <div className="relative mt-3 grid gap-6 lg:grid-cols-[1fr_360px]">
+      {/* One-time, in-context notice that a thread's messages are shared with the
+          AI participants — our consent step for third-party AI (User Data policy). */}
+      <AiConsent />
       {/* Added by someone outside your circle → a gentle, dismissible heads-up
           with a one-tap way out. Open discoverability, but never a trap. */}
       {seed.addedNotice && !noticeHidden && (
