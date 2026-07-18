@@ -126,6 +126,8 @@ export function SeedRoom({
   const [seedContentDraft, setSeedContentDraft] = useState(seed.content);
   // Which message's action sheet is open (reactions + edit/copy/share/…).
   const [sheetForId, setSheetForId] = useState<string | null>(null);
+  // Which message has its inline quick-react palette open (tap 😊 on a message).
+  const [quickReactFor, setQuickReactFor] = useState<string | null>(null);
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
   const [retagId, setRetagId] = useState<string | null>(null); // open re-tag menu
   // Initial draft = the server copy the page loaded with (SSR-safe). A newer
@@ -1872,10 +1874,56 @@ export function SeedRoom({
                       ✦ {c.endorsementCount}
                     </span>
                   )}
+                  {/* Quick-react RIGHT ON the message — tap 😊 to open a small
+                      palette of the animated expressive emoji; tapping one fires
+                      the burst that flies up from the message itself. */}
+                  <div className="relative ml-auto">
+                    {quickReactFor === c.id && (
+                      <>
+                        {/* Tap-away scrim so the palette closes on outside tap. */}
+                        <button
+                          type="button"
+                          aria-hidden
+                          tabIndex={-1}
+                          onClick={() => setQuickReactFor(null)}
+                          className="fixed inset-0 z-10 cursor-default"
+                        />
+                        <div className="absolute bottom-full right-0 z-20 mb-2 flex items-center gap-0.5 rounded-full border border-[rgba(255,255,255,0.14)] bg-[#0B120B] px-1.5 py-1 shadow-xl">
+                          {reactions
+                            .filter((r) => !isSignalReaction(r.key) && REACTION_ANIM[r.key])
+                            .map((r) => (
+                              <button
+                                key={r.key}
+                                type="button"
+                                aria-label={r.label}
+                                onClick={(e) => {
+                                  react(c.id, r.key, e.currentTarget);
+                                  setQuickReactFor(null);
+                                }}
+                                className={`inline-flex h-8 w-8 items-center justify-center rounded-full transition hover:scale-125 active:scale-150 ${
+                                  c.myReactions.includes(r.key) ? "bg-[rgba(124,196,124,0.16)]" : ""
+                                }`}
+                              >
+                                <AnimatedEmoji codepoint={REACTION_ANIM[r.key]} emoji={r.emoji} size={22} />
+                              </button>
+                            ))}
+                        </div>
+                      </>
+                    )}
+                    <button
+                      onClick={() => setQuickReactFor((id) => (id === c.id ? null : c.id))}
+                      aria-label="Quick react"
+                      aria-expanded={quickReactFor === c.id}
+                      className="inline-flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.16)] px-2.5 py-1 text-xs leading-none text-ink-mid transition hover:border-accent hover:text-ink"
+                    >
+                      <span className="text-sm leading-none" aria-hidden>😊</span>
+                      React
+                    </button>
+                  </div>
                   <button
                     onClick={() => setSheetForId(c.id)}
                     aria-label="Thought actions — react, endorse, edit"
-                    className="ml-auto inline-flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.16)] px-2.5 py-1 text-xs leading-none text-ink-mid transition hover:border-accent hover:text-ink"
+                    className="inline-flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.16)] px-2.5 py-1 text-xs leading-none text-ink-mid transition hover:border-accent hover:text-ink"
                   >
                     <span className="text-sm leading-none" aria-hidden>⋯</span>
                     {c.author?.id === currentUserId ? "Edit" : "More"}
