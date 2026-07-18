@@ -62,7 +62,7 @@ export const REACTION_ANIM: Record<string, string> = {
 // How many people must land the SAME signal reaction before it comes alive.
 // Below this it stays static (calm, scannable); at/above it, the reaction
 // animates — motion becomes a real signal: "enough people feel this, look here."
-export const SIGNAL_ANIM_THRESHOLD = 3;
+export const SIGNAL_ANIM_THRESHOLD = 2;
 
 const SIGNAL_KEYS = new Set(SIGNAL_REACTIONS.map((r) => r.key));
 
