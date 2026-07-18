@@ -7,11 +7,14 @@ import { apiPost } from "@/lib/client";
 // The guided "start your first decision" — one input instead of the old
 // create-a-garden-then-a-seed-then-add-people maze. You type one real decision,
 // Claude replies first, then you add your people. Warm, minimal, hand-held.
+// Light-to-heavy gradient so a first-timer never feels they must open with a big
+// life decision — the last chips just show it handles those too.
 const EXAMPLES = [
-  "Which school for our kid?",
+  "Where should we eat tonight?",
+  "What should we name the team?",
   "Where should we go for the holidays?",
   "Should we take the new job offer?",
-  "How do we care for our parents?",
+  "Which school for our kid?",
 ];
 
 export function FirstDecision() {
@@ -47,11 +50,8 @@ export function FirstDecision() {
         >
           ✦
         </span>
-        <p className="text-sm font-semibold text-ink">Start your first decision</p>
+        <p className="text-sm font-semibold text-ink">What’s on your mind?</p>
       </div>
-      <p className="mb-3 text-sm text-ink-mid">
-        What’s one thing you’d love to sort out with your family or friends?
-      </p>
 
       <textarea
         className="input min-h-[52px] w-full"
@@ -85,10 +85,12 @@ export function FirstDecision() {
         disabled={busy || title.trim().length < 4}
         className="btn-primary mt-3 w-full disabled:opacity-50"
       >
-        {busy ? "Starting…" : "✨ Start — Claude replies right away"}
+        {busy ? "Starting…" : "Start"}
       </button>
+      {/* One quiet, honest line — no name, no hype — so a reply never feels
+          like a surprise or a stranger. */}
       <p className="mt-2 text-center text-[11px] text-ink-soft">
-        Claude answers first, then you add your people 🌱
+        You’ll get a thoughtful reply to get you going — invite people whenever you like.
       </p>
     </div>
   );

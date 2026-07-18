@@ -11,11 +11,15 @@ import { apiPost } from "@/lib/client";
 //
 // Shows once per device (localStorage), skippable, new users only.
 
+// A gentle gradient — the first chips are light and low-stakes so nobody feels
+// they must open with a life decision; the later ones show it handles the big
+// stuff too.
 const EXAMPLES = [
-  "Which school for our kid?",
+  "Where should we eat tonight?",
+  "What should we name the team?",
   "Where should we go for the holidays?",
   "Should we take the new job offer?",
-  "How do we care for our parents?",
+  "Which school for our kid?",
 ];
 
 export function WelcomeFlow() {
@@ -75,11 +79,7 @@ export function WelcomeFlow() {
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-16 text-center">
         <div className="w-full max-w-md animate-[fadeUp_0.5s_ease-out]">
           <div className="mb-3 text-4xl">🌱</div>
-          <h2 className="serif-xl mb-2">What should we decide first?</h2>
-          <p className="mb-5 text-sm text-ink-mid">
-            Ask one real thing you’d love to sort out with your family or friends. Claude replies
-            right away — then you bring your people in.
-          </p>
+          <h2 className="serif-xl mb-5">What’s on your mind?</h2>
           <textarea
             className="input min-h-[56px] w-full text-left"
             placeholder="Type it in your own words…"
@@ -109,8 +109,13 @@ export function WelcomeFlow() {
             disabled={busy || title.trim().length < 4}
             className="btn-primary mt-4 w-full disabled:opacity-50"
           >
-            {busy ? "🌱 Planting your seed…" : "✨ Ask it — Claude replies right away"}
+            {busy ? "🌱 Starting…" : "Start"}
           </button>
+          {/* One quiet, honest line — no name, no hype. Just enough that a reply
+              appearing never feels like a surprise or a stranger. */}
+          <p className="mt-2.5 text-xs text-ink-soft">
+            You’ll get a thoughtful reply to get you going — invite people whenever you like.
+          </p>
           <button onClick={done} className="mt-3 text-xs text-ink-soft transition hover:text-ink">
             I’ll explore first
           </button>
