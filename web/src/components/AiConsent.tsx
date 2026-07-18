@@ -12,16 +12,20 @@ import Link from "next/link";
 
 const KEY = "thinkthru_ai_consent";
 
-export function AiConsent() {
+// `active` = whether AI is actually on for the seed being viewed. We only raise
+// the notice in a seed where messages really do go to the AI — never in an
+// AI-off seed, where nothing is shared and the notice would be misleading.
+export function AiConsent({ active = true }: { active?: boolean }) {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
+    if (!active) return;
     try {
       if (!localStorage.getItem(KEY)) setShow(true);
     } catch {
       /* private mode — just don't show */
     }
-  }, []);
+  }, [active]);
 
   function ack() {
     try {
@@ -48,7 +52,8 @@ export function AiConsent() {
         <p className="text-sm leading-relaxed text-ink-mid">
           To help you think, your messages in a thread are shared with{" "}
           <span className="text-ink">Claude</span> and <span className="text-ink">ChatGPT</span>{" "}
-          to write replies. Nothing else leaves your circle.
+          to write replies — unless the seed&apos;s owner turns AI off. Nothing else leaves your
+          circle.
         </p>
         <p className="mt-2 text-xs text-ink-soft">
           More in our{" "}

@@ -1341,8 +1341,9 @@ export function SeedRoom({
   return (
     <div className="relative mt-3 grid gap-6 lg:grid-cols-[1fr_360px]">
       {/* One-time, in-context notice that a thread's messages are shared with the
-          AI participants — our consent step for third-party AI (User Data policy). */}
-      <AiConsent />
+          AI participants — our consent step for third-party AI (User Data policy).
+          Only raised in a seed where AI is actually on. */}
+      <AiConsent active={aiEnabled} />
       {/* Added by someone outside your circle → a gentle, dismissible heads-up
           with a one-tap way out. Open discoverability, but never a trap. */}
       {seed.addedNotice && !noticeHidden && (
