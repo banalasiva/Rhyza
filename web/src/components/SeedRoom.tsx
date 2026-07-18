@@ -1855,7 +1855,14 @@ export function SeedRoom({
                                   : "border-[rgba(255,255,255,0.18)] text-ink-mid"
                               }`}
                             >
-                              <span aria-hidden>{r.emoji}</span>
+                              {/* The reaction ON the message stays alive — the
+                                  expressive ones animate (Noto Lottie) right in
+                                  the thread; signal reactions stay static. */}
+                              {!isSignalReaction(r.key) && REACTION_ANIM[r.key] ? (
+                                <AnimatedEmoji codepoint={REACTION_ANIM[r.key]} emoji={r.emoji} size={18} />
+                              ) : (
+                                <span aria-hidden>{r.emoji}</span>
+                              )}
                               <span>{c.reactionCounts[r.key]}</span>
                               {/* Instant hover tooltip — native title is too slow.
                                   Pointer-events-none so it never blocks the tap. */}
