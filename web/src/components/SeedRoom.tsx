@@ -16,7 +16,7 @@ import { playNatureSound, setMuted } from "@/lib/sound";
 import { timeAgo } from "@/lib/time";
 import { upload } from "@vercel/blob/client";
 import { compressImage } from "@/lib/image-compress";
-import { isSignalReaction, REACTION_ANIM } from "@/lib/reactions";
+import { isSignalReaction, REACTION_ANIM, reactionAnimates } from "@/lib/reactions";
 import { AnimatedEmoji } from "@/components/AnimatedEmoji";
 import { PlantSvg } from "@/components/PlantSvg";
 import { HowItWorks } from "@/components/HowItWorks";
@@ -1855,10 +1855,11 @@ export function SeedRoom({
                                   : "border-[rgba(255,255,255,0.18)] text-ink-mid"
                               }`}
                             >
-                              {/* The reaction ON the message stays alive — the
-                                  expressive ones animate (Noto Lottie) right in
-                                  the thread; signal reactions stay static. */}
-                              {!isSignalReaction(r.key) && REACTION_ANIM[r.key] ? (
+                              {/* The reaction ON the message stays alive — expressive
+                                  ones always animate; signal ones light up only once
+                                  enough people land them (threshold), so motion means
+                                  "look here", not decoration. */}
+                              {reactionAnimates(r.key, c.reactionCounts[r.key] ?? 0) ? (
                                 <AnimatedEmoji codepoint={REACTION_ANIM[r.key]} emoji={r.emoji} size={18} />
                               ) : (
                                 <span aria-hidden>{r.emoji}</span>
@@ -2361,9 +2362,10 @@ export function SeedRoom({
                         : "border-[rgba(255,255,255,0.1)] text-ink-soft hover:text-ink"
                     }`}
                   >
-                    {/* Expressive reactions animate (Noto Lottie); signal stays
-                        static so it never competes for attention. */}
-                    {expressive && REACTION_ANIM[r.key] ? (
+                    {/* Expressive reactions animate; signal ones light up only once
+                        enough people land them (threshold), so motion means "look
+                        here", not decoration. */}
+                    {reactionAnimates(r.key, n) ? (
                       <AnimatedEmoji codepoint={REACTION_ANIM[r.key]} emoji={r.emoji} size={18} />
                     ) : (
                       <span aria-hidden className="text-sm">{r.emoji}</span>

@@ -35,20 +35,44 @@ export const EXPRESSIVE_REACTIONS: ReactionDef[] = [
 
 export const ALL_REACTIONS: ReactionDef[] = [...SIGNAL_REACTIONS, ...EXPRESSIVE_REACTIONS];
 
-// Noto Animated Emoji codepoints for the EXPRESSIVE reactions — used to fetch the
-// free Lottie files from Google's CDN (see AnimatedEmoji). Only expressive keys
-// animate: the signal tier stays calm/static so it never competes for attention.
-// Codepoints match the static glyphs above (❤️ uses the fe0f variation selector).
+// Noto Animated Emoji codepoints — used to fetch the free Lottie files from
+// Google's CDN (see AnimatedEmoji). Codepoints match the static glyphs above
+// (❤️ carries the fe0f variation selector). Any codepoint Google doesn't ship an
+// animation for simply 404s and AnimatedEmoji keeps the static glyph.
 export const REACTION_ANIM: Record<string, string> = {
+  // Expressive — animate whenever present (pure warmth).
   love: "2764_fe0f",
   clap: "1f44f",
   haha: "1f602",
   fire: "1f525",
   party: "1f389",
   praise: "1f64c",
+  // Signal — animate only past the threshold below, so motion MEANS something.
+  clicked: "1f4a5",
+  point: "1f4a1",
+  agree: "2705",
+  mind: "1f9e0",
+  fence: "2696_fe0f",
+  confuse: "1f914",
+  impl: "1f6e0_fe0f",
+  ref: "1f4da",
+  beauty: "2728",
 };
 
+// How many people must land the SAME signal reaction before it comes alive.
+// Below this it stays static (calm, scannable); at/above it, the reaction
+// animates — motion becomes a real signal: "enough people feel this, look here."
+export const SIGNAL_ANIM_THRESHOLD = 3;
+
 const SIGNAL_KEYS = new Set(SIGNAL_REACTIONS.map((r) => r.key));
+
+// Should this reaction animate at the given count? Expressive always animates
+// (as long as it has a codepoint); signal animates only once it crosses the
+// threshold, so a calm thread stays calm and a hot spot lights up.
+export function reactionAnimates(key: string, count: number): boolean {
+  if (!REACTION_ANIM[key]) return false;
+  return SIGNAL_KEYS.has(key) ? count >= SIGNAL_ANIM_THRESHOLD : true;
+}
 
 // Only SIGNAL reactions feed the group read + AI mediator/quorum. Anything not in
 // the signal set (expressive, or an unknown legacy key) is treated as expressive.
