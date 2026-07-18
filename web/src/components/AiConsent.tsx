@@ -52,7 +52,7 @@ export function AiConsent({ active = true }: { active?: boolean }) {
         <p className="text-sm leading-relaxed text-ink-mid">
           To help you think, your messages in a thread are shared with{" "}
           <span className="text-ink">Claude</span> and <span className="text-ink">ChatGPT</span>{" "}
-          to write replies — unless the seed&apos;s owner turns AI off. Nothing else leaves your
+          to write replies — unless an owner or admin turns AI off. Nothing else leaves your
           circle.
         </p>
         <p className="mt-2 text-xs text-ink-soft">
