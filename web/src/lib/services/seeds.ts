@@ -7,6 +7,7 @@ import { notifyFollowersNewSeed, notifyGardenNewSeed } from "@/lib/services/foll
 import { getJoinStatus } from "@/lib/services/joinreq";
 import { getMediatorNudge } from "@/lib/services/mediator";
 import { getDraft } from "@/lib/services/drafts";
+import { getKeptIdsForSeed } from "@/lib/services/kept";
 import { displayName } from "@/lib/display-name";
 
 // What a contribution carries for the room view — author (with email so a
@@ -39,7 +40,7 @@ type ContribRow = {
 // Shared shape for the seed room — the initial load (getSeedDetail) and the
 // live sync (getSeedSync) map contributions identically so polling never drifts
 // from the first render.
-function mapContribs(rows: ContribRow[], userId: string) {
+function mapContribs(rows: ContribRow[], userId: string, keptIds?: Set<string>) {
   return rows.map((c) => {
     const reactionCounts: Record<string, number> = {};
     const reactionPeople: Record<string, string[]> = {};
@@ -67,6 +68,7 @@ function mapContribs(rows: ContribRow[], userId: string) {
       myReactions,
       endorsementCount: c.endorsements.length,
       iEndorsed: c.endorsements.some((e) => e.endorserId === userId),
+      iKept: keptIds?.has(c.id) ?? false,
     };
   });
 }
@@ -354,7 +356,8 @@ export async function getSeedDetail(userId: string, seedId: string) {
   }
   const people = [...peopleMap.values()];
 
-  const contribs = mapContribs(contributions as ContribRow[], userId);
+  const keptIds = await getKeptIdsForSeed(userId, seedId);
+  const contribs = mapContribs(contributions as ContribRow[], userId, keptIds);
 
   // If a stranger added you to this seat, surface a gentle "added by someone you
   // don't know — leave?" notice. Only the rare stranger-add has a row here, so
@@ -476,7 +479,8 @@ export async function getSeedSync(userId: string, seedId: string, since?: string
     include: CONTRIB_INCLUDE,
   });
   rows.reverse();
-  return { ...base, contributions: mapContribs(rows as ContribRow[], userId) as ReturnType<typeof mapContribs> | null };
+  const keptIds = await getKeptIdsForSeed(userId, seedId);
+  return { ...base, contributions: mapContribs(rows as ContribRow[], userId, keptIds) as ReturnType<typeof mapContribs> | null };
 }
 
 // A "locked" preview of a private seed for someone who doesn't have access yet —

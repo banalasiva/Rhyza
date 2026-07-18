@@ -804,6 +804,27 @@ model SeedThreadMemory {
   @@map("seed_thread_memory")
 }
 
+// A personal bookmark — a message someone chose to KEEP for themselves. Lives in
+// its own standalone table (SEV0 discipline: no FK to the hot contribution/seed
+// models, so a missing table can never break the room). Carries a small snapshot
+// (author, preview, seed title) so the "Kept" list renders on its own — and still
+// reads fine even if the original message is later edited or the seed moves out
+// of view. This is what lets anyone hold on to a message and land back on it,
+// even after the seed has bloomed.
+model KeptContribution {
+  userId         String   @map("user_id") @db.Uuid
+  contributionId String   @map("contribution_id") @db.Uuid
+  seedId         String   @map("seed_id") @db.Uuid
+  seedTitle      String   @map("seed_title")
+  authorName     String   @map("author_name")
+  preview        String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@id([userId, contributionId])
+  @@index([userId, createdAt])
+  @@map("kept_contributions")
+}
+
 // ─────────────────────────────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────────────────────────────

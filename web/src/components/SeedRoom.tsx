@@ -77,6 +77,7 @@ function hydrate(c: Omit<ContributionResponse, "aiReplies">): Contribution {
     myReactions: [],
     endorsementCount: 0,
     iEndorsed: false,
+    iKept: false,
   };
 }
 
@@ -1070,6 +1071,24 @@ export function SeedRoom({
     }
     try {
       await apiPost(`/api/contributions/${contributionId}/reactions`, { reactionKey: key });
+    } catch {
+      router.refresh();
+    }
+  }
+
+  // Keep a message for yourself — a private bookmark you can return to later
+  // from "Kept", even after the seed has bloomed. Optimistic + best-effort.
+  async function toggleKeep(contributionId: string) {
+    const current = contributions.find((c) => c.id === contributionId);
+    const willKeep = current ? !current.iKept : true;
+    markPending(contributionId);
+    setContributions((prev) =>
+      prev.map((c) => (c.id === contributionId ? { ...c, iKept: willKeep } : c)),
+    );
+    playNatureSound("chirp");
+    try {
+      if (willKeep) await apiPost(`/api/contributions/${contributionId}/keep`);
+      else await fetch(`/api/contributions/${contributionId}/keep`, { method: "DELETE" });
     } catch {
       router.refresh();
     }
@@ -2130,6 +2149,17 @@ export function SeedRoom({
             </div>
           </div>
         )}
+
+        {/* Bloomed → the discussion is closed to new messages, but arriving here
+            must never feel like a dead-end. Make it explicit that the whole
+            conversation stays readable and you can still react to any message —
+            and hold onto the ones you love with Keep. */}
+        {isBloomed && (
+          <div className="card mt-6 p-4 text-center text-sm text-ink-mid">
+            🌸 This decided together. The conversation stays here — read it any time,
+            react to any message, or 🔖 Keep the ones you want to hold onto.
+          </div>
+        )}
         </>
         )}
 
@@ -2429,6 +2459,17 @@ export function SeedRoom({
               >
                 ✦ {sheetC.iEndorsed ? "Endorsed" : "Endorse"}
                 {sheetC.endorsementCount > 0 && ` · ${sheetC.endorsementCount}`}
+              </button>
+              {/* Keep — a private bookmark you can return to from "Kept" any
+                  time, even after the seed blooms. Works on anyone's message. */}
+              <button
+                onClick={() => toggleKeep(sheetC.id)}
+                aria-pressed={sheetC.iKept}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-left transition hover:bg-[rgba(255,255,255,0.04)] ${
+                  sheetC.iKept ? "text-accent" : "text-ink-mid hover:text-ink"
+                }`}
+              >
+                {sheetC.iKept ? "🔖 Kept" : "🔖 Keep"}
               </button>
               {sheetC.text && (
                 <MessageActions

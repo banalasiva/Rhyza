@@ -639,4 +639,26 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
       "updated_at"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
   },
+
+  // Personal "Keep" bookmarks — a message someone saved for themselves, with a
+  // small snapshot so the Kept list renders on its own and survives edits / a
+  // bloomed seed. Standalone (no FK to the hot contribution/seed tables) so a
+  // missing table can never break the room; read + write best-effort.
+  {
+    label: "kept_contributions",
+    sql: `CREATE TABLE IF NOT EXISTS "kept_contributions" (
+      "user_id"         UUID NOT NULL,
+      "contribution_id" UUID NOT NULL,
+      "seed_id"         UUID NOT NULL,
+      "seed_title"      TEXT NOT NULL DEFAULT '',
+      "author_name"     TEXT NOT NULL DEFAULT '',
+      "preview"         TEXT NOT NULL DEFAULT '',
+      "created_at"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY ("user_id", "contribution_id")
+    )`,
+  },
+  {
+    label: "kept_contributions_user_id_created_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "kept_contributions_user_id_created_at_idx" ON "kept_contributions" ("user_id", "created_at")`,
+  },
 ];
