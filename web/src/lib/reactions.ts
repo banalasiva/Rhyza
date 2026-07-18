@@ -35,6 +35,19 @@ export const EXPRESSIVE_REACTIONS: ReactionDef[] = [
 
 export const ALL_REACTIONS: ReactionDef[] = [...SIGNAL_REACTIONS, ...EXPRESSIVE_REACTIONS];
 
+// Noto Animated Emoji codepoints for the EXPRESSIVE reactions — used to fetch the
+// free Lottie files from Google's CDN (see AnimatedEmoji). Only expressive keys
+// animate: the signal tier stays calm/static so it never competes for attention.
+// Codepoints match the static glyphs above (❤️ uses the fe0f variation selector).
+export const REACTION_ANIM: Record<string, string> = {
+  love: "2764_fe0f",
+  clap: "1f44f",
+  haha: "1f602",
+  fire: "1f525",
+  party: "1f389",
+  praise: "1f64c",
+};
+
 const SIGNAL_KEYS = new Set(SIGNAL_REACTIONS.map((r) => r.key));
 
 // Only SIGNAL reactions feed the group read + AI mediator/quorum. Anything not in

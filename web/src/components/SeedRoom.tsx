@@ -16,7 +16,8 @@ import { playNatureSound, setMuted } from "@/lib/sound";
 import { timeAgo } from "@/lib/time";
 import { upload } from "@vercel/blob/client";
 import { compressImage } from "@/lib/image-compress";
-import { isSignalReaction } from "@/lib/reactions";
+import { isSignalReaction, REACTION_ANIM } from "@/lib/reactions";
+import { AnimatedEmoji } from "@/components/AnimatedEmoji";
 import { PlantSvg } from "@/components/PlantSvg";
 import { HowItWorks } from "@/components/HowItWorks";
 import { RichEditor } from "@/components/RichEditor";
@@ -2305,7 +2306,13 @@ export function SeedRoom({
                         : "border-[rgba(255,255,255,0.1)] text-ink-soft hover:text-ink"
                     }`}
                   >
-                    <span aria-hidden className="text-sm">{r.emoji}</span>
+                    {/* Expressive reactions animate (Noto Lottie); signal stays
+                        static so it never competes for attention. */}
+                    {expressive && REACTION_ANIM[r.key] ? (
+                      <AnimatedEmoji codepoint={REACTION_ANIM[r.key]} emoji={r.emoji} size={18} />
+                    ) : (
+                      <span aria-hidden className="text-sm">{r.emoji}</span>
+                    )}
                     {/* Expressive reactions are emoji-forward; hide the label so
                         the row reads as a quick emotional palette, not more text. */}
                     {!expressive && <span>{r.label}</span>}
