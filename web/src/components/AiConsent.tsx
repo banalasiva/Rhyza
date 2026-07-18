@@ -39,13 +39,13 @@ export function AiConsent({ active = true }: { active?: boolean }) {
   if (!show) return null;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
         role="dialog"
         aria-modal="true"
         aria-label="How the AI helpers work"
-        className="relative z-10 m-3 w-full max-w-sm rounded-2xl border border-[rgba(76,175,80,0.3)] bg-[#0B120B] p-5 text-center shadow-xl"
+        className="relative z-10 max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-2xl border border-[rgba(76,175,80,0.3)] bg-[#0B120B] p-5 text-center shadow-xl"
       >
         <div className="mb-2 text-3xl">🌱</div>
         <p className="serif-lg mb-2">A quick heads-up</p>
