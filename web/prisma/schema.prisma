@@ -825,6 +825,19 @@ model KeptContribution {
   @@map("kept_contributions")
 }
 
+// Per-seed AI switch — lets the owner/admin turn the AI helpers (Claude &
+// ChatGPT labelling, replying, the opener, mediation, summaries) off for a seed
+// that wants to stay purely human. Its own standalone table (no column on the
+// hot seeds model, no FK) so a missing table can never break a seed read; read
+// best-effort and defaults to ON when absent.
+model SeedAiSettings {
+  seedId    String   @id @map("seed_id") @db.Uuid
+  aiEnabled Boolean  @default(true) @map("ai_enabled")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("seed_ai_settings")
+}
+
 // ─────────────────────────────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────────────────────────────

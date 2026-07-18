@@ -8,6 +8,7 @@ import { getJoinStatus } from "@/lib/services/joinreq";
 import { getMediatorNudge } from "@/lib/services/mediator";
 import { getDraft } from "@/lib/services/drafts";
 import { getKeptIdsForSeed } from "@/lib/services/kept";
+import { seedAiEnabled } from "@/lib/services/ai-settings";
 import { displayName } from "@/lib/display-name";
 
 // What a contribution carries for the room view — author (with email so a
@@ -358,6 +359,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
 
   const keptIds = await getKeptIdsForSeed(userId, seedId);
   const contribs = mapContribs(contributions as ContribRow[], userId, keptIds);
+  const aiEnabled = await seedAiEnabled(seedId);
 
   // If a stranger added you to this seat, surface a gentle "added by someone you
   // don't know — leave?" notice. Only the rare stranger-add has a row here, so
@@ -402,6 +404,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
     canBloom,
     canManage,
     canModerate,
+    aiEnabled,
     people,
     distribution,
     myVote: myVote?.stage ?? null,

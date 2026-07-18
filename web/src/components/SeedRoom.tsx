@@ -159,6 +159,7 @@ export function SeedRoom({
   useEffect(() => {
     if (kickstartFired.current) return;
     if (contributions.length > 0) return; // already opened / has replies
+    if (!seed.aiEnabled) return; // AI switched off — no Claude opener
     kickstartFired.current = true;
     void fetch(`/api/seeds/${seed.id}/kickstart`, { method: "POST" }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -296,6 +297,7 @@ export function SeedRoom({
   const [visibility, setVisibility] = useState<"public" | "private">(seed.visibility);
   const [visBusy, setVisBusy] = useState(false);
   const [listed, setListed] = useState<boolean>(seed.listed ?? false);
+  const [aiEnabled, setAiEnabled] = useState<boolean>(seed.aiEnabled ?? true);
   const [following, setFollowing] = useState<boolean>(seed.following ?? false);
   const [followLevel, setFollowLevelState] = useState<string>(seed.followLevel ?? "all");
   const [bloomConfirm, setBloomConfirm] = useState(false); // confirm modal open
@@ -744,7 +746,8 @@ export function SeedRoom({
         );
       }
       // Let Claude label the dimension in the background; the badge fills in.
-      classify(c.id);
+      // Skipped when the owner has turned AI off for this seed.
+      if (aiEnabled) classify(c.id);
     } catch (err) {
       // Roll back the optimistic message and restore the draft so nothing is lost.
       setContributions((prev) => prev.filter((x) => x.id !== tempId));
@@ -922,6 +925,20 @@ export function SeedRoom({
       await apiPost(`/api/seeds/${seed.id}/listed`, { listed: next });
     } catch (err) {
       setListed(!next);
+      setError(err instanceof Error ? err.message : "Couldn't update");
+    }
+  }
+
+  // Owner/admin flips the seed's AI helpers on/off — no Claude/ChatGPT labelling,
+  // replies, opener, mediation, or summaries when off. Optimistic.
+  async function toggleAi() {
+    const next = !aiEnabled;
+    setAiEnabled(next);
+    setError(null);
+    try {
+      await apiPost(`/api/seeds/${seed.id}/ai`, { enabled: next });
+    } catch (err) {
+      setAiEnabled(!next);
       setError(err instanceof Error ? err.message : "Couldn't update");
     }
   }
@@ -1651,6 +1668,7 @@ export function SeedRoom({
             💬 What’s on your mind? A thought, a question, even a worry — share it, and the others
             will weigh in.
           </p>
+          {aiEnabled && (
           <button
             onClick={() => setAiMenu((v) => !v)}
             aria-expanded={aiMenu}
@@ -1659,7 +1677,8 @@ export function SeedRoom({
           >
             ✨ Ask AI {aiMenu ? "▴" : "▾"}
           </button>
-          {aiMenu && (
+          )}
+          {aiEnabled && aiMenu && (
             <>
               <button
                 className="fixed inset-0 z-10 cursor-default"
@@ -2141,7 +2160,17 @@ export function SeedRoom({
             {error && <p className="mb-2 mt-2 text-sm text-[#e57373]">{error}</p>}
             <div className="mt-3 flex items-center justify-between gap-2">
               <span className="text-xs text-ink-soft">
-                <span className="text-accent">@claude</span> · <span className="text-accent">@chatgpt</span> to ask · <span className="text-accent">@</span> to tag
+                {aiEnabled ? (
+                  <>
+                    <span className="text-accent">@claude</span> ·{" "}
+                    <span className="text-accent">@chatgpt</span> to ask ·{" "}
+                    <span className="text-accent">@</span> to tag
+                  </>
+                ) : (
+                  <>
+                    <span className="text-accent">@</span> to tag someone
+                  </>
+                )}
               </span>
               <button
                 onClick={contribute}
@@ -2630,6 +2659,40 @@ export function SeedRoom({
                         </span>
                       </>
                     )}
+                  </span>
+                </button>
+              )}
+              {/* AI helpers on/off — owner/admin only. One clean switch that turns
+                  Claude & ChatGPT labelling, replies, the opener, mediation and
+                  summaries on or off, for a seed that wants to stay purely human. */}
+              {seed.canManage && (
+                <button
+                  onClick={toggleAi}
+                  role="switch"
+                  aria-checked={aiEnabled}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[rgba(255,255,255,0.04)]"
+                >
+                  <span
+                    aria-hidden
+                    className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+                      aiEnabled ? "bg-accent" : "bg-[rgba(255,255,255,0.18)]"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${
+                        aiEnabled ? "left-[18px]" : "left-0.5"
+                      }`}
+                    />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-ink">
+                      {aiEnabled ? "AI helpers are on" : "AI helpers are off"}
+                    </span>
+                    <span className="block text-xs text-ink-soft">
+                      {aiEnabled
+                        ? "Claude & ChatGPT can label, reply, open, mediate and summarise."
+                        : "Purely human — no labels, replies, or @claude/@chatgpt."}
+                    </span>
                   </span>
                 </button>
               )}

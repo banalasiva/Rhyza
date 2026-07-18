@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { aiConfigured, senseRoom } from "@/lib/ai";
+import { seedAiEnabled } from "@/lib/services/ai-settings";
 
 // The wise presence, sensing the room. After a message lands we occasionally take
 // a cheap, fast read of the recent exchange; if it's genuinely getting rough or
@@ -47,6 +48,7 @@ export async function resolveMediatorNudge(seedId: string): Promise<void> {
 export async function maybeSenseRoom(seedId: string): Promise<void> {
   if (!aiConfigured()) return;
   try {
+    if (!(await seedAiEnabled(seedId))) return; // AI switched off for this seed
     const existing = await db.seedMediatorNudge
       .findUnique({ where: { seedId }, select: { mode: true, sensedAt: true } })
       .catch(() => null);

@@ -10,6 +10,7 @@ import {
   respondAsChatGpt,
 } from "@/lib/services/contributions";
 import { aiConfigured, openaiConfigured, mentionsClaude, mentionsChatGpt } from "@/lib/ai";
+import { seedAiEnabled } from "@/lib/services/ai-settings";
 
 // Posting can trigger an inline AI reply, and high-quality gpt-image-1 edits
 // (input_fidelity "high") can take 1–2 min. 300s is the Vercel Pro ceiling —
@@ -66,8 +67,11 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   // surface raw provider error strings to the client — those are logged).
   let aiError: string | null = null;
 
-  const wantsClaude = mentionsClaude(body.text);
-  const wantsChatGpt = mentionsChatGpt(body.text);
+  // AI helpers can be switched off per seed by its owner/admin — then a stray
+  // @claude/@chatgpt is just left as plain text, no reply, no charge.
+  const aiOn = await seedAiEnabled(ctx.params.id);
+  const wantsClaude = aiOn && mentionsClaude(body.text);
+  const wantsChatGpt = aiOn && mentionsChatGpt(body.text);
   // Tagging an AI triggers a paid completion — count it against the AI budget.
   if (wantsClaude || wantsChatGpt) await enforceAiRateLimit(userId);
   // Silent usage meter (for stats now, a free monthly quota later). Must never

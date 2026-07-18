@@ -29,6 +29,7 @@ import {
 import { put } from "@vercel/blob";
 import { extractMentionIds, deserializeMentions } from "@/lib/mentions";
 import { requestAdmissionIfNeeded } from "@/lib/services/stake";
+import { seedAiEnabled } from "@/lib/services/ai-settings";
 import { settleStage } from "@/lib/services/voting";
 import { STAGES } from "@/lib/constants";
 import { deliver } from "@/lib/services/notify";
@@ -658,6 +659,7 @@ export async function kickstartSeed(seedId: string) {
       select: { id: true, title: true, content: true, createdById: true, deletedAt: true },
     });
     if (!seed || seed.deletedAt) return;
+    if (!(await seedAiEnabled(seedId))) return; // AI switched off for this seed
     const existing = await db.contribution.count({ where: { seedId, deletedAt: null } });
     if (existing > 0) return; // someone already spoke — don't butt in
     const text = await seedOpener({ title: seed.title, content: seed.content ?? "" });
@@ -859,6 +861,10 @@ export async function classifyContribution(userId: string, contributionId: strin
   // reader who happens to have seed access.
   if (c.authorId === userId) await requireSeedAccess(userId, c.seedId);
   else await requireSeedManager(userId, c.seedId);
+
+  // AI labelling can be switched off for the seed — then leave the dimension as
+  // posted (a human can still re-tag by hand).
+  if (!(await seedAiEnabled(c.seedId))) return { dimension: c.dimension };
 
   const text = (c.content as { text?: string } | null)?.text ?? "";
   const dim = await classifyDimension({

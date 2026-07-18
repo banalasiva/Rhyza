@@ -661,4 +661,16 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "kept_contributions_user_id_created_at_idx",
     sql: `CREATE INDEX IF NOT EXISTS "kept_contributions_user_id_created_at_idx" ON "kept_contributions" ("user_id", "created_at")`,
   },
+
+  // Per-seed AI on/off switch (owner/admin). Standalone table (no column on the
+  // hot seeds model) so a missing table never breaks a seed read; read
+  // best-effort, defaults to ON when absent.
+  {
+    label: "seed_ai_settings",
+    sql: `CREATE TABLE IF NOT EXISTS "seed_ai_settings" (
+      "seed_id"    UUID NOT NULL PRIMARY KEY,
+      "ai_enabled" BOOLEAN NOT NULL DEFAULT true,
+      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
 ];
