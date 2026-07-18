@@ -1285,6 +1285,22 @@ export function SeedRoom({
   // endorsements stay current while the sheet is showing).
   const sheetC = sheetForId ? contributions.find((c) => c.id === sheetForId) ?? null : null;
 
+  // The very first AI message gets a quiet, one-time "here to get you started"
+  // note — the gentle in-thread reveal that this reply is the app helping, not a
+  // stranger. It fades away on its own once the thread has a few messages, so
+  // it's an onboarding nudge, never permanent furniture.
+  const realContribs = useMemo(
+    () => contributions.filter((c) => c.dimension !== "system"),
+    [contributions],
+  );
+  const firstAiId = useMemo(
+    () =>
+      realContribs.find((c) => c.author?.name === "Claude" || c.author?.name === "ChatGPT")?.id ??
+      null,
+    [realContribs],
+  );
+  const showFirstAiNote = realContribs.length <= 3;
+
   return (
     <div className="relative mt-3 grid gap-6 lg:grid-cols-[1fr_360px]">
       {/* Added by someone outside your circle → a gentle, dismissible heads-up
@@ -1829,6 +1845,14 @@ export function SeedRoom({
                     )}
                     <Attachments items={c.attachments ?? []} />
                   </>
+                )}
+                {/* Gentle in-thread reveal on the first AI reply — reassures a
+                    first-timer this is the app getting them started, and points
+                    to the next step, without any scary "a bot read this". */}
+                {isAI && c.id === firstAiId && showFirstAiNote && (
+                  <p className="mb-3 rounded-lg bg-[rgba(76,175,80,0.06)] px-3 py-2 text-xs text-ink-soft">
+                    ✦ Here to get you started — react, reply, or invite your people whenever you like.
+                  </p>
                 )}
                 {/* Compact footer — existing reactions + a ⋯ that opens the
                     full action sheet (react / endorse / copy / share / …). */}
