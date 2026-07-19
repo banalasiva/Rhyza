@@ -46,6 +46,23 @@ function snoozed(): boolean {
   }
 }
 
+// Is the Play Store app (the TWA, declared in the manifest's related_applications)
+// already installed? If so we must NOT nudge a web install — that's what makes a
+// person end up with TWO ThinkThru icons. Chrome-Android only; anywhere else this
+// safely resolves false.
+async function hasRelatedApp(): Promise<boolean> {
+  const nav = navigator as unknown as {
+    getInstalledRelatedApps?: () => Promise<unknown[]>;
+  };
+  if (typeof nav.getInstalledRelatedApps !== "function") return false;
+  try {
+    const apps = await nav.getInstalledRelatedApps();
+    return Array.isArray(apps) && apps.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export function InstallPrompt() {
   const [mode, setMode] = useState<"android" | "ios" | null>(null);
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
@@ -54,9 +71,13 @@ export function InstallPrompt() {
     if (isStandalone() || snoozed()) return;
 
     // Android / desktop: the browser fires this when the app is installable.
-    function onBIP(e: Event) {
+    // Only nudge if the Play app isn't already installed — otherwise the person
+    // ends up with two ThinkThru icons (the app + a web copy).
+    async function onBIP(e: Event) {
       e.preventDefault();
-      setDeferred(e as BeforeInstallPromptEvent);
+      const evt = e as BeforeInstallPromptEvent;
+      if (await hasRelatedApp()) return;
+      setDeferred(evt);
       setMode("android");
     }
     window.addEventListener("beforeinstallprompt", onBIP);

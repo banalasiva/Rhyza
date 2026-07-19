@@ -10,6 +10,13 @@
   "lang": "en",
   "dir": "ltr",
   "categories": ["productivity", "social", "education"],
+  "related_applications": [
+    {
+      "platform": "play",
+      "id": "app.thinkthru.twa",
+      "url": "https://play.google.com/store/apps/details?id=app.thinkthru.twa"
+    }
+  ],
   "background_color": "#070D07",
   "theme_color": "#070D07",
   "icons": [
