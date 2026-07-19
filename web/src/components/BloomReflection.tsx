@@ -371,40 +371,35 @@ export function BloomReflection({
         </button>
       </div>
 
-      <div className="space-y-2.5">
-        {rows.map((row) => (
+      {/* One cohesive card — reads just like the bloom above it: a green
+          heading per section, the answer in white. Tap any section to edit it. */}
+      <article className="card p-6">
+        {rows.map((row, idx) => (
           <button
             key={row.i}
             onClick={() => {
               setStep(row.i);
               setMode("wizard");
             }}
-            className="card flex w-full items-start gap-3 p-4 text-left transition hover:border-[rgba(255,179,0,0.4)]"
+            className={`block w-full text-left transition ${
+              idx > 0 ? "mt-5 border-t border-[rgba(255,255,255,0.06)] pt-5" : ""
+            }`}
           >
-            <span className="mt-0.5">
-              <AnimatedEmoji codepoint={row.code} emoji={row.emoji} size={22} loop={false} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2">
-                <span className="text-xs text-ink-soft">{row.label}</span>
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[9px] ${
-                    row.shared ? "text-accent" : "text-ink-soft"
-                  }`}
-                >
-                  {row.shared ? `👁 ${audience}` : "🔒 Only me"}
-                </span>
-              </span>
-              <span className="mt-0.5 block text-sm text-ink">
-                {row.value || <span className="text-ink-soft">Tap to add — no rush</span>}
+            <span className="mb-1.5 flex items-center gap-2">
+              <AnimatedEmoji codepoint={row.code} emoji={row.emoji} size={18} loop={false} />
+              <span className="eyebrow">{row.label}</span>
+              <span className={`text-[10px] ${row.shared ? "text-accent" : "text-ink-soft"}`}>
+                {row.shared ? `👁 ${audience}` : "🔒 Only me"}
               </span>
             </span>
-            <span aria-hidden className="mt-0.5 text-ink-soft">
-              ›
+            <span className="block whitespace-pre-line text-[15px] leading-relaxed text-ink">
+              {row.value || (
+                <span className="text-ink-soft">Tap to add — no rush</span>
+              )}
             </span>
           </button>
         ))}
-      </div>
+      </article>
 
       {/* What others chose to share — the loop closing on a shared decision. */}
       {shared.length > 0 && (
