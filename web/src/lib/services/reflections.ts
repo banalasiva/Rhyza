@@ -46,17 +46,56 @@ const EMPTY: Reflection = {
   updatedAt: null,
 };
 
+// Columns that have always existed on bloom_reflections — safe to select even
+// on a DB where the newer lesson_weight column hasn't been migrated yet.
+const SAFE_SELECT = {
+  outcome: true,
+  outcomeNote: true,
+  lesson: true,
+  sameAgain: true,
+  changed: true,
+  outcomeShared: true,
+  lessonShared: true,
+  sameAgainShared: true,
+  updatedAt: true,
+} as const;
+
 // The current user's reflection on a bloom (empty shape if none / unavailable).
+// Resilient to the lesson_weight column not being migrated yet: it tries WITH
+// that column, then falls back to the always-present columns — so an existing
+// reflection is never hidden just because a new column hasn't been added.
+type SafeRow = {
+  outcome: string | null;
+  outcomeNote: string | null;
+  lesson: string | null;
+  sameAgain: string | null;
+  changed: string | null;
+  outcomeShared: boolean;
+  lessonShared: boolean;
+  sameAgainShared: boolean;
+  updatedAt: Date;
+  lessonWeight?: string | null;
+};
+
 export async function getMyReflection(userId: string, bloomId: string): Promise<Reflection> {
-  const row = await db.bloomReflection
-    .findUnique({ where: { bloomId_userId: { bloomId, userId } } })
-    .catch(() => null);
+  const where = { bloomId_userId: { bloomId, userId } };
+  let row: SafeRow | null = null;
+  try {
+    row = (await db.bloomReflection.findUnique({
+      where,
+      select: { ...SAFE_SELECT, lessonWeight: true },
+    })) as SafeRow | null;
+  } catch {
+    row = (await db.bloomReflection
+      .findUnique({ where, select: SAFE_SELECT })
+      .catch(() => null)) as SafeRow | null;
+  }
   if (!row) return EMPTY;
   return {
     outcome: row.outcome,
     outcomeNote: row.outcomeNote,
     lesson: row.lesson,
-    lessonWeight: row.lessonWeight,
+    lessonWeight: row.lessonWeight ?? null,
     sameAgain: row.sameAgain,
     changed: row.changed,
     outcomeShared: row.outcomeShared,
@@ -206,12 +245,20 @@ function tallyWeight(w: WeightCounts, key: string | null) {
 }
 
 export async function getReflectionSummary(userId: string): Promise<ReflectionSummary> {
-  const rows = await db.bloomReflection
-    .findMany({
+  // Resilient to lesson_weight not being migrated yet: try with it, else read
+  // the always-present columns so the section never vanishes before a migration.
+  let rows: { outcome: string | null; sameAgain: string | null; lessonWeight: string | null }[];
+  try {
+    rows = await db.bloomReflection.findMany({
       where: { userId },
       select: { outcome: true, sameAgain: true, lessonWeight: true },
-    })
-    .catch(() => [] as { outcome: string | null; sameAgain: string | null; lessonWeight: string | null }[]);
+    });
+  } catch {
+    const safe = await db.bloomReflection
+      .findMany({ where: { userId }, select: { outcome: true, sameAgain: true } })
+      .catch(() => [] as { outcome: string | null; sameAgain: string | null }[]);
+    rows = safe.map((r) => ({ ...r, lessonWeight: null }));
+  }
 
   const outcome = { better: 0, expected: 0, worse: 0 };
   const sameAgain = { yes: 0, unsure: 0, no: 0 };
