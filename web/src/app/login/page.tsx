@@ -174,6 +174,7 @@ export default async function LoginPage({
                 ssoEnabled={ssoEnabled}
                 ssoName={ssoName}
                 phoneEnabled={phoneEnabled}
+                next={next}
                 googleAction={async () => {
                   "use server";
                   await signIn("google", { redirectTo: next });

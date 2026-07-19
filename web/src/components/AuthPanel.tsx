@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { signIn } from "next-auth/react";
+import { PasskeySignIn } from "@/components/PasskeySignIn";
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
 import { getFirebaseAuth } from "@/lib/firebase-client";
 import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
@@ -32,6 +33,7 @@ export function AuthPanel({
   emailAction,
   ssoAction,
   defaultMode = "signin",
+  next = "/",
 }: {
   emailEnabled: boolean;
   ssoEnabled: boolean;
@@ -41,6 +43,7 @@ export function AuthPanel({
   emailAction: (formData: FormData) => Promise<void>;
   ssoAction: () => Promise<void>;
   defaultMode?: "signin" | "signup";
+  next?: string;
 }) {
   const [mode, setMode] = useState<"signin" | "signup">(defaultMode);
   const signup = mode === "signup";
@@ -159,6 +162,13 @@ export function AuthPanel({
           {signup ? "Start free with Google" : "Continue with Google"}
         </button>
       </form>
+
+      {/* Passkey — Face ID / fingerprint, no SMS, no code. Only shows itself on
+          a device that supports WebAuthn; hidden entirely otherwise. Most useful
+          for returning people who already set one up. */}
+      <div className="mt-2">
+        <PasskeySignIn next={next} />
+      </div>
 
       {phoneEnabled && (
         <>

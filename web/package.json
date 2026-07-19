@@ -27,6 +27,8 @@
     "@prisma/adapter-neon": "^5.22.0",
     "@prisma/client": "^5.22.0",
     "@sentry/nextjs": "^10.65.0",
+    "@simplewebauthn/browser": "^9.0.1",
+    "@simplewebauthn/server": "^9.0.3",
     "@vercel/blob": "^2.5.0",
     "firebase": "^12.16.0",
     "jose": "^6.2.3",

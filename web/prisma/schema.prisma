@@ -1185,3 +1185,40 @@ model DailyAnswer {
   @@index([day])
   @@map("daily_answers")
 }
+
+// A registered passkey (WebAuthn credential) — the Firebase-free, SMS-free way
+// in: sign in with Face ID / fingerprint / device unlock. Its own standalone
+// table so it never touches the hot User read path; the credential's public key
+// (base64url) and signature counter are kept for verification/replay-defence.
+// `id` is the credential ID (base64url) the authenticator returns.
+model Passkey {
+  id         String    @id
+  userId     String    @map("user_id") @db.Uuid
+  publicKey  String    @map("public_key")
+  counter    Int       @default(0)
+  transports String    @default("")
+  deviceType String    @default("") @map("device_type")
+  backedUp   Boolean   @default(false) @map("backed_up")
+  name       String    @default("Passkey")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  lastUsedAt DateTime? @map("last_used_at")
+
+  @@index([userId])
+  @@map("passkeys")
+}
+
+// Short-lived WebAuthn challenge, bridging the two round-trips of a ceremony
+// (options → verify) on a stateless server. Single-use: consumed (deleted) on
+// verify. `kind` is 'reg' or 'auth'; `userId` is set for registration (the
+// signed-in user) and null for a usernameless login. Expired rows are swept
+// lazily. Its own table, no FK to keep login resilient.
+model WebAuthnChallenge {
+  id        String   @id @default(uuid()) @db.Uuid
+  challenge String
+  kind      String
+  userId    String?  @map("user_id") @db.Uuid
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("webauthn_challenges")
+}

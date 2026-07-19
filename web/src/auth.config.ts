@@ -76,6 +76,9 @@ const PUBLIC_PREFIXES = [
   // one bloom); submitting still requires sign-in (enforced in the API/page).
   "/calibrate/",
   "/api/calibrate/",
+  // Passkey login: only the "begin login" options endpoint is public (there's
+  // no session yet). Registering/listing/removing passkeys stays behind auth.
+  "/api/passkeys/auth",
 ];
 
 export const authConfig = {

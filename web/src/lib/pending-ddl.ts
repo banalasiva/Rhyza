@@ -771,4 +771,38 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "bloom_calibrations_bloom_id_idx",
     sql: `CREATE INDEX IF NOT EXISTS "bloom_calibrations_bloom_id_idx" ON "bloom_calibrations" ("bloom_id")`,
   },
+
+  // 20260719_passkeys — Firebase-free WebAuthn sign-in
+  {
+    label: "passkeys",
+    sql: `CREATE TABLE IF NOT EXISTS "passkeys" (
+      "id"           TEXT NOT NULL,
+      "user_id"      UUID NOT NULL REFERENCES "users" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "public_key"   TEXT NOT NULL,
+      "counter"      INTEGER NOT NULL DEFAULT 0,
+      "transports"   TEXT NOT NULL DEFAULT '',
+      "device_type"  TEXT NOT NULL DEFAULT '',
+      "backed_up"    BOOLEAN NOT NULL DEFAULT false,
+      "name"         TEXT NOT NULL DEFAULT 'Passkey',
+      "created_at"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "last_used_at" TIMESTAMP(3),
+      PRIMARY KEY ("id")
+    )`,
+  },
+  {
+    label: "passkeys_user_id_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "passkeys_user_id_idx" ON "passkeys" ("user_id")`,
+  },
+  {
+    label: "webauthn_challenges",
+    sql: `CREATE TABLE IF NOT EXISTS "webauthn_challenges" (
+      "id"         UUID NOT NULL DEFAULT gen_random_uuid(),
+      "challenge"  TEXT NOT NULL,
+      "kind"       TEXT NOT NULL,
+      "user_id"    UUID,
+      "expires_at" TIMESTAMP(3) NOT NULL,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY ("id")
+    )`,
+  },
 ];

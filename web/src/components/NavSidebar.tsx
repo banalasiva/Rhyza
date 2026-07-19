@@ -159,6 +159,13 @@ export function NavSidebar({ signOut }: { signOut?: () => void }) {
                 >
                   💡 Lessons
                 </Link>
+                <Link
+                  href="/account"
+                  onClick={() => setOpenPersist(false)}
+                  className="mb-1 block rounded-lg px-1 py-1.5 text-sm text-ink-mid transition hover:text-ink"
+                >
+                  🔑 Sign-in &amp; security
+                </Link>
                 <form action={signOut}>
                   <button
                     type="submit"

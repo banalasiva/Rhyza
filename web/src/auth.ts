@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { authConfig } from "@/auth.config";
 import { sendEmail, magicLinkEmailHtml } from "@/lib/email";
 import { firebaseVerifyConfigured, verifyFirebasePhone } from "@/lib/firebase-verify";
+import { verifyPasskeyLogin } from "@/lib/services/passkeys";
 
 // Passwordless email sign-in (magic link) — a no-Google way in, with no new
 // vendor: it reuses our existing Resend setup. Added ONLY here (the Node
@@ -73,11 +74,38 @@ const phoneProviders = firebaseVerifyConfigured()
     ]
   : [];
 
+// Passkey sign-in (WebAuthn) — Face ID / fingerprint / device unlock, the
+// Firebase-free, SMS-free way in. The browser runs the ceremony against our
+// /api/passkeys routes; this provider only VERIFIES the resulting assertion
+// (against the stored credential's public key) and signs the person in, so a
+// success mints a normal JWT session like every other provider. Always on — it
+// needs no external service, no keys, no per-message cost. Added ONLY on the
+// Node instance (authorize() touches Postgres), never in the edge authConfig.
+const passkeyProvider = Credentials({
+  id: "passkey",
+  name: "Passkey",
+  credentials: { challengeId: {}, response: {} },
+  authorize: async (creds) => {
+    const challengeId = String(creds?.challengeId ?? "");
+    let response: unknown = null;
+    try {
+      response = JSON.parse(String(creds?.response ?? "null"));
+    } catch {
+      return null;
+    }
+    if (!challengeId || !response) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const user = await verifyPasskeyLogin(challengeId, response as any);
+    if (!user) return null;
+    return { id: user.id, email: user.email, name: user.name, image: user.image };
+  },
+});
+
 // Full auth instance (Node runtime): adapter persists users/accounts to Postgres.
 // The JWT strategy from authConfig keeps sessions stateless so edge middleware
 // can authorize without a DB round-trip.
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   ...authConfig,
-  providers: [...authConfig.providers, ...emailProviders, ...phoneProviders],
+  providers: [...authConfig.providers, ...emailProviders, ...phoneProviders, passkeyProvider],
 });
