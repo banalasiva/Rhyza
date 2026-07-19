@@ -29,7 +29,7 @@ export default async function CalibratePage({ params }: { params: { token: strin
           </div>
         ) : (
           <>
-            <div className="mb-6 text-center">
+            <div className="mb-4 text-center">
               <h1 className="serif-lg mb-1">{target.title}</h1>
               <p className="text-xs text-ink-soft">
                 {target.ownerName} decided this{target.gardenName ? ` · ${target.gardenName}` : ""} —
@@ -37,9 +37,20 @@ export default async function CalibratePage({ params }: { params: { token: strin
               </p>
             </div>
 
-            <article className="card mb-6 p-5 text-[15px] leading-relaxed text-ink">
+            {/* Here's the decision and the reasoning behind it — enough context to
+                give an honest read, without opening the whole private discussion. */}
+            <p className="mb-2 text-center text-[11px] uppercase tracking-wide text-ink-soft">
+              What they decided, and why
+            </p>
+            <article className="card mb-5 p-5 text-[15px] leading-relaxed text-ink">
               <BloomContent text={target.summary} />
             </article>
+
+            <p className="mx-auto mb-6 max-w-sm text-center text-xs text-ink-mid">
+              You&apos;re not grading the decision — just sharing how it{" "}
+              <span className="text-ink">actually turned out for you</span>. Your lived experience
+              is the context; no backstory needed.
+            </p>
 
             {viewer ? (
               <CalibrateForm token={params.token} ownerName={target.ownerName} />

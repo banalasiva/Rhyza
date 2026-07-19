@@ -149,7 +149,7 @@ export function BloomReflection({
           : "border-[rgba(255,255,255,0.14)] text-ink-soft hover:text-ink"
       }`}
     >
-      {isShared ? `👁 ${audience}` : "🔒 Only me"}
+      {isShared ? `👀 ${audience}` : "🔒 Only me"}
     </button>
   );
 
@@ -448,7 +448,7 @@ export function BloomReflection({
                 </span>
               )}
               <span className={`text-[10px] ${row.shared ? "text-accent" : "text-ink-soft"}`}>
-                {row.shared ? `👁 ${audience}` : "🔒 Only me"}
+                {row.shared ? `👀 ${audience}` : "🔒 Only me"}
               </span>
             </span>
             <span className="block whitespace-pre-line text-[15px] leading-relaxed text-ink">
