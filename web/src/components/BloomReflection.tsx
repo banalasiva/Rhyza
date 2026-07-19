@@ -400,7 +400,12 @@ export function BloomReflection({
             }`}
           >
             <span className="mb-1.5 flex items-center gap-2">
-              <AnimatedEmoji codepoint={row.code} emoji={row.emoji} size={18} animate={false} />
+              {/* Plain glyph in the summary — guaranteed static, never fetches or
+                  animates, so it can't "disappear". The wizard keeps the animated
+                  Noto icons for the delightful step-through. */}
+              <span aria-hidden className="text-lg leading-none">
+                {row.emoji}
+              </span>
               <span className="eyebrow">{row.label}</span>
               <span className={`text-[10px] ${row.shared ? "text-accent" : "text-ink-soft"}`}>
                 {row.shared ? `👁 ${audience}` : "🔒 Only me"}
