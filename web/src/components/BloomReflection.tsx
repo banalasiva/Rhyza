@@ -4,13 +4,13 @@ import { useMemo, useRef, useState } from "react";
 import { AnimatedEmoji } from "@/components/AnimatedEmoji";
 
 // Noto Animated Emoji codepoints for the three section icons — the same rich 3D
-// set as reactions. Every one here is confirmed to HAVE a Noto animation (the
-// flat 📈 / 🔄 didn't), and each is a neutral, on-point fit:
-//   🎯 did the decision hit the mark? · 💡 the lesson · 🤔 would you reconsider?
+// set as reactions, and on-theme with the garden metaphor (all confirmed to HAVE
+// a Noto animation, unlike the flat 📈 / 🔄). They read as a little garden arc:
+//   🍎 the fruit the decision bore · 💡 the lesson · 🌱 would you plant it again?
 const ICON = {
-  outcome: { emoji: "🎯", code: "1f3af" },
+  outcome: { emoji: "🍎", code: "1f34e" },
   lesson: { emoji: "💡", code: "1f4a1" },
-  sameAgain: { emoji: "🤔", code: "1f914" },
+  sameAgain: { emoji: "🌱", code: "1f331" },
 };
 
 // Bloom 2.0 — a quiet conversation with your future self. NOT a wall of forms:
