@@ -34,6 +34,60 @@ thing left for "after verification" is the final click.
 
 ---
 
+## Policy compliance status (Google Play, as of the Jul 15 2026 update)
+
+Where ThinkThru stands against the Play policies that could touch it. This is an
+engineering read, not legal sign-off — get a qualified review before public
+launch. Today ThinkThru is a **web app (PWA)**; most Play requirements only bind
+once it's listed on Play as the TWA above, and several are completed *inside* Play
+Console, not in code.
+
+### ✅ Done in the product (applies even as a web app)
+
+- **Third-party AI / User Data policy** — the one Google specifically expanded.
+  User messages are sent to Anthropic (Claude) and OpenAI (ChatGPT). We satisfy
+  all three requirements:
+  - **Disclosure** — `/privacy` names both providers, states limited use, and
+    covers deletion.
+  - **In-context consent** — a one-time "quick heads-up" notice before the first
+    thread (`AiConsent.tsx`), remembered per device.
+  - **User control** — per-seed AI on/off switch, owner/admin controlled
+    (`seed_ai_settings`); when off, nothing in that seed goes to an AI.
+
+### ✅ Not a concern (verified)
+
+- **SMS / Call Log permissions (READ_CALL_LOG)** — we verify accounts by **SMS
+  OTP** (Firebase), never phone-call/call-log. Nothing to change. If a future
+  native build auto-reads the code, use the **SMS Retriever API** — never request
+  `READ_CALL_LOG`/`READ_SMS`.
+- **Anonymous / random chat + child-safety rules** — ThinkThru is
+  invite-by-identity with your own circle, **not** stranger-matching, so these
+  don't apply. Keep it that way and don't market to children (Families policy).
+
+### ⏳ Do these *in Play Console* when you create the listing
+
+None are "broken" — they don't exist until there's a listing (see also
+`STORE-LISTING.md`):
+
+- [ ] **Register the app in Play Console** (developer verification) — required to
+      distribute; the app is removed globally if unregistered.
+- [ ] **Content rating** questionnaire — Play doesn't allow unrated apps.
+- [ ] **Data safety form** — mirror `/privacy`: Google account name/email (auth),
+      user-generated content, and **"shared with third parties"** for the AI
+      processors (Anthropic, OpenAI). Be honest and minimal.
+- [ ] **Privacy policy URL** — point at `https://thinkthru.app/privacy` (live).
+- [ ] **Target API level** — the yearly bump (by **Aug 31, 2026**); only exists
+      once the TWA/native wrapper is built. PWABuilder/Bubblewrap output current
+      targets by default, so re-package near the deadline if needed.
+
+### Bottom line
+
+As a web app you're in good shape — the AI-data requirement is the only Play
+policy that reaches you right now, and it's handled. The rest is a ~1-day
+checklist completed inside Play Console on the day you publish the TWA.
+
+---
+
 ## Accounts (fill these in once)
 
 - **Owner / admin Google account:** `siva1793@gmail.com` — sign into ThinkThru
