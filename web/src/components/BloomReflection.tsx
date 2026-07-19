@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
-// Bloom 2.0 — a quiet conversation with your future self. Not a form: three
-// gentle prompts you return to whenever reality has taught you something. Each
-// answer autosaves on its own, and each section is PRIVATE by default — you can
-// choose, per section, to share it. "Shared" simply means visible to whoever can
-// open this bloom, which the seed's own visibility already defines (private seed
-// → its members; public → public), so there's no separate audience to pick.
+// Bloom 2.0 — a quiet conversation with your future self. NOT a wall of forms:
+// one gentle question at a time, each with room to breathe and a short note on
+// why it matters. A small bloom celebrates the reflection; then it settles into
+// a calm summary you can revisit for years. Each section is private by default,
+// shareable per section (the audience is whoever can open the bloom, which the
+// seed's own visibility already defines — so there's no separate audience to pick).
 
 type Reflection = {
   outcome: string | null;
@@ -30,22 +30,31 @@ type SharedReflection = {
   changed: string | null;
 };
 
-const OUTCOMES: { key: string; label: string }[] = [
+const OUTCOMES = [
   { key: "better", label: "Better than expected" },
   { key: "expected", label: "About as expected" },
   { key: "worse", label: "Worse than expected" },
 ];
-
-const SAME_AGAIN: { key: string; label: string }[] = [
+const SAME_AGAIN = [
   { key: "definitely_yes", label: "Definitely yes" },
   { key: "probably_yes", label: "Probably yes" },
   { key: "not_sure", label: "Not sure" },
   { key: "probably_no", label: "Probably no" },
   { key: "definitely_no", label: "Definitely no" },
 ];
-
 const outcomeLabel = (k: string | null) => OUTCOMES.find((o) => o.key === k)?.label ?? null;
 const sameAgainLabel = (k: string | null) => SAME_AGAIN.find((s) => s.key === k)?.label ?? null;
+
+// Fixed sparkle directions for the celebration (no Math.random → no surprises).
+const SPARKS = [
+  { dx: "-64px", dy: "-30px", e: "✨" },
+  { dx: "60px", dy: "-34px", e: "🌸" },
+  { dx: "-40px", dy: "36px", e: "🌱" },
+  { dx: "48px", dy: "34px", e: "✨" },
+  { dx: "0px", dy: "-64px", e: "🌸" },
+  { dx: "-72px", dy: "6px", e: "🌱" },
+  { dx: "72px", dy: "2px", e: "✨" },
+];
 
 export function BloomReflection({
   bloomId,
@@ -59,10 +68,16 @@ export function BloomReflection({
   shared: SharedReflection[];
 }) {
   const [r, setR] = useState<Reflection>(initial);
-  const [savedAt, setSavedAt] = useState<number | null>(null);
   const savingRef = useRef(false);
 
-  // The audience "Shared" resolves to, purely for an honest label on the toggle.
+  const answered = useMemo(
+    () => !!(r.outcome || (r.lesson && r.lesson.trim()) || r.sameAgain),
+    [r.outcome, r.lesson, r.sameAgain],
+  );
+  const [mode, setMode] = useState<"wizard" | "summary">(answered ? "summary" : "wizard");
+  const [step, setStep] = useState(0);
+  const [celebrating, setCelebrating] = useState(false);
+
   const audience = seedPrivate ? "Seed members" : "Public";
 
   async function save(patch: Partial<Reflection>) {
@@ -78,30 +93,36 @@ export function BloomReflection({
       if (res.ok) {
         const data = (await res.json().catch(() => null)) as Reflection | null;
         if (data?.updatedAt) setR((prev) => ({ ...prev, updatedAt: data.updatedAt }));
-        setSavedAt(Date.now());
       }
     } catch {
-      /* best-effort — the value stays on screen; a later edit retries */
+      /* best-effort */
     } finally {
       savingRef.current = false;
     }
   }
 
+  function finish() {
+    setCelebrating(true);
+    setTimeout(() => {
+      setCelebrating(false);
+      setMode("summary");
+    }, 1700);
+  }
+
   const pill = (active: boolean) =>
-    `rounded-full border px-3.5 py-2 text-sm transition ${
+    `rounded-full border px-4 py-2.5 text-sm transition active:scale-95 ${
       active
-        ? "border-bloom bg-[rgba(255,179,0,0.12)] text-bloom"
-        : "border-[rgba(255,255,255,0.14)] text-ink-mid hover:text-ink"
+        ? "border-bloom bg-[rgba(255,179,0,0.14)] text-bloom shadow-[0_0_16px_rgba(255,179,0,0.18)]"
+        : "border-[rgba(255,255,255,0.14)] text-ink-mid hover:border-[rgba(255,179,0,0.4)] hover:text-ink"
     }`;
 
-  // The little per-section privacy control. Private by default; one tap shares.
   const shareToggle = (isShared: boolean, onToggle: () => void) => (
     <button
       onClick={onToggle}
       role="switch"
       aria-checked={isShared}
       title={isShared ? `Shared — ${audience} can see this` : "Only you can see this"}
-      className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] transition ${
+      className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] transition ${
         isShared
           ? "border-accent bg-[rgba(76,175,80,0.1)] text-accent"
           : "border-[rgba(255,255,255,0.14)] text-ink-soft hover:text-ink"
@@ -111,27 +132,17 @@ export function BloomReflection({
     </button>
   );
 
-  return (
-    <section className="mt-8">
-      <div className="mb-4 text-center">
-        <p className="eyebrow mb-1" style={{ color: "#FFB300" }}>
-          🌱 Looking back
-        </p>
-        <h2 className="serif-lg mb-1">What did reality teach you?</h2>
-        <p className="mx-auto max-w-md text-sm text-ink-mid">
-          A bloom keeps growing. Come back whenever life has an answer — no rush, nothing to submit.
-          Each part is private until you choose to share it.
-        </p>
-      </div>
-
-      <div className="space-y-3">
-        {/* 1 — Outcome */}
-        <div className="card p-5">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-ink">📈 How did this turn out?</p>
-            {shareToggle(r.outcomeShared, () => save({ outcomeShared: !r.outcomeShared }))}
-          </div>
-          <div className="flex flex-wrap gap-2">
+  // ── The three steps (title + why-it-matters description + body) ──
+  const steps = [
+    {
+      emoji: "📈",
+      title: "How did this turn out?",
+      desc: "Reality gets a voice. Comparing what actually happened with what you expected is how judgment sharpens over time.",
+      shared: r.outcomeShared,
+      toggle: () => save({ outcomeShared: !r.outcomeShared }),
+      body: (
+        <>
+          <div className="flex flex-col gap-2">
             {OUTCOMES.map((o) => (
               <button
                 key={o.key}
@@ -155,37 +166,37 @@ export function BloomReflection({
               maxLength={2000}
             />
           )}
-        </div>
-
-        {/* 2 — Biggest lesson */}
-        <div className="card p-5">
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-ink">💡 The biggest lesson</p>
-            {shareToggle(r.lessonShared, () => save({ lessonShared: !r.lessonShared }))}
-          </div>
-          <p className="mb-3 text-xs text-ink-soft">
-            One line you&apos;d tell yourself before the next decision like this.
-          </p>
-          <textarea
-            defaultValue={r.lesson ?? ""}
-            onBlur={(e) => {
-              if ((e.target.value.trim() || "") !== (r.lesson ?? "")) save({ lesson: e.target.value });
-            }}
-            placeholder="e.g. Talk to customers earlier · Don't optimize for price alone · Ask one more expert"
-            className="input min-h-[64px] w-full text-sm"
-            maxLength={2000}
-          />
-        </div>
-
-        {/* 3 — Same again today */}
-        <div className="card p-5">
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-sm font-medium text-ink">
-              🔄 Knowing what you know today, would you decide the same again?
-            </p>
-            {shareToggle(r.sameAgainShared, () => save({ sameAgainShared: !r.sameAgainShared }))}
-          </div>
-          <div className="flex flex-wrap gap-2">
+        </>
+      ),
+    },
+    {
+      emoji: "💡",
+      title: "The biggest lesson",
+      desc: "The one line worth carrying forward. This is where wisdom compounds — decision by decision, it becomes the pattern of how you think.",
+      shared: r.lessonShared,
+      toggle: () => save({ lessonShared: !r.lessonShared }),
+      body: (
+        <textarea
+          defaultValue={r.lesson ?? ""}
+          onBlur={(e) => {
+            if ((e.target.value.trim() || "") !== (r.lesson ?? "")) save({ lesson: e.target.value });
+          }}
+          placeholder="e.g. Talk to customers earlier · Don't optimize for price alone · Ask one more expert"
+          className="input min-h-[96px] w-full text-sm"
+          maxLength={2000}
+          autoFocus
+        />
+      ),
+    },
+    {
+      emoji: "🔄",
+      title: "Would you decide the same today?",
+      desc: "Come back to this over the years. Watching your answer change is one of the clearest ways to see your own thinking evolve.",
+      shared: r.sameAgainShared,
+      toggle: () => save({ sameAgainShared: !r.sameAgainShared }),
+      body: (
+        <>
+          <div className="flex flex-col gap-2">
             {SAME_AGAIN.map((s) => (
               <button
                 key={s.key}
@@ -209,22 +220,177 @@ export function BloomReflection({
               maxLength={2000}
             />
           )}
+        </>
+      ),
+    },
+  ];
+
+  // ── WIZARD ──────────────────────────────────────────────────────
+  if (mode === "wizard") {
+    const s = steps[step];
+    return (
+      <section className="mt-8">
+        <div className="mb-4 text-center">
+          <p className="eyebrow" style={{ color: "#FFB300" }}>
+            🌱 Looking back
+          </p>
         </div>
+
+        <div className="relative mx-auto max-w-lg overflow-hidden rounded-2xl border border-[rgba(255,179,0,0.22)] bg-[rgba(255,179,0,0.04)] p-6 sm:p-8">
+          {/* progress dots */}
+          <div className="mb-6 flex items-center justify-center gap-2">
+            {steps.map((_, i) => (
+              <span
+                key={i}
+                className="h-1.5 rounded-full transition-all"
+                style={{
+                  width: i === step ? 26 : 8,
+                  background: i <= step ? "#FFB300" : "rgba(255,255,255,0.14)",
+                }}
+              />
+            ))}
+          </div>
+
+          {/* the one question */}
+          <div key={step} className="animate-[reflectStepIn_0.35s_ease-out] text-center">
+            <div className="mb-2 text-4xl">{s.emoji}</div>
+            <h3 className="serif-lg mb-2">{s.title}</h3>
+            <p className="mx-auto mb-5 max-w-sm text-sm leading-relaxed text-ink-mid">{s.desc}</p>
+            <div className="mx-auto max-w-sm text-left">{s.body}</div>
+            <div className="mt-4 flex justify-center">{shareToggle(s.shared, s.toggle)}</div>
+          </div>
+
+          {/* nav */}
+          <div className="mt-7 flex items-center justify-between gap-3">
+            <button
+              onClick={() => setStep((n) => Math.max(0, n - 1))}
+              disabled={step === 0}
+              className="btn-ghost px-4 py-2 text-sm disabled:opacity-30"
+            >
+              ← Back
+            </button>
+            <span className="text-xs text-ink-soft">
+              {step + 1} of {steps.length} · no rush
+            </span>
+            {step < steps.length - 1 ? (
+              <button onClick={() => setStep((n) => n + 1)} className="btn-primary px-5 text-sm">
+                Next →
+              </button>
+            ) : (
+              <button
+                onClick={finish}
+                className="rounded-full px-5 py-2 text-sm font-medium text-bg transition active:scale-95"
+                style={{ background: "linear-gradient(135deg,#FFD54F,#FF8F00)" }}
+              >
+                Keep it 🌱
+              </button>
+            )}
+          </div>
+
+          {/* delightful finish */}
+          {celebrating && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#0B120B]/85 backdrop-blur-sm">
+              <div className="relative">
+                <div className="animate-[reflectPop_0.7s_ease-out] text-6xl">🌸</div>
+                {SPARKS.map((sp, i) => (
+                  <span
+                    key={i}
+                    className="absolute left-1/2 top-1/2 text-lg"
+                    style={
+                      {
+                        "--dx": sp.dx,
+                        "--dy": sp.dy,
+                        animation: "reflectSpark 0.9s ease-out forwards",
+                        animationDelay: "0.1s",
+                      } as React.CSSProperties
+                    }
+                  >
+                    {sp.e}
+                  </span>
+                ))}
+              </div>
+              <p className="serif-lg mt-4 animate-[fadeUp_0.5s_ease-out]">Kept 🌱</p>
+              <p className="mt-1 animate-[fadeUp_0.6s_ease-out] text-xs text-ink-soft">
+                A note for your future self
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  // ── SUMMARY (calm recap, revisitable) ───────────────────────────
+  const rows = [
+    { i: 0, emoji: "📈", label: "How it turned out", value: outcomeLabel(r.outcome), shared: r.outcomeShared },
+    { i: 1, emoji: "💡", label: "Biggest lesson", value: r.lesson?.trim() || null, shared: r.lessonShared },
+    { i: 2, emoji: "🔄", label: "Same again today?", value: sameAgainLabel(r.sameAgain), shared: r.sameAgainShared },
+  ];
+
+  return (
+    <section className="mt-8">
+      <div className="mb-4 flex items-end justify-between gap-2">
+        <div>
+          <p className="eyebrow" style={{ color: "#FFB300" }}>
+            🌱 Looking back
+          </p>
+          <p className="mt-0.5 text-xs text-ink-soft">
+            {r.updatedAt
+              ? `You last looked back on ${new Date(r.updatedAt).toLocaleDateString(undefined, {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}`
+              : "A note for your future self"}
+          </p>
+        </div>
+        <button
+          onClick={() => {
+            setStep(0);
+            setMode("wizard");
+          }}
+          className="btn-ghost px-4 py-1.5 text-xs"
+        >
+          ✎ Revisit
+        </button>
       </div>
 
-      <p className="mt-3 text-center text-xs text-ink-soft">
-        {savedAt ? "✓ Saved · " : ""}
-        {r.updatedAt
-          ? `You last looked back on ${new Date(r.updatedAt).toLocaleDateString(undefined, {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}`
-          : "Private to you until you choose to share a part"}
-      </p>
+      <div className="space-y-2.5">
+        {rows.map((row) => (
+          <button
+            key={row.i}
+            onClick={() => {
+              setStep(row.i);
+              setMode("wizard");
+            }}
+            className="card flex w-full items-start gap-3 p-4 text-left transition hover:border-[rgba(255,179,0,0.4)]"
+          >
+            <span aria-hidden className="mt-0.5 text-lg">
+              {row.emoji}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-2">
+                <span className="text-xs text-ink-soft">{row.label}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[9px] ${
+                    row.shared ? "text-accent" : "text-ink-soft"
+                  }`}
+                >
+                  {row.shared ? `👁 ${audience}` : "🔒 Only me"}
+                </span>
+              </span>
+              <span className="mt-0.5 block text-sm text-ink">
+                {row.value || <span className="text-ink-soft">Tap to add — no rush</span>}
+              </span>
+            </span>
+            <span aria-hidden className="mt-0.5 text-ink-soft">
+              ›
+            </span>
+          </button>
+        ))}
+      </div>
 
-      {/* What others chose to share — the loop closing on a decision made
-          together. Only sections each person opted to share appear here. */}
+      {/* What others chose to share — the loop closing on a shared decision. */}
       {shared.length > 0 && (
         <div className="mt-8">
           <p className="eyebrow mb-3 text-center">🌿 What others took from this</p>
@@ -235,8 +401,7 @@ export function BloomReflection({
                 <div className="space-y-1.5 text-sm text-ink-mid">
                   {outcomeLabel(s.outcome) && (
                     <p>
-                      <span className="text-ink-soft">📈 Turned out:</span>{" "}
-                      {outcomeLabel(s.outcome)}
+                      <span className="text-ink-soft">📈 Turned out:</span> {outcomeLabel(s.outcome)}
                       {s.outcomeNote ? ` — ${s.outcomeNote}` : ""}
                     </p>
                   )}

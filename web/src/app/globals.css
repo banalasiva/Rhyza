@@ -629,6 +629,45 @@ html.light body {
   }
 }
 
+/* Bloom-reflection: one step fades/slides in as you advance the wizard. */
+@keyframes reflectStepIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Bloom-reflection: the delightful "kept" moment after the last step — the
+   flower pops in, oversized then settling, while a few sparkles fan out. */
+@keyframes reflectPop {
+  0% {
+    transform: scale(0.3) rotate(-10deg);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.25) rotate(6deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+@keyframes reflectSpark {
+  0% {
+    transform: translate(0, 0) scale(0.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(1);
+    opacity: 0;
+  }
+}
+
 /* Stake-allocation sliders — colored per dimension via --dim. */
 .stake-range {
   -webkit-appearance: none;
