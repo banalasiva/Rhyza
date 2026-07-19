@@ -67,9 +67,9 @@ const PUBLIC_PREFIXES = [
   // A person's profile is a shareable public page — anyone with the link can
   // view it (private sections are stripped server-side for non-owners).
   "/u/",
-  // A seed link opens for guests too, BUT the page itself only renders public
-  // seeds read-only — a private seed (or any interaction) redirects to sign-in.
-  // Reading a public seed must "just work" from a shared link, no account.
+  // A seed link opens for guests too, BUT the page only renders seeds that were
+  // explicitly "Shared with the world" (public + listed), read-only — anything
+  // else (link-public, private, or any interaction) redirects to sign-in.
   "/seeds/",
   // Calibration — a shared bloom link the decision's people open to say how it
   // landed. The page is viewable without an account (a token unlocks just that

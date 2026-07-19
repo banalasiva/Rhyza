@@ -521,9 +521,11 @@ export async function getSeedPreview(userId: string, seedId: string) {
 export async function getPublicSeedForGuest(seedId: string) {
   const seed = await loadSeedForDetail(seedId);
   if (!seed || seed.deletedAt) return null;
-  // Only truly public seeds are readable without an account. Private seeds —
-  // even reached via a link — must sign in and request a seat.
-  if (seed.visibility !== "public") return null;
+  // Only seeds explicitly "Shared with the world" (public AND listed) are
+  // readable without an account. A merely link-public seed, and anything
+  // private, must sign in — link-public content stays inside the app until the
+  // owner deliberately opens it to the world.
+  if (seed.visibility !== "public" || !seed.listed) return null;
 
   const [memberCount, contributions] = await Promise.all([
     db.seedMember.count({ where: { seedId } }).catch(() => 0),
