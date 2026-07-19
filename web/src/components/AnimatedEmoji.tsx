@@ -46,19 +46,24 @@ export function AnimatedEmoji({
   emoji,
   size = 18,
   loop = true,
+  animate = true,
   className,
 }: {
   codepoint: string;
   emoji: string;
   size?: number;
   loop?: boolean;
+  // When false, render the STATIC 3D Noto image (no motion) instead of the
+  // Lottie — same rich icon, but it never plays/loops.
+  animate?: boolean;
   className?: string;
 }) {
   const [data, setData] = useState<unknown | null>(null);
+  const [imgFailed, setImgFailed] = useState(false);
   const reduced = useRef(prefersReducedMotion());
 
   useEffect(() => {
-    if (reduced.current) return; // honour reduced-motion — stay static
+    if (!animate || reduced.current) return; // static / reduced-motion — no fetch
     let alive = true;
     loadLottie(codepoint)
       .then((json) => {
@@ -71,6 +76,39 @@ export function AnimatedEmoji({
       alive = false;
     };
   }, [codepoint]);
+
+  // Static mode: the rich 3D Noto still-image, no motion. Falls back to the
+  // plain glyph if the image can't load.
+  if (!animate) {
+    if (imgFailed) {
+      return (
+        <span
+          className={className}
+          style={{ fontSize: size, lineHeight: 1, display: "inline-block" }}
+          aria-hidden
+        >
+          {emoji}
+        </span>
+      );
+    }
+    return (
+      <span
+        className={className}
+        style={{ width: size, height: size, display: "inline-block", lineHeight: 0 }}
+        aria-hidden
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`https://fonts.gstatic.com/s/e/notoemoji/latest/${codepoint}/512.png`}
+          alt=""
+          width={size}
+          height={size}
+          onError={() => setImgFailed(true)}
+          style={{ width: size, height: size, objectFit: "contain" }}
+        />
+      </span>
+    );
+  }
 
   // Static glyph: shown until the animation is ready, and as the permanent
   // fallback on failure / reduced-motion.

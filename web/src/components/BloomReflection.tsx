@@ -400,7 +400,7 @@ export function BloomReflection({
             }`}
           >
             <span className="mb-1.5 flex items-center gap-2">
-              <AnimatedEmoji codepoint={row.code} emoji={row.emoji} size={18} loop={false} />
+              <AnimatedEmoji codepoint={row.code} emoji={row.emoji} size={18} animate={false} />
               <span className="eyebrow">{row.label}</span>
               <span className={`text-[10px] ${row.shared ? "text-accent" : "text-ink-soft"}`}>
                 {row.shared ? `👁 ${audience}` : "🔒 Only me"}
