@@ -201,6 +201,85 @@ export async function getReflectionSummary(userId: string): Promise<ReflectionSu
   return { reflected, outcome, sameAgain };
 }
 
+// A plain-language read of the pattern — the "calibration insight". Still a
+// mirror, not a score: it names the tendency (optimistic? well-calibrated? do
+// you stand by your calls?) so a person can SEE how their judgment leans and
+// evolves. Deterministic (no AI), returns null until there's enough to say.
+export function judgementInsight(s: ReflectionSummary): string | null {
+  const { outcome, sameAgain } = s;
+  const oTotal = outcome.better + outcome.expected + outcome.worse;
+  const sTotal = sameAgain.yes + sameAgain.unsure + sameAgain.no;
+  const parts: string[] = [];
+
+  if (oTotal >= 2) {
+    if (outcome.expected >= outcome.better + outcome.worse) {
+      parts.push("Your expectations track reality closely — a well-calibrated read.");
+    } else if (outcome.worse > outcome.better) {
+      parts.push("Reality tends to land harder than you expect — a touch of optimism in your calls.");
+    } else if (outcome.better > outcome.worse) {
+      parts.push("Things tend to turn out better than you brace for — you may be underselling yourself.");
+    } else {
+      parts.push("A real mix — some calls land as planned, some surprise you.");
+    }
+  }
+
+  if (sTotal >= 2) {
+    if (sameAgain.no === 0 && sameAgain.yes > 0) {
+      parts.push("And you'd stand by all of them, so far.");
+    } else if (sameAgain.no > 0) {
+      parts.push(
+        `You'd redo ${sameAgain.no} of them — that's judgment sharpening, not failing.`,
+      );
+    } else {
+      parts.push("A few you're still weighing.");
+    }
+  }
+
+  return parts.length ? parts.join(" ") : null;
+}
+
+export type ReflectionListItem = {
+  bloomId: string;
+  seedId: string;
+  title: string;
+  outcome: string | null;
+  sameAgain: string | null;
+  lesson: string | null;
+  updatedAt: string;
+};
+
+// Every decision the user has looked back on (any of outcome / same-again /
+// lesson set), newest first — powers the dedicated Judgement view. Bloom titles
+// come from a separate lookup (the table has no FK, by design). Best-effort.
+export async function listMyReflections(userId: string): Promise<ReflectionListItem[]> {
+  const rows = await db.bloomReflection
+    .findMany({
+      where: {
+        userId,
+        OR: [{ outcome: { not: null } }, { sameAgain: { not: null } }, { lesson: { not: null } }],
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 200,
+    })
+    .catch(() => [] as Awaited<ReturnType<typeof db.bloomReflection.findMany>>);
+  if (rows.length === 0) return [];
+
+  const blooms = await db.bloom
+    .findMany({ where: { id: { in: rows.map((r) => r.bloomId) } }, select: { id: true, title: true } })
+    .catch(() => [] as { id: string; title: string }[]);
+  const titleById = new Map(blooms.map((b) => [b.id, b.title]));
+
+  return rows.map((r) => ({
+    bloomId: r.bloomId,
+    seedId: r.seedId,
+    title: titleById.get(r.bloomId) ?? "A decision",
+    outcome: r.outcome,
+    sameAgain: r.sameAgain,
+    lesson: r.lesson?.trim() || null,
+    updatedAt: r.updatedAt.toISOString(),
+  }));
+}
+
 // Every lesson the user has drawn, newest first — the compounding "wisdom" of
 // their Garden, surfaced on their roots/profile. Best-effort.
 export async function listMyLessons(userId: string): Promise<LessonItem[]> {

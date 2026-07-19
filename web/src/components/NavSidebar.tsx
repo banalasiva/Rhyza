@@ -145,6 +145,13 @@ export function NavSidebar({ signOut }: { signOut?: () => void }) {
                 >
                   🔖 Kept
                 </Link>
+                <Link
+                  href="/judgement"
+                  onClick={() => setOpenPersist(false)}
+                  className="mb-1 block rounded-lg px-1 py-1.5 text-sm text-ink-mid transition hover:text-ink"
+                >
+                  🪞 Judgement
+                </Link>
                 <form action={signOut}>
                   <button
                     type="submit"
