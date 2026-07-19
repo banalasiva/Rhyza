@@ -53,8 +53,7 @@ export default async function CalibratePage({ params }: { params: { token: strin
             <div className="mb-4 text-center">
               <h1 className="serif-lg mb-1">{target.title}</h1>
               <p className="text-xs text-ink-soft">
-                {target.ownerName} decided this{target.gardenName ? ` · ${target.gardenName}` : ""} —
-                and wants to know how it landed for you.
+                {target.ownerName} decided this — and wants to know how it landed for you.
               </p>
             </div>
 
