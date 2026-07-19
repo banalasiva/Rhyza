@@ -519,14 +519,17 @@ export function SeedRoom({
 
         if (snap.version) syncVersionRef.current = snap.version;
 
-        // The presence's live offer, sensed server-side — shown to everyone.
-        setNudge(snap.mediatorNudge ?? null);
-
-        // The cheap live bits are always fresh; apply them every poll.
-        setDistribution(snap.distribution);
+        // Apply the cheap live bits — but ONLY when they actually changed, so a
+        // quiet poll doesn't re-render the whole room every 5s (that periodic
+        // reflow was yanking the scroll position while people were reading).
+        const nextNudge = snap.mediatorNudge ?? null;
+        setNudge((prev) => (JSON.stringify(prev) === JSON.stringify(nextNudge) ? prev : nextNudge));
+        setDistribution((prev) =>
+          JSON.stringify(prev) === JSON.stringify(snap.distribution) ? prev : snap.distribution,
+        );
         if (!pendingRef.current.has("__vote__")) {
-          setStage(snap.stage);
-          setMyVote(snap.myVote);
+          setStage((prev) => (prev === snap.stage ? prev : snap.stage));
+          setMyVote((prev) => (prev === snap.myVote ? prev : snap.myVote));
         }
 
         // Thread unchanged since our last fingerprint → no contributions body to
