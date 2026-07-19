@@ -28,6 +28,11 @@ export default async function CalibratePage({ params }: { params: { token: strin
             <div className="mb-2 text-3xl">🍂</div>
             This link is no longer valid — the decision may have been reopened or removed.
           </div>
+        ) : access.status === "off" ? (
+          <div className="card p-6 text-center text-sm text-ink-mid">
+            <div className="mb-2 text-3xl">🔒</div>
+            This link has been turned off by whoever shared it.
+          </div>
         ) : access.status === "needs_signin" ? (
           <div className="card p-6 text-center">
             <div className="mb-2 text-3xl">🔒</div>

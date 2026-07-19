@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 // "Ask how it landed" — mint the bloom's calibration link, choose who can open
 // it (Google-Docs style: anyone with the link, or only specific emails), and
 // hand it to the people the decision affected.
-type Settings = { token: string; access: "anyone" | "restricted"; allowedEmails: string[] };
+type Settings = { token: string; access: "anyone" | "restricted" | "off"; allowedEmails: string[] };
 
 export function CalibrateInvite({ bloomId }: { bloomId: string }) {
   const [open, setOpen] = useState(false);
@@ -99,6 +99,7 @@ export function CalibrateInvite({ bloomId }: { bloomId: string }) {
                     [
                       { key: "anyone", label: "Anyone with the link" },
                       { key: "restricted", label: "Only people I add" },
+                      { key: "off", label: "Off — no one can open" },
                     ] as const
                   ).map((opt) => (
                     <button
@@ -161,9 +162,15 @@ export function CalibrateInvite({ bloomId }: { bloomId: string }) {
                   </div>
                 )}
 
-                <button onClick={shareLink} className="btn-primary w-full text-xs">
-                  🔗 Copy / share link
-                </button>
+                {s.access === "off" ? (
+                  <p className="rounded-lg bg-[rgba(255,255,255,0.04)] px-3 py-2 text-center text-[11px] text-ink-soft">
+                    Sharing is off — the link won&apos;t open for anyone. Switch it back any time.
+                  </p>
+                ) : (
+                  <button onClick={shareLink} className="btn-primary w-full text-xs">
+                    🔗 Copy / share link
+                  </button>
+                )}
               </>
             ) : (
               <p className="text-xs text-[#e57373]">{msg ?? "Couldn't load."}</p>

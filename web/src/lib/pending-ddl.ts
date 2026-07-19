@@ -750,6 +750,10 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     sql: `ALTER TABLE "bloom_share_tokens" ADD COLUMN IF NOT EXISTS "allowed_emails" TEXT[] NOT NULL DEFAULT '{}'`,
   },
   {
+    label: "bloom_share_tokens.shared_by",
+    sql: `ALTER TABLE "bloom_share_tokens" ADD COLUMN IF NOT EXISTS "shared_by" UUID`,
+  },
+  {
     label: "bloom_calibrations",
     sql: `CREATE TABLE IF NOT EXISTS "bloom_calibrations" (
       "bloom_id"       UUID NOT NULL,

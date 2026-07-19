@@ -10,12 +10,16 @@ import { OUTCOMES, SAME_AGAIN } from "@/lib/services/reflections";
 // A per-bloom token grants a scoped view of just that one bloom — never seed
 // access. Everything best-effort against standalone tables.
 
-export type ShareSettings = { token: string; access: "anyone" | "restricted"; allowedEmails: string[] };
+export type ShareAccess = "anyone" | "restricted" | "off";
+export type ShareSettings = { token: string; access: ShareAccess; allowedEmails: string[] };
 
 const normEmail = (e: string) => e.trim().toLowerCase();
+const normAccess = (a: string | null | undefined): ShareAccess =>
+  a === "restricted" ? "restricted" : a === "off" ? "off" : "anyone";
 
 // Owner (or any member who can see the bloom) mints/returns its share token +
-// current access settings.
+// current access settings. On first mint we record WHO is asking, so the
+// calibration page can say "<them> wants to know how it landed".
 export async function getOrCreateShareSettings(
   userId: string,
   bloomId: string,
@@ -28,39 +32,33 @@ export async function getOrCreateShareSettings(
   if (!row) {
     const token = randomUUID().replace(/-/g, "");
     await db.bloomShareToken
-      .upsert({ where: { bloomId }, update: {}, create: { bloomId, token } })
+      .upsert({ where: { bloomId }, update: {}, create: { bloomId, token, sharedById: userId } })
       .catch(() => {});
     row = await db.bloomShareToken.findUnique({ where: { bloomId } }).catch(() => null);
   }
   if (!row) return null;
-  return {
-    token: row.token,
-    access: row.access === "restricted" ? "restricted" : "anyone",
-    allowedEmails: row.allowedEmails ?? [],
-  };
+  return { token: row.token, access: normAccess(row.access), allowedEmails: row.allowedEmails ?? [] };
 }
 
-// Owner updates who can open the link: "anyone with the link" or "restricted"
-// to a set of emails.
+// Owner updates who can open the link: "anyone with the link", "restricted" to a
+// set of emails, or "off" (link disabled — reversible any time).
 export async function updateShareSettings(
   userId: string,
   bloomId: string,
-  input: { access: "anyone" | "restricted"; allowedEmails: string[] },
+  input: { access: ShareAccess; allowedEmails: string[] },
 ): Promise<ShareSettings | null> {
   const bloom = await db.bloom.findUnique({ where: { id: bloomId }, select: { seedId: true } });
   if (!bloom) return null;
   await requireSeedAccess(userId, bloom.seedId);
 
-  const access = input.access === "restricted" ? "restricted" : "anyone";
+  const access = normAccess(input.access);
   const allowedEmails = Array.from(
     new Set((input.allowedEmails ?? []).map(normEmail).filter((e) => e.includes("@"))),
   ).slice(0, 50);
 
   await db.bloomShareToken.update({ where: { bloomId }, data: { access, allowedEmails } }).catch(() => {});
   const row = await db.bloomShareToken.findUnique({ where: { bloomId } }).catch(() => null);
-  return row
-    ? { token: row.token, access: row.access === "restricted" ? "restricted" : "anyone", allowedEmails: row.allowedEmails ?? [] }
-    : null;
+  return row ? { token: row.token, access: normAccess(row.access), allowedEmails: row.allowedEmails ?? [] } : null;
 }
 
 export type CalibrationTarget = {
@@ -72,11 +70,13 @@ export type CalibrationTarget = {
 };
 
 // "ok" → show the target; "needs_signin" → restricted, sign in to check access;
-// "restricted" → signed in but not on the list; "gone" → bad token.
+// "restricted" → signed in but not on the list; "off" → sharing turned off;
+// "gone" → bad token.
 export type CalibrationAccess =
   | { status: "ok"; target: CalibrationTarget }
   | { status: "needs_signin" }
   | { status: "restricted" }
+  | { status: "off" }
   | { status: "gone" };
 
 // Resolve a token to the single bloom it unlocks — title + summary only, no
@@ -86,10 +86,14 @@ export async function getBloomForCalibration(
   viewerEmail: string | null,
 ): Promise<CalibrationAccess> {
   const share = await db.bloomShareToken
-    .findUnique({ where: { token }, select: { bloomId: true, access: true, allowedEmails: true } })
+    .findUnique({
+      where: { token },
+      select: { bloomId: true, access: true, allowedEmails: true, sharedById: true },
+    })
     .catch(() => null);
   if (!share) return { status: "gone" };
 
+  if (share.access === "off") return { status: "off" };
   if (share.access === "restricted") {
     if (!viewerEmail) return { status: "needs_signin" };
     const allowed = (share.allowedEmails ?? []).map(normEmail);
@@ -109,13 +113,24 @@ export async function getBloomForCalibration(
     })
     .catch(() => null);
   if (!bloom) return { status: "gone" };
+
+  // Attribute to whoever asked for the read (the sharer); fall back to the seed
+  // creator for older links minted before we recorded the sharer.
+  let ownerName = displayName(bloom.seed?.createdBy ?? {});
+  if (share.sharedById) {
+    const sharer = await db.user
+      .findUnique({ where: { id: share.sharedById }, select: { name: true, email: true } })
+      .catch(() => null);
+    if (sharer) ownerName = displayName(sharer);
+  }
+
   return {
     status: "ok",
     target: {
       bloomId: bloom.id,
       title: bloom.title,
       summary: bloom.summary,
-      ownerName: displayName(bloom.seed?.createdBy ?? {}),
+      ownerName,
       gardenName: bloom.garden?.name ?? "",
     },
   };
@@ -135,7 +150,8 @@ export async function submitCalibration(
   if (!share) return { ok: false };
 
   const me = await db.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
-  // Enforce a restricted link server-side too — never trust the client.
+  // Enforce access server-side too — never trust the client.
+  if (share.access === "off") return { ok: false };
   if (share.access === "restricted") {
     const allowed = (share.allowedEmails ?? []).map(normEmail);
     if (!me?.email || !allowed.includes(normEmail(me.email))) return { ok: false };

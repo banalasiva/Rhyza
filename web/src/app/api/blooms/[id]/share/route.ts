@@ -18,7 +18,8 @@ export const PATCH = handle(async (req, ctx: { params: { id: string } }) => {
     access?: string;
     allowedEmails?: unknown;
   };
-  const access = body.access === "restricted" ? "restricted" : "anyone";
+  const access =
+    body.access === "restricted" ? "restricted" : body.access === "off" ? "off" : "anyone";
   const allowedEmails = Array.isArray(body.allowedEmails)
     ? body.allowedEmails.map((e) => String(e))
     : [];

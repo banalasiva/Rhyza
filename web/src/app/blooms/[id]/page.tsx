@@ -91,15 +91,15 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
         {/* Calibration — reality's outside voice. Ask the people the decision
             affected how it actually landed, and hold it against your own read. */}
         <section className="mt-8">
-          <div className="mb-3 flex items-end justify-between gap-2">
-            <div>
-              <p className="eyebrow">How it landed for others</p>
-              <p className="mt-1 text-xs text-ink">
-                Your self-read is one voice. Ask the people it touched for theirs — that&apos;s how
-                judgment sharpens.
-              </p>
+          <div className="mb-3">
+            <p className="eyebrow">How it landed for others</p>
+            <p className="mt-1 text-xs text-ink">
+              Your self-read is one voice. Ask the people it touched for theirs — that&apos;s how
+              judgment sharpens.
+            </p>
+            <div className="mt-3">
+              <CalibrateInvite bloomId={bloom.id} />
             </div>
-            <CalibrateInvite bloomId={bloom.id} />
           </div>
           {others.length === 0 ? (
             <div className="card p-4 text-center text-xs text-ink-soft">

@@ -879,9 +879,10 @@ model BloomShareToken {
   bloomId   String   @id @map("bloom_id") @db.Uuid
   token     String   @unique
   // "anyone" = anyone with the link may open it; "restricted" = only people
-  // whose email is in allowedEmails (signed in as that email) may open/respond.
+  // whose email is in allowedEmails may open/respond; "off" = link disabled.
   access        String   @default("anyone")
   allowedEmails String[] @default([]) @map("allowed_emails")
+  sharedById    String?  @map("shared_by") @db.Uuid // who's asking for the read
   createdAt     DateTime @default(now()) @map("created_at")
 
   @@map("bloom_share_tokens")
