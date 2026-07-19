@@ -66,6 +66,23 @@ export function JudgementMirror({
           { n: summary.sameAgain.no, color: "#e57373", label: "No" },
         ]}
       />
+      {summary.weight.very_tough +
+        summary.weight.tough +
+        summary.weight.medium +
+        summary.weight.easy +
+        summary.weight.very_easy >
+        0 && (
+        <Bar
+          title="How hard-won your lessons were"
+          segments={[
+            { n: summary.weight.very_tough, color: "#c62828", label: "Very tough" },
+            { n: summary.weight.tough, color: "#ef6c57", label: "Tough" },
+            { n: summary.weight.medium, color: "#FFB300", label: "Medium" },
+            { n: summary.weight.easy, color: "#9CCC65", label: "Easy" },
+            { n: summary.weight.very_easy, color: "#66BB6A", label: "Very easy" },
+          ]}
+        />
+      )}
     </div>
   );
 }

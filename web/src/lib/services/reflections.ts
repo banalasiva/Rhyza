@@ -16,11 +16,15 @@ export const SAME_AGAIN = [
   "probably_no",
   "definitely_no",
 ] as const;
+// How hard-won the lesson was — a heat scale from a costly, painful lesson to a
+// cheap, mild one.
+export const LESSON_WEIGHTS = ["very_tough", "tough", "medium", "easy", "very_easy"] as const;
 
 export type Reflection = {
   outcome: string | null;
   outcomeNote: string | null;
   lesson: string | null;
+  lessonWeight: string | null;
   sameAgain: string | null;
   changed: string | null;
   outcomeShared: boolean;
@@ -33,6 +37,7 @@ const EMPTY: Reflection = {
   outcome: null,
   outcomeNote: null,
   lesson: null,
+  lessonWeight: null,
   sameAgain: null,
   changed: null,
   outcomeShared: false,
@@ -51,6 +56,7 @@ export async function getMyReflection(userId: string, bloomId: string): Promise<
     outcome: row.outcome,
     outcomeNote: row.outcomeNote,
     lesson: row.lesson,
+    lessonWeight: row.lessonWeight,
     sameAgain: row.sameAgain,
     changed: row.changed,
     outcomeShared: row.outcomeShared,
@@ -125,6 +131,7 @@ export async function saveReflection(
     outcome: string | null;
     outcomeNote: string | null;
     lesson: string | null;
+    lessonWeight: string | null;
     sameAgain: string | null;
     changed: string | null;
     outcomeShared: boolean;
@@ -143,6 +150,8 @@ export async function saveReflection(
   if ("outcome" in patch) data.outcome = OUTCOMES.includes(patch.outcome as never) ? patch.outcome! : null;
   if ("outcomeNote" in patch) data.outcomeNote = clean(patch.outcomeNote, 2000);
   if ("lesson" in patch) data.lesson = clean(patch.lesson, 2000);
+  if ("lessonWeight" in patch)
+    data.lessonWeight = LESSON_WEIGHTS.includes(patch.lessonWeight as never) ? patch.lessonWeight! : null;
   if ("sameAgain" in patch) data.sameAgain = SAME_AGAIN.includes(patch.sameAgain as never) ? patch.sameAgain! : null;
   if ("changed" in patch) data.changed = clean(patch.changed, 2000);
   if ("outcomeShared" in patch) data.outcomeShared = !!patch.outcomeShared;
@@ -171,25 +180,46 @@ export type LessonItem = {
 // turned out, and whether they'd stand by them — aggregated across every bloom
 // they've reflected on. Surfaces the patterns their own philosophy cares about:
 // which calls landed, which assumptions failed, how their judgment is evolving.
+export type WeightCounts = {
+  very_tough: number;
+  tough: number;
+  medium: number;
+  easy: number;
+  very_easy: number;
+};
 export type ReflectionSummary = {
   reflected: number; // decisions with an outcome and/or same-again recorded
   outcome: { better: number; expected: number; worse: number };
   sameAgain: { yes: number; unsure: number; no: number };
+  weight: WeightCounts; // how hard-won the lessons were
 };
+
+const emptyWeight = (): WeightCounts => ({
+  very_tough: 0,
+  tough: 0,
+  medium: 0,
+  easy: 0,
+  very_easy: 0,
+});
+function tallyWeight(w: WeightCounts, key: string | null) {
+  if (key && key in w) w[key as keyof WeightCounts]++;
+}
 
 export async function getReflectionSummary(userId: string): Promise<ReflectionSummary> {
   const rows = await db.bloomReflection
     .findMany({
       where: { userId },
-      select: { outcome: true, sameAgain: true },
+      select: { outcome: true, sameAgain: true, lessonWeight: true },
     })
-    .catch(() => [] as { outcome: string | null; sameAgain: string | null }[]);
+    .catch(() => [] as { outcome: string | null; sameAgain: string | null; lessonWeight: string | null }[]);
 
   const outcome = { better: 0, expected: 0, worse: 0 };
   const sameAgain = { yes: 0, unsure: 0, no: 0 };
+  const weight = emptyWeight();
   let reflected = 0;
   for (const r of rows) {
-    if (!r.outcome && !r.sameAgain) continue;
+    tallyWeight(weight, r.lessonWeight);
+    if (!r.outcome && !r.sameAgain && !r.lessonWeight) continue;
     reflected++;
     if (r.outcome === "better") outcome.better++;
     else if (r.outcome === "expected") outcome.expected++;
@@ -198,7 +228,7 @@ export async function getReflectionSummary(userId: string): Promise<ReflectionSu
     else if (r.sameAgain === "not_sure") sameAgain.unsure++;
     else if (r.sameAgain === "probably_no" || r.sameAgain === "definitely_no") sameAgain.no++;
   }
-  return { reflected, outcome, sameAgain };
+  return { reflected, outcome, sameAgain, weight };
 }
 
 // The same mirror, split BY AREA — one summary per garden the person has
@@ -214,10 +244,21 @@ export type AreaSummary = ReflectionSummary & {
 export async function getReflectionsByArea(userId: string): Promise<AreaSummary[]> {
   const rows = await db.bloomReflection
     .findMany({
-      where: { userId, OR: [{ outcome: { not: null } }, { sameAgain: { not: null } }] },
-      select: { outcome: true, sameAgain: true, bloomId: true },
+      where: {
+        userId,
+        OR: [{ outcome: { not: null } }, { sameAgain: { not: null } }, { lessonWeight: { not: null } }],
+      },
+      select: { outcome: true, sameAgain: true, lessonWeight: true, bloomId: true },
     })
-    .catch(() => [] as { outcome: string | null; sameAgain: string | null; bloomId: string }[]);
+    .catch(
+      () =>
+        [] as {
+          outcome: string | null;
+          sameAgain: string | null;
+          lessonWeight: string | null;
+          bloomId: string;
+        }[],
+    );
   if (rows.length === 0) return [];
 
   const blooms = await db.bloom
@@ -243,9 +284,12 @@ export async function getReflectionsByArea(userId: string): Promise<AreaSummary[
         reflected: 0,
         outcome: { better: 0, expected: 0, worse: 0 },
         sameAgain: { yes: 0, unsure: 0, no: 0 },
+        weight: emptyWeight(),
       };
       map.set(g.id, a);
     }
+    tallyWeight(a.weight, r.lessonWeight);
+    if (!r.outcome && !r.sameAgain && !r.lessonWeight) continue;
     a.reflected++;
     if (r.outcome === "better") a.outcome.better++;
     else if (r.outcome === "expected") a.outcome.expected++;
@@ -262,7 +306,7 @@ export async function getReflectionsByArea(userId: string): Promise<AreaSummary[
 // you stand by your calls?) so a person can SEE how their judgment leans and
 // evolves. Deterministic (no AI), returns null until there's enough to say.
 export function judgementInsight(s: ReflectionSummary): string | null {
-  const { outcome, sameAgain } = s;
+  const { outcome, sameAgain, weight } = s;
   const oTotal = outcome.better + outcome.expected + outcome.worse;
   const sTotal = sameAgain.yes + sameAgain.unsure + sameAgain.no;
   const parts: string[] = [];
@@ -291,6 +335,15 @@ export function judgementInsight(s: ReflectionSummary): string | null {
     }
   }
 
+  const wTotal =
+    weight.very_tough + weight.tough + weight.medium + weight.easy + weight.very_easy;
+  if (wTotal >= 2) {
+    const hard = weight.very_tough + weight.tough;
+    const soft = weight.easy + weight.very_easy;
+    if (hard > soft) parts.push("Your lessons have been hard-won.");
+    else if (soft > hard) parts.push("Most of your lessons came gently.");
+  }
+
   return parts.length ? parts.join(" ") : null;
 }
 
@@ -301,6 +354,7 @@ export type ReflectionListItem = {
   outcome: string | null;
   sameAgain: string | null;
   lesson: string | null;
+  lessonWeight: string | null;
   updatedAt: string;
 };
 
@@ -332,6 +386,7 @@ export async function listMyReflections(userId: string): Promise<ReflectionListI
     outcome: r.outcome,
     sameAgain: r.sameAgain,
     lesson: r.lesson?.trim() || null,
+    lessonWeight: r.lessonWeight,
     updatedAt: r.updatedAt.toISOString(),
   }));
 }

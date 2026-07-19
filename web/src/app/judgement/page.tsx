@@ -24,6 +24,13 @@ const SAME: Record<string, { label: string; color: string }> = {
   probably_no: { label: "Would redo: probably", color: "#e57373" },
   definitely_no: { label: "Would redo: definitely", color: "#e57373" },
 };
+const WEIGHT: Record<string, { label: string; color: string }> = {
+  very_tough: { label: "Very tough lesson", color: "#c62828" },
+  tough: { label: "Tough lesson", color: "#ef6c57" },
+  medium: { label: "Medium lesson", color: "#FFB300" },
+  easy: { label: "Easy lesson", color: "#9CCC65" },
+  very_easy: { label: "Very easy lesson", color: "#66BB6A" },
+};
 
 function Chip({ label, color }: { label: string; color: string }) {
   return (
@@ -116,6 +123,12 @@ export default async function JudgementPage() {
                       )}
                       {d.sameAgain && SAME[d.sameAgain] && (
                         <Chip label={SAME[d.sameAgain].label} color={SAME[d.sameAgain].color} />
+                      )}
+                      {d.lessonWeight && WEIGHT[d.lessonWeight] && (
+                        <Chip
+                          label={WEIGHT[d.lessonWeight].label}
+                          color={WEIGHT[d.lessonWeight].color}
+                        />
                       )}
                     </div>
                     {d.lesson && (

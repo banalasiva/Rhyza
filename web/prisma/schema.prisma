@@ -849,11 +849,13 @@ model BloomReflection {
   bloomId     String   @map("bloom_id") @db.Uuid
   userId      String   @map("user_id") @db.Uuid
   seedId      String   @map("seed_id") @db.Uuid
-  outcome     String?  // "better" | "expected" | "worse"
-  outcomeNote String?  @map("outcome_note")
-  lesson      String?
-  sameAgain   String?  @map("same_again") // definitely_yes | probably_yes | not_sure | probably_no | definitely_no
-  changed     String?
+  outcome      String?  // "better" | "expected" | "worse"
+  outcomeNote  String?  @map("outcome_note")
+  lesson       String?
+  // How hard-won the lesson was: very_tough | tough | medium | easy | very_easy
+  lessonWeight String?  @map("lesson_weight")
+  sameAgain    String?  @map("same_again") // definitely_yes | probably_yes | not_sure | probably_no | definitely_no
+  changed      String?
   // Per-section sharing. Each section is private to the author by default; when
   // shared, it becomes visible to exactly whoever can open the bloom — which the
   // seed's own visibility already defines (private seed → its members; public →

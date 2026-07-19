@@ -719,4 +719,9 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "bloom_reflections_bloom_id_idx",
     sql: `CREATE INDEX IF NOT EXISTS "bloom_reflections_bloom_id_idx" ON "bloom_reflections" ("bloom_id")`,
   },
+  // How hard-won the lesson was (very_tough … very_easy), for the lessons mirror.
+  {
+    label: "bloom_reflections.lesson_weight",
+    sql: `ALTER TABLE "bloom_reflections" ADD COLUMN IF NOT EXISTS "lesson_weight" TEXT`,
+  },
 ];

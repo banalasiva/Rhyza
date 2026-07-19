@@ -24,6 +24,7 @@ type Reflection = {
   outcome: string | null;
   outcomeNote: string | null;
   lesson: string | null;
+  lessonWeight: string | null;
   sameAgain: string | null;
   changed: string | null;
   outcomeShared: boolean;
@@ -31,6 +32,15 @@ type Reflection = {
   sameAgainShared: boolean;
   updatedAt: string | null;
 };
+
+const WEIGHTS: { key: string; label: string }[] = [
+  { key: "very_tough", label: "Very tough" },
+  { key: "tough", label: "Tough" },
+  { key: "medium", label: "Medium" },
+  { key: "easy", label: "Easy" },
+  { key: "very_easy", label: "Very easy" },
+];
+const weightLabel = (k: string | null) => WEIGHTS.find((w) => w.key === k)?.label ?? null;
 
 type SharedReflection = {
   name: string;
@@ -189,16 +199,31 @@ export function BloomReflection({
       shared: r.lessonShared,
       toggle: () => save({ lessonShared: !r.lessonShared }),
       body: (
-        <textarea
-          defaultValue={r.lesson ?? ""}
-          onBlur={(e) => {
-            if ((e.target.value.trim() || "") !== (r.lesson ?? "")) save({ lesson: e.target.value });
-          }}
-          placeholder="e.g. Talk to customers earlier · Don't optimize for price alone · Ask one more expert"
-          className="input min-h-[180px] w-full text-[15px] leading-relaxed"
-          maxLength={2000}
-          autoFocus
-        />
+        <>
+          <textarea
+            defaultValue={r.lesson ?? ""}
+            onBlur={(e) => {
+              if ((e.target.value.trim() || "") !== (r.lesson ?? "")) save({ lesson: e.target.value });
+            }}
+            placeholder="e.g. Talk to customers earlier · Don't optimize for price alone · Ask one more expert"
+            className="input min-h-[180px] w-full text-[15px] leading-relaxed"
+            maxLength={2000}
+            autoFocus
+          />
+          <p className="mb-2 mt-4 text-xs text-ink-soft">How hard-won was this lesson?</p>
+          <div className="flex flex-wrap gap-2">
+            {WEIGHTS.map((w) => (
+              <button
+                key={w.key}
+                onClick={() => save({ lessonWeight: r.lessonWeight === w.key ? null : w.key })}
+                aria-pressed={r.lessonWeight === w.key}
+                className={pill(r.lessonWeight === w.key)}
+              >
+                {w.label}
+              </button>
+            ))}
+          </div>
+        </>
       ),
     },
     {
@@ -344,15 +369,25 @@ export function BloomReflection({
       label: "How it turned out",
       value: outcomeLabel(r.outcome),
       note: r.outcomeNote?.trim() || null,
+      weight: null as string | null,
       shared: r.outcomeShared,
     },
-    { i: 1, ...ICON.lesson, label: "Biggest lesson", value: r.lesson?.trim() || null, note: null, shared: r.lessonShared },
+    {
+      i: 1,
+      ...ICON.lesson,
+      label: "Biggest lesson",
+      value: r.lesson?.trim() || null,
+      note: null,
+      weight: weightLabel(r.lessonWeight),
+      shared: r.lessonShared,
+    },
     {
       i: 2,
       ...ICON.sameAgain,
       label: "Same again today?",
       value: sameAgainLabel(r.sameAgain),
       note: r.changed?.trim() || null,
+      weight: null as string | null,
       shared: r.sameAgainShared,
     },
   ];
@@ -407,6 +442,11 @@ export function BloomReflection({
                 {row.emoji}
               </span>
               <span className="eyebrow">{row.label}</span>
+              {row.weight && (
+                <span className="rounded-full bg-[rgba(255,179,0,0.12)] px-1.5 py-0.5 text-[10px] text-bloom">
+                  {row.weight}
+                </span>
+              )}
               <span className={`text-[10px] ${row.shared ? "text-accent" : "text-ink-soft"}`}>
                 {row.shared ? `👁 ${audience}` : "🔒 Only me"}
               </span>
