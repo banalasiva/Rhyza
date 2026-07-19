@@ -38,9 +38,11 @@ export async function startPasskeyRegistration(userId: string) {
         | undefined,
     })),
     // A resident (discoverable) key is what lets someone sign in later with no
-    // email typed — the platform just offers their ThinkThru passkey. UV
-    // preferred = biometric/PIN when the device supports it.
-    authenticatorSelection: { residentKey: "preferred", userVerification: "preferred" },
+    // email typed — the platform just offers their ThinkThru passkey.
+    // userVerification "required" enforces the biometric/PIN so every sign-in is
+    // genuinely two-factor (device you have + face/finger/PIN you are/know), not
+    // just possession of an unlocked phone.
+    authenticatorSelection: { residentKey: "preferred", userVerification: "required" },
   });
   const challengeId = await saveChallenge("reg", options.challenge, userId);
   return { options, challengeId };
@@ -65,7 +67,7 @@ export async function finishPasskeyRegistration(
       expectedChallenge: saved.challenge,
       expectedOrigin: origin,
       expectedRPID: rpID,
-      requireUserVerification: false,
+      requireUserVerification: true,
     });
   } catch {
     return { ok: false as const, error: "Could not verify this passkey." };
@@ -99,7 +101,7 @@ export async function startPasskeyLogin() {
   const { rpID } = rpConfig();
   const options = await generateAuthenticationOptions({
     rpID,
-    userVerification: "preferred",
+    userVerification: "required",
     allowCredentials: [],
   });
   const challengeId = await saveChallenge("auth", options.challenge, null);
@@ -133,7 +135,7 @@ export async function verifyPasskeyLogin(
           | AuthenticatorTransportFuture[]
           | undefined,
       },
-      requireUserVerification: false,
+      requireUserVerification: true,
     });
   } catch {
     return null;

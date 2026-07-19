@@ -69,7 +69,12 @@ export function PasskeySetup() {
     setError(null);
     try {
       const res = await fetch(`/api/passkeys?id=${encodeURIComponent(id)}`, { method: "DELETE" });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        // Surface the server's reason (e.g. the last-passkey lockout guard).
+        const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
+        setError(body?.error?.message || "Couldn't remove that passkey.");
+        return;
+      }
       await load();
     } catch {
       setError("Couldn't remove that passkey.");

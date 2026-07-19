@@ -26,8 +26,30 @@ export const DELETE = handle(async (req) => {
   const userId = await requireUserId();
   const id = new URL(req.url).searchParams.get("id");
   if (!id) throw new ApiError("BAD_REQUEST", "Missing passkey id");
-  // Scope the delete to the owner so you can only remove your own.
-  const res = await db.passkey.deleteMany({ where: { id, userId } });
-  if (res.count === 0) throw new ApiError("NOT_FOUND", "Passkey not found");
+
+  // Ownership check first (scopes everything below to this user's own keys).
+  const own = await db.passkey.findFirst({ where: { id, userId }, select: { id: true } });
+  if (!own) throw new ApiError("NOT_FOUND", "Passkey not found");
+
+  // Lockout guard: never let someone strand themselves. If this is their LAST
+  // passkey, only allow removal when they still have another way in — a linked
+  // Google/SSO account, or a real email that can receive a magic link. A
+  // synthetic phone-login email (phone_*@phone.thinkthru.app) doesn't count.
+  const count = await db.passkey.count({ where: { userId } });
+  if (count <= 1) {
+    const [oauth, user] = await Promise.all([
+      db.account.count({ where: { userId } }),
+      db.user.findUnique({ where: { id: userId }, select: { email: true } }),
+    ]);
+    const realEmail = !!user?.email && !user.email.endsWith("@phone.thinkthru.app");
+    if (!oauth && !realEmail) {
+      throw new ApiError(
+        "BAD_REQUEST",
+        "This is your only way to sign in. Link Google or an email first, then you can remove this passkey.",
+      );
+    }
+  }
+
+  await db.passkey.delete({ where: { id } });
   return ok({ ok: true });
 });
