@@ -338,9 +338,23 @@ export function BloomReflection({
 
   // ── SUMMARY (calm recap, revisitable) ───────────────────────────
   const rows = [
-    { i: 0, ...ICON.outcome, label: "How it turned out", value: outcomeLabel(r.outcome), shared: r.outcomeShared },
-    { i: 1, ...ICON.lesson, label: "Biggest lesson", value: r.lesson?.trim() || null, shared: r.lessonShared },
-    { i: 2, ...ICON.sameAgain, label: "Same again today?", value: sameAgainLabel(r.sameAgain), shared: r.sameAgainShared },
+    {
+      i: 0,
+      ...ICON.outcome,
+      label: "How it turned out",
+      value: outcomeLabel(r.outcome),
+      note: r.outcomeNote?.trim() || null,
+      shared: r.outcomeShared,
+    },
+    { i: 1, ...ICON.lesson, label: "Biggest lesson", value: r.lesson?.trim() || null, note: null, shared: r.lessonShared },
+    {
+      i: 2,
+      ...ICON.sameAgain,
+      label: "Same again today?",
+      value: sameAgainLabel(r.sameAgain),
+      note: r.changed?.trim() || null,
+      shared: r.sameAgainShared,
+    },
   ];
 
   return (
@@ -393,10 +407,13 @@ export function BloomReflection({
               </span>
             </span>
             <span className="block whitespace-pre-line text-[15px] leading-relaxed text-ink">
-              {row.value || (
-                <span className="text-ink-soft">Tap to add — no rush</span>
-              )}
+              {row.value || (!row.note && <span className="text-ink-soft">Tap to add — no rush</span>)}
             </span>
+            {row.note && (
+              <span className="mt-1 block whitespace-pre-line text-[15px] leading-relaxed text-ink-mid">
+                {row.note}
+              </span>
+            )}
           </button>
         ))}
       </article>
