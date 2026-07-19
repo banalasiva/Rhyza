@@ -1573,17 +1573,40 @@ export function SeedRoom({
                 <Requirement met={bloomedVotes >= bloomTarget} label={`${bloomedVotes} of ${bloomTarget} voted to bloom`} />
                 <Requirement met={dimsWithContribs >= 3} label={`${dimsWithContribs} of 3 dimensions explored`} />
                 <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
-                  A seed blooms when the community feels it&apos;s ready. When it does, Claude distils the
-                  discussion into durable knowledge in your Sacred Tree.
+                  A seed blooms when the group feels it&apos;s ready — everyone casts a vote here.
+                  When enough agree, Claude distils the discussion into a lasting decision in your
+                  Sacred Tree.
                 </p>
+
+                {/* The action people were missing: on the Bloom tab you VOTE. Make
+                    it unmissable — a clear button if you haven't, a tick if you have. */}
+                {committedToBloom ? (
+                  <p className="mt-4 rounded-full bg-[rgba(76,175,80,0.1)] px-3 py-2.5 text-center text-sm text-accent">
+                    ✓ You voted to bloom
+                    {bloomNeeded > 0 ? ` — waiting for ${bloomNeeded} more` : " — ready!"}
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-4 mb-2 text-center text-xs text-ink-mid">
+                      Think it&apos;s decided? Cast your vote — it blooms when enough people agree.
+                    </p>
+                    <button
+                      onClick={() => vote("bloomed")}
+                      disabled={busy}
+                      className="w-full rounded-full px-3 py-2.5 text-sm font-medium text-bg transition"
+                      style={{ background: "linear-gradient(135deg,#FFB300,#FF8F00)" }}
+                    >
+                      🌸 I&apos;m ready — vote to bloom
+                    </button>
+                  </>
+                )}
                 {seed.canBloom && (
                   <button
                     onClick={bloomNow}
                     disabled={busy}
-                    className="mt-4 w-full rounded-full px-3 py-2.5 text-sm font-medium text-bg transition"
-                    style={{ background: "linear-gradient(135deg,#FFB300,#FF8F00)" }}
+                    className="mt-2 w-full text-center text-[11px] text-ink-soft underline-offset-2 transition hover:text-ink hover:underline"
                   >
-                    🌸 Bloom now
+                    Or bloom it now, as the owner →
                   </button>
                 )}
               </div>

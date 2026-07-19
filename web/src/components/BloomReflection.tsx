@@ -159,7 +159,7 @@ export function BloomReflection({
       emoji: ICON.outcome.emoji,
       code: ICON.outcome.code,
       title: "How did this turn out?",
-      desc: "Reality gets a voice. Comparing what actually happened with what you expected is how judgment sharpens over time.",
+      desc: "Did it work out the way you hoped?",
       shared: r.outcomeShared,
       toggle: () => save({ outcomeShared: !r.outcomeShared }),
       body: (
@@ -194,8 +194,8 @@ export function BloomReflection({
     {
       emoji: ICON.lesson.emoji,
       code: ICON.lesson.code,
-      title: "The biggest lesson",
-      desc: "The one line worth carrying forward. This is where wisdom compounds — decision by decision, it becomes the pattern of how you think.",
+      title: "What did you learn?",
+      desc: "If you did this again, what's the one thing you'd remember?",
       shared: r.lessonShared,
       toggle: () => save({ lessonShared: !r.lessonShared }),
       body: (
@@ -230,7 +230,7 @@ export function BloomReflection({
       emoji: ICON.sameAgain.emoji,
       code: ICON.sameAgain.code,
       title: "Would you decide the same today?",
-      desc: "Come back to this over the years. Watching your answer change is one of the clearest ways to see your own thinking evolve.",
+      desc: "Knowing what you know now, was it the right call?",
       shared: r.sameAgainShared,
       toggle: () => save({ sameAgainShared: !r.sameAgainShared }),
       body: (
