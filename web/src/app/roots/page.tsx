@@ -134,10 +134,19 @@ export default async function RootsPage() {
             Always shown (even at zero) so people learn the loop: a bloom isn't
             the end — go back and reflect, and your lessons gather here. */}
         <section className="mb-8">
-          <p className="eyebrow mb-1">💡 Lessons you&apos;ve drawn</p>
-          <p className="mb-3 text-[11px] text-ink-soft">
-            What reality taught you, decision by decision. Only you can see these.
-          </p>
+          <div className="mb-3 flex items-end justify-between gap-2">
+            <div>
+              <p className="eyebrow mb-1">💡 Lessons you&apos;ve drawn</p>
+              <p className="text-[11px] text-ink-soft">
+                What reality taught you, decision by decision. Only you can see these.
+              </p>
+            </div>
+            {lessons.length > 0 && (
+              <Link href="/lessons" className="btn-ghost shrink-0 px-3 py-1.5 text-xs">
+                See all →
+              </Link>
+            )}
+          </div>
           {lessons.length === 0 ? (
             <div className="card p-5 text-center">
               <div className="mb-1 text-2xl">💡</div>

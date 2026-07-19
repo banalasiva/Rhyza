@@ -353,7 +353,7 @@ export async function getReflectionsByArea(userId: string): Promise<AreaSummary[
 // you stand by your calls?) so a person can SEE how their judgment leans and
 // evolves. Deterministic (no AI), returns null until there's enough to say.
 export function judgementInsight(s: ReflectionSummary): string | null {
-  const { outcome, sameAgain, weight } = s;
+  const { outcome, sameAgain } = s;
   const oTotal = outcome.better + outcome.expected + outcome.worse;
   const sTotal = sameAgain.yes + sameAgain.unsure + sameAgain.no;
   const parts: string[] = [];
@@ -382,16 +382,19 @@ export function judgementInsight(s: ReflectionSummary): string | null {
     }
   }
 
-  const wTotal =
-    weight.very_tough + weight.tough + weight.medium + weight.easy + weight.very_easy;
-  if (wTotal >= 2) {
-    const hard = weight.very_tough + weight.tough;
-    const soft = weight.easy + weight.very_easy;
-    if (hard > soft) parts.push("Your lessons have been hard-won.");
-    else if (soft > hard) parts.push("Most of your lessons came gently.");
-  }
-
   return parts.length ? parts.join(" ") : null;
+}
+
+// The Lessons-side counterpart: a line about how hard-won the lessons have been.
+// Kept separate from judgement so the two mirrors never blur together.
+export function lessonsInsight(weight: WeightCounts): string | null {
+  const total = weight.very_tough + weight.tough + weight.medium + weight.easy + weight.very_easy;
+  if (total < 2) return null;
+  const hard = weight.very_tough + weight.tough;
+  const soft = weight.easy + weight.very_easy;
+  if (hard > soft) return "Hard-won, most of these — the costly lessons tend to stick.";
+  if (soft > hard) return "Most came gently — small course-corrections, caught early.";
+  return "A mix of hard-won and gentle lessons.";
 }
 
 export type ReflectionListItem = {
