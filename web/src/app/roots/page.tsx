@@ -208,6 +208,20 @@ export default async function RootsPage() {
           )}
         </section>
 
+        {/* Thinking fingerprint — your archetype + the mix that's uniquely yours.
+            Sits right under Lessons: the self-reflection cluster together. */}
+        {roots.dimensions.length > 0 && (
+          <section className="mb-8">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="eyebrow">🧭 Your thinking fingerprint</p>
+              <SectionPrivacyToggle section="fingerprint" initialPublic={roots.visibility.fingerprint} />
+            </div>
+            <div className="card p-4">
+              <ThinkingFingerprint dims={roots.dimensions} self />
+            </div>
+          </section>
+        )}
+
         {/* Stat chips */}
         <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Stat n={stats.bloomsHelped} label="Blooms grown" accent="#FFB300" />
@@ -289,19 +303,6 @@ export default async function RootsPage() {
                 </Link>
               ))}
             </ShowMore>
-          </section>
-        )}
-
-        {/* Thinking fingerprint — your archetype + the mix that's uniquely yours */}
-        {roots.dimensions.length > 0 && (
-          <section className="mb-8">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="eyebrow">🧭 Your thinking fingerprint</p>
-              <SectionPrivacyToggle section="fingerprint" initialPublic={roots.visibility.fingerprint} />
-            </div>
-            <div className="card p-4">
-              <ThinkingFingerprint dims={roots.dimensions} self />
-            </div>
           </section>
         )}
 
