@@ -167,6 +167,40 @@ export type LessonItem = {
   updatedAt: string;
 };
 
+// A private mirror (NOT a score) of how the user's decisions have actually
+// turned out, and whether they'd stand by them — aggregated across every bloom
+// they've reflected on. Surfaces the patterns their own philosophy cares about:
+// which calls landed, which assumptions failed, how their judgment is evolving.
+export type ReflectionSummary = {
+  reflected: number; // decisions with an outcome and/or same-again recorded
+  outcome: { better: number; expected: number; worse: number };
+  sameAgain: { yes: number; unsure: number; no: number };
+};
+
+export async function getReflectionSummary(userId: string): Promise<ReflectionSummary> {
+  const rows = await db.bloomReflection
+    .findMany({
+      where: { userId },
+      select: { outcome: true, sameAgain: true },
+    })
+    .catch(() => [] as { outcome: string | null; sameAgain: string | null }[]);
+
+  const outcome = { better: 0, expected: 0, worse: 0 };
+  const sameAgain = { yes: 0, unsure: 0, no: 0 };
+  let reflected = 0;
+  for (const r of rows) {
+    if (!r.outcome && !r.sameAgain) continue;
+    reflected++;
+    if (r.outcome === "better") outcome.better++;
+    else if (r.outcome === "expected") outcome.expected++;
+    else if (r.outcome === "worse") outcome.worse++;
+    if (r.sameAgain === "definitely_yes" || r.sameAgain === "probably_yes") sameAgain.yes++;
+    else if (r.sameAgain === "not_sure") sameAgain.unsure++;
+    else if (r.sameAgain === "probably_no" || r.sameAgain === "definitely_no") sameAgain.no++;
+  }
+  return { reflected, outcome, sameAgain };
+}
+
 // Every lesson the user has drawn, newest first — the compounding "wisdom" of
 // their Garden, surfaced on their roots/profile. Best-effort.
 export async function listMyLessons(userId: string): Promise<LessonItem[]> {

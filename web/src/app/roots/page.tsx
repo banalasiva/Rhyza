@@ -2,7 +2,7 @@ import Link from "next/link";
 import { signOut } from "@/auth";
 import { requireViewer } from "@/lib/session";
 import { getMyRoots } from "@/lib/services/roots";
-import { listMyLessons } from "@/lib/services/reflections";
+import { listMyLessons, getReflectionSummary } from "@/lib/services/reflections";
 import { ShowMore } from "@/components/ShowMore";
 import { NavBar } from "@/components/NavBar";
 import { ProfilePhoto } from "@/components/ProfilePhoto";
@@ -24,6 +24,8 @@ export default async function RootsPage() {
   // Wisdom compounds: every lesson you've drawn from a bloomed decision, in one
   // place. Best-effort so a missing table never breaks the profile.
   const lessons = await listMyLessons(viewer.userId).catch(() => []);
+  // A private mirror (not a score) of how the user's calls tend to land.
+  const judgement = await getReflectionSummary(viewer.userId).catch(() => null);
 
   const uploadsEnabled = !!process.env.BLOB_READ_WRITE_TOKEN;
   const nothingYet =
@@ -100,6 +102,38 @@ export default async function RootsPage() {
             </div>
             <div className="card p-4">
               <ReflectionEditor initial={roots.reflection} />
+            </div>
+          </section>
+        )}
+
+        {/* Your judgement, looking back — a PRIVATE mirror (never a score) of how
+            your calls actually landed and whether you'd stand by them. The heart
+            of ThinkThru: see your patterns, not a number. */}
+        {judgement && judgement.reflected > 0 && (
+          <section className="mb-8">
+            <p className="eyebrow mb-1">🪞 Your judgement, looking back</p>
+            <p className="mb-3 text-[11px] text-ink-soft">
+              How your calls turned out, across {judgement.reflected}{" "}
+              {judgement.reflected === 1 ? "decision" : "decisions"} you&apos;ve revisited. A mirror
+              for you — not a score, never shared.
+            </p>
+            <div className="card space-y-4 p-4">
+              <JudgeBar
+                title="How they turned out"
+                segments={[
+                  { n: judgement.outcome.better, color: "#66BB6A", label: "Better than expected" },
+                  { n: judgement.outcome.expected, color: "#FFB300", label: "About as expected" },
+                  { n: judgement.outcome.worse, color: "#e57373", label: "Worse than expected" },
+                ]}
+              />
+              <JudgeBar
+                title="Would you decide the same again?"
+                segments={[
+                  { n: judgement.sameAgain.yes, color: "#66BB6A", label: "Yes" },
+                  { n: judgement.sameAgain.unsure, color: "#8A94A6", label: "Not sure" },
+                  { n: judgement.sameAgain.no, color: "#e57373", label: "No" },
+                ]}
+              />
             </div>
           </section>
         )}
@@ -366,6 +400,43 @@ function Stat({ n, label, accent }: { n: number; label: string; accent: string }
         {n}
       </p>
       <p className="text-[11px] text-ink-soft">{label}</p>
+    </div>
+  );
+}
+
+// A single distribution: a thin proportional bar + a legend with counts. Shows
+// the shape of the answers (a mirror), never a headline number/score.
+function JudgeBar({
+  title,
+  segments,
+}: {
+  title: string;
+  segments: { n: number; color: string; label: string }[];
+}) {
+  const total = segments.reduce((s, x) => s + x.n, 0);
+  return (
+    <div>
+      <p className="mb-2 text-xs text-ink-mid">{title}</p>
+      <div className="flex h-2.5 overflow-hidden rounded-full bg-[rgba(255,255,255,0.06)]">
+        {total > 0 &&
+          segments.map((s, i) =>
+            s.n > 0 ? (
+              <div key={i} style={{ width: `${(s.n / total) * 100}%`, background: s.color }} />
+            ) : null,
+          )}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+        {segments.map((s, i) => (
+          <span key={i} className="inline-flex items-center gap-1.5 text-[11px] text-ink-mid">
+            <span
+              aria-hidden
+              className="inline-block h-2 w-2 rounded-full"
+              style={{ background: s.color }}
+            />
+            {s.label} · <span className="text-ink">{s.n}</span>
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
