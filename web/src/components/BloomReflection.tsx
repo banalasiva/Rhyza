@@ -4,11 +4,13 @@ import { useMemo, useRef, useState } from "react";
 import { AnimatedEmoji } from "@/components/AnimatedEmoji";
 
 // Noto Animated Emoji codepoints for the three section icons — the same rich 3D
-// set as reactions. AnimatedEmoji falls back to the plain glyph if the CDN 404s.
+// set as reactions. Every one here is confirmed to HAVE a Noto animation (the
+// flat 📈 / 🔄 didn't), and each is a neutral, on-point fit:
+//   🎯 did the decision hit the mark? · 💡 the lesson · 🤔 would you reconsider?
 const ICON = {
-  outcome: { emoji: "📈", code: "1f4c8" },
+  outcome: { emoji: "🎯", code: "1f3af" },
   lesson: { emoji: "💡", code: "1f4a1" },
-  sameAgain: { emoji: "🔄", code: "1f504" },
+  sameAgain: { emoji: "🤔", code: "1f914" },
 };
 
 // Bloom 2.0 — a quiet conversation with your future self. NOT a wall of forms:
