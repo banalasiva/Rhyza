@@ -81,11 +81,14 @@ async function loadSeedRow(seedId: string) {
 export async function requireSeedAccess(userId: string, seedId: string) {
   const seed = await loadSeedRow(seedId);
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
-  // World-public (listed) seeds are readable by ANY signed-in user, across orgs
-  // — that's the public square. Org/garden/private checks are skipped for them.
-  if (seed.listed && seed.visibility === "public") return seed;
+  // PUBLIC seeds are open to any signed-in user who has the link (whether or not
+  // they're "listed" in Explore — listed only adds discoverability). Seed ids are
+  // unguessable UUIDs, so this is link-based access like a shared doc, not a
+  // public directory. Only PRIVATE seeds are gated — they need garden access AND
+  // an explicit seat, otherwise the visitor gets the request-to-join screen.
+  if (seed.visibility === "public") return seed;
   await requireGardenAccess(userId, seed.gardenId);
-  if (seed.visibility === "private" && seed.createdById !== userId) {
+  if (seed.createdById !== userId) {
     const member = await db.seedMember.findUnique({
       where: { seedId_userId: { seedId, userId } },
     });
