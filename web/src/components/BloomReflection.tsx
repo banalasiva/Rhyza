@@ -1,6 +1,15 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { AnimatedEmoji } from "@/components/AnimatedEmoji";
+
+// Noto Animated Emoji codepoints for the three section icons — the same rich 3D
+// set as reactions. AnimatedEmoji falls back to the plain glyph if the CDN 404s.
+const ICON = {
+  outcome: { emoji: "📈", code: "1f4c8" },
+  lesson: { emoji: "💡", code: "1f4a1" },
+  sameAgain: { emoji: "🔄", code: "1f504" },
+};
 
 // Bloom 2.0 — a quiet conversation with your future self. NOT a wall of forms:
 // one gentle question at a time, each with room to breathe and a short note on
@@ -135,7 +144,8 @@ export function BloomReflection({
   // ── The three steps (title + why-it-matters description + body) ──
   const steps = [
     {
-      emoji: "📈",
+      emoji: ICON.outcome.emoji,
+      code: ICON.outcome.code,
       title: "How did this turn out?",
       desc: "Reality gets a voice. Comparing what actually happened with what you expected is how judgment sharpens over time.",
       shared: r.outcomeShared,
@@ -170,7 +180,8 @@ export function BloomReflection({
       ),
     },
     {
-      emoji: "💡",
+      emoji: ICON.lesson.emoji,
+      code: ICON.lesson.code,
       title: "The biggest lesson",
       desc: "The one line worth carrying forward. This is where wisdom compounds — decision by decision, it becomes the pattern of how you think.",
       shared: r.lessonShared,
@@ -189,7 +200,8 @@ export function BloomReflection({
       ),
     },
     {
-      emoji: "🔄",
+      emoji: ICON.sameAgain.emoji,
+      code: ICON.sameAgain.code,
       title: "Would you decide the same today?",
       desc: "Come back to this over the years. Watching your answer change is one of the clearest ways to see your own thinking evolve.",
       shared: r.sameAgainShared,
@@ -253,7 +265,9 @@ export function BloomReflection({
 
           {/* the one question */}
           <div key={step} className="animate-[reflectStepIn_0.35s_ease-out] text-center">
-            <div className="mb-2 text-4xl">{s.emoji}</div>
+            <div className="mb-2 flex justify-center">
+              <AnimatedEmoji codepoint={s.code} emoji={s.emoji} size={44} loop={false} />
+            </div>
             <h3 className="serif-lg mb-2">{s.title}</h3>
             <p className="mx-auto mb-5 max-w-sm text-sm leading-relaxed text-ink-mid">{s.desc}</p>
             <div className="mx-auto max-w-sm text-left">{s.body}</div>
@@ -322,9 +336,9 @@ export function BloomReflection({
 
   // ── SUMMARY (calm recap, revisitable) ───────────────────────────
   const rows = [
-    { i: 0, emoji: "📈", label: "How it turned out", value: outcomeLabel(r.outcome), shared: r.outcomeShared },
-    { i: 1, emoji: "💡", label: "Biggest lesson", value: r.lesson?.trim() || null, shared: r.lessonShared },
-    { i: 2, emoji: "🔄", label: "Same again today?", value: sameAgainLabel(r.sameAgain), shared: r.sameAgainShared },
+    { i: 0, ...ICON.outcome, label: "How it turned out", value: outcomeLabel(r.outcome), shared: r.outcomeShared },
+    { i: 1, ...ICON.lesson, label: "Biggest lesson", value: r.lesson?.trim() || null, shared: r.lessonShared },
+    { i: 2, ...ICON.sameAgain, label: "Same again today?", value: sameAgainLabel(r.sameAgain), shared: r.sameAgainShared },
   ];
 
   return (
@@ -365,8 +379,8 @@ export function BloomReflection({
             }}
             className="card flex w-full items-start gap-3 p-4 text-left transition hover:border-[rgba(255,179,0,0.4)]"
           >
-            <span aria-hidden className="mt-0.5 text-lg">
-              {row.emoji}
+            <span className="mt-0.5">
+              <AnimatedEmoji codepoint={row.code} emoji={row.emoji} size={22} loop={false} />
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-2">
