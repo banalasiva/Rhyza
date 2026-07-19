@@ -43,6 +43,11 @@ export function SeedInvite({
   const [searching, setSearching] = useState(false);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  // Contacts flow: people picked from the phone's own contact sheet, plus the
+  // one shared invite link we open WhatsApp with — no SMS gateway, no Firebase.
+  const [picked, setPicked] = useState<{ name: string; tel?: string; email?: string }[]>([]);
+  const [sentTel, setSentTel] = useState<Set<string>>(new Set());
+  const [linkBusy, setLinkBusy] = useState(false);
 
   useEffect(() => {
     setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
@@ -83,30 +88,12 @@ export function SeedInvite({
     }
   }
 
-  async function pickContact() {
-    try {
-      const nav = navigator as {
-        contacts?: { select?: (p: string[], o: { multiple: boolean }) => Promise<unknown[]> };
-      };
-      const picked = (await nav.contacts?.select?.(["name", "email", "tel"], { multiple: false })) as
-        | { email?: string[]; tel?: string[] }[]
-        | undefined;
-      const c = picked?.[0];
-      const foundEmail = c?.email?.[0];
-      const foundTel = c?.tel?.[0];
-      if (foundEmail) {
-        setEmail(foundEmail);
-        return;
-      }
-      if (foundTel) await inviteViaWhatsApp(foundTel);
-    } catch {
-      /* user cancelled */
-    }
-  }
-
-  // Phone-only contact → create a link invite and open WhatsApp to that number.
-  async function inviteViaWhatsApp(tel: string) {
-    setBusy(true);
+  // Create (once) the shared invite link every contact will receive. Reusable,
+  // so one link serves everyone she picks — a single round-trip, not one per
+  // person. Returns the link, or null on failure.
+  async function ensureLink(): Promise<string | null> {
+    if (result?.link) return result.link;
+    setLinkBusy(true);
     setError(null);
     try {
       const res = await apiPost<{ link: string; emailed: boolean }>(
@@ -114,14 +101,53 @@ export function SeedInvite({
         {},
       );
       setResult(res);
-      const digits = toWhatsAppNumber(tel);
-      const msg = inviteMessage({ place: gardenName, link: res.link });
-      window.location.href = `https://wa.me/${digits}?text=${encodeURIComponent(msg)}`;
+      return res.link;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't create the invite");
+      return null;
     } finally {
-      setBusy(false);
+      setLinkBusy(false);
     }
+  }
+
+  // Open the phone's native contact sheet and let her pick as many people as she
+  // likes (multiple: true). We read only name/tel/email for the ones she taps —
+  // never the whole book — so it's privacy-safe and needs no special permission.
+  // Then we create the shared link so every "WhatsApp" tap is instant.
+  async function pickContacts() {
+    try {
+      const nav = navigator as {
+        contacts?: { select?: (p: string[], o: { multiple: boolean }) => Promise<unknown[]> };
+      };
+      const raw = (await nav.contacts?.select?.(["name", "tel", "email"], { multiple: true })) as
+        | { name?: string[]; tel?: string[]; email?: string[] }[]
+        | undefined;
+      if (!raw?.length) return;
+      const mapped = raw.map((c) => ({
+        name: c.name?.[0] || c.tel?.[0] || c.email?.[0] || "Contact",
+        tel: c.tel?.[0],
+        email: c.email?.[0],
+      }));
+      setPicked(mapped);
+      setSentTel(new Set());
+      track("invite_contacts_picked", { count: mapped.length, scope: "seed" });
+      await ensureLink();
+    } catch {
+      /* user cancelled the picker */
+    }
+  }
+
+  // Open WhatsApp to one picked contact with the warm invite prefilled. Rides
+  // the inviter's own WhatsApp (wa.me) — no SMS cost, works with her real number
+  // so it lands as a message from someone they know, not an anonymous gateway.
+  async function whatsappTo(tel: string) {
+    const link = (await ensureLink()) ?? result?.link;
+    if (!link) return;
+    const digits = toWhatsAppNumber(tel);
+    const msg = inviteMessage({ place: gardenName, link });
+    setSentTel((s) => new Set(s).add(tel));
+    track("invite_shared", { via: "whatsapp", scope: "seed" });
+    window.open(`https://wa.me/${digits}?text=${encodeURIComponent(msg)}`, "_blank");
   }
 
   function message() {
@@ -173,6 +199,59 @@ export function SeedInvite({
 
   const inner = (
     <>
+      {/* 📇 Invite from your contacts — the headline path. Pick people from the
+          phone's own contact sheet (no typing emails); each opens WhatsApp with
+          a warm invite from the inviter's real number. Android only; iOS falls
+          back to the WhatsApp chooser + link below. */}
+      {canPick && (
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={pickContacts}
+            disabled={linkBusy}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-3 py-3 text-sm font-semibold text-[#04310f] transition active:scale-95 disabled:opacity-60"
+          >
+            📇 Invite from your contacts
+          </button>
+          <p className="mt-1.5 text-[11px] text-ink-soft">
+            Pick people from your phone — we’ll open WhatsApp with a warm invite. No emails to type.
+          </p>
+          {picked.length > 0 && (
+            <ul className="mt-2 max-h-56 space-y-1.5 overflow-y-auto">
+              {picked.map((c, i) => (
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-[rgba(255,255,255,0.08)] px-2.5 py-1.5"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-ink">{c.name}</p>
+                    <p className="truncate text-[11px] text-ink-soft">{c.tel || c.email || "No number saved"}</p>
+                  </div>
+                  {c.tel ? (
+                    <button
+                      onClick={() => whatsappTo(c.tel!)}
+                      disabled={linkBusy}
+                      className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-1.5 text-xs font-semibold text-[#04310f] transition active:scale-95 disabled:opacity-60"
+                    >
+                      <WhatsAppIcon />
+                      {sentTel.has(c.tel) ? "Sent ✓" : "WhatsApp"}
+                    </button>
+                  ) : c.email ? (
+                    <button
+                      onClick={() => setEmail(c.email!)}
+                      className="btn-ghost shrink-0 px-3 py-1 text-xs"
+                    >
+                      Use email ↓
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {canPick && <div className="mb-3 border-t border-[rgba(255,255,255,0.08)]" />}
+
       {/* Search anyone on ThinkThru → add them straight in, no invite, no accept. */}
       <div className="mb-4">
         <p className="mb-1 text-sm font-medium text-ink">👋 Add anyone on ThinkThru</p>
@@ -251,17 +330,6 @@ export function SeedInvite({
                 </option>
               ))}
             </datalist>
-          )}
-          {canPick && (
-            <button
-              type="button"
-              onClick={pickContact}
-              title="Pick from your contacts"
-              aria-label="Pick an email from your contacts"
-              className="btn-ghost shrink-0 px-2.5 py-2 text-sm"
-            >
-              📇
-            </button>
           )}
         </div>
         <button type="submit" className="btn-primary shrink-0" disabled={busy}>
