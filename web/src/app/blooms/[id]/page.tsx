@@ -93,8 +93,8 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
         <section className="mt-8">
           <div className="mb-3 flex items-end justify-between gap-2">
             <div>
-              <p className="eyebrow">🔍 How it landed for others</p>
-              <p className="mt-0.5 text-[11px] text-ink-soft">
+              <p className="eyebrow">How it landed for others</p>
+              <p className="mt-1 text-xs text-ink">
                 Your self-read is one voice. Ask the people it touched for theirs — that&apos;s how
                 judgment sharpens.
               </p>
@@ -103,8 +103,8 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
           </div>
           {others.length === 0 ? (
             <div className="card p-4 text-center text-xs text-ink-soft">
-              No outside reads yet. Tap <span className="text-ink">🔗 Ask how it landed</span> and
-              send the link to whoever this decision affected.
+              No outside reads yet. Tap <span className="text-ink">Ask how it landed</span> and send
+              the link to whoever this decision affected.
             </div>
           ) : (
             <div className="space-y-2.5">
