@@ -174,7 +174,7 @@ export function BloomReflection({
                   save({ outcomeNote: e.target.value });
               }}
               placeholder="What actually happened? (optional)"
-              className="input mt-3 min-h-[64px] w-full text-sm"
+              className="input mt-3 min-h-[120px] w-full text-[15px] leading-relaxed"
               maxLength={2000}
             />
           )}
@@ -195,7 +195,7 @@ export function BloomReflection({
             if ((e.target.value.trim() || "") !== (r.lesson ?? "")) save({ lesson: e.target.value });
           }}
           placeholder="e.g. Talk to customers earlier · Don't optimize for price alone · Ask one more expert"
-          className="input min-h-[96px] w-full text-sm"
+          className="input min-h-[180px] w-full text-[15px] leading-relaxed"
           maxLength={2000}
           autoFocus
         />
@@ -230,7 +230,7 @@ export function BloomReflection({
                   save({ changed: e.target.value });
               }}
               placeholder="What changed? (optional)"
-              className="input mt-3 min-h-[64px] w-full text-sm"
+              className="input mt-3 min-h-[120px] w-full text-[15px] leading-relaxed"
               maxLength={2000}
             />
           )}
@@ -365,7 +365,7 @@ export function BloomReflection({
             setStep(0);
             setMode("wizard");
           }}
-          className="btn-ghost px-4 py-1.5 text-xs"
+          className="btn-ghost no-print px-4 py-1.5 text-xs"
         >
           ✎ Revisit
         </button>

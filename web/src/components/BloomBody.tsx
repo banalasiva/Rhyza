@@ -148,7 +148,7 @@ export function BloomBody({
         <BloomContent text={summary} />
       </article>
 
-      <div className="mt-3 flex items-center justify-between gap-2">
+      <div className="no-print mt-3 flex items-center justify-between gap-2">
         <ReadAloud text={`${title}. ${plain(summary)}`} />
         <div className="flex items-center gap-2">
           <button onClick={share} className="btn-ghost px-4 py-1.5 text-xs">

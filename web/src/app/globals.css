@@ -668,6 +668,45 @@ html.light body {
   }
 }
 
+/* Print / Save-as-PDF — keep the on-screen format (dark surface, green
+   headings, white body) instead of the browser's default white page. The
+   color-adjust hints force backgrounds + accent colors to actually render on
+   paper. App chrome (nav bars, the ambient garden backdrop, and anything
+   tagged .no-print like action buttons) is dropped so the page reads as a clean
+   document. */
+@media print {
+  html,
+  body {
+    background: #0b120b !important;
+    color: #e8f0e6 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  header,
+  nav,
+  .garden-bg,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+  /* Don't split a card across pages when it can be helped. */
+  .card,
+  article {
+    break-inside: avoid;
+  }
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}
+
 /* Stake-allocation sliders — colored per dimension via --dim. */
 .stake-range {
   -webkit-appearance: none;
