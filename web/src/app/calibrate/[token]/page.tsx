@@ -8,8 +8,9 @@ import { CalibrateForm } from "@/components/CalibrateForm";
 // decision and say how it actually landed for them, calibrating the decider's
 // self-read. The most personal possible invitation into ThinkThru.
 export default async function CalibratePage({ params }: { params: { token: string } }) {
-  const target = await getBloomForCalibration(params.token);
   const viewer = await getViewer();
+  const access = await getBloomForCalibration(params.token, viewer?.email ?? null);
+  const target = access.status === "ok" ? access.target : null;
 
   return (
     <div className="relative min-h-screen">
@@ -22,12 +23,32 @@ export default async function CalibratePage({ params }: { params: { token: strin
           </p>
         </div>
 
-        {!target ? (
+        {access.status === "gone" ? (
           <div className="card p-6 text-center text-sm text-ink-mid">
             <div className="mb-2 text-3xl">🍂</div>
             This link is no longer valid — the decision may have been reopened or removed.
           </div>
-        ) : (
+        ) : access.status === "needs_signin" ? (
+          <div className="card p-6 text-center">
+            <div className="mb-2 text-3xl">🔒</div>
+            <p className="mb-1 text-sm font-medium text-ink">This link is shared with specific people</p>
+            <p className="mb-4 text-xs text-ink-mid">
+              Sign in with the email it was shared to, and you&apos;ll be able to open it.
+            </p>
+            <Link
+              href={`/login?next=${encodeURIComponent(`/calibrate/${params.token}`)}`}
+              className="btn-primary inline-flex"
+            >
+              Sign in
+            </Link>
+          </div>
+        ) : access.status === "restricted" ? (
+          <div className="card p-6 text-center text-sm text-ink-mid">
+            <div className="mb-2 text-3xl">🔒</div>
+            This link is limited to specific people, and your account isn&apos;t on the list. Ask
+            whoever shared it to add your email.
+          </div>
+        ) : target ? (
           <>
             <div className="mb-4 text-center">
               <h1 className="serif-lg mb-1">{target.title}</h1>
@@ -72,7 +93,7 @@ export default async function CalibratePage({ params }: { params: { token: strin
               </div>
             )}
           </>
-        )}
+        ) : null}
       </main>
     </div>
   );

@@ -10,25 +10,57 @@ import { OUTCOMES, SAME_AGAIN } from "@/lib/services/reflections";
 // A per-bloom token grants a scoped view of just that one bloom — never seed
 // access. Everything best-effort against standalone tables.
 
-// Owner (or any member who can see the bloom) mints/returns its share token.
-export async function getOrCreateShareToken(userId: string, bloomId: string): Promise<string | null> {
+export type ShareSettings = { token: string; access: "anyone" | "restricted"; allowedEmails: string[] };
+
+const normEmail = (e: string) => e.trim().toLowerCase();
+
+// Owner (or any member who can see the bloom) mints/returns its share token +
+// current access settings.
+export async function getOrCreateShareSettings(
+  userId: string,
+  bloomId: string,
+): Promise<ShareSettings | null> {
   const bloom = await db.bloom.findUnique({ where: { id: bloomId }, select: { seedId: true } });
   if (!bloom) return null;
   await requireSeedAccess(userId, bloom.seedId); // only people who can see it may share it
 
-  const existing = await db.bloomShareToken
-    .findUnique({ where: { bloomId }, select: { token: true } })
-    .catch(() => null);
-  if (existing) return existing.token;
+  let row = await db.bloomShareToken.findUnique({ where: { bloomId } }).catch(() => null);
+  if (!row) {
+    const token = randomUUID().replace(/-/g, "");
+    await db.bloomShareToken
+      .upsert({ where: { bloomId }, update: {}, create: { bloomId, token } })
+      .catch(() => {});
+    row = await db.bloomShareToken.findUnique({ where: { bloomId } }).catch(() => null);
+  }
+  if (!row) return null;
+  return {
+    token: row.token,
+    access: row.access === "restricted" ? "restricted" : "anyone",
+    allowedEmails: row.allowedEmails ?? [],
+  };
+}
 
-  const token = randomUUID().replace(/-/g, "");
-  await db.bloomShareToken
-    .upsert({ where: { bloomId }, update: {}, create: { bloomId, token } })
-    .catch(() => {});
-  const row = await db.bloomShareToken
-    .findUnique({ where: { bloomId }, select: { token: true } })
-    .catch(() => null);
-  return row?.token ?? token;
+// Owner updates who can open the link: "anyone with the link" or "restricted"
+// to a set of emails.
+export async function updateShareSettings(
+  userId: string,
+  bloomId: string,
+  input: { access: "anyone" | "restricted"; allowedEmails: string[] },
+): Promise<ShareSettings | null> {
+  const bloom = await db.bloom.findUnique({ where: { id: bloomId }, select: { seedId: true } });
+  if (!bloom) return null;
+  await requireSeedAccess(userId, bloom.seedId);
+
+  const access = input.access === "restricted" ? "restricted" : "anyone";
+  const allowedEmails = Array.from(
+    new Set((input.allowedEmails ?? []).map(normEmail).filter((e) => e.includes("@"))),
+  ).slice(0, 50);
+
+  await db.bloomShareToken.update({ where: { bloomId }, data: { access, allowedEmails } }).catch(() => {});
+  const row = await db.bloomShareToken.findUnique({ where: { bloomId } }).catch(() => null);
+  return row
+    ? { token: row.token, access: row.access === "restricted" ? "restricted" : "anyone", allowedEmails: row.allowedEmails ?? [] }
+    : null;
 }
 
 export type CalibrationTarget = {
@@ -39,13 +71,31 @@ export type CalibrationTarget = {
   gardenName: string;
 };
 
+// "ok" → show the target; "needs_signin" → restricted, sign in to check access;
+// "restricted" → signed in but not on the list; "gone" → bad token.
+export type CalibrationAccess =
+  | { status: "ok"; target: CalibrationTarget }
+  | { status: "needs_signin" }
+  | { status: "restricted" }
+  | { status: "gone" };
+
 // Resolve a token to the single bloom it unlocks — title + summary only, no
-// discussion, no seed access. Null if the token is unknown.
-export async function getBloomForCalibration(token: string): Promise<CalibrationTarget | null> {
+// discussion, no seed access — honouring the link's access mode.
+export async function getBloomForCalibration(
+  token: string,
+  viewerEmail: string | null,
+): Promise<CalibrationAccess> {
   const share = await db.bloomShareToken
-    .findUnique({ where: { token }, select: { bloomId: true } })
+    .findUnique({ where: { token }, select: { bloomId: true, access: true, allowedEmails: true } })
     .catch(() => null);
-  if (!share) return null;
+  if (!share) return { status: "gone" };
+
+  if (share.access === "restricted") {
+    if (!viewerEmail) return { status: "needs_signin" };
+    const allowed = (share.allowedEmails ?? []).map(normEmail);
+    if (!allowed.includes(normEmail(viewerEmail))) return { status: "restricted" };
+  }
+
   const bloom = await db.bloom
     .findUnique({
       where: { id: share.bloomId },
@@ -58,13 +108,16 @@ export async function getBloomForCalibration(token: string): Promise<Calibration
       },
     })
     .catch(() => null);
-  if (!bloom) return null;
+  if (!bloom) return { status: "gone" };
   return {
-    bloomId: bloom.id,
-    title: bloom.title,
-    summary: bloom.summary,
-    ownerName: displayName(bloom.seed?.createdBy ?? {}),
-    gardenName: bloom.garden?.name ?? "",
+    status: "ok",
+    target: {
+      bloomId: bloom.id,
+      title: bloom.title,
+      summary: bloom.summary,
+      ownerName: displayName(bloom.seed?.createdBy ?? {}),
+      gardenName: bloom.garden?.name ?? "",
+    },
   };
 }
 
@@ -77,11 +130,16 @@ export async function submitCalibration(
   input: { outcome?: string | null; sameAgain?: string | null; note?: string | null },
 ): Promise<{ ok: boolean }> {
   const share = await db.bloomShareToken
-    .findUnique({ where: { token }, select: { bloomId: true } })
+    .findUnique({ where: { token }, select: { bloomId: true, access: true, allowedEmails: true } })
     .catch(() => null);
   if (!share) return { ok: false };
 
   const me = await db.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
+  // Enforce a restricted link server-side too — never trust the client.
+  if (share.access === "restricted") {
+    const allowed = (share.allowedEmails ?? []).map(normEmail);
+    if (!me?.email || !allowed.includes(normEmail(me.email))) return { ok: false };
+  }
   const outcome = OUTCOMES.includes(input.outcome as never) ? input.outcome! : null;
   const sameAgain = SAME_AGAIN.includes(input.sameAgain as never) ? input.sameAgain! : null;
   const note = (input.note ?? "").trim().slice(0, 2000) || null;

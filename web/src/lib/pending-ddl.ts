@@ -739,6 +739,16 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "bloom_share_tokens_token_key",
     sql: `CREATE UNIQUE INDEX IF NOT EXISTS "bloom_share_tokens_token_key" ON "bloom_share_tokens" ("token")`,
   },
+  // Google-Docs-style access: "anyone" with the link, or "restricted" to a set
+  // of allowed emails.
+  {
+    label: "bloom_share_tokens.access",
+    sql: `ALTER TABLE "bloom_share_tokens" ADD COLUMN IF NOT EXISTS "access" TEXT NOT NULL DEFAULT 'anyone'`,
+  },
+  {
+    label: "bloom_share_tokens.allowed_emails",
+    sql: `ALTER TABLE "bloom_share_tokens" ADD COLUMN IF NOT EXISTS "allowed_emails" TEXT[] NOT NULL DEFAULT '{}'`,
+  },
   {
     label: "bloom_calibrations",
     sql: `CREATE TABLE IF NOT EXISTS "bloom_calibrations" (

@@ -878,7 +878,11 @@ model BloomReflection {
 model BloomShareToken {
   bloomId   String   @id @map("bloom_id") @db.Uuid
   token     String   @unique
-  createdAt DateTime @default(now()) @map("created_at")
+  // "anyone" = anyone with the link may open it; "restricted" = only people
+  // whose email is in allowedEmails (signed in as that email) may open/respond.
+  access        String   @default("anyone")
+  allowedEmails String[] @default([]) @map("allowed_emails")
+  createdAt     DateTime @default(now()) @map("created_at")
 
   @@map("bloom_share_tokens")
 }
