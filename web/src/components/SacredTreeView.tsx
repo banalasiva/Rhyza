@@ -74,7 +74,7 @@ export function SacredTreeView({ blooms }: { blooms: Bloom[] }) {
                     v{b.version}
                   </span>
                   {!isSel && (
-                    <span className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/60 px-2 py-0.5 text-[11px] text-white/85 backdrop-blur">
+                    <span className="absolute -bottom-9 left-1/2 line-clamp-2 w-[150px] -translate-x-1/2 rounded-lg bg-black/60 px-2 py-1 text-center text-[11px] leading-tight text-white/85 backdrop-blur">
                       {b.title}
                     </span>
                   )}
