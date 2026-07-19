@@ -119,7 +119,9 @@ export async function getMyRoots(userId: string) {
         role: bc.role,
         version: bc.bloom.version,
         bloomedAt: bc.bloom.bloomedAt.toISOString(),
-      })),
+      }))
+      // Newest first, so the "Show more" lists always read most-recent → oldest.
+      .sort((a, b) => b.bloomedAt.localeCompare(a.bloomedAt)),
     planted: plantedSeeds.map((s) => ({
       id: s.id,
       title: s.title,

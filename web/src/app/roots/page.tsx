@@ -3,6 +3,7 @@ import { signOut } from "@/auth";
 import { requireViewer } from "@/lib/session";
 import { getMyRoots } from "@/lib/services/roots";
 import { listMyLessons } from "@/lib/services/reflections";
+import { ShowMore } from "@/components/ShowMore";
 import { NavBar } from "@/components/NavBar";
 import { ProfilePhoto } from "@/components/ProfilePhoto";
 import { ProfileEnrich } from "@/components/ProfileEnrich";
@@ -111,7 +112,7 @@ export default async function RootsPage() {
             <p className="mb-3 text-[11px] text-ink-soft">
               What reality taught you, decision by decision. Only you can see these.
             </p>
-            <div className="space-y-2">
+            <ShowMore noun="lessons">
               {lessons.map((l) => (
                 <Link
                   key={l.bloomId}
@@ -138,7 +139,7 @@ export default async function RootsPage() {
                   )}
                 </Link>
               ))}
-            </div>
+            </ShowMore>
           </section>
         )}
 
@@ -206,7 +207,7 @@ export default async function RootsPage() {
               <p className="eyebrow">🌍 Public seeds you&apos;re in</p>
               <SectionPrivacyToggle section="seeds" initialPublic={roots.visibility.seeds} />
             </div>
-            <div className="space-y-2">
+            <ShowMore noun="seeds">
               {roots.involvedSeeds.map((s) => (
                 <Link
                   key={s.id}
@@ -222,7 +223,7 @@ export default async function RootsPage() {
                   <span className="shrink-0 text-xs text-ink-soft">🌍</span>
                 </Link>
               ))}
-            </div>
+            </ShowMore>
           </section>
         )}
 
@@ -243,7 +244,7 @@ export default async function RootsPage() {
         {roots.blooms.length > 0 && (
           <section className="mb-8">
             <p className="eyebrow mb-3">🌸 Your thinking lives in these</p>
-            <div className="space-y-2">
+            <ShowMore noun="blooms">
               {roots.blooms.map((b) => (
                 <Link
                   key={b.bloomId}
@@ -259,7 +260,7 @@ export default async function RootsPage() {
                   <span className="shrink-0 text-bloom">🌸</span>
                 </Link>
               ))}
-            </div>
+            </ShowMore>
           </section>
         )}
 
@@ -267,7 +268,7 @@ export default async function RootsPage() {
         {roots.planted.length > 0 && (
           <section className="mb-8">
             <p className="eyebrow mb-3">🌱 Seeds you planted</p>
-            <div className="space-y-2">
+            <ShowMore noun="seeds">
               {roots.planted.map((s) => {
                 const stage = STAGES.find((x) => x.key === s.stage) ?? STAGES[0];
                 const href = s.bloomId ? `/blooms/${s.bloomId}` : `/seeds/${s.id}`;
@@ -289,7 +290,7 @@ export default async function RootsPage() {
                   </Link>
                 );
               })}
-            </div>
+            </ShowMore>
           </section>
         )}
 
