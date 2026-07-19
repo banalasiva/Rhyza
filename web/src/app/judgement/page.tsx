@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireViewer } from "@/lib/session";
 import {
   getReflectionSummary,
+  getReflectionsByArea,
   judgementInsight,
   listMyReflections,
 } from "@/lib/services/reflections";
@@ -37,9 +38,10 @@ function Chip({ label, color }: { label: string; color: string }) {
 
 export default async function JudgementPage() {
   const viewer = await requireViewer();
-  const [summary, decisions] = await Promise.all([
+  const [summary, decisions, areas] = await Promise.all([
     getReflectionSummary(viewer.userId).catch(() => null),
     listMyReflections(viewer.userId).catch(() => []),
+    getReflectionsByArea(viewer.userId).catch(() => []),
   ]);
   const insight = summary ? judgementInsight(summary) : null;
   const empty = !summary || summary.reflected === 0;
@@ -71,6 +73,32 @@ export default async function JudgementPage() {
         ) : (
           <>
             <JudgementMirror summary={summary!} insight={insight} />
+
+            {/* By area — one mirror per garden (Hiring, Product, Money…), so you
+                can see where your judgment is strong and where it keeps
+                surprising you. Only shown when there's more than one area. */}
+            {areas.length > 1 && (
+              <section className="mt-8">
+                <p className="eyebrow mb-1">By area</p>
+                <p className="mb-3 text-[11px] text-ink-soft">
+                  Your calls tend to land differently in different parts of life.
+                </p>
+                <div className="space-y-5">
+                  {areas.map((a) => (
+                    <div key={a.gardenId}>
+                      <p className="mb-2 text-sm text-ink">
+                        <span aria-hidden>{a.emoji}</span> {a.name}
+                        <span className="text-ink-soft">
+                          {" "}
+                          · {a.reflected} {a.reflected === 1 ? "decision" : "decisions"}
+                        </span>
+                      </p>
+                      <JudgementMirror summary={a} insight={judgementInsight(a)} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <section className="mt-8">
               <p className="eyebrow mb-3">Decision by decision</p>

@@ -201,6 +201,62 @@ export async function getReflectionSummary(userId: string): Promise<ReflectionSu
   return { reflected, outcome, sameAgain };
 }
 
+// The same mirror, split BY AREA — one summary per garden the person has
+// reflected in (a garden is ThinkThru's unit of topic: Hiring, Product, Money…).
+// Lets someone see that their, say, product calls land well but their hiring
+// calls keep surprising them. Best-effort; garden looked up separately (no FK).
+export type AreaSummary = ReflectionSummary & {
+  gardenId: string;
+  name: string;
+  emoji: string;
+};
+
+export async function getReflectionsByArea(userId: string): Promise<AreaSummary[]> {
+  const rows = await db.bloomReflection
+    .findMany({
+      where: { userId, OR: [{ outcome: { not: null } }, { sameAgain: { not: null } }] },
+      select: { outcome: true, sameAgain: true, bloomId: true },
+    })
+    .catch(() => [] as { outcome: string | null; sameAgain: string | null; bloomId: string }[]);
+  if (rows.length === 0) return [];
+
+  const blooms = await db.bloom
+    .findMany({
+      where: { id: { in: rows.map((r) => r.bloomId) } },
+      select: { id: true, garden: { select: { id: true, name: true, emoji: true } } },
+    })
+    .catch(
+      () => [] as { id: string; garden: { id: string; name: string; emoji: string } | null }[],
+    );
+  const gardenByBloom = new Map(blooms.map((b) => [b.id, b.garden]));
+
+  const map = new Map<string, AreaSummary>();
+  for (const r of rows) {
+    const g = gardenByBloom.get(r.bloomId);
+    if (!g) continue;
+    let a = map.get(g.id);
+    if (!a) {
+      a = {
+        gardenId: g.id,
+        name: g.name,
+        emoji: g.emoji,
+        reflected: 0,
+        outcome: { better: 0, expected: 0, worse: 0 },
+        sameAgain: { yes: 0, unsure: 0, no: 0 },
+      };
+      map.set(g.id, a);
+    }
+    a.reflected++;
+    if (r.outcome === "better") a.outcome.better++;
+    else if (r.outcome === "expected") a.outcome.expected++;
+    else if (r.outcome === "worse") a.outcome.worse++;
+    if (r.sameAgain === "definitely_yes" || r.sameAgain === "probably_yes") a.sameAgain.yes++;
+    else if (r.sameAgain === "not_sure") a.sameAgain.unsure++;
+    else if (r.sameAgain === "probably_no" || r.sameAgain === "definitely_no") a.sameAgain.no++;
+  }
+  return [...map.values()].sort((a, b) => b.reflected - a.reflected);
+}
+
 // A plain-language read of the pattern — the "calibration insight". Still a
 // mirror, not a score: it names the tendency (optimistic? well-calibrated? do
 // you stand by your calls?) so a person can SEE how their judgment leans and
