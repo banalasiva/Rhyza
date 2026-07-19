@@ -4,6 +4,7 @@ import { requireViewer } from "@/lib/session";
 import { getMyRoots } from "@/lib/services/roots";
 import { listMyLessons, getReflectionSummary, judgementInsight } from "@/lib/services/reflections";
 import { JudgementMirror } from "@/components/JudgementMirror";
+import { DistributionBar } from "@/components/DistributionBar";
 import { ShowMore } from "@/components/ShowMore";
 import { NavBar } from "@/components/NavBar";
 import { ProfilePhoto } from "@/components/ProfilePhoto";
@@ -27,6 +28,8 @@ export default async function RootsPage() {
   const lessons = await listMyLessons(viewer.userId).catch(() => []);
   // A private mirror (not a score) of how the user's calls tend to land.
   const judgement = await getReflectionSummary(viewer.userId).catch(() => null);
+  const w = judgement?.weight;
+  const weightTotal = w ? w.very_tough + w.tough + w.medium + w.easy + w.very_easy : 0;
 
   const uploadsEnabled = !!process.env.BLOB_READ_WRITE_TOKEN;
   const nothingYet =
@@ -156,7 +159,24 @@ export default async function RootsPage() {
                 lessons gather here, one decision at a time.
               </p>
             </div>
+          ) : weightTotal > 0 && w ? (
+            // Mirror the Judgement section: show the STAT (how hard-won), and
+            // let "See all →" open the full list of lessons.
+            <div className="card p-5">
+              <DistributionBar
+                title="How hard-won your lessons were"
+                segments={[
+                  { n: w.very_tough, color: "#c62828", label: "Very tough" },
+                  { n: w.tough, color: "#ef6c57", label: "Tough" },
+                  { n: w.medium, color: "#FFB300", label: "Medium" },
+                  { n: w.easy, color: "#9CCC65", label: "Easy" },
+                  { n: w.very_easy, color: "#66BB6A", label: "Very easy" },
+                ]}
+              />
+            </div>
           ) : (
+            // Before any lesson has a toughness rating, preview the lessons
+            // themselves so the section is never empty.
             <ShowMore noun="lessons">
               {lessons.map((l) => (
                 <Link
