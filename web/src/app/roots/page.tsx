@@ -105,13 +105,24 @@ export default async function RootsPage() {
         )}
 
         {/* Lessons you've drawn — the wisdom that compounds. Each one was earned
-            from a real decision looking back at how reality turned out. Private. */}
-        {lessons.length > 0 && (
-          <section className="mb-8">
-            <p className="eyebrow mb-1">💡 Lessons you&apos;ve drawn</p>
-            <p className="mb-3 text-[11px] text-ink-soft">
-              What reality taught you, decision by decision. Only you can see these.
-            </p>
+            from a real decision looking back at how reality turned out. Private.
+            Always shown (even at zero) so people learn the loop: a bloom isn't
+            the end — go back and reflect, and your lessons gather here. */}
+        <section className="mb-8">
+          <p className="eyebrow mb-1">💡 Lessons you&apos;ve drawn</p>
+          <p className="mb-3 text-[11px] text-ink-soft">
+            What reality taught you, decision by decision. Only you can see these.
+          </p>
+          {lessons.length === 0 ? (
+            <div className="card p-5 text-center">
+              <div className="mb-1 text-2xl">💡</div>
+              <p className="text-sm text-ink-mid">
+                None yet. When one of your decisions blooms, open it and reflect on{" "}
+                <span className="text-ink">“what did reality teach me?”</span> — your biggest
+                lessons gather here, one decision at a time.
+              </p>
+            </div>
+          ) : (
             <ShowMore noun="lessons">
               {lessons.map((l) => (
                 <Link
@@ -140,8 +151,8 @@ export default async function RootsPage() {
                 </Link>
               ))}
             </ShowMore>
-          </section>
-        )}
+          )}
+        </section>
 
         {/* Stat chips */}
         <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
