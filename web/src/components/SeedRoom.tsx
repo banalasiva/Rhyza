@@ -428,17 +428,8 @@ export function SeedRoom({
     tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [tab]);
 
-  // Show the walkthrough automatically the first time someone opens a seed.
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem("thinkthru_seen_intro")) {
-        setShowHelp(true);
-        localStorage.setItem("thinkthru_seen_intro", "1");
-      }
-    } catch {
-      /* localStorage unavailable — skip */
-    }
-  }, []);
+  // (No auto walkthrough on opening a seed — planting should just plant. The
+  // "?" in the nav opens the walkthrough on demand.)
 
   // Live bloom: while the seed is still open, poll its status so that when
   // *anyone* tips it over, the celebration fires on everyone's screen — not just
