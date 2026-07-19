@@ -7,6 +7,7 @@ import { BottomNav } from "@/components/BottomNav";
 import { TopNav } from "@/components/TopNav";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { FeedbackButton } from "@/components/FeedbackButton";
+import { HelpButton } from "@/components/HelpButton";
 import { NamePrompt } from "@/components/NamePrompt";
 import { displayName } from "@/lib/display-name";
 
@@ -51,14 +52,7 @@ export async function NavBar({ name }: { name?: string }) {
         {/* About + light/dark toggle — matching circular controls, top-right. */}
         <div className="flex items-center gap-2">
           <FeedbackButton />
-          <Link
-            href="/about"
-            aria-label="About ThinkThru"
-            title="About ThinkThru"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[rgba(76,175,80,0.25)] font-serif text-base text-ink-soft transition hover:border-[rgba(76,175,80,0.5)] hover:text-ink"
-          >
-            ?
-          </Link>
+          <HelpButton />
           <ThemeToggle />
         </div>
       </header>

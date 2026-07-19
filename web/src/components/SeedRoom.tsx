@@ -19,6 +19,7 @@ import { compressImage } from "@/lib/image-compress";
 import { isSignalReaction, REACTION_ANIM, reactionAnimates } from "@/lib/reactions";
 import { AnimatedEmoji } from "@/components/AnimatedEmoji";
 import { AiConsent } from "@/components/AiConsent";
+import { InfoTip } from "@/components/InfoTip";
 import { PlantSvg } from "@/components/PlantSvg";
 import { HowItWorks } from "@/components/HowItWorks";
 import { RichEditor } from "@/components/RichEditor";
@@ -1487,12 +1488,18 @@ export function SeedRoom({
         {/* Plain-language "what this step is for". The tabs use the garden words
             (Discuss · Decide · Bloom); this line says, in ordinary language, what
             you actually DO here — so a first-timer is never left guessing. */}
-        <p className="mb-4 -mt-1 px-1 text-center text-[11px] leading-relaxed text-ink-soft">
-          {tab === "discuss"
-            ? "💬 Talk it through — share every angle, and ask AI when you want another view."
-            : tab === "decide"
-              ? "⚖️ Weigh in on what matters most — everyone’s read shapes the call."
-              : "🌸 Close the conversation into one shared decision your group keeps."}
+        <p className="mb-4 -mt-1 flex items-center justify-center gap-1.5 px-1 text-center text-[11px] leading-relaxed text-ink-soft">
+          <span>
+            {tab === "discuss"
+              ? "💬 Talk it through — share every angle, and ask AI when you want another view."
+              : tab === "decide"
+                ? "⚖️ Weigh in on what matters most — everyone’s read shapes the call."
+                : "🌸 Close the conversation into one shared decision your group keeps."}
+          </span>
+          <InfoTip
+            label="Discuss → Decide → Bloom"
+            text="Every seed moves through three steps: Discuss (talk it through), Decide (everyone weighs in), and Bloom (it becomes a decision kept in your Sacred Tree). Tap the ? up top for the full walkthrough."
+          />
         </p>
 
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
