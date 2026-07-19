@@ -1,15 +1,45 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { requireViewer } from "@/lib/session";
-import { getSeedDetail, getSeedPreview } from "@/lib/services/seeds";
+import Image from "next/image";
+import { notFound, redirect } from "next/navigation";
+import { getViewer } from "@/lib/session";
+import { getSeedDetail, getSeedPreview, getPublicSeedForGuest } from "@/lib/services/seeds";
 import { getReactionTypes } from "@/lib/registry";
 import { NavBar } from "@/components/NavBar";
 import { SeedRoom } from "@/components/SeedRoom";
 import { SeedRhythm } from "@/components/SeedRhythm";
 import { LockedSeed } from "@/components/LockedSeed";
+import { GuestSeedView } from "@/components/GuestSeedView";
 
 export default async function SeedPage({ params }: { params: { id: string } }) {
-  const viewer = await requireViewer();
+  const viewer = await getViewer();
+
+  // Signed-out guest: public seeds "just work" as a read-only page (anyone with
+  // the link can read the question + conversation). Anything private, or any
+  // interaction, routes through sign-in — so a guest can never write or trigger
+  // a paid AI call.
+  if (!viewer) {
+    const guest = await getPublicSeedForGuest(params.id);
+    if (!guest) redirect(`/login?next=${encodeURIComponent(`/seeds/${params.id}`)}`);
+    const reactions = await getReactionTypes();
+    const reactionEmoji = Object.fromEntries(reactions.map((r) => [r.key, r.emoji]));
+    return (
+      <div className="relative min-h-screen">
+        <div className="garden-bg" />
+        <header className="relative z-20 flex items-center justify-between px-5 py-3">
+          <Link href="/" className="flex items-center gap-2">
+            <Image src="/icon-192.png" alt="" width={26} height={26} className="rounded-lg" />
+            <span className="serif-lg">ThinkThru</span>
+          </Link>
+          <Link href={`/login?next=${encodeURIComponent(`/seeds/${params.id}`)}`} className="btn-primary text-sm">
+            Sign in
+          </Link>
+        </header>
+        <main id="main" className="relative z-10 px-4 py-5 sm:px-6 sm:py-6">
+          <GuestSeedView seed={guest} reactionEmoji={reactionEmoji} />
+        </main>
+      </div>
+    );
+  }
 
   // Try to open the seed. If access is denied (a private seed they're not in
   // yet — e.g. they arrived via a shared link), fall back to the locked preview

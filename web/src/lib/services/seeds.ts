@@ -513,3 +513,42 @@ export async function getSeedPreview(userId: string, seedId: string) {
     status,
   };
 }
+
+// Read-only view of a PUBLIC seed for a signed-out guest. Returns null for
+// anything that isn't a link-open public seed (private seeds stay gated, and the
+// page redirects the guest to sign in). No user context is threaded through, so
+// nothing here can mutate state or reach a paid AI call — a guest can only read.
+export async function getPublicSeedForGuest(seedId: string) {
+  const seed = await loadSeedForDetail(seedId);
+  if (!seed || seed.deletedAt) return null;
+  // Only truly public seeds are readable without an account. Private seeds —
+  // even reached via a link — must sign in and request a seat.
+  if (seed.visibility !== "public") return null;
+
+  const [memberCount, contributions] = await Promise.all([
+    db.seedMember.count({ where: { seedId } }).catch(() => 0),
+    db.contribution.findMany({
+      where: { seedId, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: THREAD_WINDOW,
+      include: CONTRIB_INCLUDE,
+    }),
+  ]);
+  contributions.reverse();
+  // Map with an empty viewer id — no message is ever "mine" for a guest, and no
+  // "You" reaction attribution leaks. The whole discussion is shown flat, in
+  // order; the deciding/quorum layer stays sign-in-only.
+  const contribs = mapContribs(contributions as ContribRow[], "");
+
+  return {
+    id: seed.id,
+    title: seed.title,
+    content: seed.content,
+    stage: (seed.stage === "bloomed" && !seed.bloomId ? "growing" : seed.stage) as StageKey,
+    bloomId: seed.bloomId,
+    author: { id: seed.createdBy.id, name: displayName(seed.createdBy), image: seed.createdBy.image },
+    garden: { id: seed.garden.id, name: seed.garden.name, emoji: seed.garden.emoji },
+    memberCount,
+    contributions: contribs,
+  };
+}
