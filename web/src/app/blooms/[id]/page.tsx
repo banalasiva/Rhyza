@@ -4,7 +4,22 @@ import { getBloomDetail } from "@/lib/services/blooms";
 import { NavBar } from "@/components/NavBar";
 import { BloomBody } from "@/components/BloomBody";
 import { BloomReflection } from "@/components/BloomReflection";
+import { CalibrateInvite } from "@/components/CalibrateInvite";
+import { getCalibrations } from "@/lib/services/calibration";
 import { RevertBloom } from "@/components/RevertBloom";
+
+const OUTCOME_LABEL: Record<string, { label: string; color: string }> = {
+  better: { label: "Better than expected", color: "#66BB6A" },
+  expected: { label: "About as expected", color: "#FFB300" },
+  worse: { label: "Worse than expected", color: "#e57373" },
+};
+const SAME_LABEL: Record<string, string> = {
+  definitely_yes: "Same again: definitely",
+  probably_yes: "Same again: probably",
+  not_sure: "Same again: not sure",
+  probably_no: "Would redo: probably",
+  definitely_no: "Would redo: definitely",
+};
 
 export default async function BloomPage({ params }: { params: { id: string } }) {
   const viewer = await requireViewer();
@@ -33,6 +48,10 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
       </div>
     );
   }
+
+  // Reality's outside voice — how the decision landed for the people it touched.
+  const calibrations = await getCalibrations(bloom.id, viewer.userId).catch(() => []);
+  const others = calibrations.filter((c) => !c.mine);
 
   return (
     <div className="relative min-h-screen">
@@ -69,7 +88,53 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
           shared={bloom.sharedReflections}
         />
 
-        <section className="mt-6">
+        {/* Calibration — reality's outside voice. Ask the people the decision
+            affected how it actually landed, and hold it against your own read. */}
+        <section className="mt-8">
+          <div className="mb-3 flex items-end justify-between gap-2">
+            <div>
+              <p className="eyebrow">🔍 How it landed for others</p>
+              <p className="mt-0.5 text-[11px] text-ink-soft">
+                Your self-read is one voice. Ask the people it touched for theirs — that&apos;s how
+                judgment sharpens.
+              </p>
+            </div>
+            <CalibrateInvite bloomId={bloom.id} />
+          </div>
+          {others.length === 0 ? (
+            <div className="card p-4 text-center text-xs text-ink-soft">
+              No outside reads yet. Tap <span className="text-ink">🔗 Ask how it landed</span> and
+              send the link to whoever this decision affected.
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {others.map((c, i) => (
+                <div key={i} className="card p-4">
+                  <p className="mb-1.5 text-sm font-medium text-accent">{c.name}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {c.outcome && OUTCOME_LABEL[c.outcome] && (
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[10px]"
+                        style={{
+                          color: OUTCOME_LABEL[c.outcome].color,
+                          background: `${OUTCOME_LABEL[c.outcome].color}1A`,
+                        }}
+                      >
+                        {OUTCOME_LABEL[c.outcome].label}
+                      </span>
+                    )}
+                    {c.sameAgain && SAME_LABEL[c.sameAgain] && (
+                      <span className="text-[10px] text-ink-soft">· {SAME_LABEL[c.sameAgain]}</span>
+                    )}
+                  </div>
+                  {c.note && <p className="mt-2 text-sm text-ink-mid">{c.note}</p>}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-8">
           <p className="eyebrow mb-3">Lineage — who grew this</p>
           <ul className="space-y-2">
             {bloom.contributors.map((c, i) => (

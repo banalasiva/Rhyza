@@ -724,4 +724,37 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "bloom_reflections.lesson_weight",
     sql: `ALTER TABLE "bloom_reflections" ADD COLUMN IF NOT EXISTS "lesson_weight" TEXT`,
   },
+
+  // Calibration — an outside person's read of how a decision landed, reached via
+  // a per-bloom share token. Standalone (no FK to hot models), best-effort.
+  {
+    label: "bloom_share_tokens",
+    sql: `CREATE TABLE IF NOT EXISTS "bloom_share_tokens" (
+      "bloom_id"   UUID NOT NULL PRIMARY KEY,
+      "token"      TEXT NOT NULL,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    label: "bloom_share_tokens_token_key",
+    sql: `CREATE UNIQUE INDEX IF NOT EXISTS "bloom_share_tokens_token_key" ON "bloom_share_tokens" ("token")`,
+  },
+  {
+    label: "bloom_calibrations",
+    sql: `CREATE TABLE IF NOT EXISTS "bloom_calibrations" (
+      "bloom_id"       UUID NOT NULL,
+      "responder_id"   UUID NOT NULL,
+      "responder_name" TEXT NOT NULL DEFAULT '',
+      "outcome"        TEXT,
+      "same_again"     TEXT,
+      "note"           TEXT,
+      "created_at"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updated_at"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY ("bloom_id", "responder_id")
+    )`,
+  },
+  {
+    label: "bloom_calibrations_bloom_id_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "bloom_calibrations_bloom_id_idx" ON "bloom_calibrations" ("bloom_id")`,
+  },
 ];

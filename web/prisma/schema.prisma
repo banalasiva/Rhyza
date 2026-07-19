@@ -872,6 +872,36 @@ model BloomReflection {
   @@map("bloom_reflections")
 }
 
+// A shareable token that lets someone OUTSIDE the decision open a single bloom
+// to calibrate it — no seed access granted, just this one bloom's title/summary
+// and the calibration form. One token per bloom. Standalone, best-effort.
+model BloomShareToken {
+  bloomId   String   @id @map("bloom_id") @db.Uuid
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("bloom_share_tokens")
+}
+
+// Reality's outside voice: how the decision actually LANDED for the person it
+// affected — their read of the outcome and whether they'd have decided the same
+// — so the decider can calibrate their (biased) self-assessment against someone
+// who was there. One row per (bloom, responder). Standalone, best-effort.
+model BloomCalibration {
+  bloomId       String   @map("bloom_id") @db.Uuid
+  responderId   String   @map("responder_id") @db.Uuid
+  responderName String   @map("responder_name")
+  outcome       String?  // better | expected | worse — from THEIR vantage
+  sameAgain     String?  @map("same_again")
+  note          String?
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@id([bloomId, responderId])
+  @@index([bloomId])
+  @@map("bloom_calibrations")
+}
+
 // ─────────────────────────────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────────────────────────────

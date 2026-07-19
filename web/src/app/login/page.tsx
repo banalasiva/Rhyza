@@ -48,10 +48,14 @@ const STEPS3 = [
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: { error?: string };
+  searchParams?: { error?: string; next?: string };
 }) {
+  // Where to land after sign-in. Only same-site relative paths are honoured (no
+  // open redirects), so a shared /calibrate link returns the person to it.
+  const next =
+    searchParams?.next && /^\/(?!\/)/.test(searchParams.next) ? searchParams.next : "/";
   const session = await auth();
-  if (session?.user) redirect("/");
+  if (session?.user) redirect(next);
 
   const ssoEnabled = !!process.env.AUTH_SSO_ISSUER;
   const ssoName = process.env.AUTH_SSO_NAME || "SSO";
@@ -172,17 +176,17 @@ export default async function LoginPage({
                 phoneEnabled={phoneEnabled}
                 googleAction={async () => {
                   "use server";
-                  await signIn("google", { redirectTo: "/" });
+                  await signIn("google", { redirectTo: next });
                 }}
                 emailAction={async (formData: FormData) => {
                   "use server";
                   const email = String(formData.get("email") || "").trim();
                   if (!email) return;
-                  await signIn("resend", { email, redirectTo: "/" });
+                  await signIn("resend", { email, redirectTo: next });
                 }}
                 ssoAction={async () => {
                   "use server";
-                  await signIn("sso", { redirectTo: "/" });
+                  await signIn("sso", { redirectTo: next });
                 }}
               />
               <p className="mt-3 text-center text-[11px] text-ink-soft">Free · takes 10 seconds</p>
