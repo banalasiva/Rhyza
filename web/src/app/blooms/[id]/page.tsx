@@ -79,6 +79,40 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
           aiSynthesized={bloom.aiSynthesized}
         />
 
+        {/* Links shared while deciding — the references (docs, quotes, videos)
+            that shaped the call, carried into the bloom. */}
+        {bloom.links.length > 0 && (
+          <section className="mt-6">
+            <p className="eyebrow mb-3">🔗 Links shared</p>
+            <div className="space-y-2">
+              {bloom.links.map((l, i) => {
+                let host = l.url;
+                try {
+                  host = new URL(l.url).hostname.replace(/^www\./, "");
+                } catch {
+                  /* keep raw */
+                }
+                return (
+                  <a
+                    key={i}
+                    href={l.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="card flex items-center gap-3 p-3 transition hover:border-accent"
+                  >
+                    <span aria-hidden>🔗</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm text-ink">{host}</span>
+                      <span className="block truncate text-[11px] text-ink-soft">{l.url}</span>
+                    </span>
+                    <span className="shrink-0 text-[11px] text-ink-soft">{l.by}</span>
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Bloom 2.0 — the decision keeps growing until reality teaches us
             something. A private, revisitable reflection; each part can be shared. */}
         <BloomReflection

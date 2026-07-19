@@ -370,6 +370,31 @@ export async function reopenBloom(userId: string, seedId: string) {
   return { reopened: true, seedId, gardenId: seed.gardenId };
 }
 
+// Every link people shared in the conversation, in order, de-duplicated — so a
+// bloom carries the references (docs, quotes, videos, receipts) that shaped the
+// decision, not just the prose. Read best-effort from the seed's messages, so it
+// works for blooms created before this existed too.
+const URL_RE = /\bhttps?:\/\/[^\s<>()]+/gi;
+export type BloomLink = { url: string; by: string };
+export async function getSeedLinks(seedId: string): Promise<BloomLink[]> {
+  const rows = await db.contribution
+    .findMany({
+      where: { seedId, deletedAt: null },
+      select: { content: true, author: { select: { name: true } } },
+      orderBy: { createdAt: "asc" },
+    })
+    .catch(() => [] as { content: unknown; author: { name: string | null } | null }[]);
+  const map = new Map<string, string>();
+  for (const c of rows) {
+    const text = (c.content as { text?: string } | null)?.text ?? "";
+    for (let u of text.match(URL_RE) ?? []) {
+      u = u.replace(/[.,;:!?)\]]+$/, ""); // strip trailing punctuation
+      if (u.length > 8 && !map.has(u)) map.set(u, c.author?.name || "A member");
+    }
+  }
+  return [...map.entries()].map(([url, by]) => ({ url, by }));
+}
+
 export async function getBloomDetail(userId: string, bloomId: string) {
   const bloom = await db.bloom.findUnique({
     where: { id: bloomId },
@@ -412,9 +437,10 @@ export async function getBloomDetail(userId: string, bloomId: string) {
       : garden?.createdById === userId || gardenMember?.role === "steward");
   const canRevert = isCurrent && isManager;
 
-  const [reflection, sharedReflections] = await Promise.all([
+  const [reflection, sharedReflections, links] = await Promise.all([
     getMyReflection(userId, bloom.id),
     getSharedReflections(bloom.id, userId),
+    getSeedLinks(bloom.seedId),
   ]);
   // "Shared" inherits the seed's audience — private seed → members only, else
   // public. The UI uses this only to label the toggle honestly.
@@ -423,6 +449,7 @@ export async function getBloomDetail(userId: string, bloomId: string) {
   return {
     reflection,
     sharedReflections,
+    links,
     seedPrivate,
     id: bloom.id,
     title: bloom.title,
