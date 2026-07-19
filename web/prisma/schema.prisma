@@ -838,6 +838,30 @@ model SeedAiSettings {
   @@map("seed_ai_settings")
 }
 
+// Bloom 2.0 — a personal reflection on a decision, revisited as reality teaches.
+// A Bloom stops being just the conclusion of a discussion and becomes a living
+// memory: how it actually turned out, the biggest lesson, and whether — knowing
+// what you know now — you'd decide the same again. One row per (bloom, person),
+// editable over time (updatedAt marks when you last looked back). Standalone (no
+// FK to the hot bloom/user models) so a missing table can never break a bloom
+// read; everything best-effort. Not a score — a mirror.
+model BloomReflection {
+  bloomId     String   @map("bloom_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  seedId      String   @map("seed_id") @db.Uuid
+  outcome     String?  // "better" | "expected" | "worse"
+  outcomeNote String?  @map("outcome_note")
+  lesson      String?
+  sameAgain   String?  @map("same_again") // definitely_yes | probably_yes | not_sure | probably_no | definitely_no
+  changed     String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@id([bloomId, userId])
+  @@index([userId, updatedAt])
+  @@map("bloom_reflections")
+}
+
 // ─────────────────────────────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────────────────────────────

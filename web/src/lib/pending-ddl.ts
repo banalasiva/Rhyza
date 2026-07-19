@@ -673,4 +673,29 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
       "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
   },
+
+  // Bloom 2.0 — personal reflection on a decision (outcome vs expectation, the
+  // biggest lesson, would-you-decide-the-same-today). One row per (bloom, user),
+  // editable over time. Standalone table (no FK to hot bloom/user models) so a
+  // missing table can never break a bloom read; read + write best-effort.
+  {
+    label: "bloom_reflections",
+    sql: `CREATE TABLE IF NOT EXISTS "bloom_reflections" (
+      "bloom_id"     UUID NOT NULL,
+      "user_id"      UUID NOT NULL,
+      "seed_id"      UUID NOT NULL,
+      "outcome"      TEXT,
+      "outcome_note" TEXT,
+      "lesson"       TEXT,
+      "same_again"   TEXT,
+      "changed"      TEXT,
+      "created_at"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updated_at"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY ("bloom_id", "user_id")
+    )`,
+  },
+  {
+    label: "bloom_reflections_user_id_updated_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "bloom_reflections_user_id_updated_at_idx" ON "bloom_reflections" ("user_id", "updated_at")`,
+  },
 ];

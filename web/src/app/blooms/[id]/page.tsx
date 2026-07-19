@@ -3,6 +3,7 @@ import { requireViewer } from "@/lib/session";
 import { getBloomDetail } from "@/lib/services/blooms";
 import { NavBar } from "@/components/NavBar";
 import { BloomBody } from "@/components/BloomBody";
+import { BloomReflection } from "@/components/BloomReflection";
 import { RevertBloom } from "@/components/RevertBloom";
 
 export default async function BloomPage({ params }: { params: { id: string } }) {
@@ -58,6 +59,10 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
           initialSummary={bloom.summary}
           aiSynthesized={bloom.aiSynthesized}
         />
+
+        {/* Bloom 2.0 — the decision keeps growing until reality teaches us
+            something. A private, revisitable reflection. */}
+        <BloomReflection bloomId={bloom.id} initial={bloom.reflection} />
 
         <section className="mt-6">
           <p className="eyebrow mb-3">Lineage — who grew this</p>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { signOut } from "@/auth";
 import { requireViewer } from "@/lib/session";
 import { getMyRoots } from "@/lib/services/roots";
+import { listMyLessons } from "@/lib/services/reflections";
 import { NavBar } from "@/components/NavBar";
 import { ProfilePhoto } from "@/components/ProfilePhoto";
 import { ProfileEnrich } from "@/components/ProfileEnrich";
@@ -19,6 +20,9 @@ export default async function RootsPage() {
   const viewer = await requireViewer();
   const roots = await getMyRoots(viewer.userId);
   const { stats } = roots;
+  // Wisdom compounds: every lesson you've drawn from a bloomed decision, in one
+  // place. Best-effort so a missing table never breaks the profile.
+  const lessons = await listMyLessons(viewer.userId).catch(() => []);
 
   const uploadsEnabled = !!process.env.BLOB_READ_WRITE_TOKEN;
   const nothingYet =
@@ -95,6 +99,45 @@ export default async function RootsPage() {
             </div>
             <div className="card p-4">
               <ReflectionEditor initial={roots.reflection} />
+            </div>
+          </section>
+        )}
+
+        {/* Lessons you've drawn — the wisdom that compounds. Each one was earned
+            from a real decision looking back at how reality turned out. Private. */}
+        {lessons.length > 0 && (
+          <section className="mb-8">
+            <p className="eyebrow mb-1">💡 Lessons you&apos;ve drawn</p>
+            <p className="mb-3 text-[11px] text-ink-soft">
+              What reality taught you, decision by decision. Only you can see these.
+            </p>
+            <div className="space-y-2">
+              {lessons.map((l) => (
+                <Link
+                  key={l.bloomId}
+                  href={`/blooms/${l.bloomId}`}
+                  className="card flex items-start gap-3 p-3 transition hover:border-[rgba(255,179,0,0.4)]"
+                >
+                  <span aria-hidden className="mt-0.5">💡</span>
+                  <span className="min-w-0 flex-1 text-sm text-ink">{l.lesson}</span>
+                  {l.outcome && (
+                    <span
+                      className="shrink-0 rounded-full px-2 py-0.5 text-[10px]"
+                      style={{
+                        color: l.outcome === "worse" ? "#e57373" : "#FFB300",
+                        background:
+                          l.outcome === "worse" ? "rgba(229,115,115,0.1)" : "rgba(255,179,0,0.1)",
+                      }}
+                    >
+                      {l.outcome === "better"
+                        ? "turned out better"
+                        : l.outcome === "worse"
+                          ? "turned out worse"
+                          : "as expected"}
+                    </span>
+                  )}
+                </Link>
+              ))}
             </div>
           </section>
         )}

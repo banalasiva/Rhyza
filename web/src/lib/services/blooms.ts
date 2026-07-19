@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { requireSeedAccess, requireSeedManager } from "@/lib/authz";
+import { getMyReflection } from "@/lib/services/reflections";
 import { synthesizeBloom, type ContribForAI } from "@/lib/ai";
 import { deliver } from "@/lib/services/notify";
 
@@ -411,7 +412,10 @@ export async function getBloomDetail(userId: string, bloomId: string) {
       : garden?.createdById === userId || gardenMember?.role === "steward");
   const canRevert = isCurrent && isManager;
 
+  const reflection = await getMyReflection(userId, bloom.id);
+
   return {
+    reflection,
     id: bloom.id,
     title: bloom.title,
     summary: bloom.summary,
