@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { requireSeedAccess } from "@/lib/authz";
+import { displayName } from "@/lib/display-name";
 
 // Bloom 2.0 — personal reflection on a decision. A Bloom keeps growing after the
 // discussion ends: reality gets a voice (how it turned out vs. what you
@@ -22,6 +23,9 @@ export type Reflection = {
   lesson: string | null;
   sameAgain: string | null;
   changed: string | null;
+  outcomeShared: boolean;
+  lessonShared: boolean;
+  sameAgainShared: boolean;
   updatedAt: string | null;
 };
 
@@ -31,6 +35,9 @@ const EMPTY: Reflection = {
   lesson: null,
   sameAgain: null,
   changed: null,
+  outcomeShared: false,
+  lessonShared: false,
+  sameAgainShared: false,
   updatedAt: null,
 };
 
@@ -46,8 +53,60 @@ export async function getMyReflection(userId: string, bloomId: string): Promise<
     lesson: row.lesson,
     sameAgain: row.sameAgain,
     changed: row.changed,
+    outcomeShared: row.outcomeShared,
+    lessonShared: row.lessonShared,
+    sameAgainShared: row.sameAgainShared,
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+// A section of someone else's reflection they chose to share. Only the shared
+// pieces are ever included; each is visible because the viewer can open this
+// bloom at all — which the seed's own visibility already gates (private seed →
+// its members; public → public). So no extra audience check is needed here.
+export type SharedReflection = {
+  name: string;
+  outcome: string | null;
+  outcomeNote: string | null;
+  lesson: string | null;
+  sameAgain: string | null;
+  changed: string | null;
+};
+
+export async function getSharedReflections(
+  bloomId: string,
+  excludeUserId: string,
+): Promise<SharedReflection[]> {
+  const rows = await db.bloomReflection
+    .findMany({
+      where: {
+        bloomId,
+        userId: { not: excludeUserId },
+        OR: [{ outcomeShared: true }, { lessonShared: true }, { sameAgainShared: true }],
+      },
+      take: 200,
+    })
+    .catch(() => [] as Awaited<ReturnType<typeof db.bloomReflection.findMany>>);
+  if (rows.length === 0) return [];
+
+  // Names come from a separate lookup (the table has no FK to users, by design).
+  const users = await db.user
+    .findMany({
+      where: { id: { in: rows.map((r) => r.userId) } },
+      select: { id: true, name: true, email: true },
+    })
+    .catch(() => [] as { id: string; name: string | null; email: string | null }[]);
+  const nameById = new Map(users.map((u) => [u.id, displayName(u)]));
+
+  return rows.map((r) => ({
+    name: nameById.get(r.userId) ?? "A member",
+    // Each section only surfaces if that section was shared.
+    outcome: r.outcomeShared ? r.outcome : null,
+    outcomeNote: r.outcomeShared ? r.outcomeNote : null,
+    lesson: r.lessonShared ? r.lesson : null,
+    sameAgain: r.sameAgainShared ? r.sameAgain : null,
+    changed: r.sameAgainShared ? r.changed : null,
+  }));
 }
 
 const clean = (s: unknown, max: number): string | null => {
@@ -68,6 +127,9 @@ export async function saveReflection(
     lesson: string | null;
     sameAgain: string | null;
     changed: string | null;
+    outcomeShared: boolean;
+    lessonShared: boolean;
+    sameAgainShared: boolean;
   }>,
 ): Promise<Reflection> {
   const bloom = await db.bloom.findUnique({
@@ -77,12 +139,15 @@ export async function saveReflection(
   if (!bloom) return EMPTY;
   await requireSeedAccess(userId, bloom.seedId);
 
-  const data: Record<string, string | null> = {};
+  const data: Record<string, string | boolean | null> = {};
   if ("outcome" in patch) data.outcome = OUTCOMES.includes(patch.outcome as never) ? patch.outcome! : null;
   if ("outcomeNote" in patch) data.outcomeNote = clean(patch.outcomeNote, 2000);
   if ("lesson" in patch) data.lesson = clean(patch.lesson, 2000);
   if ("sameAgain" in patch) data.sameAgain = SAME_AGAIN.includes(patch.sameAgain as never) ? patch.sameAgain! : null;
   if ("changed" in patch) data.changed = clean(patch.changed, 2000);
+  if ("outcomeShared" in patch) data.outcomeShared = !!patch.outcomeShared;
+  if ("lessonShared" in patch) data.lessonShared = !!patch.lessonShared;
+  if ("sameAgainShared" in patch) data.sameAgainShared = !!patch.sameAgainShared;
 
   await db.bloomReflection
     .upsert({

@@ -4,8 +4,10 @@ import { useRef, useState } from "react";
 
 // Bloom 2.0 — a quiet conversation with your future self. Not a form: three
 // gentle prompts you return to whenever reality has taught you something. Each
-// answer autosaves on its own, so there's never a "submit" — you just leave a
-// mark and come back. Only you ever see this.
+// answer autosaves on its own, and each section is PRIVATE by default — you can
+// choose, per section, to share it. "Shared" simply means visible to whoever can
+// open this bloom, which the seed's own visibility already defines (private seed
+// → its members; public → public), so there's no separate audience to pick.
 
 type Reflection = {
   outcome: string | null;
@@ -13,7 +15,19 @@ type Reflection = {
   lesson: string | null;
   sameAgain: string | null;
   changed: string | null;
+  outcomeShared: boolean;
+  lessonShared: boolean;
+  sameAgainShared: boolean;
   updatedAt: string | null;
+};
+
+type SharedReflection = {
+  name: string;
+  outcome: string | null;
+  outcomeNote: string | null;
+  lesson: string | null;
+  sameAgain: string | null;
+  changed: string | null;
 };
 
 const OUTCOMES: { key: string; label: string }[] = [
@@ -30,13 +44,27 @@ const SAME_AGAIN: { key: string; label: string }[] = [
   { key: "definitely_no", label: "Definitely no" },
 ];
 
-export function BloomReflection({ bloomId, initial }: { bloomId: string; initial: Reflection }) {
+const outcomeLabel = (k: string | null) => OUTCOMES.find((o) => o.key === k)?.label ?? null;
+const sameAgainLabel = (k: string | null) => SAME_AGAIN.find((s) => s.key === k)?.label ?? null;
+
+export function BloomReflection({
+  bloomId,
+  initial,
+  seedPrivate,
+  shared,
+}: {
+  bloomId: string;
+  initial: Reflection;
+  seedPrivate: boolean;
+  shared: SharedReflection[];
+}) {
   const [r, setR] = useState<Reflection>(initial);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const savingRef = useRef(false);
 
-  // Save a partial patch; merge the returned reflection back in. Optimistic for
-  // choices (instant), on-blur for the notes — never a form submit.
+  // The audience "Shared" resolves to, purely for an honest label on the toggle.
+  const audience = seedPrivate ? "Seed members" : "Public";
+
   async function save(patch: Partial<Reflection>) {
     setR((prev) => ({ ...prev, ...patch }));
     if (savingRef.current) return;
@@ -66,6 +94,23 @@ export function BloomReflection({ bloomId, initial }: { bloomId: string; initial
         : "border-[rgba(255,255,255,0.14)] text-ink-mid hover:text-ink"
     }`;
 
+  // The little per-section privacy control. Private by default; one tap shares.
+  const shareToggle = (isShared: boolean, onToggle: () => void) => (
+    <button
+      onClick={onToggle}
+      role="switch"
+      aria-checked={isShared}
+      title={isShared ? `Shared — ${audience} can see this` : "Only you can see this"}
+      className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] transition ${
+        isShared
+          ? "border-accent bg-[rgba(76,175,80,0.1)] text-accent"
+          : "border-[rgba(255,255,255,0.14)] text-ink-soft hover:text-ink"
+      }`}
+    >
+      {isShared ? `👁 ${audience}` : "🔒 Only me"}
+    </button>
+  );
+
   return (
     <section className="mt-8">
       <div className="mb-4 text-center">
@@ -74,15 +119,18 @@ export function BloomReflection({ bloomId, initial }: { bloomId: string; initial
         </p>
         <h2 className="serif-lg mb-1">What did reality teach you?</h2>
         <p className="mx-auto max-w-md text-sm text-ink-mid">
-          A bloom keeps growing. Come back whenever life has an answer — no rush, nothing to submit,
-          and only you can see this.
+          A bloom keeps growing. Come back whenever life has an answer — no rush, nothing to submit.
+          Each part is private until you choose to share it.
         </p>
       </div>
 
       <div className="space-y-3">
-        {/* 1 — Outcome: reality gets a voice */}
+        {/* 1 — Outcome */}
         <div className="card p-5">
-          <p className="mb-3 text-sm font-medium text-ink">📈 How did this turn out?</p>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-sm font-medium text-ink">📈 How did this turn out?</p>
+            {shareToggle(r.outcomeShared, () => save({ outcomeShared: !r.outcomeShared }))}
+          </div>
           <div className="flex flex-wrap gap-2">
             {OUTCOMES.map((o) => (
               <button
@@ -109,9 +157,12 @@ export function BloomReflection({ bloomId, initial }: { bloomId: string; initial
           )}
         </div>
 
-        {/* 2 — Biggest lesson: where wisdom compounds */}
+        {/* 2 — Biggest lesson */}
         <div className="card p-5">
-          <p className="mb-1 text-sm font-medium text-ink">💡 The biggest lesson</p>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <p className="text-sm font-medium text-ink">💡 The biggest lesson</p>
+            {shareToggle(r.lessonShared, () => save({ lessonShared: !r.lessonShared }))}
+          </div>
           <p className="mb-3 text-xs text-ink-soft">
             One line you&apos;d tell yourself before the next decision like this.
           </p>
@@ -126,11 +177,14 @@ export function BloomReflection({ bloomId, initial }: { bloomId: string; initial
           />
         </div>
 
-        {/* 3 — Same again today: watch your judgement evolve */}
+        {/* 3 — Same again today */}
         <div className="card p-5">
-          <p className="mb-3 text-sm font-medium text-ink">
-            🔄 Knowing what you know today, would you decide the same again?
-          </p>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-sm font-medium text-ink">
+              🔄 Knowing what you know today, would you decide the same again?
+            </p>
+            {shareToggle(r.sameAgainShared, () => save({ sameAgainShared: !r.sameAgainShared }))}
+          </div>
           <div className="flex flex-wrap gap-2">
             {SAME_AGAIN.map((s) => (
               <button
@@ -166,8 +220,44 @@ export function BloomReflection({ bloomId, initial }: { bloomId: string; initial
               month: "short",
               year: "numeric",
             })}`
-          : "Private to you — a note for your future self"}
+          : "Private to you until you choose to share a part"}
       </p>
+
+      {/* What others chose to share — the loop closing on a decision made
+          together. Only sections each person opted to share appear here. */}
+      {shared.length > 0 && (
+        <div className="mt-8">
+          <p className="eyebrow mb-3 text-center">🌿 What others took from this</p>
+          <div className="space-y-3">
+            {shared.map((s, i) => (
+              <div key={i} className="card p-4">
+                <p className="mb-2 text-sm font-medium text-accent">{s.name}</p>
+                <div className="space-y-1.5 text-sm text-ink-mid">
+                  {outcomeLabel(s.outcome) && (
+                    <p>
+                      <span className="text-ink-soft">📈 Turned out:</span>{" "}
+                      {outcomeLabel(s.outcome)}
+                      {s.outcomeNote ? ` — ${s.outcomeNote}` : ""}
+                    </p>
+                  )}
+                  {s.lesson && (
+                    <p>
+                      <span className="text-ink-soft">💡 Lesson:</span> {s.lesson}
+                    </p>
+                  )}
+                  {sameAgainLabel(s.sameAgain) && (
+                    <p>
+                      <span className="text-ink-soft">🔄 Same again?</span>{" "}
+                      {sameAgainLabel(s.sameAgain)}
+                      {s.changed ? ` — ${s.changed}` : ""}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

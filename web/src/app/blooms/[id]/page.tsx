@@ -61,8 +61,13 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
         />
 
         {/* Bloom 2.0 — the decision keeps growing until reality teaches us
-            something. A private, revisitable reflection. */}
-        <BloomReflection bloomId={bloom.id} initial={bloom.reflection} />
+            something. A private, revisitable reflection; each part can be shared. */}
+        <BloomReflection
+          bloomId={bloom.id}
+          initial={bloom.reflection}
+          seedPrivate={bloom.seedPrivate}
+          shared={bloom.sharedReflections}
+        />
 
         <section className="mt-6">
           <p className="eyebrow mb-3">Lineage — who grew this</p>

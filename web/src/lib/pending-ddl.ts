@@ -681,21 +681,42 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
   {
     label: "bloom_reflections",
     sql: `CREATE TABLE IF NOT EXISTS "bloom_reflections" (
-      "bloom_id"     UUID NOT NULL,
-      "user_id"      UUID NOT NULL,
-      "seed_id"      UUID NOT NULL,
-      "outcome"      TEXT,
-      "outcome_note" TEXT,
-      "lesson"       TEXT,
-      "same_again"   TEXT,
-      "changed"      TEXT,
-      "created_at"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updated_at"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "bloom_id"          UUID NOT NULL,
+      "user_id"           UUID NOT NULL,
+      "seed_id"           UUID NOT NULL,
+      "outcome"           TEXT,
+      "outcome_note"      TEXT,
+      "lesson"            TEXT,
+      "same_again"        TEXT,
+      "changed"           TEXT,
+      "outcome_shared"    BOOLEAN NOT NULL DEFAULT false,
+      "lesson_shared"     BOOLEAN NOT NULL DEFAULT false,
+      "same_again_shared" BOOLEAN NOT NULL DEFAULT false,
+      "created_at"        TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updated_at"        TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY ("bloom_id", "user_id")
     )`,
+  },
+  // Per-section share flags — separate ADD COLUMNs so a DB that already created
+  // bloom_reflections before these existed still gets them (all idempotent).
+  {
+    label: "bloom_reflections.outcome_shared",
+    sql: `ALTER TABLE "bloom_reflections" ADD COLUMN IF NOT EXISTS "outcome_shared" BOOLEAN NOT NULL DEFAULT false`,
+  },
+  {
+    label: "bloom_reflections.lesson_shared",
+    sql: `ALTER TABLE "bloom_reflections" ADD COLUMN IF NOT EXISTS "lesson_shared" BOOLEAN NOT NULL DEFAULT false`,
+  },
+  {
+    label: "bloom_reflections.same_again_shared",
+    sql: `ALTER TABLE "bloom_reflections" ADD COLUMN IF NOT EXISTS "same_again_shared" BOOLEAN NOT NULL DEFAULT false`,
   },
   {
     label: "bloom_reflections_user_id_updated_at_idx",
     sql: `CREATE INDEX IF NOT EXISTS "bloom_reflections_user_id_updated_at_idx" ON "bloom_reflections" ("user_id", "updated_at")`,
+  },
+  {
+    label: "bloom_reflections_bloom_id_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "bloom_reflections_bloom_id_idx" ON "bloom_reflections" ("bloom_id")`,
   },
 ];

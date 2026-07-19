@@ -854,11 +854,19 @@ model BloomReflection {
   lesson      String?
   sameAgain   String?  @map("same_again") // definitely_yes | probably_yes | not_sure | probably_no | definitely_no
   changed     String?
+  // Per-section sharing. Each section is private to the author by default; when
+  // shared, it becomes visible to exactly whoever can open the bloom — which the
+  // seed's own visibility already defines (private seed → its members; public →
+  // public). So no separate audience is stored: access control resolves it.
+  outcomeShared   Boolean @default(false) @map("outcome_shared")
+  lessonShared    Boolean @default(false) @map("lesson_shared")
+  sameAgainShared Boolean @default(false) @map("same_again_shared")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@id([bloomId, userId])
   @@index([userId, updatedAt])
+  @@index([bloomId])
   @@map("bloom_reflections")
 }
 

@@ -14,9 +14,12 @@ export const GET = handle(async (_req, ctx: { params: { id: string } }) => {
 export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   const userId = await requireUserId();
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-  const patch: Record<string, string | null> = {};
+  const patch: Record<string, string | boolean | null> = {};
   for (const k of ["outcome", "outcomeNote", "lesson", "sameAgain", "changed"] as const) {
     if (k in body) patch[k] = body[k] == null ? null : String(body[k]);
+  }
+  for (const k of ["outcomeShared", "lessonShared", "sameAgainShared"] as const) {
+    if (k in body) patch[k] = !!body[k];
   }
   return ok(await saveReflection(userId, ctx.params.id, patch));
 });
