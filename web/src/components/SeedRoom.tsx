@@ -1504,15 +1504,10 @@ export function SeedRoom({
             <div className="rounded-2xl border border-[rgba(76,175,80,0.25)] bg-[rgba(76,175,80,0.06)] p-4">
               <p className="eyebrow mb-1">⚖️ Deciding together</p>
               <p className="serif-lg leading-snug">{seed.title}</p>
-              <p className="mt-1 text-xs text-ink-soft">
-                How does everyone see it? Give your honest read below, and it adds up to one fair
-                answer for the group.
-              </p>
-              {/* Weighing is optional — say so plainly, so no one feels stuck
-                  here when they've already agreed. */}
-              <p className="mt-2 rounded-lg bg-[rgba(255,255,255,0.04)] px-2.5 py-2 text-[11px] leading-relaxed text-ink-soft">
-                Weighing whose voice counts most is <span className="text-ink">optional</span> — reach
-                for it on tough or contested calls. Already agreed?{" "}
+              {/* One quiet line — optional, with the "already agreed" escape
+                  hatch inline. No paragraph of instructions. */}
+              <p className="mt-1.5 text-xs text-ink-soft">
+                Optional — for tough calls. Already agreed?{" "}
                 <button onClick={() => setTab("bloom")} className="font-medium text-bloom underline-offset-2 hover:underline">
                   Go straight to 🌸 Bloom
                 </button>
@@ -1521,7 +1516,7 @@ export function SeedRoom({
               {/* More voices make a fairer decision — invite the people who
                   should weigh in, right where the deciding happens. */}
               <div className="mt-3 flex items-center gap-2 border-t border-[rgba(76,175,80,0.15)] pt-3">
-                <span className="text-xs text-ink-soft">Want more voices on this?</span>
+                <span className="text-xs text-ink-soft">Want more voices?</span>
                 <AskPeople seedId={seed.id} />
               </div>
             </div>
@@ -1665,24 +1660,34 @@ export function SeedRoom({
         ) : (
           <>
             <h1 className="serif-xl mb-1 break-words">{seedTitle}</h1>
-            {/* Slack-style one-line meta — tap to open the details sheet. */}
-            <button
-              onClick={() => {
-                setSeedMenu(true);
-                setInviteOpen(false);
-              }}
-              aria-haspopup="dialog"
-              className="mb-4 inline-flex items-center gap-1.5 text-xs text-ink-soft transition hover:text-ink"
-            >
-              <span>{visibility === "private" ? "🔒 Private" : "🌍 Public"}</span>
-              <span aria-hidden>·</span>
-              <span>
-                {participants} member{participants === 1 ? "" : "s"}
-              </span>
-              <span aria-hidden className="text-sm leading-none">
-                ⌄
-              </span>
-            </button>
+            {/* One-line meta + an always-visible way to add people. The member
+                count taps through to the details sheet (Slack-style); the "＋"
+                is its own obvious button so "add people" is never buried. */}
+            <div className="mb-4 flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setSeedMenu(true);
+                  setInviteOpen(false);
+                }}
+                aria-haspopup="dialog"
+                className="inline-flex items-center gap-1.5 text-xs text-ink-soft transition hover:text-ink"
+              >
+                <span>{visibility === "private" ? "🔒 Private" : "🌍 Public"}</span>
+                <span aria-hidden>·</span>
+                <span>
+                  {participants} member{participants === 1 ? "" : "s"}
+                </span>
+                <span aria-hidden className="text-sm leading-none">
+                  ⌄
+                </span>
+              </button>
+              <button
+                onClick={() => setPeopleModal(true)}
+                className="inline-flex items-center gap-1 rounded-full border border-[rgba(76,175,80,0.35)] bg-[rgba(76,175,80,0.08)] px-2.5 py-1 text-xs font-medium text-accent transition hover:bg-[rgba(76,175,80,0.16)]"
+              >
+                ＋ Add people
+              </button>
+            </div>
           </>
         )}
 

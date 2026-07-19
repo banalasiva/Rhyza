@@ -174,15 +174,13 @@ export function QuorumV2({ seedId }: { seedId: string }) {
 
       {/* ── Step 2 · Your turn — weigh in (or the revealed result) ── */}
       <section>
-        {view.phase === "collecting" && <p className="eyebrow mb-2">Step 2 · Your turn — weigh in</p>}
+        {view.phase === "collecting" && <p className="eyebrow mb-2">Step 2 · Your turn</p>}
         <div className="mb-2">
           <h2 className="serif-lg">
             {understand ? "Who helped everyone learn?" : "Who should have the biggest say?"}
           </h2>
           <p className="mt-1 text-sm leading-relaxed text-ink-mid">
-            {understand
-              ? "Answer each question about everyone — including yourself. We'll add it up and show the group what it saw in each of you."
-              : "Answer each question about everyone — including yourself. It adds up into one fair answer for the group."}
+            Tap the people each question fits — including yourself.
           </p>
         </div>
 
@@ -234,9 +232,15 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
     for (const d of dims) init[d.key] = [...(view.mine[d.key] ?? [])];
     return init;
   });
+  // Tap-only is the default: for a question you haven't answered yet, everyone
+  // you tap simply counts the same — no ranking required. Ordering is an opt-in
+  // refinement. (A ballot you already ranked keeps its saved order.)
   const [equal, setEqual] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
-    for (const d of dims) init[d.key] = !!view.mineEqual[d.key];
+    for (const d of dims) {
+      const answered = (view.mine[d.key]?.length ?? 0) > 0;
+      init[d.key] = answered ? !!view.mineEqual[d.key] : true;
+    }
     return init;
   });
   const [busy, setBusy] = useState(false);
@@ -320,29 +324,6 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
 
   return (
     <div className="space-y-3">
-      {/* Plain-language "how this works" — three boxed steps so a first-timer
-          never has to guess what the ranking UI below is for. */}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-        {[
-          { n: "1", t: "Pick", d: "For each question, tap the people it fits." },
-          { n: "2", t: "Order", d: "Drag them so the best fit is on top." },
-          { n: "3", t: "Send", d: "When everyone’s in, we blend it into one fair answer." },
-        ].map((s) => (
-          <div
-            key={s.n}
-            className="flex items-start gap-2 rounded-xl border border-[rgba(76,175,80,0.18)] bg-[rgba(76,175,80,0.05)] p-3"
-          >
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[rgba(76,175,80,0.25)] text-[11px] font-semibold text-accent">
-              {s.n}
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-ink">{s.t}</p>
-              <p className="text-[11px] leading-snug text-ink-soft">{s.d}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
       <div className="card overflow-hidden">
       {/* progress dots */}
       <div className="flex items-center justify-center gap-1.5 border-b border-[rgba(255,255,255,0.06)] px-4 py-3">
@@ -364,31 +345,23 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
         <div className="mb-1 flex items-center gap-2">
           <span className="text-xl">{dim.emoji}</span>
           <span className="text-xs uppercase tracking-wide text-ink-soft">
-            {dim.label} · step {step + 1} of {dims.length}
+            {dim.label} · {step + 1}/{dims.length}
           </span>
         </div>
-        <p className="serif-lg mb-1">{dim.question}</p>
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <p className="text-sm leading-relaxed text-ink-mid">
-            {isEqual
-              ? "Everyone you add counts the same here — order doesn’t matter."
-              : `Tap the people this fits, then drag them (or use the ↑ ↓ arrows) so the one it fits most is on top. Up to ${view.maxRank}.`}
-          </p>
+        <p className="serif-lg mb-3">{dim.question}</p>
+
+        {/* Optional refinement — only surfaces once there are 2+ to compare, so
+            the everyday path stays a single tap. In equal mode this offers to
+            rank; in ranking mode it offers to go back to equal. */}
+        {ranked.length >= 2 && (
           <button
             type="button"
             onClick={toggleEqual}
-            aria-pressed={isEqual}
-            className={
-              "shrink-0 rounded-full border px-3 py-1.5 text-xs transition " +
-              (isEqual
-                ? "border-accent bg-[rgba(76,175,80,0.16)] text-ink"
-                : "border-[rgba(255,255,255,0.18)] text-ink-mid hover:border-[rgba(76,175,80,0.4)] hover:text-ink")
-            }
-            title="Make everyone you added count the same, instead of ranking them"
+            className="mb-3 inline-flex items-center gap-1 text-xs text-ink-soft underline-offset-2 transition hover:text-ink hover:underline"
           >
-            {isEqual ? "✓ Everyone equal" : "⚖️ Make all equal"}
+            {isEqual ? "↕ Prioritize the order" : "= Treat everyone equally"}
           </button>
-        </div>
+        )}
 
         {/* ranked list */}
         {ranked.length > 0 ? (
@@ -437,14 +410,14 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
           </ol>
         ) : (
           <p className="mb-3 rounded-xl border border-dashed border-[rgba(255,255,255,0.12)] px-3 py-4 text-center text-xs text-ink-soft">
-            Tap someone below to start ranking.
+            Tap the people this fits 👇
           </p>
         )}
 
         {/* pool */}
         {pool.length > 0 && (
           <div className="mb-1">
-            <p className="mb-1.5 text-[11px] text-ink-soft">{atCap ? `That's the max (${view.maxRank}).` : "Tap to add:"}</p>
+            <p className="mb-1.5 text-[11px] text-ink-soft">{atCap ? `That's the max (${view.maxRank}).` : ranked.length > 0 ? "Add more:" : "Tap a name:"}</p>
             <div className="flex flex-wrap gap-1.5">
               {pool.map((p) => (
                 <button
