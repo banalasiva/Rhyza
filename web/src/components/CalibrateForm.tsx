@@ -7,9 +7,9 @@ import { useState } from "react";
 // a note. Calm and quick; one thoughtful moment, not a survey.
 
 const OUTCOMES = [
-  { key: "better", label: "Better than they'd think" },
-  { key: "expected", label: "About as expected" },
-  { key: "worse", label: "Worse than they'd think" },
+  { key: "better", label: "Better than I expected" },
+  { key: "expected", label: "Met my expectations" },
+  { key: "worse", label: "Worse than I expected" },
 ];
 const SAME_AGAIN = [
   { key: "definitely_yes", label: "Definitely" },
