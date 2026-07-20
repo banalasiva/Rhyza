@@ -71,6 +71,9 @@ const PUBLIC_PREFIXES = [
   // explicitly "Shared with the world" (public + listed), read-only — anything
   // else (link-public, private, or any interaction) redirects to sign-in.
   "/seeds/",
+  // "Look around first" — the signed-out public-square browse (world-shared
+  // seeds, read-only). Signed-in visitors are redirected to the real Explore.
+  "/look",
   // Calibration — a shared bloom link the decision's people open to say how it
   // landed. The page is viewable without an account (a token unlocks just that
   // one bloom); submitting still requires sign-in (enforced in the API/page).

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signIn, auth } from "@/auth";
 import { LandingDemo } from "@/components/LandingDemo";
@@ -134,6 +135,14 @@ export default async function LoginPage({
               }}
             />
           </div>
+
+          {/* No account? Just look around the public square, read-only. */}
+          <Link
+            href="/look"
+            className="mt-4 text-sm text-ink-soft transition hover:text-ink"
+          >
+            or <span className="font-medium text-ink">look around first</span> — no account needed →
+          </Link>
         </section>
 
         {/* ════════════════════════════════════════════════════════════

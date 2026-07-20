@@ -119,6 +119,34 @@ export async function listExplore(
   return mapped.slice(0, take).map(({ _match, ...rest }) => rest);
 }
 
+// Guest "look around" feed — world-shared seeds only, no user context, so a
+// signed-out visitor can browse the public square read-only before deciding to
+// join. Same visibility rule as getPublicSeedForGuest (public + listed), so a
+// card here always links to a seed a guest can actually open.
+export type GuestSeedCard = Omit<ExploreSeed, "following" | "topics">;
+
+export async function listWorldSharedSeeds(take = 40): Promise<GuestSeedCard[]> {
+  const seeds = (await db.seed
+    .findMany({
+      where: { listed: true, visibility: "public", deletedAt: null },
+      orderBy: { lastActivityAt: "desc" },
+      take,
+      select: baseSelect,
+    })
+    .catch(() => [])) as SeedRow[];
+  return seeds.map((s) => ({
+    id: s.id,
+    title: s.title,
+    content: s.content,
+    stage: s.stage,
+    author: { id: s.createdBy.id, name: s.createdBy.name || "Someone", image: s.createdBy.image },
+    garden: { name: s.garden.name, emoji: s.garden.emoji },
+    contributionCount: s._count.contributions,
+    followerCount: s._count.followers,
+    lastActivityAt: s.lastActivityAt.toISOString(),
+  }));
+}
+
 // ── Public gardens (the world square) ─────────────────────────────────────
 
 export type ExploreGarden = {
