@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
 import { AdminPanel } from "@/components/AdminPanel";
 import { BackfillTopicsButton } from "@/components/BackfillTopicsButton";
+import { AdminDeleteUser } from "@/components/AdminDeleteUser";
 import { GoodMorningButton } from "@/components/GoodMorningButton";
 import { RekindleButton } from "@/components/RekindleButton";
 import { ResynthesizeBloomsButton } from "@/components/ResynthesizeBloomsButton";
@@ -256,6 +257,9 @@ export default async function AdminPage() {
         <RekindleButton />
         <ResynthesizeBloomsButton />
         <BackfillTopicsButton />
+        <div className="mt-4">
+          <AdminDeleteUser />
+        </div>
         <Link
           href="/admin/feedback"
           className="card mt-4 flex items-center justify-between p-4 transition hover:border-accent"

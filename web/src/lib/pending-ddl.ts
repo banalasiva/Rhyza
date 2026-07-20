@@ -794,6 +794,21 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     sql: `CREATE INDEX IF NOT EXISTS "passkeys_user_id_idx" ON "passkeys" ("user_id")`,
   },
   {
+    label: "account_deletions",
+    sql: `CREATE TABLE IF NOT EXISTS "account_deletions" (
+      "id"              UUID NOT NULL DEFAULT gen_random_uuid(),
+      "deleted_user_id" UUID NOT NULL,
+      "actor"           TEXT NOT NULL,
+      "method"          TEXT NOT NULL DEFAULT 'anonymise',
+      "created_at"      TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY ("id")
+    )`,
+  },
+  {
+    label: "account_deletions_created_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "account_deletions_created_at_idx" ON "account_deletions" ("created_at")`,
+  },
+  {
     label: "webauthn_challenges",
     sql: `CREATE TABLE IF NOT EXISTS "webauthn_challenges" (
       "id"         UUID NOT NULL DEFAULT gen_random_uuid(),

@@ -1,8 +1,10 @@
 import { requireViewer } from "@/lib/session";
-import { signIn } from "@/auth";
+import { signIn, signOut } from "@/auth";
 import { isGuestEmail } from "@/lib/guest";
+import { deleteAccount } from "@/lib/services/account-deletion";
 import { NavBar } from "@/components/NavBar";
 import { PasskeySetup } from "@/components/PasskeySetup";
+import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 
 export const metadata = { title: "Sign-in & security · ThinkThru" };
 
@@ -96,6 +98,24 @@ export default async function AccountPage() {
             <PasskeySetup />
           </section>
         )}
+
+        {/* Danger zone — self-service account deletion (GDPR / Play policy). */}
+        <section className="mt-6 rounded-2xl border border-[rgba(229,115,115,0.25)] p-5">
+          <p className="eyebrow mb-1" style={{ color: "#e57373" }}>
+            Delete account
+          </p>
+          <p className="mb-4 text-sm text-ink-soft">
+            Permanently remove your personal data and sign-in. Your messages in group threads stay
+            (shown as “Deleted user”) so others&apos; conversations aren&apos;t broken. This can&apos;t be undone.
+          </p>
+          <DeleteAccountButton
+            action={async () => {
+              "use server";
+              await deleteAccount(viewer.userId, "self");
+              await signOut({ redirectTo: "/login?deleted=1" });
+            }}
+          />
+        </section>
       </main>
     </div>
   );

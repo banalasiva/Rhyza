@@ -1222,3 +1222,20 @@ model WebAuthnChallenge {
 
   @@map("webauthn_challenges")
 }
+
+// Compliance audit trail for account deletions. Deliberately PII-FREE: it keeps
+// only the (now-anonymised) user id, WHEN it happened, WHO did it ("self" or an
+// admin's id), and HOW ("anonymise" or "hard") — enough to demonstrate a
+// deletion request was honoured, without retaining any of the deleted person's
+// personal data (which would defeat the deletion). Standalone table, no FK to
+// the user (the user row is scrubbed, not removed), so it survives independently.
+model AccountDeletion {
+  id            String   @id @default(uuid()) @db.Uuid
+  deletedUserId String   @map("deleted_user_id") @db.Uuid
+  actor         String
+  method        String   @default("anonymise")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("account_deletions")
+}
