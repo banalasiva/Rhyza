@@ -256,6 +256,9 @@ export async function getInviteByToken(token: string) {
     orgName: invite.org.name,
     garden: invite.garden,
     seed,
+    // Open link (no scoped email) = "anyone with the link can view + join". The
+    // address itself is never returned (privacy) — just whether it's scoped.
+    openLink: !invite.email,
     inviterName: invite.invitedBy.name,
   };
 }
@@ -271,12 +274,14 @@ export async function acceptInvite(userId: string, userEmail: string, token: str
   if (invite.status === "revoked") throw new ApiError("CONFLICT", "This invite was turned off.");
   if (invite.expiresAt.getTime() < Date.now()) throw new ApiError("CONFLICT", "This invite link has expired.");
 
-  // The vouch test. A matching email-scoped invite means someone deliberately
-  // typed THIS person's address — an explicit vouch, so they're let in now. An
-  // open link (or a forwarded email-invite opened by someone else) only earns a
-  // request-to-join for a PRIVATE seed, so a leaked link can't grant access.
+  // Access model: "anyone with the link is in." An OPEN link (no scoped email)
+  // grants membership to whoever opens it — the owner chose to share a link, is
+  // notified of every join (announceJoin), and can remove members or revoke the
+  // link. Only an EMAIL-SCOPED invite opened by a DIFFERENT person still earns a
+  // request-to-join for a private seed, so a forwarded targeted invite can't
+  // silently let a stranger in.
   const emailMatches = !!invite.email && invite.email === userEmail.toLowerCase();
-  if (invite.seedId && !emailMatches) {
+  if (invite.seedId && invite.email && !emailMatches) {
     const seed = await db.seed
       .findUnique({ where: { id: invite.seedId }, select: { visibility: true } })
       .catch(() => null);

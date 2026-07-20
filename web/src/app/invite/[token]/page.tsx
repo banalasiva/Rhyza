@@ -1,10 +1,9 @@
 import Image from "next/image";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
 import { getViewer } from "@/lib/session";
 import { getInviteByToken, inviteMemberDestination } from "@/lib/services/invites";
-import { getPublicSeedForGuest } from "@/lib/services/seeds";
+import { getPublicSeedForGuest, getInvitedSeedConversation } from "@/lib/services/seeds";
 import { Avatar } from "@/components/Avatar";
 import { AcceptInviteButton } from "@/components/AcceptInviteButton";
 
@@ -52,11 +51,16 @@ export default async function InvitePage({
     );
   }
 
-  // If the invited seed is world-shared, the receiver can FEEL the real
-  // discussion right here — before any login. Content is the hook, not the
-  // button. Private seeds return null (nothing to peek), and that's correct.
+  // Let the receiver FEEL the real discussion right here — before any login.
+  // Content is the hook, not the button. For an OPEN link the token authorizes
+  // viewing the invited seed whatever its visibility ("anyone with the link");
+  // an email-scoped invite only peeks world-shared seeds pre-login (the intended
+  // person sees the rest once they're in).
   const peek = invite.seed?.id
-    ? await getPublicSeedForGuest(invite.seed.id).catch(() => null)
+    ? await (invite.openLink
+        ? getInvitedSeedConversation(invite.seed.id)
+        : getPublicSeedForGuest(invite.seed.id)
+      ).catch(() => null)
     : null;
   const peekMessages = (peek?.contributions ?? [])
     .filter((c) => c.text.trim().length > 0)
@@ -116,12 +120,9 @@ export default async function InvitePage({
                   </li>
                 ))}
               </ul>
-              <Link
-                href={`/seeds/${invite.seed.id}`}
-                className="mt-2 inline-block text-xs text-accent hover:underline"
-              >
-                Read the whole discussion →
-              </Link>
+              <p className="mt-2 text-xs text-ink-soft">
+                Join to read it all and add your voice ↓
+              </p>
             </div>
           )}
         </>

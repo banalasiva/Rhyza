@@ -518,30 +518,23 @@ export async function getSeedPreview(userId: string, seedId: string) {
 // anything that isn't a link-open public seed (private seeds stay gated, and the
 // page redirects the guest to sign in). No user context is threaded through, so
 // nothing here can mutate state or reach a paid AI call — a guest can only read.
-export async function getPublicSeedForGuest(seedId: string) {
-  const seed = await loadSeedForDetail(seedId);
-  if (!seed || seed.deletedAt) return null;
-  // Only seeds explicitly "Shared with the world" (public AND listed) are
-  // readable without an account. A merely link-public seed, and anything
-  // private, must sign in — link-public content stays inside the app until the
-  // owner deliberately opens it to the world.
-  if (seed.visibility !== "public" || !seed.listed) return null;
-
+// Shared read-only projection of a seed's conversation. NO access check lives
+// here — every caller must gate first (public+listed for a guest; a validated
+// invite token for an invitee). Mapped with an empty viewer id so nothing is
+// ever "mine" and no "You" reaction attribution leaks.
+type SeedForGuestRow = NonNullable<Awaited<ReturnType<typeof loadSeedForDetail>>>;
+async function buildGuestSeed(seed: SeedForGuestRow) {
   const [memberCount, contributions] = await Promise.all([
-    db.seedMember.count({ where: { seedId } }).catch(() => 0),
+    db.seedMember.count({ where: { seedId: seed.id } }).catch(() => 0),
     db.contribution.findMany({
-      where: { seedId, deletedAt: null },
+      where: { seedId: seed.id, deletedAt: null },
       orderBy: { createdAt: "desc" },
       take: THREAD_WINDOW,
       include: CONTRIB_INCLUDE,
     }),
   ]);
   contributions.reverse();
-  // Map with an empty viewer id — no message is ever "mine" for a guest, and no
-  // "You" reaction attribution leaks. The whole discussion is shown flat, in
-  // order; the deciding/quorum layer stays sign-in-only.
   const contribs = mapContribs(contributions as ContribRow[], "");
-
   return {
     id: seed.id,
     title: seed.title,
@@ -553,4 +546,30 @@ export async function getPublicSeedForGuest(seedId: string) {
     memberCount,
     contributions: contribs,
   };
+}
+
+// Read-only view of a PUBLIC seed for a signed-out guest. Returns null for
+// anything that isn't a link-open public seed (private seeds stay gated, and the
+// page redirects the guest to sign in). No user context is threaded through, so
+// nothing here can mutate state or reach a paid AI call — a guest can only read.
+export async function getPublicSeedForGuest(seedId: string) {
+  const seed = await loadSeedForDetail(seedId);
+  if (!seed || seed.deletedAt) return null;
+  // Only seeds explicitly "Shared with the world" (public AND listed) are
+  // readable without an account. A merely link-public seed, and anything
+  // private, must sign in — link-public content stays inside the app until the
+  // owner deliberately opens it to the world.
+  if (seed.visibility !== "public" || !seed.listed) return null;
+  return buildGuestSeed(seed);
+}
+
+// Read-only view of the seed an INVITE points to — for a signed-out invitee,
+// regardless of the seed's visibility. The authorization is possession of a
+// validated invite token ("anyone with the link can view"): callers MUST only
+// call this after getInviteByToken confirmed a live, non-revoked invite for
+// this exact seed. Never call it from a plain guest path.
+export async function getInvitedSeedConversation(seedId: string) {
+  const seed = await loadSeedForDetail(seedId);
+  if (!seed || seed.deletedAt) return null;
+  return buildGuestSeed(seed);
 }
