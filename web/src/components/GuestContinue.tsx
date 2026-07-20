@@ -34,12 +34,22 @@ export function GuestContinue({ token, redirectTo }: { token: string; redirectTo
 
   if (!open) {
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className="mt-3 w-full text-center text-xs text-ink-soft transition hover:text-ink"
-      >
-        Prefer not to sign in? <span className="text-ink">Join as a guest →</span>
-      </button>
+      <div className="mt-3">
+        <div className="mb-3 flex items-center gap-3 text-[11px] text-ink-soft">
+          <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
+          or, no sign-in
+          <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
+        </div>
+        <button
+          onClick={() => setOpen(true)}
+          className="w-full rounded-full border border-[rgba(76,175,80,0.45)] bg-[rgba(76,175,80,0.1)] px-4 py-3 text-sm font-semibold text-ink transition hover:bg-[rgba(76,175,80,0.18)] active:scale-[0.99]"
+        >
+          👋 Join as a guest
+        </button>
+        <p className="mt-1.5 text-center text-[11px] text-ink-soft">
+          Just a name — read &amp; reply right away.
+        </p>
+      </div>
     );
   }
 

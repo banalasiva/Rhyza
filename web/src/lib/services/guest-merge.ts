@@ -77,8 +77,11 @@ export async function mergeGuestInto(guestId: string, targetId: string): Promise
     await step(`UPDATE "${table}" SET "${col}" = $2 WHERE "${col}" = $1`, guestId, targetId);
   }
 
-  // Retire the guest shell — blank the name so it can't linger as a "real"
-  // participant anywhere we missed. NOT deleted (cascade safety).
-  await db.user.update({ where: { id: guestId }, data: { name: "" } }).catch(() => {});
+  // Deliberately leave the guest user fully intact and inert: NOT deleted (a
+  // delete cascades and could take anything unreassigned) and NOT blanked — so
+  // in the rare case a row didn't reassign, it still shows the person's real
+  // typed name, never a null/"guest" gap. The shell can't be logged into (its
+  // email is synthetic), so leaving it costs nothing. Nothing on the target
+  // account is ever touched — the merge only ever moves the guest's own rows in.
   return true;
 }

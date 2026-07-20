@@ -319,6 +319,8 @@ export function SeedRoom({
   const [labelFx, setLabelFx] = useState<{ id: number; text: string; x: number; y: number }[]>([]);
   const burstId = useRef(0);
   const [showHelp, setShowHelp] = useState(false);
+  // A guest tagged Claude/ChatGPT — pop a friendly "create your account" invite.
+  const [guestSignup, setGuestSignup] = useState(false);
   // "Added by someone outside your circle" heads-up — hidden the moment you act
   // on it; the dismiss also clears it server-side so it won't return elsewhere.
   const [noticeHidden, setNoticeHidden] = useState(false);
@@ -734,13 +736,17 @@ export function SeedRoom({
       });
       if (replies.length) playNatureSound("chime"); // Claude/ChatGPT replied
       if (tagsAI && replies.length === 0) {
-        setError(
-          c.aiError === "guest_ai"
-            ? "Your message is posted 🌱 — but asking Claude & ChatGPT is part of a free account. It takes one tap: create yours to bring AI in."
-            : c.aiError === "not_configured"
+        if (c.aiError === "guest_ai") {
+          // A guest tagged an AI — their message is saved; pop the sign-up
+          // invite immediately (feels intentional, not like an error).
+          setGuestSignup(true);
+        } else {
+          setError(
+            c.aiError === "not_configured"
               ? "The AI you tagged isn't configured — add its API key (ANTHROPIC_API_KEY or OPENAI_API_KEY) in Vercel and redeploy."
               : `The AI couldn't reply: ${c.aiError ?? "unknown error"}`,
-        );
+          );
+        }
       }
       // Let Claude label the dimension in the background; the badge fills in.
       // Skipped when the owner has turned AI off for this seed.
@@ -1380,6 +1386,43 @@ export function SeedRoom({
             : error ?? ""}
       </div>
       {showHelp && <HowItWorks onClose={() => setShowHelp(false)} />}
+
+      {/* Guest tapped @claude/@chatgpt — a warm, immediate sign-up invite. Their
+          message is already saved; this just unlocks the AI (and keeps everything
+          they've said, via the guest→account merge). */}
+      {guestSignup && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <button
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            aria-label="Close"
+            onClick={() => setGuestSignup(false)}
+          />
+          <div
+            role="dialog"
+            aria-label="Create your account"
+            className="relative z-10 w-full max-w-sm rounded-2xl border border-[rgba(76,175,80,0.3)] bg-[#0B120B] p-6 text-center shadow-2xl"
+          >
+            <div className="mb-2 text-4xl">🌱</div>
+            <h2 className="serif-lg mb-1">Bring Claude &amp; ChatGPT in</h2>
+            <p className="mb-5 text-sm text-ink-soft">
+              Your message is posted. Asking the AI is part of a free account — it takes one tap, and
+              everything you&apos;ve said here stays yours.
+            </p>
+            <button
+              onClick={() => router.push("/account")}
+              className="btn-primary w-full text-sm"
+            >
+              Create your account
+            </button>
+            <button
+              onClick={() => setGuestSignup(false)}
+              className="mt-2 w-full text-xs text-ink-soft transition hover:text-ink"
+            >
+              Maybe later
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Floating reaction bursts (rendered over everything, position:fixed) */}
       {bursts.map((b) => (
