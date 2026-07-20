@@ -1,8 +1,11 @@
 import Image from "next/image";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
 import { getViewer } from "@/lib/session";
 import { getInviteByToken, inviteMemberDestination } from "@/lib/services/invites";
+import { getPublicSeedForGuest } from "@/lib/services/seeds";
+import { Avatar } from "@/components/Avatar";
 import { AcceptInviteButton } from "@/components/AcceptInviteButton";
 
 const BEATS = [
@@ -49,6 +52,16 @@ export default async function InvitePage({
     );
   }
 
+  // If the invited seed is world-shared, the receiver can FEEL the real
+  // discussion right here — before any login. Content is the hook, not the
+  // button. Private seeds return null (nothing to peek), and that's correct.
+  const peek = invite.seed?.id
+    ? await getPublicSeedForGuest(invite.seed.id).catch(() => null)
+    : null;
+  const peekMessages = (peek?.contributions ?? [])
+    .filter((c) => c.text.trim().length > 0)
+    .slice(0, 3);
+
   const inviterFirst = (invite.inviterName || "Someone").split(" ")[0];
   const place = invite.garden
     ? `${invite.garden.emoji} ${invite.garden.name}`
@@ -82,6 +95,35 @@ export default async function InvitePage({
               <p className="text-sm leading-relaxed text-ink-soft">{invite.seed.snippet}</p>
             )}
           </div>
+
+          {/* Real peek — a few actual messages, so the receiver feels how it's
+              being thought through before they're asked to sign in. Only shows
+              for a world-shared seed (guest-readable); private seeds skip it. */}
+          {peekMessages.length > 0 && (
+            <div className="mb-5 text-left">
+              <p className="eyebrow mb-2">💬 A peek at the conversation</p>
+              <ul className="space-y-2">
+                {peekMessages.map((c) => (
+                  <li
+                    key={c.id}
+                    className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(7,13,7,0.4)] p-3"
+                  >
+                    <div className="mb-1 flex items-center gap-2">
+                      <Avatar name={c.author.name} image={c.author.image} size={22} />
+                      <span className="text-xs font-medium text-ink">{c.author.name}</span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-ink-mid">{c.text}</p>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href={`/seeds/${invite.seed.id}`}
+                className="mt-2 inline-block text-xs text-accent hover:underline"
+              >
+                Read the whole discussion →
+              </Link>
+            </div>
+          )}
         </>
       ) : (
         // Garden / org invite: name the space and what it's for.

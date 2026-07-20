@@ -238,6 +238,7 @@ export async function getInviteByToken(token: string) {
   // they're being pulled into — content is far more magnetic than a name.
   const seed = invite.seed
     ? {
+        id: invite.seed.id,
         title: invite.seed.title,
         snippet:
           invite.seed.content.length > 180
