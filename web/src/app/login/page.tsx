@@ -103,7 +103,7 @@ export default async function LoginPage({
             width={200}
             height={200}
             priority
-            className="mx-auto mb-4 h-auto w-16"
+            className="mx-auto mb-4 h-auto w-28 sm:w-32"
           />
           <h1 className="serif-lg mb-6 text-2xl">Sign in to ThinkThru</h1>
 
