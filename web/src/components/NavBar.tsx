@@ -10,6 +10,7 @@ import { FeedbackButton } from "@/components/FeedbackButton";
 import { HelpButton } from "@/components/HelpButton";
 import { NamePrompt } from "@/components/NamePrompt";
 import { displayName } from "@/lib/display-name";
+import { isGuestEmail } from "@/lib/guest";
 
 export async function NavBar({ name }: { name?: string }) {
   const session = await auth();
@@ -57,6 +58,19 @@ export async function NavBar({ name }: { name?: string }) {
         </div>
       </header>
       <BottomNav unread={unread} />
+      {/* Guests: a quiet, ever-present nudge to save their account — nothing is
+          lost, and it unlocks AI + starting their own seeds. */}
+      {isGuestEmail(me?.email) && (
+        <Link
+          href="/account"
+          className="relative z-10 mx-4 mb-2 flex items-center justify-between gap-2 rounded-xl border border-[rgba(76,175,80,0.35)] bg-[rgba(76,175,80,0.08)] px-3 py-2 text-xs transition hover:bg-[rgba(76,175,80,0.14)]"
+        >
+          <span className="text-ink">
+            🌱 You&apos;re a guest — <span className="text-ink-soft">save your account to keep it &amp; ask AI</span>
+          </span>
+          <span className="shrink-0 font-medium text-accent">Save →</span>
+        </Link>
+      )}
       {needsName && <NamePrompt suggested={displayName({ name: me?.name, email: me?.email })} />}
     </>
   );
