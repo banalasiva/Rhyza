@@ -45,7 +45,7 @@ export function SeedInvite({
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
   // Contacts flow: people picked from the phone's own contact sheet, plus the
   // one shared invite link we open WhatsApp with — no SMS gateway, no Firebase.
-  const [picked, setPicked] = useState<{ name: string; tel?: string; email?: string }[]>([]);
+  const [picked, setPicked] = useState<{ name: string; tels: string[]; email?: string }[]>([]);
   const [sentTel, setSentTel] = useState<Set<string>>(new Set());
   const [linkBusy, setLinkBusy] = useState(false);
 
@@ -125,7 +125,9 @@ export function SeedInvite({
       if (!raw?.length) return;
       const mapped = raw.map((c) => ({
         name: c.name?.[0] || c.tel?.[0] || c.email?.[0] || "Contact",
-        tel: c.tel?.[0],
+        // Keep EVERY number the contact has (a sister saved with 4 numbers
+        // shouldn't force a guess) — de-duped, so she can tap the right one.
+        tels: [...new Set(c.tel ?? [])],
         email: c.email?.[0],
       }));
       setPicked(mapped);
@@ -221,29 +223,53 @@ export function SeedInvite({
               {picked.map((c, i) => (
                 <li
                   key={i}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-[rgba(255,255,255,0.08)] px-2.5 py-1.5"
+                  className="rounded-lg border border-[rgba(255,255,255,0.08)] px-2.5 py-1.5"
                 >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-ink">{c.name}</p>
-                    <p className="truncate text-[11px] text-ink-soft">{c.tel || c.email || "No number saved"}</p>
-                  </div>
-                  {c.tel ? (
-                    <button
-                      onClick={() => whatsappTo(c.tel!)}
-                      disabled={linkBusy}
-                      className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-1.5 text-xs font-semibold text-[#04310f] transition active:scale-95 disabled:opacity-60"
-                    >
-                      <WhatsAppIcon />
-                      {sentTel.has(c.tel) ? "Sent ✓" : "WhatsApp"}
-                    </button>
-                  ) : c.email ? (
-                    <button
-                      onClick={() => setEmail(c.email!)}
-                      className="btn-ghost shrink-0 px-3 py-1 text-xs"
-                    >
-                      Use email ↓
-                    </button>
-                  ) : null}
+                  {c.tels.length <= 1 ? (
+                    // One number (or none): a single tap sends it off.
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-ink">{c.name}</p>
+                        <p className="truncate text-[11px] text-ink-soft">
+                          {c.tels[0] || c.email || "No number saved"}
+                        </p>
+                      </div>
+                      {c.tels[0] ? (
+                        <button
+                          onClick={() => whatsappTo(c.tels[0])}
+                          disabled={linkBusy}
+                          className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#25D366] px-3 py-1.5 text-xs font-semibold text-[#04310f] transition active:scale-95 disabled:opacity-60"
+                        >
+                          <WhatsAppIcon />
+                          {sentTel.has(c.tels[0]) ? "Sent ✓" : "WhatsApp"}
+                        </button>
+                      ) : c.email ? (
+                        <button onClick={() => setEmail(c.email!)} className="btn-ghost shrink-0 px-3 py-1 text-xs">
+                          Use email ↓
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : (
+                    // Several numbers saved (e.g. a sister with 4): show each as
+                    // its own tap so she picks the right one — no guessing.
+                    <div>
+                      <p className="truncate text-sm text-ink">{c.name}</p>
+                      <p className="mb-1.5 text-[11px] text-ink-soft">Which number?</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {c.tels.map((t) => (
+                          <button
+                            key={t}
+                            onClick={() => whatsappTo(t)}
+                            disabled={linkBusy}
+                            className="flex items-center gap-1.5 rounded-full bg-[#25D366] px-2.5 py-1 text-xs font-semibold text-[#04310f] transition active:scale-95 disabled:opacity-60"
+                          >
+                            <WhatsAppIcon />
+                            {sentTel.has(t) ? "Sent ✓" : t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
