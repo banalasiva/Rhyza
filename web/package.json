@@ -31,6 +31,7 @@
     "@simplewebauthn/server": "^9.0.3",
     "@vercel/blob": "^2.5.0",
     "firebase": "^12.16.0",
+    "html-to-image": "^1.11.13",
     "jose": "^6.2.3",
     "lottie-react": "^2.4.1",
     "next": "14.2.35",

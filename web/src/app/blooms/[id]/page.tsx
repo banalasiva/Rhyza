@@ -4,6 +4,8 @@ import { getBloomDetail } from "@/lib/services/blooms";
 import { NavBar } from "@/components/NavBar";
 import { BloomBody } from "@/components/BloomBody";
 import { BloomReflection } from "@/components/BloomReflection";
+import { ShareCard } from "@/components/share/ShareCard";
+import { BloomCard } from "@/components/share/cards";
 import { CalibrateInvite } from "@/components/CalibrateInvite";
 import { getCalibrations } from "@/lib/services/calibration";
 import { RevertBloom } from "@/components/RevertBloom";
@@ -78,6 +80,25 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
           initialSummary={bloom.summary}
           aiSynthesized={bloom.aiSynthesized}
         />
+
+        {/* Share this decision as a card — only once it's been reflected on. */}
+        {bloom.reflection &&
+          (bloom.reflection.outcome || bloom.reflection.lesson || bloom.reflection.sameAgain) && (
+            <section className="no-print mt-6">
+              <p className="eyebrow mb-3">🎴 Share this decision</p>
+              <ShareCard filename="thinkthru-bloom">
+                <BloomCard
+                  name={(viewer.name || "You").split(" ")[0]}
+                  bloom={{
+                    title: bloom.title,
+                    outcome: bloom.reflection.outcome ?? null,
+                    lesson: (bloom.reflection.lesson ?? "").trim(),
+                    sameAgain: bloom.reflection.sameAgain ?? null,
+                  }}
+                />
+              </ShareCard>
+            </section>
+          )}
 
         {/* Links shared while deciding — the references (docs, quotes, videos)
             that shaped the call, carried into the bloom. */}
