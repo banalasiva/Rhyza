@@ -10,6 +10,7 @@ import { getDraft } from "@/lib/services/drafts";
 import { getKeptIdsForSeed } from "@/lib/services/kept";
 import { seedAiEnabled } from "@/lib/services/ai-settings";
 import { displayName } from "@/lib/display-name";
+import { assertNotGuest } from "@/lib/guest";
 
 // What a contribution carries for the room view — author (with email so a
 // nameless magic-link user still gets a readable display name), reactions (with
@@ -79,6 +80,7 @@ export async function plantSeed(
   gardenId: string,
   input: { title: string; content?: string; visibility?: "public" | "private" },
 ) {
+  await assertNotGuest(userId, "plant a seed");
   await ensureGardenMember(userId, gardenId);
   const visibility = input.visibility === "private" ? "private" : "public";
   const seed = await db.seed.create({

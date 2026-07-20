@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { requireGardenAccess, requireOrgMember, requireGardenSteward, canManageGarden } from "@/lib/authz";
 import { uniqueSlug } from "@/lib/slug";
+import { assertNotGuest } from "@/lib/guest";
 
 // Which seeds a viewer may see: public seeds, their own, or private seeds they
 // belong to. Used to filter garden listings and the Sacred Tree.
@@ -108,6 +109,7 @@ export async function createGarden(
     visibility?: "public" | "private";
   },
 ) {
+  await assertNotGuest(userId, "create a garden");
   await requireOrgMember(userId, orgId);
   return db.garden.create({
     data: {

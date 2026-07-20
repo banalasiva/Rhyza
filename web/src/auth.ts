@@ -7,6 +7,10 @@ import { authConfig } from "@/auth.config";
 import { sendEmail, magicLinkEmailHtml } from "@/lib/email";
 import { firebaseVerifyConfigured, verifyFirebasePhone } from "@/lib/firebase-verify";
 import { verifyPasskeyLogin } from "@/lib/services/passkeys";
+import { randomBytes } from "crypto";
+import { cleanGuestName, GUEST_EMAIL_DOMAIN } from "@/lib/guest";
+import { getInviteByToken, acceptInvite } from "@/lib/services/invites";
+import { enforceRateLimit } from "@/lib/ratelimit";
 
 // Passwordless email sign-in (magic link) — a no-Google way in, with no new
 // vendor: it reuses our existing Resend setup. Added ONLY here (the Node
@@ -101,11 +105,51 @@ const passkeyProvider = Credentials({
   },
 });
 
+// Guest sign-in — a name-only, no-Google way in, minted ONLY through a valid
+// invite (someone vouched for them). It creates a lightweight user with a
+// synthetic @guest email (the marker that gates AI, seed/garden creation, and
+// posting outside invited seeds), joins them to what they were invited to, and
+// signs them in. Rate-limited by IP so a script can't mass-mint guests. Always
+// available (no external service). Node instance only (touches Postgres).
+const guestProvider = Credentials({
+  id: "guest",
+  name: "Guest",
+  credentials: { name: {}, inviteToken: {} },
+  authorize: async (creds, request) => {
+    const name = cleanGuestName(String(creds?.name ?? ""));
+    const token = String(creds?.inviteToken ?? "").trim();
+    // No invite → no guest account (they can still read public seeds anonymously).
+    if (!name || !token) return null;
+    // Cap guest creation per IP (fail-open on limiter infra errors).
+    const ip =
+      (request as Request | undefined)?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "unknown";
+    await enforceRateLimit(`guest-new:${ip}`, 10, 3600);
+    // The invite must be real and live BEFORE we create anything.
+    const invite = await getInviteByToken(token);
+    if (!invite || invite.expired || invite.status === "revoked") return null;
+    const email = `guest_${randomBytes(9).toString("hex")}${GUEST_EMAIL_DOMAIN}`;
+    const user = await db.user.create({
+      data: { email, name },
+      select: { id: true, email: true, name: true, image: true },
+    });
+    // Join what they were invited to (an open link drops them straight in).
+    await acceptInvite(user.id, user.email, token).catch(() => {});
+    return { id: user.id, email: user.email, name: user.name, image: user.image };
+  },
+});
+
 // Full auth instance (Node runtime): adapter persists users/accounts to Postgres.
 // The JWT strategy from authConfig keeps sessions stateless so edge middleware
 // can authorize without a DB round-trip.
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   ...authConfig,
-  providers: [...authConfig.providers, ...emailProviders, ...phoneProviders, passkeyProvider],
+  providers: [
+    ...authConfig.providers,
+    ...emailProviders,
+    ...phoneProviders,
+    passkeyProvider,
+    guestProvider,
+  ],
 });

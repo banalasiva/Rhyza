@@ -6,6 +6,7 @@ import { getInviteByToken, inviteMemberDestination } from "@/lib/services/invite
 import { getPublicSeedForGuest, getInvitedSeedConversation } from "@/lib/services/seeds";
 import { Avatar } from "@/components/Avatar";
 import { AcceptInviteButton } from "@/components/AcceptInviteButton";
+import { GuestContinue } from "@/components/GuestContinue";
 
 const BEATS = [
   { emoji: "💬", label: "Discuss" },
@@ -199,6 +200,13 @@ export default async function InvitePage({
               </form>
             </>
           )}
+
+          {/* No-Google way in — only on a seed invite (there's a thread to join)
+              and only an OPEN link, which is what drops a guest straight in. */}
+          {invite.seed && invite.openLink && (
+            <GuestContinue token={invite.token} redirectTo={`/seeds/${invite.seed.id}`} />
+          )}
+
           <p className="mt-3 text-xs text-ink-soft">
             By continuing you agree to the Code of Conduct.
           </p>

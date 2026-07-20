@@ -11,6 +11,7 @@ import {
 } from "@/lib/services/contributions";
 import { aiConfigured, openaiConfigured, mentionsClaude, mentionsChatGpt } from "@/lib/ai";
 import { seedAiEnabled } from "@/lib/services/ai-settings";
+import { isGuestUser } from "@/lib/guest";
 
 // Posting can trigger an inline AI reply, and high-quality gpt-image-1 edits
 // (input_fidelity "high") can take 1–2 min. 300s is the Vercel Pro ceiling —
@@ -70,8 +71,14 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   // AI helpers can be switched off per seed by its owner/admin — then a stray
   // @claude/@chatgpt is just left as plain text, no reply, no charge.
   const aiOn = await seedAiEnabled(ctx.params.id);
-  const wantsClaude = aiOn && mentionsClaude(body.text);
-  const wantsChatGpt = aiOn && mentionsChatGpt(body.text);
+  // Guests never trigger a paid AI completion. If a guest tags an AI, the post
+  // still lands as plain text; we return the "guest_ai" signal so the client can
+  // nudge them to create a free account (the build-trust-then-ask-for-email loop).
+  const guest = await isGuestUser(userId);
+  const taggedAi = mentionsClaude(body.text) || mentionsChatGpt(body.text);
+  if (guest && taggedAi) aiError = "guest_ai";
+  const wantsClaude = aiOn && !guest && mentionsClaude(body.text);
+  const wantsChatGpt = aiOn && !guest && mentionsChatGpt(body.text);
   // Tagging an AI triggers a paid completion — count it against the AI budget.
   if (wantsClaude || wantsChatGpt) await enforceAiRateLimit(userId);
   // Silent usage meter (for stats now, a free monthly quota later). Must never

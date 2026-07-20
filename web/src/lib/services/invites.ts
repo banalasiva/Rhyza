@@ -5,6 +5,7 @@ import { ensureGardenMember, requireSeedAccess } from "@/lib/authz";
 import { appUrl, sendEmail, inviteEmailHtml, emailConfigured } from "@/lib/email";
 import { requestToJoin } from "@/lib/services/joinreq";
 import { announceJoin } from "@/lib/services/seed-notify";
+import { assertNotGuest } from "@/lib/guest";
 
 const INVITE_TTL_DAYS = 30;
 
@@ -90,6 +91,7 @@ export async function createGardenInvite(
   gardenId: string,
   email: string | undefined,
 ) {
+  await assertNotGuest(userId, "invite others");
   // Any member of the garden can bring others in — a family/group member
   // shouldn't have to be a steward to add someone to the circle. (Removing
   // people is still steward-only.)
@@ -161,6 +163,7 @@ export async function createSeedInvite(
   seedId: string,
   email: string | undefined,
 ) {
+  await assertNotGuest(userId, "invite others");
   // Any member with access to the seed can invite others in — not just the
   // creator/steward. (Removing people stays steward-only.)
   const seed = await requireSeedAccess(userId, seedId);

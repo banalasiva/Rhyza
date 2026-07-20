@@ -39,6 +39,7 @@ import { markAsksAnswered } from "@/lib/services/asks";
 import { maybeSenseRoom, resolveMediatorNudge } from "@/lib/services/mediator";
 import { getReactionTypes } from "@/lib/registry";
 import { isSignalReaction } from "@/lib/reactions";
+import { isGuestUser } from "@/lib/guest";
 
 async function seedOrThrow(seedId: string) {
   let seed;
@@ -560,6 +561,21 @@ export async function addContribution(
   input: { dimension: string; text: string; parentId?: string; attachments?: Attachment[] },
 ) {
   const seed = await seedOrThrow(seedId);
+  // Guests may post only where they were already given a seat (someone invited
+  // them). This is checked BEFORE ensureSeedParticipant, which would otherwise
+  // auto-seat anyone in a world-listed public seed — so a guest can read the
+  // public square but not drop un-vouched posts into it.
+  if (await isGuestUser(userId)) {
+    const seat = await db.seedMember.findUnique({
+      where: { seedId_userId: { seedId, userId } },
+    });
+    if (!seat) {
+      throw new ApiError(
+        "FORBIDDEN",
+        "Create a free account to post in public seeds — for now you can post in threads you were invited to.",
+      );
+    }
+  }
   await ensureSeedParticipant(userId, seedId);
 
   const attachments = input.attachments ?? [];

@@ -735,9 +735,11 @@ export function SeedRoom({
       if (replies.length) playNatureSound("chime"); // Claude/ChatGPT replied
       if (tagsAI && replies.length === 0) {
         setError(
-          c.aiError === "not_configured"
-            ? "The AI you tagged isn't configured — add its API key (ANTHROPIC_API_KEY or OPENAI_API_KEY) in Vercel and redeploy."
-            : `The AI couldn't reply: ${c.aiError ?? "unknown error"}`,
+          c.aiError === "guest_ai"
+            ? "Your message is posted 🌱 — but asking Claude & ChatGPT is part of a free account. It takes one tap: create yours to bring AI in."
+            : c.aiError === "not_configured"
+              ? "The AI you tagged isn't configured — add its API key (ANTHROPIC_API_KEY or OPENAI_API_KEY) in Vercel and redeploy."
+              : `The AI couldn't reply: ${c.aiError ?? "unknown error"}`,
         );
       }
       // Let Claude label the dimension in the background; the badge fills in.
