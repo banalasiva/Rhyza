@@ -156,7 +156,7 @@ export default async function LoginPage({
           id="how"
           className="flex min-h-[88vh] scroll-mt-6 flex-col items-center justify-center"
         >
-          <h1 className="serif-xl mb-3 text-4xl sm:text-5xl">
+          <h1 className="serif-xl mb-3 text-4xl text-bloom sm:text-5xl">
             Need to figure something out together?
           </h1>
           <p className="text-lg text-ink-soft">Like…</p>
