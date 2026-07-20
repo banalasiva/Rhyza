@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { requireViewer } from "@/lib/session";
 import { signIn } from "@/auth";
 import { isGuestEmail } from "@/lib/guest";
@@ -7,17 +6,14 @@ import { PasskeySetup } from "@/components/PasskeySetup";
 
 export const metadata = { title: "Sign-in & security · ThinkThru" };
 
-const MERGE_COOKIE = "tt-merge-from";
-
 export default async function AccountPage() {
   const viewer = await requireViewer();
   const isGuest = isGuestEmail(viewer.email);
   const emailEnabled = !!process.env.RESEND_API_KEY;
 
-  const guestId = viewer.userId;
-  // Cookie options: sameSite:lax lets it survive the OAuth round-trip back to us.
-  const mergeCookie = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: 3600 };
-
+  // The guest→account merge fires automatically after sign-in (the durable
+  // "tt-was-guest" marker set when they joined + the NavBar watcher), so these
+  // buttons are just a normal sign-in — no per-click cookie needed.
   return (
     <div className="relative min-h-screen">
       <div className="garden-bg" />
@@ -47,8 +43,7 @@ export default async function AccountPage() {
             <form
               action={async () => {
                 "use server";
-                cookies().set(MERGE_COOKIE, guestId, mergeCookie);
-                await signIn("google", { redirectTo: "/account/claim?next=/" });
+                await signIn("google", { redirectTo: "/" });
               }}
             >
               <button type="submit" className="btn-primary w-full">
@@ -68,8 +63,7 @@ export default async function AccountPage() {
                     "use server";
                     const email = String(formData.get("email") || "").trim();
                     if (!email) return;
-                    cookies().set(MERGE_COOKIE, guestId, mergeCookie);
-                    await signIn("resend", { email, redirectTo: "/account/claim?next=/" });
+                    await signIn("resend", { email, redirectTo: "/" });
                   }}
                   className="space-y-2"
                 >

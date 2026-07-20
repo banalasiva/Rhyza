@@ -204,7 +204,10 @@ export default async function InvitePage({
           {/* No-Google way in — only on a seed invite (there's a thread to join)
               and only an OPEN link, which is what drops a guest straight in. */}
           {invite.seed && invite.openLink && (
-            <GuestContinue token={invite.token} redirectTo={`/seeds/${invite.seed.id}`} />
+            <GuestContinue
+              token={invite.token}
+              redirectTo={`/account/guest-init?next=${encodeURIComponent(`/seeds/${invite.seed.id}`)}`}
+            />
           )}
 
           <p className="mt-3 text-xs text-ink-soft">

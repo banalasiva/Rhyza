@@ -10,7 +10,9 @@ import { FeedbackButton } from "@/components/FeedbackButton";
 import { HelpButton } from "@/components/HelpButton";
 import { NamePrompt } from "@/components/NamePrompt";
 import { displayName } from "@/lib/display-name";
+import { cookies } from "next/headers";
 import { isGuestEmail } from "@/lib/guest";
+import { GuestMergeWatcher } from "@/components/GuestMergeWatcher";
 
 export async function NavBar({ name }: { name?: string }) {
   const session = await auth();
@@ -24,6 +26,15 @@ export async function NavBar({ name }: { name?: string }) {
   // First sign-in (esp. via email magic-link): no display name yet → greet once
   // and ask what to call them, pre-filled with a guess from their email.
   const needsName = !!me && !me.name?.trim();
+
+  // A guest→account merge is pending iff a "tt-was-guest" marker exists, we're
+  // now signed in as a REAL account, and the marker names a different (guest)
+  // user. Only then do we mount the watcher — so the merge fires after ANY
+  // sign-in path (Save-your-account OR a plain login), and no request is made
+  // for ordinary users who were never guests.
+  const wasGuest = cookies().get("tt-was-guest")?.value;
+  const mergePending =
+    !!wasGuest && !!userId && wasGuest !== userId && !!me && !isGuestEmail(me.email);
 
   return (
     <>
@@ -58,6 +69,7 @@ export async function NavBar({ name }: { name?: string }) {
         </div>
       </header>
       <BottomNav unread={unread} />
+      {mergePending && <GuestMergeWatcher />}
       {/* Guests: a quiet, ever-present nudge to save their account — nothing is
           lost, and it unlocks AI + starting their own seeds. */}
       {isGuestEmail(me?.email) && (
