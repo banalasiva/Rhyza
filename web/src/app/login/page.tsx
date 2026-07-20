@@ -4,7 +4,6 @@ import { signIn, auth } from "@/auth";
 import { LandingDemo } from "@/components/LandingDemo";
 import { AuthPanel } from "@/components/AuthPanel";
 import { AuthErrorBanner } from "@/components/AuthErrorBanner";
-import { ScrollCue } from "@/components/ScrollCue";
 import { Reveal } from "@/components/Reveal";
 import { authErrorMessage } from "@/lib/services/auth-events";
 import { firebaseVerifyConfigured } from "@/lib/firebase-verify";
@@ -79,27 +78,79 @@ export default async function LoginPage({
     <main id="main" className="relative flex min-h-screen flex-col items-center overflow-x-hidden px-6">
       <div className="garden-bg" />
 
-      {/* Returning? Jump straight to sign in. */}
-      <a
-        href="#start"
-        className="fixed right-4 top-4 z-20 rounded-full border border-[rgba(255,255,255,0.14)] bg-[rgba(7,13,7,0.6)] px-3 py-1.5 text-xs text-ink-soft backdrop-blur transition hover:text-ink"
-      >
-        Sign in
-      </a>
-
       <div className="relative z-10 w-full max-w-md text-center">
-        {/* ── Beat 1 · the question ── */}
-        <section className="flex min-h-[88vh] flex-col items-center justify-center">
+        {/* ── The way in — the first and only thing on screen (Threads-clean).
+            Logo, one line, the ways in. The pitch waits below the ↓. ── */}
+        <section
+          id="start"
+          className="flex min-h-[100svh] scroll-mt-6 flex-col items-center justify-center py-10"
+        >
           <Image
             src="/logo-source.png"
-            alt="ThinkThru — Think together. Grow together."
+            alt="ThinkThru"
             width={200}
             height={200}
             priority
-            className="mx-auto mb-6 h-auto w-28 sm:w-32"
+            className="mx-auto mb-5 h-auto w-24 sm:w-28"
           />
-          <h1 className="serif-xl mb-3 text-4xl sm:text-5xl">Need to figure something out together?</h1>
-          <p className="text-lg text-ink-soft">Like…</p>
+          <h1 className="serif-xl mb-1 text-3xl">ThinkThru</h1>
+          <p className="mb-7 text-sm text-ink-soft">
+            Think important decisions through, together.
+          </p>
+
+          <div className="w-full rounded-2xl border border-[rgba(76,175,80,0.4)] bg-[rgba(76,175,80,0.06)] p-5 text-left shadow-[0_0_30px_rgba(76,175,80,0.14)]">
+            {errorCode && (
+              <AuthErrorBanner code={errorCode} message={authErrorMessage(errorCode)} />
+            )}
+            <AuthPanel
+              defaultMode="signup"
+              emailEnabled={emailEnabled}
+              ssoEnabled={ssoEnabled}
+              ssoName={ssoName}
+              phoneEnabled={phoneEnabled}
+              next={next}
+              googleAction={async () => {
+                "use server";
+                await signIn("google", { redirectTo: next });
+              }}
+              emailAction={async (formData: FormData) => {
+                "use server";
+                const email = String(formData.get("email") || "").trim();
+                if (!email) return;
+                await signIn("resend", { email, redirectTo: next });
+              }}
+              ssoAction={async () => {
+                "use server";
+                await signIn("sso", { redirectTo: next });
+              }}
+            />
+            <p className="mt-3 text-center text-[11px] text-ink-soft">Free · takes 10 seconds</p>
+          </div>
+
+          {/* The arrow down — for anyone who wants to know what this is first. */}
+          <a
+            href="#how"
+            className="mt-10 inline-flex flex-col items-center gap-1 text-xs text-ink-soft transition hover:text-ink"
+          >
+            New here? See how it works
+            <span aria-hidden className="animate-bounce text-lg leading-none">
+              ↓
+            </span>
+          </a>
+        </section>
+
+        {/* ── How it works — below the fold, for the curious ── */}
+        {/* Beat 1 · the question */}
+        <section
+          id="how"
+          className="flex min-h-[80vh] scroll-mt-6 flex-col items-center justify-center"
+        >
+          <Reveal>
+            <h2 className="serif-lg mb-3 text-2xl sm:text-3xl">
+              Need to figure something out together?
+            </h2>
+            <p className="text-lg text-ink-soft">Like…</p>
+          </Reveal>
           <div className="mt-6 space-y-2">
             {FAMILIAR.map((f, i) => (
               <Reveal key={f} delay={i * 80}>
@@ -111,10 +162,9 @@ export default async function LoginPage({
           </div>
         </section>
 
-        {/* ── Beat 2 · a conversation ── */}
+        {/* Beat 2 · a conversation */}
         <section className="flex min-h-[80vh] flex-col items-center justify-center">
           <Reveal>
-            <p className="mb-2 font-serif text-lg italic text-ink-soft">Then…</p>
             <h2 className="serif-lg mb-3 text-2xl">Why is decision making so hard?</h2>
             <p className="text-lg text-ink-mid">Because no one sees the whole picture alone.</p>
           </Reveal>
@@ -127,17 +177,16 @@ export default async function LoginPage({
           </div>
           <Reveal className="mt-7">
             <p className="text-lg text-ink">
-              The best decisions happen when <span className="text-bloom">every perspective</span> has
-              a place.
+              The best decisions happen when <span className="text-bloom">every perspective</span>{" "}
+              has a place.
             </p>
           </Reveal>
         </section>
 
-        {/* ── Beat 3 · that's why → three steps ── */}
+        {/* Beat 3 · the three steps */}
         <section className="flex min-h-[85vh] flex-col items-center justify-center">
           <Reveal>
-            <p className="eyebrow mb-2">That’s why we built</p>
-            <p className="mb-6 font-serif text-4xl italic text-bloom">ThinkThru</p>
+            <p className="eyebrow mb-2">How ThinkThru works</p>
             <p className="text-lg text-ink-mid">Bring everyone who matters into one conversation.</p>
           </Reveal>
           <div className="mt-7 w-full space-y-3 text-left">
@@ -145,7 +194,9 @@ export default async function LoginPage({
               <Reveal key={s.title} delay={i * 90}>
                 <div className="rounded-2xl border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.05)] p-4">
                   <p className="text-base font-semibold text-ink">
-                    <span aria-hidden className="mr-1.5">{s.emoji}</span>
+                    <span aria-hidden className="mr-1.5">
+                      {s.emoji}
+                    </span>
                     {s.title}
                   </p>
                   <p className="mt-1 text-sm leading-relaxed text-ink-mid">{s.body}</p>
@@ -155,47 +206,7 @@ export default async function LoginPage({
           </div>
         </section>
 
-        {/* ── Beat 4 · the call — sign up right here ── */}
-        <section id="start" className="flex min-h-[92vh] scroll-mt-6 flex-col items-center justify-center">
-          <Reveal className="w-full">
-            <p className="text-lg text-ink-mid">So…</p>
-            <h2 className="serif-lg mb-2 mt-1 text-2xl">
-              What’s the next conversation waiting to happen?
-            </h2>
-            <p className="mb-6 text-2xl">🌱 Let’s get started.</p>
-
-            <div className="rounded-2xl border border-[rgba(76,175,80,0.4)] bg-[rgba(76,175,80,0.06)] p-5 text-left shadow-[0_0_30px_rgba(76,175,80,0.14)]">
-              {errorCode && (
-                <AuthErrorBanner code={errorCode} message={authErrorMessage(errorCode)} />
-              )}
-              <AuthPanel
-                defaultMode="signup"
-                emailEnabled={emailEnabled}
-                ssoEnabled={ssoEnabled}
-                ssoName={ssoName}
-                phoneEnabled={phoneEnabled}
-                next={next}
-                googleAction={async () => {
-                  "use server";
-                  await signIn("google", { redirectTo: next });
-                }}
-                emailAction={async (formData: FormData) => {
-                  "use server";
-                  const email = String(formData.get("email") || "").trim();
-                  if (!email) return;
-                  await signIn("resend", { email, redirectTo: next });
-                }}
-                ssoAction={async () => {
-                  "use server";
-                  await signIn("sso", { redirectTo: next });
-                }}
-              />
-              <p className="mt-3 text-center text-[11px] text-ink-soft">Free · takes 10 seconds</p>
-            </div>
-          </Reveal>
-        </section>
-
-        {/* ── The example — below the call, for anyone who wants to see it play out ── */}
+        {/* The example — for anyone who wants to see it play out */}
         <section className="flex min-h-[80vh] flex-col items-center justify-center">
           <Reveal className="w-full">
             <p className="mb-3 eyebrow">Curious how it plays out? Watch 👇</p>
@@ -203,21 +214,20 @@ export default async function LoginPage({
           </Reveal>
         </section>
 
-        {/* ── Beat 5 · the closing breath ── */}
+        {/* The closing breath + back to the top to sign in */}
         <section className="flex min-h-[70vh] flex-col items-center justify-center pb-16">
           <Reveal>
-            <p className="text-base text-ink-soft">Before we decide…</p>
-            <p className="mb-8 mt-1 font-serif text-3xl italic text-bloom">Let’s ThinkThru.</p>
-            <p className="mx-auto max-w-xs text-sm leading-relaxed text-ink-mid">
+            <p className="mb-6 mt-1 font-serif text-3xl italic text-bloom">Let’s ThinkThru.</p>
+            <p className="mx-auto mb-8 max-w-xs text-sm leading-relaxed text-ink-mid">
               Every important decision begins with a conversation. Because no one sees the whole
               picture alone. <span className="text-ink">Together… we do.</span>
             </p>
+            <a href="#start" className="btn-primary inline-flex">
+              🌱 Get started
+            </a>
           </Reveal>
         </section>
       </div>
-
-      {/* Mobile-only "scroll for more" hint on the first screen. */}
-      <ScrollCue />
     </main>
   );
 }
