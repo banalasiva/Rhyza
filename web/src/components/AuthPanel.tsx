@@ -32,7 +32,6 @@ export function AuthPanel({
   googleAction,
   emailAction,
   ssoAction,
-  defaultMode = "signin",
   next = "/",
 }: {
   emailEnabled: boolean;
@@ -42,11 +41,10 @@ export function AuthPanel({
   googleAction: () => Promise<void>;
   emailAction: (formData: FormData) => Promise<void>;
   ssoAction: () => Promise<void>;
+  /** Accepted for API compatibility; the panel no longer shows sign-in/up tabs. */
   defaultMode?: "signin" | "signup";
   next?: string;
 }) {
-  const [mode, setMode] = useState<"signin" | "signup">(defaultMode);
-  const signup = mode === "signup";
 
   // Phone (Telegram-style: number → SMS code → in) via Firebase Phone Auth. The
   // OTP send + confirm run in the browser through the Firebase SDK; we then hand
@@ -135,40 +133,27 @@ export function AuthPanel({
     <div className="mx-auto max-w-sm lg:mx-0">
       <InAppBrowserNotice emailEnabled={emailEnabled} />
 
-      {/* Sign in / Sign up tabs */}
-      <div className="mb-4 flex rounded-full border border-[rgba(255,255,255,0.12)] p-0.5 text-sm">
-        {(["signin", "signup"] as const).map((m) => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => setMode(m)}
-            aria-pressed={mode === m}
-            className={`flex-1 rounded-full py-1.5 font-medium transition ${
-              mode === m ? "bg-[rgba(76,175,80,0.18)] text-ink" : "text-ink-soft hover:text-ink"
-            }`}
-          >
-            {m === "signin" ? "Sign in" : "Sign up"}
-          </button>
-        ))}
-      </div>
-
-      {/* Google — the prominent, must-have option */}
+      {/* Google — the prominent way in. */}
       <form action={googleAction}>
         <button
           type="submit"
           className="btn-primary flex w-full items-center justify-center gap-2.5"
         >
           <GoogleG />
-          {signup ? "Start free with Google" : "Continue with Google"}
+          Continue with Google
         </button>
       </form>
 
-      {/* Passkey — Face ID / fingerprint, no SMS, no code. Only shows itself on
-          a device that supports WebAuthn; hidden entirely otherwise. Most useful
-          for returning people who already set one up. */}
-      <div className="mt-2">
-        <PasskeySignIn next={next} />
+      {/* One "or", then a clean stack of the other ways in (GitHub-style). */}
+      <div className="my-3 flex items-center gap-3 text-[11px] text-ink-soft">
+        <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
+        or
+        <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
       </div>
+
+      {/* Passkey — Face ID / fingerprint, no SMS, no code. Self-hides on devices
+          without WebAuthn. Most useful for returning people. */}
+      <PasskeySignIn next={next} />
 
       {phoneEnabled && (
         <>
@@ -280,59 +265,33 @@ export function AuthPanel({
       )}
 
       {emailEnabled && (
-        <>
-          <div className="my-4 flex items-center gap-3 text-[11px] text-ink-soft">
-            <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
-            or with email
-            <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
-          </div>
-          <form action={emailAction} className="space-y-2">
-            <input
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="you@email.com"
-              className="w-full rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-base text-ink outline-none focus:border-accent"
-            />
-            <button type="submit" className="btn-ghost w-full">
-              {signup ? "Sign up with email" : "Email me a sign-in link"}
-            </button>
-          </form>
-          <p className="mt-2 text-[11px] text-ink-soft">
-            No password — a one-tap link lands in your inbox.
-          </p>
-        </>
+        <form action={emailAction} className="mt-2 space-y-2">
+          <input
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="Continue with email…"
+            className="w-full rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-base text-ink outline-none focus:border-accent"
+          />
+          <button type="submit" className="btn-ghost w-full">
+            Email me a sign-in link
+          </button>
+        </form>
       )}
 
       {ssoEnabled && (
-        <form className="mt-3" action={ssoAction}>
+        <form className="mt-2" action={ssoAction}>
           <button type="submit" className="btn-ghost w-full">
             Continue with {ssoName}
           </button>
         </form>
       )}
 
-      {/* Cross-link between the two modes */}
-      <p className="mt-4 text-center text-xs text-ink-soft lg:text-left">
-        {signup ? (
-          <>
-            Already have an account?{" "}
-            <button type="button" onClick={() => setMode("signin")} className="font-medium text-accent">
-              Sign in
-            </button>
-          </>
-        ) : (
-          <>
-            New to ThinkThru?{" "}
-            <button type="button" onClick={() => setMode("signup")} className="font-medium text-accent">
-              Create an account
-            </button>
-          </>
-        )}
+      <p className="mt-4 text-center text-[11px] text-ink-soft">
+        New here? Sign in and you&apos;re set — no separate sign-up. By continuing you agree to the
+        Code of Conduct.
       </p>
-
-      <p className="mt-4 text-xs text-ink-soft">By continuing you agree to the Code of Conduct.</p>
     </div>
   );
 }

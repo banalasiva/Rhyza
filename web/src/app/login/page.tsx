@@ -78,6 +78,18 @@ export default async function LoginPage({
     <main id="main" className="relative flex min-h-screen flex-col items-center overflow-x-hidden px-6">
       <div className="garden-bg" />
 
+      {/* Floating "what is this?" — always within reach at the bottom, for anyone
+          who wants to know what ThinkThru is before signing in. Scrolls to the
+          how-it-works story below. */}
+      <a
+        href="#how"
+        className="fixed inset-x-0 bottom-5 z-30 mx-auto flex w-max items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.4)] bg-[rgba(7,13,7,0.85)] px-4 py-2 text-xs font-medium text-ink shadow-lg backdrop-blur transition hover:border-accent"
+      >
+        <span aria-hidden>🌱</span>
+        What&apos;s ThinkThru?
+        <span aria-hidden className="animate-bounce leading-none">↓</span>
+      </a>
+
       <div className="relative z-10 w-full max-w-md text-center">
         {/* ── The way in — the first and only thing on screen (Threads-clean).
             Logo, one line, the ways in. The pitch waits below the ↓. ── */}
@@ -126,17 +138,6 @@ export default async function LoginPage({
             />
             <p className="mt-3 text-center text-[11px] text-ink-soft">Free · takes 10 seconds</p>
           </div>
-
-          {/* The arrow down — for anyone who wants to know what this is first. */}
-          <a
-            href="#how"
-            className="mt-10 inline-flex flex-col items-center gap-1 text-xs text-ink-soft transition hover:text-ink"
-          >
-            New here? See how it works
-            <span aria-hidden className="animate-bounce text-lg leading-none">
-              ↓
-            </span>
-          </a>
         </section>
 
         {/* ── How it works — below the fold, for the curious ── */}
