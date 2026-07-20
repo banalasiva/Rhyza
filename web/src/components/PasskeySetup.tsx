@@ -42,23 +42,56 @@ export function PasskeySetup() {
     setBusy(true);
     setError(null);
     setJustAdded(false);
+
+    // Step 1 — ask the server for creation options. A failure here is almost
+    // always the passkey tables not being migrated yet (run /admin migrate).
+    let options: unknown;
+    let challengeId: string;
     try {
-      const { options, challengeId } = await apiPost<{ options: unknown; challengeId: string }>(
+      const r = await apiPost<{ options: unknown; challengeId: string }>(
         "/api/passkeys/register/options",
         {},
       );
+      options = r.options;
+      challengeId = r.challengeId;
+    } catch (err) {
+      setBusy(false);
+      setError(
+        `Server couldn't start passkey setup (${
+          err instanceof Error ? err.message : "error"
+        }). If you're the owner, run /admin migrate — the passkey tables may not exist yet.`,
+      );
+      return;
+    }
+
+    // Step 2 — the browser/authenticator ceremony (Face ID / fingerprint).
+    let response;
+    try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await startRegistration(options as any);
+      response = await startRegistration(options as any);
+    } catch (err) {
+      setBusy(false);
+      const name = (err as { name?: string })?.name;
+      if (name === "NotAllowedError" || name === "AbortError") return; // cancelled — quiet
+      if (name === "InvalidStateError") {
+        setError("This device already has a passkey for ThinkThru.");
+      } else if (name === "SecurityError") {
+        setError(
+          "This site isn't set up for passkeys on this domain yet. (APP_URL must match the domain you're on, over https.)",
+        );
+      } else {
+        setError(`Your device declined the passkey (${name || "unknown"}).`);
+      }
+      return;
+    }
+
+    // Step 3 — verify + store server-side.
+    try {
       await apiPost("/api/passkeys/register/verify", { challengeId, response });
       setJustAdded(true);
       await load();
     } catch (err) {
-      const name = (err as { name?: string })?.name;
-      if (name === "InvalidStateError") {
-        setError("This device already has a passkey for ThinkThru.");
-      } else if (name !== "NotAllowedError" && name !== "AbortError") {
-        setError("Couldn't create a passkey on this device.");
-      }
+      setError(err instanceof Error ? err.message : "Couldn't save the passkey.");
     } finally {
       setBusy(false);
     }

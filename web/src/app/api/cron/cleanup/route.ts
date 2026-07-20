@@ -41,8 +41,14 @@ export async function GET(req: Request) {
   const authEvents = await boundedDelete("auth_events", "created_at < now() - interval '90 days'");
   // AI-tag usage events older than 180 days (metering is monthly/rolling).
   const aiTagEvents = await boundedDelete("ai_tag_events", "created_at < now() - interval '180 days'");
+  // Spent/expired WebAuthn challenges (single-use; most are deleted on verify,
+  // this sweeps the ones from abandoned ceremonies so the table can't grow).
+  const webauthn = await boundedDelete(
+    "webauthn_challenges",
+    "expires_at < now() - interval '1 hour'",
+  );
 
-  const detail = `rl ${rateLimits} · notif ${notifications} · auth ${authEvents} · aitag ${aiTagEvents}`;
+  const detail = `rl ${rateLimits} · notif ${notifications} · auth ${authEvents} · aitag ${aiTagEvents} · wac ${webauthn}`;
   await markCronRun("cleanup", detail);
-  return NextResponse.json({ ok: true, rateLimits, notifications, authEvents, aiTagEvents });
+  return NextResponse.json({ ok: true, rateLimits, notifications, authEvents, aiTagEvents, webauthn });
 }
