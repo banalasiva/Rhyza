@@ -133,27 +133,54 @@ export function AuthPanel({
     <div className="mx-auto max-w-sm lg:mx-0">
       <InAppBrowserNotice emailEnabled={emailEnabled} />
 
-      {/* Google — the prominent way in. */}
+      {/* Email address at the top — exactly like GitHub — a one-tap sign-in link. */}
+      {emailEnabled && (
+        <form action={emailAction} className="space-y-3">
+          <div>
+            <label htmlFor="auth-email" className="mb-1.5 block text-sm font-medium text-ink">
+              Email address
+            </label>
+            <input
+              id="auth-email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              className="w-full rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-base text-ink outline-none focus:border-accent"
+            />
+          </div>
+          <button type="submit" className="btn-primary w-full">
+            Sign in
+          </button>
+        </form>
+      )}
+
+      {/* or */}
+      {emailEnabled && (
+        <div className="my-4 flex items-center gap-3 text-[11px] text-ink-soft">
+          <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
+          or
+          <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
+        </div>
+      )}
+
+      {/* Continue with Google — bordered secondary (becomes the green primary
+          when email isn't configured, so there's always a prominent way in). */}
       <form action={googleAction}>
         <button
           type="submit"
-          className="btn-primary flex w-full items-center justify-center gap-2.5"
+          className={`${emailEnabled ? "btn-ghost" : "btn-primary"} flex w-full items-center justify-center gap-2.5`}
         >
           <GoogleG />
           Continue with Google
         </button>
       </form>
 
-      {/* One "or", then a clean stack of the other ways in (GitHub-style). */}
-      <div className="my-3 flex items-center gap-3 text-[11px] text-ink-soft">
-        <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
-        or
-        <span className="h-px flex-1 bg-[rgba(255,255,255,0.1)]" />
-      </div>
-
       {/* Passkey — Face ID / fingerprint, no SMS, no code. Self-hides on devices
           without WebAuthn. Most useful for returning people. */}
-      <PasskeySignIn next={next} />
+      <div className="mt-2">
+        <PasskeySignIn next={next} />
+      </div>
 
       {phoneEnabled && (
         <>
@@ -264,22 +291,6 @@ export function AuthPanel({
         </>
       )}
 
-      {emailEnabled && (
-        <form action={emailAction} className="mt-2 space-y-2">
-          <input
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            placeholder="Continue with email…"
-            className="w-full rounded-lg border border-[rgba(255,255,255,0.16)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-base text-ink outline-none focus:border-accent"
-          />
-          <button type="submit" className="btn-ghost w-full">
-            Email me a sign-in link
-          </button>
-        </form>
-      )}
-
       {ssoEnabled && (
         <form className="mt-2" action={ssoAction}>
           <button type="submit" className="btn-ghost w-full">
@@ -289,8 +300,8 @@ export function AuthPanel({
       )}
 
       <p className="mt-4 text-center text-[11px] text-ink-soft">
-        New here? Sign in and you&apos;re set — no separate sign-up. By continuing you agree to the
-        Code of Conduct.
+        No password — a one-tap link lands in your inbox. New here? Signing in creates your account.
+        You agree to the Code of Conduct.
       </p>
     </div>
   );

@@ -91,8 +91,8 @@ export default async function LoginPage({
       </a>
 
       <div className="relative z-10 w-full max-w-md text-center">
-        {/* ── The way in — the first and only thing on screen (Threads-clean).
-            Logo, one line, the ways in. The pitch waits below the ↓. ── */}
+        {/* ── The way in — clean, exactly like GitHub. Logo, a plain heading, the
+            sign-in card. The whole story waits below the floating ↓. ── */}
         <section
           id="start"
           className="flex min-h-[100svh] scroll-mt-6 flex-col items-center justify-center py-10"
@@ -103,14 +103,11 @@ export default async function LoginPage({
             width={200}
             height={200}
             priority
-            className="mx-auto mb-5 h-auto w-24 sm:w-28"
+            className="mx-auto mb-4 h-auto w-16"
           />
-          <h1 className="serif-xl mb-1 text-3xl">ThinkThru</h1>
-          <p className="mb-7 text-sm text-ink-soft">
-            Think important decisions through, together.
-          </p>
+          <h1 className="serif-lg mb-6 text-2xl">Sign in to ThinkThru</h1>
 
-          <div className="w-full rounded-2xl border border-[rgba(76,175,80,0.4)] bg-[rgba(76,175,80,0.06)] p-5 text-left shadow-[0_0_30px_rgba(76,175,80,0.14)]">
+          <div className="w-full rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(7,13,7,0.6)] p-6 text-left backdrop-blur">
             {errorCode && (
               <AuthErrorBanner code={errorCode} message={authErrorMessage(errorCode)} />
             )}
@@ -136,22 +133,24 @@ export default async function LoginPage({
                 await signIn("sso", { redirectTo: next });
               }}
             />
-            <p className="mt-3 text-center text-[11px] text-ink-soft">Free · takes 10 seconds</p>
           </div>
         </section>
 
-        {/* ── How it works — below the fold, for the curious ── */}
-        {/* Beat 1 · the question */}
+        {/* ════════════════════════════════════════════════════════════
+            Below the fold — the original story, unchanged. Font hierarchy,
+            wording and pacing are exactly as they were; only pushed below the
+            clean sign-in above.
+            ════════════════════════════════════════════════════════════ */}
+
+        {/* ── Beat 1 · the question ── */}
         <section
           id="how"
-          className="flex min-h-[80vh] scroll-mt-6 flex-col items-center justify-center"
+          className="flex min-h-[88vh] scroll-mt-6 flex-col items-center justify-center"
         >
-          <Reveal>
-            <h2 className="serif-lg mb-3 text-2xl sm:text-3xl">
-              Need to figure something out together?
-            </h2>
-            <p className="text-lg text-ink-soft">Like…</p>
-          </Reveal>
+          <h1 className="serif-xl mb-3 text-4xl sm:text-5xl">
+            Need to figure something out together?
+          </h1>
+          <p className="text-lg text-ink-soft">Like…</p>
           <div className="mt-6 space-y-2">
             {FAMILIAR.map((f, i) => (
               <Reveal key={f} delay={i * 80}>
@@ -163,9 +162,10 @@ export default async function LoginPage({
           </div>
         </section>
 
-        {/* Beat 2 · a conversation */}
+        {/* ── Beat 2 · a conversation ── */}
         <section className="flex min-h-[80vh] flex-col items-center justify-center">
           <Reveal>
+            <p className="mb-2 font-serif text-lg italic text-ink-soft">Then…</p>
             <h2 className="serif-lg mb-3 text-2xl">Why is decision making so hard?</h2>
             <p className="text-lg text-ink-mid">Because no one sees the whole picture alone.</p>
           </Reveal>
@@ -178,16 +178,17 @@ export default async function LoginPage({
           </div>
           <Reveal className="mt-7">
             <p className="text-lg text-ink">
-              The best decisions happen when <span className="text-bloom">every perspective</span>{" "}
-              has a place.
+              The best decisions happen when <span className="text-bloom">every perspective</span> has
+              a place.
             </p>
           </Reveal>
         </section>
 
-        {/* Beat 3 · the three steps */}
+        {/* ── Beat 3 · that's why → three steps ── */}
         <section className="flex min-h-[85vh] flex-col items-center justify-center">
           <Reveal>
-            <p className="eyebrow mb-2">How ThinkThru works</p>
+            <p className="eyebrow mb-2">That’s why we built</p>
+            <p className="mb-6 font-serif text-4xl italic text-bloom">ThinkThru</p>
             <p className="text-lg text-ink-mid">Bring everyone who matters into one conversation.</p>
           </Reveal>
           <div className="mt-7 w-full space-y-3 text-left">
@@ -195,9 +196,7 @@ export default async function LoginPage({
               <Reveal key={s.title} delay={i * 90}>
                 <div className="rounded-2xl border border-[rgba(76,175,80,0.22)] bg-[rgba(76,175,80,0.05)] p-4">
                   <p className="text-base font-semibold text-ink">
-                    <span aria-hidden className="mr-1.5">
-                      {s.emoji}
-                    </span>
+                    <span aria-hidden className="mr-1.5">{s.emoji}</span>
                     {s.title}
                   </p>
                   <p className="mt-1 text-sm leading-relaxed text-ink-mid">{s.body}</p>
@@ -207,7 +206,7 @@ export default async function LoginPage({
           </div>
         </section>
 
-        {/* The example — for anyone who wants to see it play out */}
+        {/* ── The example — for anyone who wants to see it play out ── */}
         <section className="flex min-h-[80vh] flex-col items-center justify-center">
           <Reveal className="w-full">
             <p className="mb-3 eyebrow">Curious how it plays out? Watch 👇</p>
@@ -215,15 +214,16 @@ export default async function LoginPage({
           </Reveal>
         </section>
 
-        {/* The closing breath + back to the top to sign in */}
+        {/* ── Beat 5 · the closing breath ── */}
         <section className="flex min-h-[70vh] flex-col items-center justify-center pb-16">
           <Reveal>
-            <p className="mb-6 mt-1 font-serif text-3xl italic text-bloom">Let’s ThinkThru.</p>
-            <p className="mx-auto mb-8 max-w-xs text-sm leading-relaxed text-ink-mid">
+            <p className="text-base text-ink-soft">Before we decide…</p>
+            <p className="mb-8 mt-1 font-serif text-3xl italic text-bloom">Let’s ThinkThru.</p>
+            <p className="mx-auto max-w-xs text-sm leading-relaxed text-ink-mid">
               Every important decision begins with a conversation. Because no one sees the whole
               picture alone. <span className="text-ink">Together… we do.</span>
             </p>
-            <a href="#start" className="btn-primary inline-flex">
+            <a href="#start" className="btn-primary mt-8 inline-flex">
               🌱 Get started
             </a>
           </Reveal>
