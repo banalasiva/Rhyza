@@ -340,14 +340,16 @@ export async function claudeReply(input: {
       "collaborative knowledge garden where members explore a topic together. Someone " +
       "tagged you with @claude. Answer their question or add genuinely useful, specific " +
       "insight grounded in the discussion so far (including any images shown). Don't just " +
-      "repeat what's been said. You have a web_search tool — use it whenever a good answer needs " +
-      "real, current, or specific outside facts the reader would actually want: products and " +
-      "where to buy them, gift ideas, prices, shops or businesses and their locations, recent " +
-      "events, or anything local or up-to-date. In those cases search and answer with concrete " +
-      "specifics — real names, neighbourhoods, and clickable links — never vague advice like " +
-      "'try Google Maps'. Skip searching only for pure discussion, opinions, or reasoning that " +
-      "needs no outside facts. Never mention searching, the tool, or any limits in your reply; " +
-      "if a search finds nothing, just answer as best you can. " +
+      "repeat what's been said. SEARCH THE WEB FIRST for anything factual. Before answering " +
+      "anything that involves a specific named person, organisation, place, product, event, " +
+      "abbreviation or ACRONYM — or any current, local, or factual claim — use your web_search " +
+      "tool and base your answer on what you actually find. If you are not fully certain what a " +
+      "term, name or acronym refers to (for example 'CJP'), you MUST search — NEVER guess or " +
+      "invent a meaning. When you search, answer with concrete specifics — real names, " +
+      "neighbourhoods, prices, clickable links. Only skip searching for pure opinion or reasoning " +
+      "that involves no outside facts. Never mention searching, the tool, or any limits in your " +
+      "reply; if a search genuinely finds nothing, say plainly you couldn't find it rather than " +
+      "guessing. " +
       // Depth is the point — this is real learning together:
       "Match your depth to what the question needs — go genuinely thorough when it aids " +
       "understanding (worked examples, step-by-step reasoning, analogies, trade-offs), and stay " +
@@ -1233,14 +1235,15 @@ export async function chatgptReply(input: {
     "collaborative knowledge garden where members explore a topic together. Someone tagged " +
     "you with @chatgpt. Answer their question or add genuinely useful, specific insight " +
     "grounded in the discussion so far (including any images shown). Don't just repeat what's " +
-    "been said. You have a web search tool — use it whenever a good answer needs real, current, " +
-    "or specific outside facts the reader would actually want: products and where to buy them, " +
-    "gift ideas, prices, shops or businesses and their locations, recent events, or anything " +
-    "local or up-to-date. In those cases search and answer with concrete specifics — real names, " +
-    "neighbourhoods, and clickable links — never vague advice like 'try Google Maps'. Skip " +
-    "searching only for pure discussion, opinions, or reasoning that needs no outside facts. " +
-    "Never mention searching, the tool, or any limits in your reply; if a search finds nothing, " +
-    "just answer as best you can. " +
+    "been said. SEARCH THE WEB FIRST for anything factual. Before answering anything that " +
+    "involves a specific named person, organisation, place, product, event, abbreviation or " +
+    "ACRONYM — or any current, local, or factual claim — use your web search tool and base your " +
+    "answer on what you actually find. If you are not fully certain what a term, name or acronym " +
+    "refers to (for example 'CJP'), you MUST search — NEVER guess or invent a meaning. When you " +
+    "search, answer with concrete specifics — real names, neighbourhoods, prices, clickable links. " +
+    "Only skip searching for pure opinion or reasoning that involves no outside facts. Never " +
+    "mention searching, the tool, or any limits in your reply; if a search genuinely finds " +
+    "nothing, say plainly you couldn't find it rather than guessing. " +
     "Match your depth to what the question needs — go genuinely thorough when it aids understanding " +
     "(worked examples, step-by-step reasoning, analogies, trade-offs), and stay brief when the " +
     "question is small. HONOUR the person's hints: if they ask you to expand, go further and richer; " +
@@ -1260,25 +1263,43 @@ export async function chatgptReply(input: {
   // and the low-detail path below shrinks each one ~10x.
   const images = collectImages(recent, 3);
 
-  // Web search via the Responses API is heavy: an extra round-trip that eats
-  // into OpenAI's per-minute rate limit and adds latency. Keep it OFF by default
-  // (turn on with OPENAI_WEB_SEARCH=on once the account's rate tier is high
-  // enough). This is the single biggest cause of both the rate_limit_exceeded
-  // errors and the slow ChatGPT replies.
-  if (process.env.OPENAI_WEB_SEARCH === "on") {
+  // Web search is ON by default now — answering acronyms/entities/current facts
+  // from memory is exactly what produced the "CJP → cockroach janta party"
+  // hallucination. Set OPENAI_WEB_SEARCH=off only if the account's rate tier is
+  // too low (the plain completion below is the fallback either way). We nudge the
+  // model to actually use the tool with tool_choice, and fall back on any error.
+  if (process.env.OPENAI_WEB_SEARCH !== "off") {
     try {
       const resp = await getOpenAI().responses.create({
         model: OPENAI_MODEL,
         instructions: system,
         input: openaiResponseInput(prompt, images),
         tools: [{ type: "web_search" }],
+        // Force the model to actually run a search rather than answer from
+        // memory. The SDK's tool_choice union lags the API here, so cast; if the
+        // model/tier rejects a forced choice, the auto retry below still searches.
+        tool_choice: { type: "web_search" } as unknown as "auto",
         max_output_tokens: OPENAI_REPLY_MAX_TOKENS,
       });
       const text = resp.output_text.trim();
       if (text) return text + sourcesFooter(openaiCitedSources(resp));
     } catch (err) {
-      // e.g. the model doesn't support the web_search tool — fall through.
-      console.error("chatgptReply web search failed, falling back", err);
+      // The model/tier may not support forcing the tool — retry once with auto
+      // tool choice before giving up on search entirely.
+      console.error("chatgptReply forced web search failed, retrying auto", err);
+      try {
+        const resp = await getOpenAI().responses.create({
+          model: OPENAI_MODEL,
+          instructions: system,
+          input: openaiResponseInput(prompt, images),
+          tools: [{ type: "web_search" }],
+          max_output_tokens: OPENAI_REPLY_MAX_TOKENS,
+        });
+        const text = resp.output_text.trim();
+        if (text) return text + sourcesFooter(openaiCitedSources(resp));
+      } catch (err2) {
+        console.error("chatgptReply web search failed, falling back", err2);
+      }
     }
   }
 
