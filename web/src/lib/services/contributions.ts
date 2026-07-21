@@ -23,6 +23,7 @@ import {
   wantsImageEdit,
   generateImage,
   editImage,
+  buildImagePrompt,
   seedOpener,
   type ContribForAI,
 } from "@/lib/ai";
@@ -141,13 +142,23 @@ async function respondWithImage(
   dimension: string,
   mentionText: string,
   parentId: string,
-  seed: { id: string; title: string; createdById: string },
+  seed: { id: string; title: string; createdById: string; content?: string },
   invokerId?: string,
+  ctx?: { thread: { author: string; text: string }[]; hasImage?: boolean },
 ) {
-  // Strip the @mention token(s) so the prompt is just the drawing request.
-  const prompt = deserializeMentions(mentionText)
+  // Strip the @mention token(s) to get the user's raw request.
+  const request = deserializeMentions(mentionText)
     .replace(/@(chatgpt|openai|gpt|claude)\b/gi, "")
     .trim();
+  // Turn it into a rich, context-aware image prompt using the CONVERSATION —
+  // instead of sending the casual words straight to a literal image model.
+  const prompt = await buildImagePrompt({
+    title: seed.title,
+    content: seed.content ?? "",
+    thread: ctx?.thread ?? [],
+    request,
+    hasAttachedImage: ctx?.hasImage,
+  });
 
   // Generate + upload are the two failure-prone steps (OpenAI image access,
   // Blob token). Wrap them so ANY failure returns null and the caller falls
@@ -166,7 +177,7 @@ async function respondWithImage(
   }
 
   const bot = await getOrCreateChatGptUser();
-  const caption = prompt ? `Here's what I imagined for "${prompt.slice(0, 120)}":` : "Here's what I imagined:";
+  const caption = request ? `Here's what I imagined for "${request.slice(0, 120)}":` : "Here's what I imagined:";
   const contribution = await db.contribution.create({
     data: {
       seedId,
@@ -271,7 +282,10 @@ export async function respondAsChatGpt(
     // question ("can you make images if I give a prompt?") has no real subject
     // yet — skip generation and let the text reply warmly say "yes, tell me
     // what to draw" (its system prompt now states it truthfully can).
-    const img = await respondWithImage(seedId, dimension, mentionText, parentId, data.seed, invokerId);
+    const img = await respondWithImage(seedId, dimension, mentionText, parentId, data.seed, invokerId, {
+      thread: data.thread.map((c) => ({ author: c.author, text: c.text })),
+      hasImage: threadImages.length > 0,
+    });
     if (img) return img;
     // fall through to a normal text reply if image generation failed
   }

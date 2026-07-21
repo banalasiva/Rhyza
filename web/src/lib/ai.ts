@@ -980,6 +980,51 @@ export function asksImageCapabilityOnly(text: string): boolean {
   return question && deferredSubject;
 }
 
+// Turn a casual in-thread request ("@chatgpt make a good image") into a rich,
+// self-contained image prompt using the CONVERSATION as context — the way the
+// ChatGPT app silently rewrites your ask before drawing. Without this, the raw
+// words go straight to the image model, which is literal-minded (so "a good
+// image" becomes a white canvas with the word on it). Resolves references
+// ("it", "this"), and for a vague ask infers the subject from what the group is
+// discussing. Falls back to the raw request if refinement is unavailable.
+export async function buildImagePrompt(input: {
+  title: string;
+  content?: string;
+  thread: { author: string; text: string }[];
+  request: string;
+  hasAttachedImage?: boolean;
+}): Promise<string> {
+  const fallback = (input.request || "").trim();
+  if (!aiConfigured()) return fallback;
+  try {
+    const transcript = input.thread
+      .filter((c) => c.text?.trim())
+      .slice(-12)
+      .map((c) => `${c.author}: ${c.text.trim()}`)
+      .join("\n")
+      .slice(0, 2500);
+    const system =
+      "You write prompts for an image-generation model. Read the conversation and the user's " +
+      "request, then output ONE vivid, self-contained image prompt describing exactly what to " +
+      "create: subject, setting, style/medium, composition, lighting, mood and colours. Resolve " +
+      "any references ('it', 'this', 'the same', 'that idea') using the conversation. If the " +
+      "request is vague (e.g. 'make a good image', 'render something nice'), infer the most " +
+      "fitting subject from what the group is actually discussing — never draw the literal words. " +
+      "Be concrete and specific. Output ONLY the prompt — no preamble, no quotes, under 90 words.";
+    const user =
+      `CONVERSATION (topic: ${input.title})\n` +
+      (input.content?.trim() ? `Framing: ${input.content.trim()}\n` : "") +
+      (transcript ? `${transcript}\n` : "") +
+      (input.hasAttachedImage ? "(An image is attached in this thread — take it into account.)\n" : "") +
+      `\nUSER'S IMAGE REQUEST: ${fallback || "an image that fits this conversation"}`;
+    const out = await complete(system, user, 300);
+    return out?.trim() || fallback;
+  } catch (err) {
+    console.error("buildImagePrompt failed", err);
+    return fallback;
+  }
+}
+
 // Generate an image from a prompt. Returns a PNG buffer (uploadable to Blob) or
 // null on failure — model-agnostic: reads b64 for gpt-image-1, or fetches the
 // URL dall-e returns. THROWS are caught and logged, never surfaced raw.
