@@ -52,9 +52,17 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
         history.replaceState(null, "", window.location.pathname + window.location.search);
       }
     };
+    // Direct, reliable trigger the side panel dispatches — no dependence on Next
+    // Link firing a hashchange (which it doesn't for a same-page hash click, so
+    // the old #new-garden link silently did nothing when already on home).
+    const onPlant = () => openSheet();
     check(); // on mount AND whenever the route changes (covers cross-page nav)
     window.addEventListener("hashchange", check); // covers same-page hash clicks
-    return () => window.removeEventListener("hashchange", check);
+    window.addEventListener("tt:plant", onPlant);
+    return () => {
+      window.removeEventListener("hashchange", check);
+      window.removeEventListener("tt:plant", onPlant);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant, pathname]);
 

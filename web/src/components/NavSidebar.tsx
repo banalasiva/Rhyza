@@ -105,13 +105,18 @@ export function NavSidebar({ signOut }: { signOut?: () => void }) {
 
             {/* Quick create — plant a whole new garden, or jump into one below to
                 plant a seed inside it. */}
-            <Link
-              href="/#new-garden"
-              onClick={() => setOpenPersist(false)}
-              className="mb-5 flex items-center justify-center gap-1.5 rounded-xl border border-[rgba(76,175,80,0.45)] bg-[rgba(76,175,80,0.12)] px-3 py-2.5 text-sm font-medium text-ink transition hover:border-accent active:scale-[0.98] active:border-accent active:bg-[rgba(76,175,80,0.3)]"
+            <button
+              type="button"
+              onClick={() => {
+                setOpenPersist(false);
+                // Reliable trigger — opens the Plant sheet (with the create-garden
+                // form) on any page, without depending on hash navigation.
+                window.dispatchEvent(new Event("tt:plant"));
+              }}
+              className="mb-5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[rgba(76,175,80,0.45)] bg-[rgba(76,175,80,0.12)] px-3 py-2.5 text-sm font-medium text-ink transition hover:border-accent active:scale-[0.98] active:border-accent active:bg-[rgba(76,175,80,0.3)]"
             >
               ✚ New garden
-            </Link>
+            </button>
 
             {loading && gardens === null && <p className="text-sm text-ink-soft">Loading…</p>}
             {gardens?.length === 0 && !loading && (
