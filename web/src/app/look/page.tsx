@@ -1,9 +1,9 @@
 import Link from "next/link";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getViewer } from "@/lib/session";
 import { listWorldSharedSeeds } from "@/lib/services/explore";
 import { Avatar } from "@/components/Avatar";
+import { GuestTopBar } from "@/components/GuestTopBar";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Look around · ThinkThru" };
@@ -21,15 +21,7 @@ export default async function LookAroundPage() {
   return (
     <div className="relative min-h-screen">
       <div className="garden-bg" />
-      <header className="relative z-20 flex items-center justify-between px-5 py-3">
-        <Link href="/login" className="flex items-center gap-2">
-          <Image src="/emblem.png" alt="" width={26} height={26} className="rounded-lg" />
-          <span className="serif-lg">ThinkThru</span>
-        </Link>
-        <Link href="/login" className="btn-primary text-sm">
-          Sign in
-        </Link>
-      </header>
+      <GuestTopBar next="/look" />
 
       <main id="main" className="relative z-10 mx-auto max-w-2xl px-4 py-5 sm:px-6 sm:py-8">
         <p className="eyebrow mb-1">👀 Look around</p>

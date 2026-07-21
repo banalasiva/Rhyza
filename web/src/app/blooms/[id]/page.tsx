@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { requireViewer } from "@/lib/session";
-import { getBloomDetail } from "@/lib/services/blooms";
+import { redirect } from "next/navigation";
+import { getViewer } from "@/lib/session";
+import { getBloomDetail, getPublicBloomForGuest } from "@/lib/services/blooms";
 import { NavBar } from "@/components/NavBar";
+import { GuestTopBar } from "@/components/GuestTopBar";
 import { BloomBody } from "@/components/BloomBody";
 import { BloomReflection } from "@/components/BloomReflection";
 import { CalibrateInvite } from "@/components/CalibrateInvite";
@@ -22,7 +24,91 @@ const SAME_LABEL: Record<string, string> = {
 };
 
 export default async function BloomPage({ params }: { params: { id: string } }) {
-  const viewer = await requireViewer();
+  const viewer = await getViewer();
+
+  // Signed-out guest: a world-shared bloom reads open (no login wall) — this is
+  // what stops "reading a shared decision" from bouncing people to sign-in.
+  // Anything not world-shared routes through sign-in.
+  if (!viewer) {
+    const bloom = await getPublicBloomForGuest(params.id);
+    if (!bloom) redirect(`/login?next=${encodeURIComponent(`/blooms/${params.id}`)}`);
+    const signIn = `/login?next=${encodeURIComponent(`/blooms/${bloom.id}`)}`;
+    return (
+      <div className="relative min-h-screen">
+        <div className="garden-bg" />
+        <GuestTopBar next={`/blooms/${bloom.id}`} />
+        <main id="main" className="relative z-10 mx-auto max-w-2xl px-4 py-5 sm:px-6 sm:py-8">
+          <Link href={`/seeds/${bloom.seed.id}`} className="btn-ghost inline-flex px-3 py-1.5 text-xs">
+            ← {bloom.garden.emoji} {bloom.garden.name}
+          </Link>
+          <div className="mt-4 text-center">
+            <div className="mb-2 text-5xl">🌸</div>
+            <p className="eyebrow mb-2" style={{ color: "#FFB300" }}>
+              Bloomed knowledge · v{bloom.version}
+            </p>
+          </div>
+          <h1 className="serif-xl mb-3 text-center break-words">{bloom.title}</h1>
+          <div className="card whitespace-pre-wrap p-5 text-sm leading-relaxed text-ink-mid">
+            {bloom.summary}
+          </div>
+
+          {bloom.links.length > 0 && (
+            <section className="mt-6">
+              <p className="eyebrow mb-3">🔗 Links shared</p>
+              <div className="space-y-2">
+                {bloom.links.map((l, i) => {
+                  let host = l.url;
+                  try {
+                    host = new URL(l.url).hostname.replace(/^www\./, "");
+                  } catch {
+                    /* keep raw */
+                  }
+                  return (
+                    <a
+                      key={i}
+                      href={l.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="card flex items-center gap-3 p-3 transition hover:border-accent"
+                    >
+                      <span aria-hidden>🔗</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm text-ink">{host}</span>
+                        <span className="block truncate text-[11px] text-ink-soft">{l.url}</span>
+                      </span>
+                    </a>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          <section className="mt-6">
+            <p className="eyebrow mb-3">Lineage — who grew this</p>
+            <ul className="space-y-2">
+              {bloom.contributors.map((c, i) => (
+                <li key={i} className="card flex items-center justify-between p-3">
+                  <span className="text-sm text-ink">{c.name || "A contributor"}</span>
+                  <span className="text-xs text-ink-soft">{c.role}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <div className="mt-8 rounded-2xl border border-[rgba(76,175,80,0.3)] bg-[rgba(76,175,80,0.07)] p-5 text-center">
+            <p className="serif-lg mb-1">Want to weigh in?</p>
+            <p className="mx-auto mb-4 max-w-sm text-sm text-ink-soft">
+              Reading is open to everyone. Sign in (free) to react, add your voice, or think through
+              your own decision.
+            </p>
+            <Link href={signIn} className="btn-primary text-sm">
+              Sign in to join
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   // The bloom may have been reverted (deleted) since a notification/link was
   // created — show a friendly note instead of an error page.

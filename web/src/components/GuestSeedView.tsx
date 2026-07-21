@@ -59,15 +59,15 @@ export function GuestSeedView({
         <p className="card mb-5 whitespace-pre-wrap p-4 text-sm text-ink-mid">{seed.content}</p>
       )}
 
-      {isBloomed && (
+      {isBloomed && seed.bloomId && (
         <Link
-          href={signIn}
+          href={`/blooms/${seed.bloomId}`}
           className="mb-5 flex items-center gap-3 rounded-2xl border border-[rgba(255,179,0,0.35)] bg-[rgba(255,179,0,0.08)] p-4 transition hover:border-[rgba(255,179,0,0.55)]"
         >
           <span className="text-2xl" aria-hidden>🌸</span>
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-medium text-ink">This grew into a shared decision</span>
-            <span className="block text-xs text-ink-soft">Sign in to read the bloom and how it landed.</span>
+            <span className="block text-xs text-ink-soft">Read the bloom — the decision they reached.</span>
           </span>
           <span aria-hidden className="text-ink-soft">→</span>
         </Link>

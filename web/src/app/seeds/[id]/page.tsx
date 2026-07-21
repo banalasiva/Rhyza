@@ -1,10 +1,10 @@
 import Link from "next/link";
-import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { getViewer } from "@/lib/session";
 import { getSeedDetail, getSeedPreview, getPublicSeedForGuest } from "@/lib/services/seeds";
 import { getReactionTypes } from "@/lib/registry";
 import { NavBar } from "@/components/NavBar";
+import { GuestTopBar } from "@/components/GuestTopBar";
 import { SeedRoom } from "@/components/SeedRoom";
 import { SeedRhythm } from "@/components/SeedRhythm";
 import { LockedSeed } from "@/components/LockedSeed";
@@ -25,15 +25,7 @@ export default async function SeedPage({ params }: { params: { id: string } }) {
     return (
       <div className="relative min-h-screen">
         <div className="garden-bg" />
-        <header className="relative z-20 flex items-center justify-between px-5 py-3">
-          <Link href="/" className="flex items-center gap-2">
-            <Image src="/icon-192.png" alt="" width={26} height={26} className="rounded-lg" />
-            <span className="serif-lg">ThinkThru</span>
-          </Link>
-          <Link href={`/login?next=${encodeURIComponent(`/seeds/${params.id}`)}`} className="btn-primary text-sm">
-            Sign in
-          </Link>
-        </header>
+        <GuestTopBar next={`/seeds/${params.id}`} />
         <main id="main" className="relative z-10 px-4 py-5 sm:px-6 sm:py-6">
           <GuestSeedView seed={guest} reactionEmoji={reactionEmoji} />
         </main>

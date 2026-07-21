@@ -472,3 +472,47 @@ export async function getBloomDetail(userId: string, bloomId: string) {
     })),
   };
 }
+
+// Read-only bloom for a signed-out guest — ONLY when its seed is world-shared
+// (public + listed). Same rule as getPublicSeedForGuest, so browsing the public
+// square never hits a login wall when a decision has bloomed. No user context.
+export async function getPublicBloomForGuest(bloomId: string) {
+  const bloom = await db.bloom
+    .findUnique({
+      where: { id: bloomId },
+      include: {
+        contributors: { orderBy: { sortOrder: "asc" } },
+        seed: { select: { id: true, title: true } },
+        garden: { select: { id: true, name: true, emoji: true } },
+      },
+    })
+    .catch(() => null);
+  if (!bloom) return null;
+
+  // Gate on the seed being world-shared. `listed` may be unmigrated on an old DB
+  // — treat that as not-listed (deny) so this fails safe.
+  let seedRow: { visibility: string; listed: boolean; deletedAt: Date | null } | null = null;
+  try {
+    seedRow = await db.seed.findUnique({
+      where: { id: bloom.seedId },
+      select: { visibility: true, listed: true, deletedAt: true },
+    });
+  } catch {
+    seedRow = null;
+  }
+  if (!seedRow || seedRow.deletedAt || seedRow.visibility !== "public" || !seedRow.listed) {
+    return null;
+  }
+
+  const links = await getSeedLinks(bloom.seedId).catch(() => [] as BloomLink[]);
+  return {
+    id: bloom.id,
+    title: bloom.title,
+    summary: bloom.summary,
+    version: bloom.version,
+    garden: bloom.garden,
+    seed: bloom.seed,
+    links,
+    contributors: bloom.contributors.map((c) => ({ name: c.name, role: c.role })),
+  };
+}
