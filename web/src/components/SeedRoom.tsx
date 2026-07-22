@@ -2255,7 +2255,7 @@ export function SeedRoom({
                 className="btn-primary"
                 disabled={busy || uploading || (draft.trim().length === 0 && draftAttachments.length === 0)}
               >
-                {busy ? "Sending…" : "Contribute"}
+                {busy ? "Sending…" : "Send"}
               </button>
             </div>
           </div>
