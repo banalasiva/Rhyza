@@ -250,10 +250,12 @@ export async function saveWeighIn(
     });
   }
   if (submit) {
-    const ranked = new Set(cleaned.filter((c) => c.ids.length > 0).map((c) => c.dimension));
-    const missing = dimKeys.filter((d) => !ranked.has(d));
-    if (missing.length > 0) {
-      throw new ApiError("BAD_REQUEST", "Rank at least one person in every dimension before submitting.");
+    // No forced march through every dimension — answer the ones you have a feel
+    // for and send. Weight only folds in the dimensions people actually answered,
+    // so a partial read is honest signal, not a hole. We just need *something*.
+    const answered = cleaned.filter((c) => c.ids.length > 0).length;
+    if (answered === 0) {
+      throw new ApiError("BAD_REQUEST", "Pick at least one person in one question before sending.");
     }
   }
 

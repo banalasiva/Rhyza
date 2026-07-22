@@ -303,7 +303,6 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
   }
 
   const doneCount = dims.filter((d) => (ranks[d.key]?.length ?? 0) > 0).length;
-  const allRanked = doneCount === dims.length;
   const isLast = step === dims.length - 1;
 
   if (done) {
@@ -437,10 +436,12 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
 
       {error && <p className="px-4 pb-2 text-sm text-[#e57373]">{error}</p>}
 
-      {/* progress + reassurance */}
+      {/* progress + reassurance — you're NEVER forced through all six. Answer the
+          ones you have a feel for and send; the thorough can keep going. */}
       <p className="px-4 pt-1 text-xs text-ink-soft">
-        {doneCount} of {dims.length} questions answered
-        {isLast && " · you can change anything until everyone’s in"}
+        {doneCount === 0
+          ? "Answer the ones you have a feel for — even one is enough."
+          : `${doneCount} of ${dims.length} answered · send now or keep going, your call`}
       </p>
 
       {/* nav */}
@@ -450,21 +451,33 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
           disabled={busy}
           className="btn-ghost text-sm disabled:opacity-50"
         >
-          {step === 0 ? "Save & finish later" : "← Back"}
+          {step === 0 ? "Later" : "← Back"}
         </button>
-        {isLast ? (
-          <button
-            onClick={() => save(true)}
-            disabled={busy || !allRanked}
-            className="btn-primary text-sm disabled:opacity-50"
-          >
-            {busy ? "Sending…" : allRanked ? "Send my answers" : "Answer every question first"}
-          </button>
-        ) : (
-          <button onClick={() => setStep(step + 1)} className="btn-primary text-sm">
-            Next →
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Finish early — visible the moment you've answered anything. */}
+          {!isLast && doneCount >= 1 && (
+            <button
+              onClick={() => save(true)}
+              disabled={busy}
+              className="text-sm font-medium text-accent transition hover:opacity-80 disabled:opacity-50"
+            >
+              {busy ? "Sending…" : "✓ Send now"}
+            </button>
+          )}
+          {isLast ? (
+            <button
+              onClick={() => save(true)}
+              disabled={busy || doneCount === 0}
+              className="btn-primary text-sm disabled:opacity-50"
+            >
+              {busy ? "Sending…" : doneCount === 0 ? "Answer at least one" : "Send my answers"}
+            </button>
+          ) : (
+            <button onClick={() => setStep(step + 1)} className="btn-primary text-sm">
+              Next →
+            </button>
+          )}
+        </div>
       </div>
       </div>
     </div>
