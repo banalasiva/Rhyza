@@ -1468,8 +1468,9 @@ export function SeedRoom({
         />
       )}
 
-      {/* ── Thread column ── */}
-      <div>
+      {/* ── Thread column ── (self-start so a short thread doesn't stretch to the
+          aside's height and leave a gap under the sticky composer) */}
+      <div className="min-w-0 lg:self-start">
         {/* Tabs: Discussion · Polls · Quorum */}
         <div
           ref={tabsRef}
@@ -2042,8 +2043,10 @@ export function SeedRoom({
               {thinkingWho} {thinkingWho.includes("and") ? "are" : "is"} thinking…
             </div>
           )}
-          {/* Scroll anchor: arrivals without a deep-link land on the latest message. */}
-          <div ref={threadEndRef} />
+          {/* Scroll anchor: arrivals without a deep-link land on the latest
+              message. The bottom scroll-margin keeps the newest message clear of
+              the sticky composer that pins to the bottom of the viewport. */}
+          <div ref={threadEndRef} className="scroll-mb-48" />
         </div>
 
         {/* The wise presence — a calm candle at the foot of the conversation.
@@ -2133,8 +2136,19 @@ export function SeedRoom({
             </button>
           </div>
         )}
+        {/* Move to Decide — a gentle after-the-thread nudge, kept ABOVE the
+            composer so the composer can pin to the bottom as the last element. */}
+        {!isBloomed && tab === "discuss" && (
+          <StepNudge
+            emoji="⚖️"
+            title="Talked it through?"
+            sub="When you're ready, decide it together — everyone gives their honest read and it adds up to one fair answer."
+            cta="Go to Decide →"
+            onClick={() => setTab("decide")}
+          />
+        )}
         {!isBloomed && !committedToBloom && (
-          <div className="card mt-6 p-5">
+          <div className="sticky bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] z-30 mt-6 rounded-2xl border border-[rgba(76,175,80,0.25)] bg-[#0B120B] p-4 shadow-[0_-10px_30px_rgba(0,0,0,0.45)] md:bottom-4 md:p-5">
             <p className="eyebrow mb-3">💬 Add your thought</p>
             <input
               ref={fileInputRef}
@@ -2275,16 +2289,8 @@ export function SeedRoom({
         )}
 
         {/* Guided journey — gently point to the next step so nobody needs it
-            explained on a call. */}
-        {!isBloomed && tab === "discuss" && (
-          <StepNudge
-            emoji="⚖️"
-            title="Talked it through?"
-            sub="When you're ready, decide it together — everyone gives their honest read and it adds up to one fair answer."
-            cta="Go to Decide →"
-            onClick={() => setTab("decide")}
-          />
-        )}
+            explained on a call. (The discuss-tab nudge lives above the composer,
+            so the composer can stay pinned to the bottom as the last element.) */}
         {!isBloomed && tab === "decide" && (
           <StepNudge
             emoji="🌸"
