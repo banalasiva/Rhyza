@@ -820,4 +820,15 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
       PRIMARY KEY ("id")
     )`,
   },
+
+  // 20260722_default_garden — a personal auto-created "just start" bucket so
+  // quick-planting a seed never forces "which garden should it grow in?".
+  {
+    label: "gardens.is_default",
+    sql: `ALTER TABLE "gardens" ADD COLUMN IF NOT EXISTS "is_default" BOOLEAN NOT NULL DEFAULT false`,
+  },
+  {
+    label: "gardens_created_by_is_default_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "gardens_created_by_is_default_idx" ON "gardens" ("created_by", "is_default")`,
+  },
 ];

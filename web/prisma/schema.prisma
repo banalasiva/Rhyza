@@ -156,6 +156,9 @@ model Garden {
   emoji       String   @default("🌱")
   stage       String   @default("germinating") // germinating | growing | thriving | dormant
   visibility  String   @default("public") // public (any org member) | private (garden members only)
+  // The person's personal, auto-created "just start" bucket. Quick-planted seeds
+  // (no garden chosen) land here so a newcomer never has to file before talking.
+  isDefault   Boolean  @default(false) @map("is_default")
   createdById String?  @map("created_by") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at")
 

@@ -125,6 +125,52 @@ export async function createGarden(
   });
 }
 
+// The person's personal, auto-created "just start" garden — the invisible bucket
+// that quick-planted seeds land in so a newcomer never has to pick/create a
+// garden before their first question (the biggest WhatsApp-vs-us friction).
+// Find-or-create, idempotent. Resilient to a DB that hasn't run the is_default
+// migration yet: falls back to a stable name convention for the lookup, and to a
+// column-free create, so quick-plant never hard-fails on a lagging schema.
+const DEFAULT_GARDEN_NAME = "My decisions";
+
+export async function ensureDefaultGarden(userId: string, orgId: string) {
+  await assertNotGuest(userId, "start a decision");
+  await requireOrgMember(userId, orgId);
+
+  // Already have one?
+  try {
+    const existing = await db.garden.findFirst({
+      where: { createdById: userId, orgId, isDefault: true },
+      orderBy: { createdAt: "asc" },
+    });
+    if (existing) return existing;
+  } catch {
+    // is_default column may not exist yet — look up by the reserved name instead.
+    const byName = await db.garden.findFirst({
+      where: { createdById: userId, orgId, name: DEFAULT_GARDEN_NAME },
+      orderBy: { createdAt: "asc" },
+    });
+    if (byName) return byName;
+  }
+
+  const base = {
+    orgId,
+    name: DEFAULT_GARDEN_NAME,
+    slug: uniqueSlug(DEFAULT_GARDEN_NAME),
+    emoji: "🌱",
+    visibility: "private",
+    createdById: userId,
+    members: { create: { userId, role: "steward" } },
+  } as const;
+  try {
+    return await db.garden.create({ data: { ...base, isDefault: true } });
+  } catch {
+    // Column-free fallback (schema not migrated) — the name convention above
+    // will still recognise it next time.
+    return await db.garden.create({ data: base });
+  }
+}
+
 // Lightweight garden header (just id/name/emoji) + the same access check — for
 // pages that only need the garden's identity (e.g. the Sacred Tree), so they
 // don't pull the full active + bloomed seed lists getGardenDetail fetches.

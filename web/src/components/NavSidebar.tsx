@@ -109,9 +109,10 @@ export function NavSidebar({ signOut }: { signOut?: () => void }) {
               type="button"
               onClick={() => {
                 setOpenPersist(false);
-                // Reliable trigger — opens the Plant sheet (with the create-garden
-                // form) on any page, without depending on hash navigation.
-                window.dispatchEvent(new Event("tt:plant"));
+                // Reliable trigger — opens the Plant sheet straight into the
+                // create-garden section, on any page, without depending on hash
+                // navigation (a same-page hash Link doesn't fire hashchange).
+                window.dispatchEvent(new CustomEvent("tt:plant", { detail: { gardens: true } }));
               }}
               className="mb-5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[rgba(76,175,80,0.45)] bg-[rgba(76,175,80,0.12)] px-3 py-2.5 text-sm font-medium text-ink transition hover:border-accent active:scale-[0.98] active:border-accent active:bg-[rgba(76,175,80,0.3)]"
             >
