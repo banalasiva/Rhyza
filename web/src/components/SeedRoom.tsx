@@ -28,6 +28,7 @@ import { serializeMentions, deserializeMentions } from "@/lib/mentions";
 import { shareOrCopy } from "@/lib/share-client";
 import { CollapsibleText } from "@/components/CollapsibleText";
 import { Avatar } from "@/components/Avatar";
+import { AvatarRow } from "@/components/AvatarRow";
 import { Attachments, type Attachment } from "@/components/Attachments";
 import { type Board } from "@/components/StakeBoard";
 import { PollCard, PollCreator, type Poll } from "@/components/SeedPolls";
@@ -1705,30 +1706,32 @@ export function SeedRoom({
         ) : (
           <>
             <h1 className="serif-xl mb-1 break-words">{seedTitle}</h1>
-            {/* One-line meta + an always-visible way to add people. The member
-                count taps through to the details sheet (Slack-style); the "＋"
-                is its own obvious button so "add people" is never buried. */}
-            <div className="mb-4 flex items-center gap-2">
+            {/* WhatsApp group-header pattern: the actual faces of who's in the
+                room (tap to open the members sheet), a small visibility chip,
+                and an always-visible "＋" so adding people is never buried. Faces
+                are far more legible and inviting than a "3 members" count. */}
+            <div className="mb-4 flex flex-wrap items-center gap-2">
+              <AvatarRow
+                people={seed.people}
+                onClick={() => {
+                  setSeedMenu(true);
+                  setInviteOpen(false);
+                }}
+              />
               <button
                 onClick={() => {
                   setSeedMenu(true);
                   setInviteOpen(false);
                 }}
                 aria-haspopup="dialog"
-                className="inline-flex items-center gap-1.5 text-xs text-ink-soft transition hover:text-ink"
+                className="inline-flex items-center gap-1 text-xs text-ink-soft transition hover:text-ink"
               >
                 <span>{visibility === "private" ? "🔒 Private" : "🌍 Public"}</span>
-                <span aria-hidden>·</span>
-                <span>
-                  {participants} member{participants === 1 ? "" : "s"}
-                </span>
-                <span aria-hidden className="text-sm leading-none">
-                  ⌄
-                </span>
+                <span aria-hidden className="text-sm leading-none">⌄</span>
               </button>
               <button
                 onClick={() => setPeopleModal(true)}
-                className="inline-flex items-center gap-1 rounded-full border border-[rgba(76,175,80,0.35)] bg-[rgba(76,175,80,0.08)] px-2.5 py-1 text-xs font-medium text-accent transition hover:bg-[rgba(76,175,80,0.16)]"
+                className="ml-auto inline-flex items-center gap-1 rounded-full border border-[rgba(76,175,80,0.35)] bg-[rgba(76,175,80,0.08)] px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-[rgba(76,175,80,0.16)] active:scale-[0.98]"
               >
                 ＋ Add people
               </button>
