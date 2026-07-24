@@ -34,6 +34,7 @@ export function RichEditor({
   people = [],
   onSubmit,
   toolbarExtra,
+  autoFocus = false,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -42,8 +43,21 @@ export function RichEditor({
   people?: Person[];
   onSubmit?: () => void;
   toolbarExtra?: React.ReactNode;
+  autoFocus?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
+  // When the parent opens the composer (tap-to-expand), drop the caret straight
+  // into the box so the keyboard comes up — but only on an explicit open, never
+  // on page load, so we don't pop the keyboard just because a draft was restored.
+  useEffect(() => {
+    if (autoFocus) {
+      const el = ref.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+      }
+    }
+  }, [autoFocus]);
   const [menu, setMenu] = useState<{ at: number; query: string } | null>(null);
   const [active, setActive] = useState(0);
   // Touch devices: Enter makes a new line and a Send button submits (like Slack

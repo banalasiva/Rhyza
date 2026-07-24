@@ -123,6 +123,9 @@ export function SeedRoom({
   const [seedContent, setSeedContent] = useState(seed.content);
   const [seedMenu, setSeedMenu] = useState(false); // tap-the-question details sheet
   const [membersOpen, setMembersOpen] = useState(false);
+  // The composer starts collapsed to a slim one-line bar so the pinned box never
+  // covers the newest messages; tapping it expands the full editor.
+  const [composerOpen, setComposerOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false); // invite form within the details sheet
   const [peopleModal, setPeopleModal] = useState(false); // the fresh-seed "bring your people in" flow
   const [editingSeed, setEditingSeed] = useState(false);
@@ -695,6 +698,7 @@ export function SeedRoom({
     setContributions((prev) => [...prev, optimistic]);
     setDraft("");
     setDraftAttachments([]);
+    setComposerOpen(false); // collapse back to the slim bar so it stops blocking the thread
     clearDraftEverywhere();
     playNatureSound("drop");
 
@@ -1341,6 +1345,16 @@ export function SeedRoom({
     [realContribs],
   );
   const showFirstAiNote = realContribs.length <= 3;
+
+  // The pinned composer shows as a slim one-line bar until there's a reason to
+  // open the full editor (you tapped it, there's unsent text/attachments, or
+  // you're mid-poll/upload) — so it never blocks the newest messages when idle.
+  const composerExpanded =
+    composerOpen ||
+    draft.trim().length > 0 ||
+    draftAttachments.length > 0 ||
+    pollOpen ||
+    uploading;
 
   return (
     <div className="relative mt-3 grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -2148,8 +2162,41 @@ export function SeedRoom({
           />
         )}
         {!isBloomed && !committedToBloom && (
-          <div className="sticky bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] z-30 mt-6 rounded-2xl border border-[rgba(76,175,80,0.25)] bg-[#0B120B] p-4 shadow-[0_-10px_30px_rgba(0,0,0,0.45)] md:bottom-4 md:p-5">
-            <p className="eyebrow mb-3">💬 Add your thought</p>
+          <div
+            className={
+              "sticky bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] z-30 mt-6 rounded-2xl border border-[rgba(76,175,80,0.25)] bg-[#0B120B] shadow-[0_-10px_30px_rgba(0,0,0,0.45)] md:bottom-4 " +
+              (composerExpanded ? "p-4 md:p-5" : "p-2")
+            }
+          >
+            {!composerExpanded ? (
+              // Collapsed: a slim, non-blocking bar. Tapping it opens the full
+              // editor (and pops the keyboard via RichEditor autoFocus).
+              <button
+                type="button"
+                onClick={() => setComposerOpen(true)}
+                className="flex w-full items-center gap-2 rounded-xl border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-left text-sm text-ink-soft transition hover:border-accent"
+              >
+                <span aria-hidden>💬</span>
+                <span className="flex-1 truncate">Add your thought…</span>
+                <span aria-hidden className="text-accent">✎</span>
+              </button>
+            ) : (
+            <>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="eyebrow">💬 Add your thought</p>
+              {/* Collapse back to the slim bar — only when there's nothing unsent
+                  to lose. */}
+              {draft.trim().length === 0 && draftAttachments.length === 0 && !pollOpen && (
+                <button
+                  type="button"
+                  onClick={() => setComposerOpen(false)}
+                  aria-label="Collapse"
+                  className="text-ink-soft transition hover:text-ink"
+                >
+                  ⌄
+                </button>
+              )}
+            </div>
             <input
               ref={fileInputRef}
               type="file"
@@ -2173,6 +2220,7 @@ export function SeedRoom({
               onChange={setDraft}
               placeholder="What do you think? Share it here…"
               disabled={busy}
+              autoFocus={composerOpen}
               people={seed.people}
               onSubmit={() => {
                 if (!busy && !uploading && (draft.trim().length > 0 || draftAttachments.length > 0))
@@ -2272,6 +2320,8 @@ export function SeedRoom({
                 {busy ? "Sending…" : "Send"}
               </button>
             </div>
+            </>
+            )}
           </div>
         )}
 
