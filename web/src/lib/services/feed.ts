@@ -118,9 +118,22 @@ function bloomToItem(b: any): FeedItem {
 function mineWhere(userId: string, orgId: string, cursor: Cursor) {
   return {
     deletedAt: null,
-    garden: { orgId },
     AND: [
-      { OR: [{ visibility: "public" }, { createdById: userId }, { members: { some: { userId } } }] },
+      {
+        OR: [
+          // Seeds in your own org you can see: public to the org, or ones you made.
+          { garden: { orgId }, visibility: "public" },
+          { garden: { orgId }, createdById: userId },
+          // Any seed you're explicitly a member of — WHEREVER it lives. Because
+          // every Gmail user has their own personal org, a private seed someone
+          // adds you to lives in the ADDER's org, not yours; the old
+          // garden:{orgId} filter hid it from Home entirely (it only showed in
+          // Notifications). This is the "a decision you're added to always shows
+          // up in your list" rule — WhatsApp: a group you're added to appears in
+          // your chat list, same org or not.
+          { members: { some: { userId } } },
+        ],
+      },
       ...keysetOn("lastActivityAt", cursor),
     ],
   };

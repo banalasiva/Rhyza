@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 export type YourTurnItem = {
   seedId: string;
   title: string;
-  reason: "ask" | "weigh-in" | "mention";
+  reason: "ask" | "weigh-in" | "mention" | "added";
   detail: string;
 };
 
@@ -15,15 +15,18 @@ export async function getYourTurn(userId: string, cap = 6): Promise<YourTurnItem
   // own little query pipeline) and merge below in priority order — asks first,
   // then weigh-ins, then mentions — with dedup + cap. Previously these ran as
   // three sequential waves (~6 stacked round-trips).
-  const [askItems, weighItems, mentionItems] = await Promise.all([
+  const [askItems, weighItems, mentionItems, addedItems] = await Promise.all([
     gatherAsks(userId, cap).catch(() => [] as YourTurnItem[]),
     gatherWeighIn(userId, cap).catch(() => [] as YourTurnItem[]),
     gatherMentions(userId, cap).catch(() => [] as YourTurnItem[]),
+    gatherAdded(userId, cap).catch(() => [] as YourTurnItem[]),
   ]);
 
   const items: YourTurnItem[] = [];
   const seen = new Set<string>();
-  for (const list of [askItems, weighItems, mentionItems]) {
+  // Priority order: a direct ask, then a live weigh-in, then a tag, then a fresh
+  // add. A seed only appears once, at its strongest reason.
+  for (const list of [askItems, weighItems, mentionItems, addedItems]) {
     for (const it of list) {
       if (seen.has(it.seedId)) continue; // a seed only appears once, at its highest-priority reason
       seen.add(it.seedId);
@@ -117,6 +120,59 @@ async function gatherWeighIn(userId: string, cap: number): Promise<YourTurnItem[
     reason: "weigh-in" as const,
     detail: "The group is weighing in — add your voice before it's decided.",
   }));
+}
+
+// ── 3. Someone added you to a decision you haven't opened yet ──
+// A plain add (not a tag) used to surface ONLY in Notifications — so a person
+// added to a private seed never saw it on Home. This brings a fresh, unseen add
+// to the top of "your turn," the way a group you're added to jumps to the top of
+// your WhatsApp chat list. Keyed on the unread member_joined notification, so it
+// clears itself once you've seen your notifications.
+async function gatherAdded(userId: string, cap: number): Promise<YourTurnItem[]> {
+  const adds = await db.notification.findMany({
+    where: { recipientId: userId, readAt: null, type: "member_joined", entityType: "seed" },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+    select: { entityId: true, actorId: true },
+  });
+  const seedIds = [
+    ...new Set((adds as { entityId: string | null }[]).map((a) => a.entityId).filter(Boolean)),
+  ] as string[];
+  if (!seedIds.length) return [];
+  const actorIds = [
+    ...new Set((adds as { actorId: string | null }[]).map((a) => a.actorId).filter(Boolean)),
+  ] as string[];
+  const [seeds, actors] = await Promise.all([
+    db.seed.findMany({
+      where: { id: { in: seedIds }, deletedAt: null, bloomId: null },
+      select: { id: true, title: true },
+    }),
+    actorIds.length
+      ? db.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, name: true } })
+      : Promise.resolve([] as { id: string; name: string | null }[]),
+  ]);
+  const titleById = new Map((seeds as { id: string; title: string }[]).map((s) => [s.id, s.title]));
+  const nameById = new Map(
+    (actors as { id: string; name: string | null }[]).map((u) => [u.id, u.name]),
+  );
+  const out: YourTurnItem[] = [];
+  const used = new Set<string>();
+  for (const a of adds as { entityId: string | null; actorId: string | null }[]) {
+    const seedId = a.entityId;
+    if (!seedId || used.has(seedId)) continue;
+    const title = titleById.get(seedId);
+    if (!title) continue; // seed gone, bloomed, or deleted
+    used.add(seedId);
+    const who = (nameById.get(a.actorId ?? "") || "").trim().split(/\s+/)[0] || "Someone";
+    out.push({
+      seedId,
+      title,
+      reason: "added",
+      detail: `${who} brought you into this — take a look.`,
+    });
+    if (out.length >= cap) break;
+  }
+  return out;
 }
 
 // ── 2. Someone tagged you and you haven't been back ──
