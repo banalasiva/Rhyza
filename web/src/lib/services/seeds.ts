@@ -55,7 +55,11 @@ function mapContribs(rows: ContribRow[], userId: string, keptIds?: Set<string>) 
       if (r.userId === userId) myReactions.push(r.reactionKey);
     }
     const content = c.content as
-      | { text?: string; attachments?: { url: string; type: "image" | "video" | "file"; name?: string }[] }
+      | {
+          text?: string;
+          attachments?: { url: string; type: "image" | "video" | "file"; name?: string }[];
+          forwarded?: boolean;
+        }
       | null;
     return {
       id: c.id,
@@ -63,6 +67,7 @@ function mapContribs(rows: ContribRow[], userId: string, keptIds?: Set<string>) 
       parentId: c.parentId,
       text: content?.text ?? "",
       attachments: content?.attachments ?? [],
+      forwarded: content?.forwarded ?? false,
       author: { id: c.author.id, name: displayName(c.author), image: c.author.image },
       createdAt: c.createdAt.toISOString(),
       reactionCounts,

@@ -37,6 +37,7 @@ import { Icon, type IconName } from "@/components/Icon";
 import { ReadAloud } from "@/components/ReadAloud";
 import { MicButton } from "@/components/MicButton";
 import { MessageActions } from "@/components/MessageActions";
+import { ForwardPicker } from "@/components/ForwardPicker";
 import { SeedInvite } from "@/components/SeedInvite";
 import { RecognitionRow } from "@/components/RecognitionRow";
 import { MembersSheet } from "@/components/MembersSheet";
@@ -72,6 +73,7 @@ function hydrate(c: Omit<ContributionResponse, "aiReplies">): Contribution {
     dimension: c.dimension,
     text: c.text,
     attachments: c.attachments ?? [],
+    forwarded: false,
     parentId: c.parentId ?? null,
     author: c.author,
     createdAt: c.createdAt,
@@ -133,6 +135,7 @@ export function SeedRoom({
   const [seedContentDraft, setSeedContentDraft] = useState(seed.content);
   // Which message's action sheet is open (reactions + edit/copy/share/…).
   const [sheetForId, setSheetForId] = useState<string | null>(null);
+  const [forwardId, setForwardId] = useState<string | null>(null); // message being forwarded
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
   const [retagId, setRetagId] = useState<string | null>(null); // open re-tag menu
   // Initial draft = the server copy the page loaded with (SSR-safe). A newer
@@ -1973,6 +1976,11 @@ export function SeedRoom({
                   </div>
                 ) : (
                   <>
+                    {c.forwarded && (
+                      <p className="mb-1 flex items-center gap-1 text-[11px] italic text-ink-soft">
+                        <span aria-hidden>↪</span> Forwarded
+                      </p>
+                    )}
                     {c.text && (
                       <div className="mb-3 text-sm leading-relaxed text-ink">
                         <CollapsibleText text={c.text} />
@@ -2605,6 +2613,19 @@ export function SeedRoom({
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
                 />
               )}
+              {/* Forward — drop this message (text + photos/videos) into another
+                  of your decisions, WhatsApp-style. */}
+              {(sheetC.text || (sheetC.attachments?.length ?? 0) > 0) && (
+                <button
+                  onClick={() => {
+                    setForwardId(sheetC.id);
+                    setSheetForId(null);
+                  }}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
+                >
+                  ↪ Forward
+                </button>
+              )}
               {sheetC.author?.id === currentUserId && (
                 <button
                   onClick={() => {
@@ -2935,6 +2956,13 @@ export function SeedRoom({
       )}
 
       {membersOpen && <MembersSheet seedId={seed.id} onClose={() => setMembersOpen(false)} />}
+      {forwardId && (
+        <ForwardPicker
+          contributionId={forwardId}
+          excludeSeedId={seed.id}
+          onClose={() => setForwardId(null)}
+        />
+      )}
 
       {/* Fresh-seed "bring your people in" — the same add/invite flow, front and
           centre in its own sheet so the flywheel step is one tap, not buried. */}

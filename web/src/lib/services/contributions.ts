@@ -572,7 +572,13 @@ type Attachment = { url: string; type: "image" | "video" | "file"; name?: string
 export async function addContribution(
   userId: string,
   seedId: string,
-  input: { dimension: string; text: string; parentId?: string; attachments?: Attachment[] },
+  input: {
+    dimension: string;
+    text: string;
+    parentId?: string;
+    attachments?: Attachment[];
+    forwarded?: boolean;
+  },
 ) {
   const seed = await seedOrThrow(seedId);
   // Guests may post only where they were already given a seat (someone invited
@@ -600,7 +606,7 @@ export async function addContribution(
       dimension: input.dimension,
       parentId: input.parentId ?? null,
       contentType: attachments.length > 0 ? attachments[0].type : "text",
-      content: { text: input.text, attachments },
+      content: { text: input.text, attachments, ...(input.forwarded ? { forwarded: true } : {}) },
     },
     include: { author: { select: { id: true, name: true, image: true } } },
   });
@@ -654,6 +660,55 @@ export async function addContribution(
   await requestAdmissionIfNeeded(seedId, userId);
 
   return contribution;
+}
+
+// Forward a message (its text + photos/videos) into another seed — WhatsApp
+// style. Copies server-side by id so the client can't inject content, checks
+// access to BOTH the source (you can see it) and the target (addContribution
+// enforces membership), strips mention tokens so it never pings the source
+// thread, marks the copy "forwarded", and never triggers a paid AI reply.
+export async function forwardContribution(
+  userId: string,
+  toSeedId: string,
+  contributionId: string,
+) {
+  const src = await db.contribution.findUnique({
+    where: { id: contributionId },
+    select: { id: true, seedId: true, content: true, deletedAt: true },
+  });
+  if (!src || src.deletedAt) {
+    throw new ApiError("NOT_FOUND", "That message is no longer available.");
+  }
+
+  // Access to the SOURCE: a member of it, or it's public (world/org visible).
+  const member = await db.seedMember
+    .findUnique({ where: { seedId_userId: { seedId: src.seedId, userId } } })
+    .catch(() => null);
+  if (!member) {
+    const s = await db.seed.findUnique({
+      where: { id: src.seedId },
+      select: { visibility: true },
+    });
+    if (s?.visibility !== "public") {
+      throw new ApiError("FORBIDDEN", "You can't forward this message.");
+    }
+  }
+
+  const content = src.content as { text?: string; attachments?: Attachment[] } | null;
+  // Flatten @[Name](id) tokens to plain "@Name" so a forward never notifies
+  // people from the source thread or carries their ids into another room.
+  const text = deserializeMentions(content?.text ?? "");
+  const attachments = content?.attachments ?? [];
+  if (!text.trim() && attachments.length === 0) {
+    throw new ApiError("BAD_REQUEST", "Nothing to forward.");
+  }
+
+  return addContribution(userId, toSeedId, {
+    dimension: "understanding",
+    text,
+    attachments,
+    forwarded: true,
+  });
 }
 
 // Live thread: fetch a seed's contributions, optionally only those newer than
