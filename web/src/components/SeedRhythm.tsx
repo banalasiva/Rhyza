@@ -44,10 +44,12 @@ export function SeedRhythm({
   seedId,
   canManage,
   active = true,
+  young = false,
 }: {
   seedId: string;
   canManage: boolean;
   active?: boolean;
+  young?: boolean;
 }) {
   const [dl, setDl] = useState<Deadline>(null);
   const [loaded, setLoaded] = useState(false);
@@ -122,6 +124,11 @@ export function SeedRhythm({
           : null
       : null;
   const remaining = target != null ? target - nowMs : 0;
+
+  // On a brand-new seed, don't clutter the calm landing with a "set a deadline?"
+  // prompt — there's nothing to pace yet. It appears once the discussion is
+  // underway (or the moment a deadline is actually set).
+  if (young && !dl && !editing) return null;
 
   return (
     <div className="mt-3 rounded-xl border border-[rgba(76,175,80,0.18)] bg-[rgba(76,175,80,0.05)] px-3 py-2.5">

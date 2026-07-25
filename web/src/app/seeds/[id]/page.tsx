@@ -81,6 +81,7 @@ export default async function SeedPage({ params }: { params: { id: string } }) {
           seedId={seed.id}
           canManage={seed.canManage}
           active={!seed.bloomId}
+          young={seed.contributions.length <= 2}
         />
         <SeedRoom
           seed={seed}

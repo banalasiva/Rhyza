@@ -1348,6 +1348,10 @@ export function SeedRoom({
     [realContribs],
   );
   const showFirstAiNote = realContribs.length <= 3;
+  // A brand-new seed (just you + Claude's opener). Keep its landing calm — no
+  // step-explainer line, no deadline prompt; let the question, Claude's first
+  // thought, one invite, and the composer breathe.
+  const young = realContribs.length <= 1;
 
   // The pinned composer shows as a slim one-line bar until there's a reason to
   // open the full editor (you tapped it, there's unsent text/attachments, or
@@ -1545,7 +1549,9 @@ export function SeedRoom({
 
         {/* Plain-language "what this step is for". The tabs use the garden words
             (Discuss · Decide · Bloom); this line says, in ordinary language, what
-            you actually DO here — so a first-timer is never left guessing. */}
+            you actually DO here. Hidden on a brand-new seed so the landing stays
+            calm — it appears once the conversation is underway. */}
+        {!young && (
         <p className="mb-4 -mt-1 flex items-center justify-center gap-1.5 px-1 text-center text-[11px] leading-relaxed text-ink-soft">
           <span>
             {tab === "discuss"
@@ -1559,6 +1565,7 @@ export function SeedRoom({
             text="Every seed moves through three steps: Discuss (talk it through), Decide (everyone weighs in), and Bloom (it becomes a decision kept in your Sacred Tree). Tap the ? up top for the full walkthrough."
           />
         </p>
+        )}
 
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "decide" ? (
@@ -1759,11 +1766,7 @@ export function SeedRoom({
 
         {/* Compact AI helpers — summarize the thread, or ask an AI to mediate.
             Tucked into one small menu so it doesn't eat space on mobile. */}
-        <div className="relative mb-3 flex items-center justify-between gap-2">
-          <p className="text-[11px] text-ink-soft">
-            💬 What’s on your mind? A thought, a question, even a worry — share it, and the others
-            will weigh in.
-          </p>
+        <div className="relative mb-3 flex items-center justify-end gap-2">
           {aiEnabled && (
           <button
             onClick={() => setAiMenu((v) => !v)}
@@ -1854,16 +1857,16 @@ export function SeedRoom({
               bringing your people in the obvious next step — ThinkThru's whole
               point is deciding *together*, not alone with a bot. */}
           {seed.people.filter((p) => p.id !== currentUserId).length === 0 && (
-            <div className="rounded-2xl border border-[rgba(76,175,80,0.3)] bg-[rgba(76,175,80,0.06)] p-4 text-center">
-              <p className="text-sm font-semibold text-ink">👨‍👩‍👧 Better with your people</p>
-              <p className="mx-auto mt-1 max-w-xs text-xs text-ink-mid">
-                Claude’s in — now bring the folks who should decide this with you. That’s where it
-                comes alive.
-              </p>
-              <button onClick={() => setPeopleModal(true)} className="btn-primary mt-3 text-sm">
-                ✨ Bring your people in
-              </button>
-            </div>
+            <button
+              onClick={() => setPeopleModal(true)}
+              className="flex w-full items-center gap-3 rounded-xl border border-[rgba(76,175,80,0.3)] bg-[rgba(76,175,80,0.06)] p-3 text-left transition hover:border-accent active:scale-[0.99]"
+            >
+              <span className="text-lg" aria-hidden>👋</span>
+              <span className="min-w-0 flex-1 text-sm text-ink">
+                Bring your people in — it’s better decided together.
+              </span>
+              <span className="shrink-0 text-xs font-medium text-accent">Add →</span>
+            </button>
           )}
           {timeline.length === 0 && (
             <p className="text-sm text-ink-soft">🌱 Claude is reading your question — a first thought lands in a moment…</p>
