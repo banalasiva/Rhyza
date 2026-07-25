@@ -94,7 +94,8 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
       if (!id) throw new Error("no id");
       setTitle("");
       setOpen(false);
-      router.push(`/seeds/${id}`);
+      // ?planted=1 triggers the sprout celebration on arrival.
+      router.push(`/seeds/${id}?planted=1`);
     } catch {
       setError("Couldn't start it just now — try again in a moment.");
       setPosting(false);

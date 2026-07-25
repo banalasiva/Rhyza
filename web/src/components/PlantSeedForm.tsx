@@ -38,7 +38,8 @@ export function PlantSeedForm({ gardenId }: { gardenId: string }) {
         visibility,
       });
       track("seed_planted", { visibility });
-      router.push(`/seeds/${id}`);
+      // ?planted=1 triggers the sprout celebration on arrival.
+      router.push(`/seeds/${id}?planted=1`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setBusy(false);

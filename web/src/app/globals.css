@@ -473,6 +473,89 @@ html.light body {
   }
 }
 
+/* ── Sprout: the planting moment ──────────────────────────────────────────
+   Deliberately GENTLER + SHORTER than the bloom celebration — planting is hope,
+   not triumph, so the sprout stays a quieter beat and the bloom keeps the peak.
+   A seed drops, a stem grows from the soil, two leaves unfurl, a dew-tip pips. */
+.sprout-seed {
+  transform-box: view-box;
+  animation: sproutSeedDrop 0.55s cubic-bezier(0.3, 1.3, 0.5, 1) both;
+}
+@keyframes sproutSeedDrop {
+  0% { transform: translateY(-70px); opacity: 0; }
+  40% { opacity: 1; }
+  62% { transform: translateY(4px); }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.sprout-stem {
+  transform-box: view-box;
+  transform-origin: 100px 149px; /* soil base — grow UP from here */
+  animation: sproutStem 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
+}
+@keyframes sproutStem {
+  0% { transform: scaleY(0); }
+  72% { transform: scaleY(1.06); }
+  100% { transform: scaleY(1); }
+}
+.sprout-leaf {
+  transform-box: fill-box;
+  transform-origin: left center; /* unfurl outward from where it meets the stem */
+  opacity: 0;
+  animation: sproutLeaf 0.7s cubic-bezier(0.34, 1.56, 0.5, 1) both;
+}
+@keyframes sproutLeaf {
+  0% { transform: scale(0.05); opacity: 0; }
+  55% { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.sprout-tip {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sproutTip 0.6s ease-out 1.25s both;
+}
+@keyframes sproutTip {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.95; }
+}
+/* Soft green glow behind the sprout — gentle breathe, no hard edge. */
+.sprout-glow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 460px;
+  height: 460px;
+  margin-left: -230px;
+  margin-top: -230px;
+  max-width: 90vw;
+  max-height: 90vw;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle,
+    rgba(76, 175, 80, 0.32),
+    rgba(76, 175, 80, 0.1) 42%,
+    transparent 68%
+  );
+  animation: haloBreathe 3.4s ease-in-out infinite;
+}
+/* A few slow, low motes drifting up — dew/pollen, not confetti. */
+.sprout-mote {
+  position: absolute;
+  bottom: 34%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(200, 245, 200, 0.9), rgba(120, 200, 130, 0.2));
+  animation-name: sproutMote;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+@keyframes sproutMote {
+  0% { transform: translate(0, 0) scale(0.6); opacity: 0; }
+  20% { opacity: 0.9; }
+  80% { opacity: 0.7; }
+  100% { transform: translate(var(--drift, 0px), var(--rise, -40vh)) scale(1); opacity: 0; }
+}
+
 /* A single soft petal shape (device-independent — no emoji). The lopsided
    border-radius gives a rounded petal/teardrop rather than a plain oval. */
 .petal-shape {

@@ -38,6 +38,7 @@ import { ReadAloud } from "@/components/ReadAloud";
 import { MicButton } from "@/components/MicButton";
 import { MessageActions } from "@/components/MessageActions";
 import { ForwardPicker } from "@/components/ForwardPicker";
+import { SproutCelebration } from "@/components/SproutCelebration";
 import { SeedInvite } from "@/components/SeedInvite";
 import { RecognitionRow } from "@/components/RecognitionRow";
 import { MembersSheet } from "@/components/MembersSheet";
@@ -97,11 +98,13 @@ export function SeedRoom({
   reactions,
   currentUserId,
   uploadsEnabled = false,
+  justPlanted = false,
 }: {
   seed: SeedDetail;
   reactions: ReactionType[];
   currentUserId: string;
   uploadsEnabled?: boolean;
+  justPlanted?: boolean;
 }) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -136,6 +139,21 @@ export function SeedRoom({
   // Which message's action sheet is open (reactions + edit/copy/share/…).
   const [sheetForId, setSheetForId] = useState<string | null>(null);
   const [forwardId, setForwardId] = useState<string | null>(null); // message being forwarded
+  // The planting celebration — shown once, right after you plant this seed.
+  const [sprout, setSprout] = useState(justPlanted);
+  function dismissSprout() {
+    setSprout(false);
+    // Strip ?planted=1 so a refresh never replays it.
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("planted")) {
+        url.searchParams.delete("planted");
+        window.history.replaceState(null, "", url.pathname + url.search);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
   const [retagId, setRetagId] = useState<string | null>(null); // open re-tag menu
   // Initial draft = the server copy the page loaded with (SSR-safe). A newer
@@ -1468,6 +1486,8 @@ export function SeedRoom({
           {l.text}
         </span>
       ))}
+
+      {sprout && <SproutCelebration title={seed.title} onDone={dismissSprout} />}
 
       {blooming && (
         <BloomCelebration
