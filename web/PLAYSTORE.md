@@ -261,6 +261,53 @@ the same web build for iOS too.
 - [ ] First-run "Plant → Weigh in → Bloom" intro shows for a brand-new account
 - [ ] Privacy policy URL is real and reachable
 
+## Fixing the "target API level" notice (bump to Android 16 / API 36)
+
+Google raises the required **target API level** every year. If Play Console shows
+*"Your highest non-compliant target API level is Android 15 (API level 35) …
+update your app to target Android 16 (API level 36) or higher"*, the app stays
+live but you **can't publish updates** until you re-package against API 36
+(deadline for this round: **Aug 31 2026**). The website is unaffected — this is
+purely the Android shell.
+
+You need the **original signing keystore** (`android.keystore`, alias
+`thinkthru`) or your Play App Signing upload key. Then, on a machine with Node +
+a JDK:
+
+```bash
+# 1. Get the latest Bubblewrap — its newer template targets API 36.
+npm install -g @bubblewrap/cli@latest
+
+cd web
+# 2. Regenerate the Android project from the pinned config, picking up the new
+#    target SDK (keeps your keystore + package id). If you still have the project
+#    folder from last time, `bubblewrap update` instead of a fresh init.
+bubblewrap update            # or: bubblewrap init --manifest ./twa-manifest.json
+
+# 3. Confirm the target is actually 36 (Bubblewrap sometimes lags a release).
+#    Open the generated app/build.gradle and ensure BOTH read 36:
+#      compileSdkVersion 36
+#      targetSdkVersion  36
+#    If you had to raise them by hand, install the platform once:
+#      sdkmanager "platforms;android-36"
+
+# 4. appVersionCode/appVersionName are already bumped in twa-manifest.json
+#    (now 2 / "1.0.1"). If Play says the code is taken, set appVersionCode to
+#    (highest code ever uploaded + 1) — check Play Console → Release → App bundle
+#    explorer — then rebuild.
+bubblewrap build             # -> app-release-bundle.aab, signed with your key
+```
+
+Then in Play Console: **Production** (or Internal testing first) → **Create new
+release** → upload the new `.aab` → Save → Review → **Start rollout**. Once it's
+processed, the API-level warning clears and the "update your app" banner goes
+away. `minSdkVersion` (23) is unaffected — only the *target* moved.
+
+> Prefer no local tools? Re-run **PWABuilder** (`https://www.pwabuilder.com` →
+> `https://thinkthru.app` → Package → Android). Its current output already
+> targets the latest API level; just reuse your existing signing key so the
+> upload is accepted as an update, and give it a higher version code.
+
 ## Updating later
 
 Re-run PWABuilder (or just bump the version), upload a new `.aab` to the same

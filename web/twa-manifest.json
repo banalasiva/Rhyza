@@ -21,8 +21,8 @@
     "path": "./android.keystore",
     "alias": "thinkthru"
   },
-  "appVersionName": "1.0.0",
-  "appVersionCode": 1,
+  "appVersionName": "1.0.1",
+  "appVersionCode": 2,
   "shortcuts": [
     { "name": "Home", "shortName": "Home", "url": "/", "chosenIconUrl": "https://thinkthru.app/icon-192.png" },
     { "name": "Search people & seeds", "shortName": "Search", "url": "/search", "chosenIconUrl": "https://thinkthru.app/icon-192.png" },
