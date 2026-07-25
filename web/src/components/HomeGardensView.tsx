@@ -195,46 +195,39 @@ export function HomeGardensView({ groups: initial }: { groups: HomeGardenGroup[]
         const isCollapsed = collapsed.has(g.garden.id);
         return (
           <section key={g.garden.id}>
-            {/* Garden header — the relationship group. Tap the name to open it;
-                pin keeps it on top; chevron collapses the group. */}
-            <div className="mb-2 flex items-center gap-2">
+            {/* Quiet garden label — tap the name to open the group, tap the
+                collapse caret, and a faint pin that lights up only when pinned.
+                No counts, no chrome. */}
+            <div className="mb-2 flex items-center gap-1.5 px-0.5">
               <button
                 onClick={() => toggleCollapse(g.garden.id)}
                 aria-label={isCollapsed ? "Expand" : "Collapse"}
-                className="text-ink-soft transition hover:text-ink"
+                className="shrink-0 text-[10px] text-ink-soft transition hover:text-ink"
               >
                 {isCollapsed ? "▸" : "▾"}
               </button>
               <Link
                 href={`/gardens/${g.garden.id}`}
-                className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-ink transition hover:text-accent"
+                className="flex min-w-0 items-center gap-1.5 text-sm font-medium text-ink-mid transition hover:text-accent"
               >
                 <span aria-hidden>{g.garden.emoji}</span>
                 <span className="truncate">{g.garden.name}</span>
-                {g.pinned && <span aria-hidden title="Pinned">📌</span>}
               </Link>
-              <span className="text-[11px] text-ink-soft">
-                {g.seeds.length > 0
-                  ? `${g.seeds.length} ${g.seeds.length === 1 ? "decision" : "decisions"}`
-                  : "quiet"}
-              </span>
               <button
                 onClick={() => togglePin(g.garden.id)}
                 aria-label={g.pinned ? "Unpin garden" : "Pin garden to top"}
                 title={g.pinned ? "Unpin" : "Pin to top"}
                 className={
-                  "ml-auto rounded-full px-2 py-0.5 text-xs transition " +
-                  (g.pinned
-                    ? "text-accent hover:bg-[rgba(76,175,80,0.12)]"
-                    : "text-ink-soft hover:text-ink")
+                  "ml-auto shrink-0 rounded-full px-1.5 py-0.5 text-xs leading-none transition " +
+                  (g.pinned ? "bg-[rgba(76,175,80,0.16)]" : "opacity-40 hover:opacity-100")
                 }
               >
-                {g.pinned ? "📌 Pinned" : "📌 Pin"}
+                📌
               </button>
             </div>
 
             {!isCollapsed && (
-              <div className="space-y-3 border-l border-[rgba(76,175,80,0.15)] pl-3">
+              <div className="space-y-3">
                 {g.seeds.length === 0 ? (
                   <Link
                     href={`/gardens/${g.garden.id}#plant-seed`}
