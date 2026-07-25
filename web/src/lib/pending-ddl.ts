@@ -831,4 +831,25 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
     label: "gardens_created_by_is_default_idx",
     sql: `CREATE INDEX IF NOT EXISTS "gardens_created_by_is_default_idx" ON "gardens" ("created_by", "is_default")`,
   },
+
+  // 20260725_home_hide_pin — per-user "hide a seed" + "pin a garden" for the
+  // garden-grouped Home. Standalone (no FK to hot tables), read best-effort.
+  {
+    label: "seed_dismissals",
+    sql: `CREATE TABLE IF NOT EXISTS "seed_dismissals" (
+      "user_id"    UUID NOT NULL,
+      "seed_id"    UUID NOT NULL,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "seed_dismissals_pkey" PRIMARY KEY ("user_id", "seed_id")
+    )`,
+  },
+  {
+    label: "garden_pins",
+    sql: `CREATE TABLE IF NOT EXISTS "garden_pins" (
+      "user_id"    UUID NOT NULL,
+      "garden_id"  UUID NOT NULL,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "garden_pins_pkey" PRIMARY KEY ("user_id", "garden_id")
+    )`,
+  },
 ];

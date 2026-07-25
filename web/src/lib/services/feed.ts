@@ -51,7 +51,7 @@ function keysetOn(field: "lastActivityAt" | "bloomedAt", cursor: Cursor): object
   return [{ OR: [{ [field]: { lt: at } }, { [field]: at, id: { lt: cursor.id } }] }];
 }
 
-const seedSelect = {
+export const seedSelect = {
   id: true,
   title: true,
   stage: true,
@@ -80,7 +80,7 @@ function snippet(text: string): string {
 const textOf = (content: unknown) => snippet((content as { text?: string } | null)?.text ?? "");
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-function seedToItem(s: any, scope: "mine" | "public"): FeedItem {
+export function seedToItem(s: any, scope: "mine" | "public"): FeedItem {
   const latest = s.contributions[0];
   return {
     id: s.id,

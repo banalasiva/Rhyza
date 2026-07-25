@@ -3,6 +3,7 @@ import { requireViewer } from "@/lib/session";
 import { listGardens } from "@/lib/services/gardens";
 import { listPublicGardens } from "@/lib/services/explore";
 import { getYourTurn } from "@/lib/services/yourturn";
+import { getHomeGardens } from "@/lib/services/home";
 import { db } from "@/lib/db";
 import { NavBar } from "@/components/NavBar";
 import { GettingStarted } from "@/components/GettingStarted";
@@ -12,6 +13,7 @@ import { PushHealer } from "@/components/PushHealer";
 import { YourTurn } from "@/components/YourTurn";
 import { DiscoverGardens } from "@/components/DiscoverGardens";
 import { Feed } from "@/components/Feed";
+import { HomeGardensView } from "@/components/HomeGardensView";
 import { FirstDecision } from "@/components/FirstDecision";
 import { WelcomeFlow } from "@/components/WelcomeFlow";
 
@@ -90,15 +92,25 @@ async function GardensArea({
       <Suspense fallback={null}>
         <GettingStartedSection userId={userId} firstGardenId={gardens[0]?.id} />
       </Suspense>
-      {/* Home is for consuming — seeds to read and weigh in on. Creating a
-          garden or seed now lives in the Plant tab. Public gardens to discover
-          stay (collapsible), then the feed. */}
+      {/* Home is for consuming — your active decisions, grouped by the garden
+          (relationship group) they live in, pinned gardens first, then the
+          most-active. Public gardens to discover sit below. */}
       <Suspense fallback={null}>
-        <DiscoverSection />
+        <HomeGardensSection userId={userId} />
       </Suspense>
-      <Feed />
+      <div className="mt-8">
+        <Suspense fallback={null}>
+          <DiscoverSection />
+        </Suspense>
+      </div>
     </>
   );
+}
+
+// Your active decisions, grouped by garden (pinned first, most-active next).
+async function HomeGardensSection({ userId }: { userId: string }) {
+  const groups = await getHomeGardens(userId).catch(() => []);
+  return <HomeGardensView groups={groups} />;
 }
 
 // "It's your turn" — several queries; deferred so it never blocks first paint.
