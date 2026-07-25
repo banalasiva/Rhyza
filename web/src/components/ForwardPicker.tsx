@@ -13,8 +13,9 @@ type Garden = {
 };
 
 // A destination picker for forwarding a message. Lists your decisions grouped by
-// garden (relationship group), searchable; tap one to drop the message's text +
-// media into it. Bloomed (closed) seeds and the current seed are excluded.
+// garden (relationship group), searchable. Tap to SELECT several, then Forward
+// sends the message's text + media to all of them at once. Bloomed (closed)
+// seeds and the current seed are excluded.
 export function ForwardPicker({
   contributionId,
   excludeSeedId,
@@ -26,8 +27,9 @@ export function ForwardPicker({
 }) {
   const [gardens, setGardens] = useState<Garden[] | null>(null);
   const [q, setQ] = useState("");
-  const [sending, setSending] = useState<string | null>(null);
-  const [done, setDone] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [sending, setSending] = useState(false);
+  const [done, setDone] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,18 +39,32 @@ export function ForwardPicker({
       .catch(() => setGardens([]));
   }, []);
 
-  async function forward(seedId: string, title: string) {
-    if (sending) return;
-    setSending(seedId);
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    if (error) setError(null);
+  }
+
+  async function send() {
+    if (selected.size === 0 || sending) return;
+    setSending(true);
     setError(null);
-    try {
-      await apiPost(`/api/seeds/${seedId}/forward`, { contributionId });
-      setDone(title);
-      setTimeout(onClose, 1200);
-    } catch {
-      setSending(null);
+    const ids = [...selected];
+    const results = await Promise.allSettled(
+      ids.map((id) => apiPost(`/api/seeds/${id}/forward`, { contributionId })),
+    );
+    const ok = results.filter((r) => r.status === "fulfilled").length;
+    if (ok === 0) {
+      setSending(false);
       setError("Couldn't forward it just now — try again.");
+      return;
     }
+    setDone(ok);
+    setTimeout(onClose, 1200);
   }
 
   const ql = q.trim().toLowerCase();
@@ -74,9 +90,9 @@ export function ForwardPicker({
       <div
         role="dialog"
         aria-label="Forward to"
-        className="relative z-10 max-h-[85dvh] w-full max-w-md overflow-auto rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-4"
+        className="relative z-10 flex max-h-[85dvh] w-full max-w-md flex-col rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] shadow-2xl sm:rounded-2xl"
       >
-        <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center justify-between p-4 pb-2">
           <h2 className="text-sm font-semibold text-ink">↪ Forward to…</h2>
           <button onClick={onClose} aria-label="Close" className="text-ink-soft transition hover:text-ink">
             ✕
@@ -84,49 +100,88 @@ export function ForwardPicker({
         </div>
 
         {done ? (
-          <p className="py-8 text-center text-sm text-accent">✓ Forwarded to {done}</p>
+          <p className="px-4 py-8 text-center text-sm text-accent">
+            ✓ Forwarded to {done} {done === 1 ? "decision" : "decisions"}
+          </p>
         ) : (
           <>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search your decisions…"
-              className="input mb-3 w-full text-sm"
-            />
-            {error && <p className="mb-2 text-xs text-[#e57373]">{error}</p>}
-            {gardens === null && <p className="py-4 text-sm text-ink-soft">Loading…</p>}
-            {gardens && filtered.length === 0 && (
-              <p className="py-4 text-center text-xs text-ink-soft">
-                No other decisions to forward to yet — start one first 🌱
-              </p>
-            )}
-            <div className="space-y-4">
-              {filtered.map((g) => (
-                <div key={g.id}>
-                  <p className="mb-1 flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-ink-soft">
-                    <span aria-hidden>{g.emoji}</span>
-                    <span className="truncate">{g.name}</span>
-                  </p>
-                  <div className="space-y-1">
-                    {g.seeds.map((s) => (
-                      <button
-                        key={s.id}
-                        onClick={() => forward(s.id, s.title)}
-                        disabled={!!sending}
-                        className="flex w-full items-center gap-2 rounded-xl border border-[rgba(255,255,255,0.06)] bg-[rgba(7,13,7,0.35)] p-3 text-left transition hover:border-accent disabled:opacity-50"
-                      >
-                        <span className="shrink-0 text-xs" aria-hidden>
-                          {s.visibility === "private" ? "🔒" : "🌱"}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-sm text-ink">{s.title}</span>
-                        <span className="shrink-0 text-xs text-accent">
-                          {sending === s.id ? "Sending…" : "Forward →"}
-                        </span>
-                      </button>
-                    ))}
+            <div className="px-4">
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search your decisions…"
+                className="input w-full text-sm"
+              />
+              {error && <p className="mt-2 text-xs text-[#e57373]">{error}</p>}
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-auto px-4 py-3">
+              {gardens === null && <p className="py-4 text-sm text-ink-soft">Loading…</p>}
+              {gardens && filtered.length === 0 && (
+                <p className="py-4 text-center text-xs text-ink-soft">
+                  No other decisions to forward to yet — start one first 🌱
+                </p>
+              )}
+              <div className="space-y-4">
+                {filtered.map((g) => (
+                  <div key={g.id}>
+                    <p className="mb-1 flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-ink-soft">
+                      <span aria-hidden>{g.emoji}</span>
+                      <span className="truncate">{g.name}</span>
+                    </p>
+                    <div className="space-y-1">
+                      {g.seeds.map((s) => {
+                        const on = selected.has(s.id);
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => toggle(s.id)}
+                            aria-pressed={on}
+                            className={
+                              "flex w-full items-center gap-2 rounded-xl border p-3 text-left transition " +
+                              (on
+                                ? "border-accent bg-[rgba(76,175,80,0.1)]"
+                                : "border-[rgba(255,255,255,0.06)] bg-[rgba(7,13,7,0.35)] hover:border-accent")
+                            }
+                          >
+                            {/* Selection tick */}
+                            <span
+                              className={
+                                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] " +
+                                (on
+                                  ? "border-accent bg-accent text-[#07120a]"
+                                  : "border-[rgba(255,255,255,0.2)] text-transparent")
+                              }
+                              aria-hidden
+                            >
+                              ✓
+                            </span>
+                            <span className="shrink-0 text-xs" aria-hidden>
+                              {s.visibility === "private" ? "🔒" : "🌱"}
+                            </span>
+                            <span className="min-w-0 flex-1 truncate text-sm text-ink">{s.title}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            </div>
+
+            {/* Sticky action bar */}
+            <div className="border-t border-[rgba(255,255,255,0.08)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+              <button
+                onClick={send}
+                disabled={selected.size === 0 || sending}
+                className="btn-primary w-full text-sm disabled:opacity-50"
+              >
+                {sending
+                  ? "Forwarding…"
+                  : selected.size === 0
+                    ? "Select where to forward"
+                    : `Forward to ${selected.size} →`}
+              </button>
             </div>
           </>
         )}
