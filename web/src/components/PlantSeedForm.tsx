@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost } from "@/lib/client";
 import { track } from "@/lib/analytics";
+import { PlantingSprout } from "@/components/PlantingSprout";
 
 type GardenNode = { id: string; name: string; emoji: string };
 
@@ -12,6 +13,7 @@ export function PlantSeedForm({ gardenId }: { gardenId: string }) {
   const [title, setTitle] = useState("");
   const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [busy, setBusy] = useState(false);
+  const [planting, setPlanting] = useState(false); // the sprout is playing
   const [error, setError] = useState<string | null>(null);
   // Which garden this seed goes into — shown and changeable, so a seed never
   // silently lands in the wrong space (the "soccer went into networking" bug).
@@ -30,17 +32,21 @@ export function PlantSeedForm({ gardenId }: { gardenId: string }) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    // Sprout plays immediately and doubles as the loader.
+    setPlanting(true);
     setBusy(true);
     setError(null);
+    const startedAt = Date.now();
     try {
       const { id } = await apiPost<{ id: string }>(`/api/gardens/${garden}/seeds`, {
         title,
         visibility,
       });
       track("seed_planted", { visibility });
-      // ?planted=1 triggers the sprout celebration on arrival.
-      router.push(`/seeds/${id}?planted=1`);
+      const wait = Math.max(0, 1400 - (Date.now() - startedAt));
+      setTimeout(() => router.push(`/seeds/${id}`), wait);
     } catch (err) {
+      setPlanting(false);
       setError(err instanceof Error ? err.message : "Something went wrong");
       setBusy(false);
     }
@@ -48,6 +54,7 @@ export function PlantSeedForm({ gardenId }: { gardenId: string }) {
 
   return (
     <form onSubmit={submit} className="space-y-3">
+      {planting && <PlantingSprout />}
       {/* Planting-in selector — always visible so the target garden is obvious */}
       <div className="relative">
         <p className="mb-1 text-[11px] uppercase tracking-wide text-ink-soft">Planting in</p>

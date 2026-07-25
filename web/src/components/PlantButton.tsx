@@ -6,6 +6,7 @@ import Link from "next/link";
 import { NavIcon } from "@/components/nav-items";
 import { CreateGardenForm } from "@/components/CreateGardenForm";
 import { WaitingForThem } from "@/components/WaitingForThem";
+import { PlantingSprout } from "@/components/PlantingSprout";
 import { apiPost } from "@/lib/client";
 
 type GardenNode = { id: string; name: string; emoji: string };
@@ -27,6 +28,7 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
   // Quick-plant state
   const [title, setTitle] = useState("");
   const [posting, setPosting] = useState(false);
+  const [planting, setPlanting] = useState(false); // the sprout is playing over everything
   const [error, setError] = useState<string | null>(null);
   const [showGardens, setShowGardens] = useState(false);
 
@@ -87,18 +89,24 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
       setError("Just a few more words so people know what it's about.");
       return;
     }
+    // Start the sprout IMMEDIATELY — it plays over everything and doubles as the
+    // loader while the seed is created; then we drop straight into the thread.
+    setPlanting(true);
     setPosting(true);
     setError(null);
+    const startedAt = Date.now();
     try {
       const { id } = await apiPost<{ id: string }>("/api/seeds", { title: t });
       if (!id) throw new Error("no id");
       setTitle("");
       setOpen(false);
-      // ?planted=1 triggers the sprout celebration on arrival.
-      router.push(`/seeds/${id}?planted=1`);
+      // Let the sprout play out (min ~1.4s) before landing in the thread.
+      const wait = Math.max(0, 1400 - (Date.now() - startedAt));
+      setTimeout(() => router.push(`/seeds/${id}`), wait);
     } catch {
-      setError("Couldn't start it just now — try again in a moment.");
+      setPlanting(false);
       setPosting(false);
+      setError("Couldn't start it just now — try again in a moment.");
     }
   }
 
@@ -128,6 +136,7 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
 
   return (
     <>
+      {planting && <PlantingSprout />}
       {trigger}
       {open && (
         <div className="fixed inset-0 z-[130] flex items-end justify-center sm:items-center">

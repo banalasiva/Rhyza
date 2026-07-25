@@ -479,44 +479,58 @@ html.light body {
    A seed drops, a stem grows from the soil, two leaves unfurl, a dew-tip pips. */
 .sprout-seed {
   transform-box: view-box;
-  animation: sproutSeedDrop 0.55s cubic-bezier(0.3, 1.3, 0.5, 1) both;
+  animation: sproutSeedDrop 0.32s cubic-bezier(0.3, 1.4, 0.5, 1) both;
 }
 @keyframes sproutSeedDrop {
-  0% { transform: translateY(-70px); opacity: 0; }
-  40% { opacity: 1; }
-  62% { transform: translateY(4px); }
+  0% { transform: translateY(-80px); opacity: 0; }
+  50% { opacity: 1; }
+  70% { transform: translateY(5px); }
   100% { transform: translateY(0); opacity: 1; }
 }
 .sprout-stem {
   transform-box: view-box;
-  transform-origin: 100px 149px; /* soil base — grow UP from here */
-  animation: sproutStem 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.4s both;
+  transform-origin: 100px 149px; /* soil base — spring UP from here */
+  animation: sproutStem 0.5s cubic-bezier(0.34, 1.56, 0.4, 1) 0.22s both;
 }
 @keyframes sproutStem {
   0% { transform: scaleY(0); }
-  72% { transform: scaleY(1.06); }
+  70% { transform: scaleY(1.08); }
   100% { transform: scaleY(1); }
 }
 .sprout-leaf {
   transform-box: fill-box;
   transform-origin: left center; /* unfurl outward from where it meets the stem */
   opacity: 0;
-  animation: sproutLeaf 0.7s cubic-bezier(0.34, 1.56, 0.5, 1) both;
+  animation: sproutLeaf 0.42s cubic-bezier(0.34, 1.7, 0.5, 1) both;
 }
 @keyframes sproutLeaf {
   0% { transform: scale(0.05); opacity: 0; }
-  55% { opacity: 1; }
+  50% { opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
 .sprout-tip {
   transform-box: fill-box;
   transform-origin: center;
-  animation: sproutTip 0.6s ease-out 1.25s both;
+  animation: sproutTip 0.45s ease-out 0.82s both;
 }
 @keyframes sproutTip {
   0% { transform: scale(0); opacity: 0; }
-  60% { transform: scale(1.25); opacity: 1; }
+  55% { transform: scale(1.35); opacity: 1; }
   100% { transform: scale(1); opacity: 0.95; }
+}
+/* A quick sparkle pop around the sprout at the moment it finishes — the little
+   beat of joy. */
+.sprout-spark {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #eafff0, rgba(126, 208, 138, 0.5) 55%, transparent 72%);
+  opacity: 0;
+  animation: sproutSpark 0.7s ease-out both;
+}
+@keyframes sproutSpark {
+  0% { transform: translate(0, 0) scale(0); opacity: 0; }
+  35% { opacity: 1; }
+  100% { transform: translate(var(--sx, 0), var(--sy, 0)) scale(1); opacity: 0; }
 }
 /* Soft green glow behind the sprout — gentle breathe, no hard edge. */
 .sprout-glow {

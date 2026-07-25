@@ -11,13 +11,7 @@ import { SeedRhythm } from "@/components/SeedRhythm";
 import { LockedSeed } from "@/components/LockedSeed";
 import { GuestSeedView } from "@/components/GuestSeedView";
 
-export default async function SeedPage({
-  params,
-  searchParams,
-}: {
-  params: { id: string };
-  searchParams: { planted?: string };
-}) {
+export default async function SeedPage({ params }: { params: { id: string } }) {
   const viewer = await getViewer();
 
   // Signed-out guest: public seeds "just work" as a read-only page (anyone with
@@ -93,7 +87,6 @@ export default async function SeedPage({
           reactions={reactions}
           currentUserId={viewer.userId}
           uploadsEnabled={!!process.env.BLOB_READ_WRITE_TOKEN}
-          justPlanted={searchParams?.planted === "1"}
         />
       </main>
     </div>
