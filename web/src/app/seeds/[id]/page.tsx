@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getViewer } from "@/lib/session";
+import { db } from "@/lib/db";
 import { getSeedDetail, getSeedPreview, getPublicSeedForGuest } from "@/lib/services/seeds";
 import { getReactionTypes } from "@/lib/registry";
 import { NavBar } from "@/components/NavBar";
@@ -53,7 +54,15 @@ export default async function SeedPage({ params }: { params: { id: string } }) {
     );
   }
 
-  const reactions = await getReactionTypes();
+  // Opening a seed you'd hidden from Home brings it back — actively opening it
+  // is clear interest, so clear any dismissal. Best-effort, in parallel so it
+  // never adds latency (and a missing table never breaks the page).
+  const [reactions] = await Promise.all([
+    getReactionTypes(),
+    db.seedDismissal
+      .deleteMany({ where: { userId: viewer.userId, seedId: params.id } })
+      .catch(() => undefined),
+  ]);
 
   return (
     <div className="relative min-h-screen">
