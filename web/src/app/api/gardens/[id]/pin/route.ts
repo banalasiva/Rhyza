@@ -2,18 +2,22 @@ import { handle, ok } from "@/lib/api";
 import { requireUserId } from "@/lib/authz";
 import { db } from "@/lib/db";
 
-// POST /api/gardens/:id/pin — toggle "pin this garden to the top of my Home".
-// Per-user only; returns the new pinned state.
-export const POST = handle(async (_req, ctx: { params: { id: string } }) => {
+// POST /api/gardens/:id/pin — set whether this garden is pinned to the top of MY
+// Home. Idempotent: send { pinned: true|false } (defaults to true) so the client
+// stays the source of truth and the two never desync. Per-user only.
+export const POST = handle(async (req: Request, ctx: { params: { id: string } }) => {
   const userId = await requireUserId();
   const gardenId = ctx.params.id;
-  const existing = await db.gardenPin
-    .findUnique({ where: { userId_gardenId: { userId, gardenId } } })
-    .catch(() => null);
-  if (existing) {
-    await db.gardenPin.delete({ where: { userId_gardenId: { userId, gardenId } } });
-    return ok({ pinned: false });
+  const body = (await req.json().catch(() => ({}))) as { pinned?: boolean };
+  const pinned = body.pinned !== false; // default to pinning
+  if (pinned) {
+    await db.gardenPin.upsert({
+      where: { userId_gardenId: { userId, gardenId } },
+      update: {},
+      create: { userId, gardenId },
+    });
+  } else {
+    await db.gardenPin.deleteMany({ where: { userId, gardenId } });
   }
-  await db.gardenPin.create({ data: { userId, gardenId } });
-  return ok({ pinned: true });
+  return ok({ pinned });
 });

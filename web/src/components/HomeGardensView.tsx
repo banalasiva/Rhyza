@@ -8,6 +8,23 @@ import type { FeedItem } from "@/lib/services/feed";
 import type { HomeGardenGroup } from "@/lib/services/home";
 
 const COLLAPSE_KEY = "home_collapsed_gardens";
+const PIN_KEY = "home_pinned_gardens";
+
+function readPins(): Set<string> {
+  try {
+    const raw = localStorage.getItem(PIN_KEY);
+    return raw ? new Set<string>(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
+function writePins(s: Set<string>) {
+  try {
+    localStorage.setItem(PIN_KEY, JSON.stringify([...s]));
+  } catch {
+    /* ignore */
+  }
+}
 
 function timeAgo(iso: string): string {
   const s = Math.max(1, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
@@ -96,6 +113,17 @@ export function HomeGardensView({ groups: initial }: { groups: HomeGardenGroup[]
     }
   }, []);
 
+  // Merge locally-remembered pins on top of whatever the server returned, so a
+  // pin sticks on this device even before the garden_pins table is migrated (the
+  // server write is best-effort; localStorage is the source of truth for order).
+  useEffect(() => {
+    const local = readPins();
+    if (local.size === 0) return;
+    setGroups((gs) =>
+      sortGroups(gs.map((g) => (local.has(g.garden.id) ? { ...g, pinned: true } : g))),
+    );
+  }, []);
+
   function persistCollapsed(next: Set<string>) {
     try {
       localStorage.setItem(COLLAPSE_KEY, JSON.stringify([...next]));
@@ -115,15 +143,20 @@ export function HomeGardensView({ groups: initial }: { groups: HomeGardenGroup[]
   }
 
   function togglePin(gardenId: string) {
+    const current = groups.find((g) => g.garden.id === gardenId);
+    const nextPinned = !current?.pinned;
+    // Remember it on this device first — this is what actually keeps it on top,
+    // so it works whether or not the server table exists yet.
+    const pins = readPins();
+    if (nextPinned) pins.add(gardenId);
+    else pins.delete(gardenId);
+    writePins(pins);
     setGroups((gs) =>
-      sortGroups(gs.map((g) => (g.garden.id === gardenId ? { ...g, pinned: !g.pinned } : g))),
+      sortGroups(gs.map((g) => (g.garden.id === gardenId ? { ...g, pinned: nextPinned } : g))),
     );
-    apiPost(`/api/gardens/${gardenId}/pin`).catch(() => {
-      // Revert on failure.
-      setGroups((gs) =>
-        sortGroups(gs.map((g) => (g.garden.id === gardenId ? { ...g, pinned: !g.pinned } : g))),
-      );
-    });
+    // Best-effort server sync (cross-device once migrated). No revert — the local
+    // pin stands even if this fails, so a missing table never un-pins you.
+    apiPost(`/api/gardens/${gardenId}/pin`, { pinned: nextPinned }).catch(() => {});
   }
 
   const hideSeed = useCallback((seedId: string) => {
