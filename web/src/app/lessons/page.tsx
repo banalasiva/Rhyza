@@ -1,10 +1,6 @@
 import Link from "next/link";
 import { requireViewer } from "@/lib/session";
-import {
-  getReflectionSummary,
-  lessonsInsight,
-  listMyReflections,
-} from "@/lib/services/reflections";
+import { lessonsInsight, listMyReflections } from "@/lib/services/reflections";
 import { NavBar } from "@/components/NavBar";
 import { DistributionBar } from "@/components/DistributionBar";
 
@@ -26,15 +22,21 @@ const OUTCOME: Record<string, { label: string; color: string }> = {
 
 export default async function LessonsPage() {
   const viewer = await requireViewer();
-  const [summary, all] = await Promise.all([
-    getReflectionSummary(viewer.userId).catch(() => null),
-    listMyReflections(viewer.userId).catch(() => []),
-  ]);
+  const all = await listMyReflections(viewer.userId).catch(() => []);
   const lessons = all.filter((d) => d.lesson);
-  const weight = summary?.weight;
-  const weightTotal = weight
-    ? weight.very_tough + weight.tough + weight.medium + weight.easy + weight.very_easy
-    : 0;
+  // Derive the "how hard to learn" split straight from the lessons shown on this
+  // page, so the bar can never disagree with the cards below it. Only lessons the
+  // person actually rated for difficulty are counted — most people leave it blank,
+  // so the caption spells out how many of their lessons this covers.
+  const rated = lessons.filter((d) => d.lessonWeight && d.lessonWeight in WEIGHT);
+  const weight = {
+    very_tough: rated.filter((d) => d.lessonWeight === "very_tough").length,
+    tough: rated.filter((d) => d.lessonWeight === "tough").length,
+    medium: rated.filter((d) => d.lessonWeight === "medium").length,
+    easy: rated.filter((d) => d.lessonWeight === "easy").length,
+    very_easy: rated.filter((d) => d.lessonWeight === "very_easy").length,
+  };
+  const weightTotal = rated.length;
 
   return (
     <div className="relative min-h-screen">
@@ -46,19 +48,18 @@ export default async function LessonsPage() {
         </Link>
 
         <div className="mb-6">
-          <p className="eyebrow mb-1">💡 Lessons you&apos;ve drawn</p>
-          <h1 className="serif-lg">What reality taught you</h1>
+          <p className="eyebrow mb-1">💡 What you&apos;ve learned</p>
+          <h1 className="serif-lg">Lessons from your decisions</h1>
           <p className="mt-1 text-sm text-ink-mid">
-            Decision by decision, the wisdom that compounds — and how hard-won it&apos;s been. Only
-            you can see these.
+            What each decision taught you, and how hard it was to learn. Only you can see this.
           </p>
         </div>
 
         {lessons.length === 0 ? (
           <div className="card p-6 text-center text-sm text-ink-mid">
             <div className="mb-1 text-2xl">💡</div>
-            None yet. When a decision blooms, open it and note the biggest lesson — they gather here,
-            one decision at a time.
+            Nothing here yet. When a decision blooms, open it and jot down what you learned. Your
+            lessons collect here, one at a time.
           </div>
         ) : (
           <>
@@ -68,7 +69,7 @@ export default async function LessonsPage() {
                   <p className="serif-lg leading-relaxed text-ink">{lessonsInsight(weight)}</p>
                 )}
                 <DistributionBar
-                  title="How hard-won your lessons were"
+                  title="How hard these were to learn"
                   segments={[
                     { n: weight.very_tough, color: "#c62828", label: "Very tough" },
                     { n: weight.tough, color: "#ef6c57", label: "Tough" },
@@ -77,6 +78,12 @@ export default async function LessonsPage() {
                     { n: weight.very_easy, color: "#66BB6A", label: "Very easy" },
                   ]}
                 />
+                {weightTotal < lessons.length && (
+                  <p className="text-[11px] text-ink-soft">
+                    Based on the {weightTotal} of your {lessons.length} lessons you&apos;ve rated for
+                    difficulty — rate the rest whenever you look back on them.
+                  </p>
+                )}
               </div>
             )}
 

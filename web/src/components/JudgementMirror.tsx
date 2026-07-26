@@ -25,7 +25,7 @@ export function JudgementMirror({
         ]}
       />
       <DistributionBar
-        title="Would you decide the same again?"
+        title="Would you do the same again?"
         segments={[
           { n: summary.sameAgain.yes, color: "#66BB6A", label: "Yes" },
           { n: summary.sameAgain.unsure, color: "#8A94A6", label: "Not sure" },

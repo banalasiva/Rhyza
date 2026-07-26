@@ -56,19 +56,19 @@ export default async function JudgementPage() {
         </Link>
 
         <div className="mb-6">
-          <p className="eyebrow mb-1">🪞 Your judgement</p>
-          <h1 className="serif-lg">Looking back on your decisions</h1>
+          <p className="eyebrow mb-1">🪞 Looking back</p>
+          <h1 className="serif-lg">How your decisions turned out</h1>
           <p className="mt-1 text-sm text-ink-mid">
-            How your calls actually turned out, and whether you&apos;d stand by them. A mirror to
-            help you think better over time — not a score, and only you can see it.
+            How your decisions actually turned out, and whether you&apos;d make them again. It&apos;s
+            here to help you think better over time — not a score, and only you can see it.
           </p>
         </div>
 
         {empty ? (
           <div className="card p-6 text-center text-sm text-ink-mid">
             <div className="mb-1 text-2xl">🪞</div>
-            Nothing to reflect on yet. When a decision blooms, open it and note how it turned out —
-            over time, the pattern of your judgment shows up here.
+            Nothing to look back on yet. When a decision blooms, open it and note how it turned out.
+            Over time, you&apos;ll see a pattern in how your decisions turn out.
           </div>
         ) : (
           <>
@@ -81,7 +81,7 @@ export default async function JudgementPage() {
               <section className="mt-8">
                 <p className="eyebrow mb-1">By area</p>
                 <p className="mb-3 text-[11px] text-ink-soft">
-                  Your calls tend to land differently in different parts of life.
+                  Your decisions turn out differently in different parts of life.
                 </p>
                 <div className="space-y-5">
                   {areas.map((a) => (

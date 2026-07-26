@@ -210,7 +210,7 @@ export function BloomReflection({
             maxLength={2000}
             autoFocus
           />
-          <p className="mb-2 mt-4 text-xs text-ink-soft">How hard-won was this lesson?</p>
+          <p className="mb-2 mt-4 text-xs text-ink-soft">How hard was this to learn?</p>
           <div className="flex flex-wrap gap-2">
             {WEIGHTS.map((w) => (
               <button

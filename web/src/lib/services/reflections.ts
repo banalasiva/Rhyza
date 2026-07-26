@@ -360,25 +360,25 @@ export function judgementInsight(s: ReflectionSummary): string | null {
 
   if (oTotal >= 2) {
     if (outcome.expected >= outcome.better + outcome.worse) {
-      parts.push("Your expectations track reality closely — a well-calibrated read.");
+      parts.push("Most things turn out about how you expected.");
     } else if (outcome.worse > outcome.better) {
-      parts.push("Reality tends to land harder than you expect — a touch of optimism in your calls.");
+      parts.push("Things often turn out harder than you hoped — you lean a little optimistic.");
     } else if (outcome.better > outcome.worse) {
-      parts.push("Things tend to turn out better than you brace for — you may be underselling yourself.");
+      parts.push("Things often turn out better than you feared — you might be too hard on yourself.");
     } else {
-      parts.push("A real mix — some calls land as planned, some surprise you.");
+      parts.push("A real mix — some go to plan, some catch you off guard.");
     }
   }
 
   if (sTotal >= 2) {
     if (sameAgain.no === 0 && sameAgain.yes > 0) {
-      parts.push("And you'd stand by all of them, so far.");
+      parts.push("And so far, you'd make every one of them again.");
     } else if (sameAgain.no > 0) {
       parts.push(
-        `You'd redo ${sameAgain.no} of them — that's judgment sharpening, not failing.`,
+        `You'd do ${sameAgain.no} of them differently now — that's you getting wiser, not getting it wrong.`,
       );
     } else {
-      parts.push("A few you're still weighing.");
+      parts.push("A few you're still not sure about.");
     }
   }
 
@@ -392,9 +392,9 @@ export function lessonsInsight(weight: WeightCounts): string | null {
   if (total < 2) return null;
   const hard = weight.very_tough + weight.tough;
   const soft = weight.easy + weight.very_easy;
-  if (hard > soft) return "Hard-won, most of these — the costly lessons tend to stick.";
-  if (soft > hard) return "Most came gently — small course-corrections, caught early.";
-  return "A mix of hard-won and gentle lessons.";
+  if (hard > soft) return "Most of these were hard to learn — and the hard ones tend to stick.";
+  if (soft > hard) return "Most came easy — small fixes you caught early.";
+  return "A mix of easy and hard ones.";
 }
 
 export type ReflectionListItem = {
