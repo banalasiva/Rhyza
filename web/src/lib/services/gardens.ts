@@ -5,9 +5,13 @@ import { uniqueSlug } from "@/lib/slug";
 import { assertNotGuest } from "@/lib/guest";
 
 // Which seeds a viewer may see: public seeds, their own, or private seeds they
-// belong to. Used to filter garden listings and the Sacred Tree.
+// belong to. Used to filter garden listings and the Sacred Tree. A soft-deleted
+// seed is never visible — the `deletedAt: null` here is the single guard for
+// every surface built on this filter (the Sacred Tree reads blooms via the
+// `seed` relation and has no other place to exclude a deleted seed's bloom).
 function visibleSeedFilter(userId: string) {
   return {
+    deletedAt: null,
     OR: [
       { visibility: "public" },
       { createdById: userId },
@@ -81,10 +85,19 @@ export async function listGardens(userId: string, orgId: string) {
       where: gardensVisibleTo(userId, orgId),
       orderBy: { createdAt: "desc" },
       include: {
-        _count: { select: { members: true, seeds: true, blooms: true } },
+        _count: { select: { members: true, blooms: true } },
       },
     }),
   ]);
+  // Prisma's relation `_count.seeds` counts every row — including soft-deleted
+  // ones — so the badge would over-count. Count the live seeds per garden with
+  // an explicit `deletedAt: null` filter instead (one grouped query, not N).
+  const liveSeedCounts = await db.seed.groupBy({
+    by: ["gardenId"],
+    where: { gardenId: { in: gardens.map((g) => g.id) }, deletedAt: null },
+    _count: { _all: true },
+  });
+  const seedCountByGarden = new Map(liveSeedCounts.map((r) => [r.gardenId, r._count._all]));
   return gardens.map((g) => ({
     id: g.id,
     name: g.name,
@@ -93,7 +106,7 @@ export async function listGardens(userId: string, orgId: string) {
     emoji: g.emoji,
     stage: g.stage,
     visibility: g.visibility as "public" | "private",
-    seedCount: g._count.seeds,
+    seedCount: seedCountByGarden.get(g.id) ?? 0,
     memberCount: g._count.members,
     bloomCount: g._count.blooms,
   }));
@@ -210,9 +223,8 @@ export async function getGardenDetail(userId: string, gardenId: string) {
     db.seed.findMany({
       where: {
         gardenId,
-        deletedAt: null,
         // Active = anything not *truly* bloomed (a "bloomed" stage with no bloom
-        // is a phantom and counts as active).
+        // is a phantom and counts as active). visibleSeedFilter excludes deleted.
         NOT: { stage: "bloomed", bloomId: { not: null } },
         ...visibleSeedFilter(userId),
       },
@@ -227,7 +239,6 @@ export async function getGardenDetail(userId: string, gardenId: string) {
     db.seed.findMany({
       where: {
         gardenId,
-        deletedAt: null,
         stage: "bloomed",
         bloomId: { not: null },
         ...visibleSeedFilter(userId),
@@ -295,7 +306,7 @@ export async function getNavTree(userId: string, orgId: string) {
       emoji: true,
       visibility: true,
       seeds: {
-        where: { deletedAt: null, ...visibleSeedFilter(userId) },
+        where: { ...visibleSeedFilter(userId) },
         orderBy: { title: "asc" },
         select: { id: true, title: true, visibility: true, stage: true, bloomId: true },
       },

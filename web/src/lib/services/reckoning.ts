@@ -265,7 +265,7 @@ export async function openDueReckonings(limit = 25): Promise<{ opened: number; i
          FROM "blooms" b
          JOIN "seeds" s ON s.id = b.seed_id AND s."bloom_id" = b.id
          LEFT JOIN "bloom_reckoning_opens" o ON o."bloom_id" = b.id
-        WHERE b."bloomed_at" <= $1 AND o."bloom_id" IS NULL
+        WHERE b."bloomed_at" <= $1 AND o."bloom_id" IS NULL AND s."deleted_at" IS NULL
         ORDER BY b."bloomed_at" ASC
         LIMIT $2`,
       cutoff,
