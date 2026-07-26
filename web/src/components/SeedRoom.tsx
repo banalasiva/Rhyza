@@ -41,7 +41,6 @@ import { SeedInvite } from "@/components/SeedInvite";
 import { RecognitionRow } from "@/components/RecognitionRow";
 import { MembersSheet } from "@/components/MembersSheet";
 import { DeadlineSheet } from "@/components/DeadlineSheet";
-import { AskPeople } from "@/components/AskPeople";
 import { JoinRequests } from "@/components/JoinRequests";
 
 const SEED_TABS = [
@@ -1567,12 +1566,6 @@ export function SeedRoom({
                 </button>
                 .
               </p>
-              {/* More voices make a fairer decision — invite the people who
-                  should weigh in, right where the deciding happens. */}
-              <div className="mt-3 flex items-center gap-2 border-t border-[rgba(76,175,80,0.15)] pt-3">
-                <span className="text-xs text-ink-soft">Want more voices?</span>
-                <AskPeople seedId={seed.id} />
-              </div>
             </div>
             <QuorumV2 seedId={seed.id} />
           </div>

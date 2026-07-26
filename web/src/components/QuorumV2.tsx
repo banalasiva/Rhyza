@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPost, apiPut } from "@/lib/client";
 import { Avatar } from "@/components/Avatar";
+import { AskPeople } from "@/components/AskPeople";
 import { QUORUM_TEMPLATES } from "@/lib/constants";
 
 type Person = { id: string; name: string; image: string | null; role: string; isYou: boolean };
@@ -184,6 +185,27 @@ export function QuorumV2({ seedId }: { seedId: string }) {
           </p>
         </div>
 
+        {/* Deciding is better together — the invite lives right here in Step 2,
+            and it's loud when you're the only one so far (nothing to decide
+            alone). */}
+        {view.phase === "collecting" &&
+          (view.totalPeople <= 1 ? (
+            <div className="mb-3 flex items-center gap-3 rounded-xl border border-[rgba(76,175,80,0.35)] bg-[rgba(76,175,80,0.06)] p-3">
+              <span aria-hidden className="text-lg">
+                🙋
+              </span>
+              <p className="min-w-0 flex-1 text-xs text-ink-mid">
+                It&apos;s just you here so far — ask someone to weigh in.
+              </p>
+              <AskPeople seedId={seedId} />
+            </div>
+          ) : (
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-xs text-ink-soft">Want more voices?</span>
+              <AskPeople seedId={seedId} />
+            </div>
+          ))}
+
         {showWeighIn ? (
           // Key by the actual dimension set so that when switching purpose brings
           // a different set of questions, the weigh-in remounts fresh instead of
@@ -201,14 +223,16 @@ export function QuorumV2({ seedId }: { seedId: string }) {
         )}
       </section>
 
-      {/* ── Step 3 · Open results ── (steward only) */}
+      {/* ── Step 3 · Open results ── (steward only). Deliberately a quiet outline
+          button, not a solid green slab — the loud action on this page is tapping
+          people to vote, and a steward-only control shouldn't out-shout it. */}
       {view.canManage && view.phase === "collecting" && (
         <section>
           <p className="eyebrow mb-1.5">Step 3 · When you're ready</p>
           <button
             onClick={() => setPhaseAction("revealed")}
             disabled={busy}
-            className="btn-primary w-full text-sm disabled:opacity-50"
+            className="w-full rounded-full border border-[rgba(76,175,80,0.4)] px-4 py-2.5 text-sm font-medium text-accent transition hover:bg-[rgba(76,175,80,0.08)] disabled:opacity-50"
           >
             🔓 Open results to everyone ({view.submittedCount}/{view.totalPeople} answered)
           </button>
@@ -362,8 +386,8 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
           </button>
         )}
 
-        {/* ranked list */}
-        {ranked.length > 0 ? (
+        {/* the people you've chosen so far (only shown once there are some) */}
+        {ranked.length > 0 && (
           <ol className="mb-3 space-y-1.5">
             {ranked.map((id, i) => {
               const p = nameOf(id);
@@ -407,26 +431,36 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
               );
             })}
           </ol>
-        ) : (
-          <p className="mb-3 rounded-xl border border-dashed border-[rgba(255,255,255,0.12)] px-3 py-4 text-center text-xs text-ink-soft">
-            Tap the people this fits 👇
-          </p>
         )}
 
-        {/* pool */}
+        {/* Tapping a person IS the whole action here — so the people are the
+            loud, inviting part of the card (one clear instruction, accent chips
+            with a +), not a faint row you can skim past. */}
         {pool.length > 0 && (
           <div className="mb-1">
-            <p className="mb-1.5 text-[11px] text-ink-soft">{atCap ? `That's the max (${view.maxRank}).` : ranked.length > 0 ? "Add more:" : "Tap a name:"}</p>
-            <div className="flex flex-wrap gap-1.5">
+            <p className="mb-2 text-sm text-ink">
+              {atCap
+                ? `That's the max (${view.maxRank}).`
+                : ranked.length > 0
+                  ? "Add anyone else this fits:"
+                  : "👇 Tap everyone this fits — even one is enough."}
+            </p>
+            <div className="flex flex-wrap gap-2">
               {pool.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => add(p.id)}
                   disabled={atCap}
-                  className="flex items-center gap-1.5 rounded-full border border-[rgba(255,255,255,0.12)] py-1 pl-1 pr-2.5 text-xs text-ink-mid transition hover:border-[rgba(76,175,80,0.4)] hover:text-ink disabled:opacity-40"
+                  className="flex items-center gap-2 rounded-full border border-[rgba(76,175,80,0.45)] bg-[rgba(76,175,80,0.08)] py-1.5 pl-1.5 pr-3 text-sm text-ink transition hover:border-accent hover:bg-[rgba(76,175,80,0.16)] active:scale-95 disabled:opacity-40"
                 >
-                  <Avatar name={p.name} image={p.image} size={20} />
-                  <span className="max-w-[110px] truncate">{p.name}{p.isYou ? " (you)" : ""}</span>
+                  <Avatar name={p.name} image={p.image} size={26} />
+                  <span className="max-w-[130px] truncate">
+                    {p.name}
+                    {p.isYou ? " (you)" : ""}
+                  </span>
+                  <span aria-hidden className="text-base font-semibold leading-none text-accent">
+                    ＋
+                  </span>
                 </button>
               ))}
             </div>
