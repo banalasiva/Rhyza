@@ -159,8 +159,8 @@ export function PlantingSprout({ hold = false }: { hold?: boolean }) {
             fill="#8fd88a"
           />
 
-          {/* golden glow pooled behind the bud */}
-          <circle className="plant-bud-glow" cx="100" cy="102" r="26" fill="url(#plantGlowG)" />
+          {/* golden glow centered exactly behind the bud */}
+          <circle className="plant-bud-glow" cx="100" cy="100" r="24" fill="url(#plantGlowG)" />
 
           {/* the golden bud — small, with a bright tip */}
           <g className="plant-bud">

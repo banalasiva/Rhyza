@@ -1,21 +1,9 @@
-import Image from "next/image";
+import { SproutLoader } from "@/components/SproutLoader";
 
-// Global route loader — the ThinkThru emblem while any page loads.
+// The app-wide route loader — the resting golden sprout (same warm spotlight
+// ground as the bloom), replacing the old emblem "Loading…" screen. Renders for
+// any route without its own loader, and makes planting one continuous moment:
+// the germination overlay hands straight off to this while the thread loads.
 export default function Loading() {
-  return (
-    <div className="relative flex min-h-screen items-center justify-center">
-      <div className="garden-bg" />
-      <div className="relative z-10 flex flex-col items-center gap-3">
-        <Image
-          src="/emblem.png"
-          alt="ThinkThru"
-          width={72}
-          height={72}
-          priority
-          className="h-[72px] w-[72px] animate-pulse"
-        />
-        <p className="text-sm text-ink-soft">Loading…</p>
-      </div>
-    </div>
-  );
+  return <SproutLoader />;
 }
