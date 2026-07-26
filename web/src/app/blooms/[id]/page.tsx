@@ -219,10 +219,6 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
         <section className="mt-8">
           <div className="mb-3">
             <p className="eyebrow">How it landed for others</p>
-            <p className="mt-1 text-xs text-ink">
-              Your self-read is one voice. Ask the people it touched for theirs — that&apos;s how
-              judgment sharpens.
-            </p>
             <div className="mt-3">
               <CalibrateInvite bloomId={bloom.id} />
             </div>
