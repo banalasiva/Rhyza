@@ -48,11 +48,11 @@ const fmtDate = (iso: string) =>
 // A gentle, deterministic read of where the group landed — a reflection, never a
 // scoreboard. Only speaks once there are at least two voices.
 function groupRead(t: { well: number; mixed: number; regret: number }, total: number): string {
-  if (total < 2) return "The first look back. More voices sharpen it.";
+  if (total < 2) return "The first look back. It gets clearer as more people add theirs.";
   const { well, mixed, regret } = t;
-  if (well >= mixed + regret && well >= regret) return "Looking back, this one landed well. 🍎";
-  if (regret > well && regret >= mixed) return "Most would choose differently now — that's judgment, earned. 🌰";
-  return "A mixed call, seen clearly — some good, some to learn from. 🍂";
+  if (well >= mixed + regret && well >= regret) return "Looking back, this one turned out well. 🍎";
+  if (regret > well && regret >= mixed) return "Most would choose differently now — good to know for next time. 🌰";
+  return "A mixed one — some of it worked, some to learn from. 🍂";
 }
 
 export function BloomReckoning({ bloomId, initial }: { bloomId: string; initial: Reckoning }) {
@@ -110,9 +110,8 @@ export function BloomReckoning({ bloomId, initial }: { bloomId: string; initial:
           <div className="flex items-center gap-3">
             <span aria-hidden className="text-lg">🍂</span>
             <p className="min-w-0 flex-1 text-xs leading-relaxed text-ink-soft">
-              The reckoning opens around{" "}
-              <span className="text-ink-mid">{fmtDate(r.dueAt)}</span> — we&apos;ll nudge everyone to
-              look back on how this turned out.
+              Around <span className="text-ink-mid">{fmtDate(r.dueAt)}</span>, we&apos;ll nudge
+              everyone to look back on how this turned out.
             </p>
             {r.canReckon && (
               <button
@@ -144,10 +143,10 @@ export function BloomReckoning({ bloomId, initial }: { bloomId: string; initial:
       <div className="mb-3 flex items-end justify-between gap-2">
         <div>
           <p className="eyebrow" style={{ color: "#FFB300" }}>
-            🍂 The reckoning
+            🍂 Looking back, together
           </p>
           <p className="mt-0.5 text-xs text-ink-soft">
-            Weeks on — how did it actually turn out? A look back, together.
+            Weeks on — how did it actually turn out?
           </p>
         </div>
         {r.myVerdict && !editing && (
@@ -261,7 +260,7 @@ export function BloomReckoning({ bloomId, initial }: { bloomId: string; initial:
             </div>
             <p className="mt-2 text-[11px] text-ink-soft">
               {total === 0
-                ? "No verdicts yet — be the first to look back."
+                ? "No answers yet — be the first to look back."
                 : `${total} ${total === 1 ? "voice" : "voices"} so far`}
             </p>
           </div>
@@ -315,7 +314,7 @@ export function BloomReckoning({ bloomId, initial }: { bloomId: string; initial:
             </div>
             <p className="serif-lg mt-4 animate-[fadeUp_0.5s_ease-out]">You looked back</p>
             <p className="mt-1 max-w-[15rem] animate-[fadeUp_0.6s_ease-out] text-center text-xs text-ink-soft">
-              Judging your own calls honestly — that&apos;s how judgment sharpens.
+              Being honest about your own calls is how you get wiser.
             </p>
           </div>
         )}

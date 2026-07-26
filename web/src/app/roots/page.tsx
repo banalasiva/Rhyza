@@ -117,11 +117,11 @@ export default async function RootsPage() {
           <section className="mb-8">
             <div className="mb-3 flex items-end justify-between gap-2">
               <div>
-                <p className="eyebrow mb-1">🪞 Your judgement, looking back</p>
+                <p className="eyebrow mb-1">🪞 Looking back</p>
                 <p className="text-[11px] text-ink-soft">
                   Across {judgement.reflected}{" "}
-                  {judgement.reflected === 1 ? "decision" : "decisions"} you&apos;ve revisited. A
-                  mirror for you — not a score, never shared.
+                  {judgement.reflected === 1 ? "decision" : "decisions"} you&apos;ve looked back on.
+                  Just for you — no score, never shared.
                 </p>
               </div>
               <Link href="/judgement" className="btn-ghost shrink-0 px-3 py-1.5 text-xs">
@@ -139,9 +139,9 @@ export default async function RootsPage() {
         <section className="mb-8">
           <div className="mb-3 flex items-end justify-between gap-2">
             <div>
-              <p className="eyebrow mb-1">💡 Lessons you&apos;ve drawn</p>
+              <p className="eyebrow mb-1">💡 What you&apos;ve learned</p>
               <p className="text-[11px] text-ink-soft">
-                What reality taught you, decision by decision. Only you can see these.
+                What each decision taught you. Only you can see this.
               </p>
             </div>
             {lessons.length > 0 && (
@@ -154,17 +154,17 @@ export default async function RootsPage() {
             <div className="card p-5 text-center">
               <div className="mb-1 text-2xl">💡</div>
               <p className="text-sm text-ink-mid">
-                None yet. When one of your decisions blooms, open it and reflect on{" "}
-                <span className="text-ink">“what did reality teach me?”</span> — your biggest
-                lessons gather here, one decision at a time.
+                Nothing yet. When one of your decisions blooms, open it and ask yourself{" "}
+                <span className="text-ink">“what did I learn?”</span> Your lessons collect here, one
+                at a time.
               </p>
             </div>
           ) : weightTotal > 0 && w ? (
             // Mirror the Judgement section: show the STAT (how hard-won), and
             // let "See all →" open the full list of lessons.
-            <div className="card p-5">
+            <div className="card space-y-3 p-5">
               <DistributionBar
-                title="How hard-won your lessons were"
+                title="How hard these were to learn"
                 segments={[
                   { n: w.very_tough, color: "#c62828", label: "Very tough" },
                   { n: w.tough, color: "#ef6c57", label: "Tough" },
@@ -173,6 +173,12 @@ export default async function RootsPage() {
                   { n: w.very_easy, color: "#66BB6A", label: "Very easy" },
                 ]}
               />
+              {Math.min(weightTotal, lessons.length) < lessons.length && (
+                <p className="text-[11px] text-ink-soft">
+                  Based on the {Math.min(weightTotal, lessons.length)} of your {lessons.length}{" "}
+                  lessons you&apos;ve rated for difficulty.
+                </p>
+              )}
             </div>
           ) : (
             // Before any lesson has a toughness rating, preview the lessons
