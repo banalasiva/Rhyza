@@ -474,92 +474,88 @@ html.light body {
 }
 
 /* ── Sprout: the planting moment ──────────────────────────────────────────
-   A full-screen germination in three beats — a seed drops, a golden spark
-   bursts (the seed becomes light), then a two-leaf bud unfurls with a warm
-   golden glow pooling behind it. Golden sparkles drift up throughout. Gold,
-   not green, so it belongs to the bloom's family of joy while staying its own
-   thing: a beginning (a bud) next to the bloom's full flower. Plays ONCE as
-   the create-loader, then drops you into the thread. */
+   A full-screen germination that grows the way a real seed does — up, from the
+   soil, never dropping from the sky: a seed rests in the soil, a germination
+   spark fires at the ground, the sprout rises, two leaves unfurl, and the bud
+   forms and glows. Golden sparkles drift up throughout. Plays ONCE as the
+   create-loader, then lands you in the thread.
 
-/* The full-viewport ground the sprout sits on. ONE common warm-espresso
-   spotlight — the SAME ground as the bloom celebration — so it reads as an
-   intentional moment in BOTH light and dark themes (a studio spotlight), never
-   a stray black box, and ties the planting moment to the bloom's family. */
+   Theme-aware ground: a warm-espresso spotlight in dark mode (same family as
+   the bloom); a clean white in light mode. */
 .plant-stage {
   background: radial-gradient(circle at 50% 44%, #241300 0%, #0a0600 68%);
 }
-
-/* The breathing golden halo behind the sprout. */
-.plant-halo {
-  background: radial-gradient(circle, rgba(245, 196, 81, 0.34), rgba(245, 196, 81, 0.12) 44%, transparent 70%);
-  animation: haloBreathe 3.6s ease-in-out infinite;
+html.light .plant-stage {
+  background: #ffffff;
 }
 
-/* Beat 1 — the seed falls in and is consumed by the spark. */
+/* The soft ambient halo that swells as the bud glows. */
+.plant-halo {
+  background: radial-gradient(circle, rgba(245, 196, 81, 0.3), rgba(245, 196, 81, 0.1) 44%, transparent 70%);
+  opacity: 0;
+  animation: plantHaloIn 0.9s ease-out 1.2s both;
+}
+html.light .plant-halo {
+  background: radial-gradient(circle, rgba(240, 170, 50, 0.3), rgba(240, 170, 50, 0.1) 46%, transparent 72%);
+}
+@keyframes plantHaloIn {
+  0% { opacity: 0; }
+  100% { opacity: 0.9; }
+}
+
+/* The soil the seed is planted in — dark earth in dark mode, warm brown on
+   white so it still reads as soil, not a hard blob. */
+.plant-soil-1 { fill: #1c1206; }
+.plant-soil-2 { fill: #2a1c0c; }
+html.light .plant-soil-1 { fill: #6b4a28; }
+html.light .plant-soil-2 { fill: #8a5f34; }
+
+/* The seed, resting in the soil — fades in, then dims as the sprout takes over
+   (it never falls from above). */
 .plant-seed {
   transform-box: fill-box;
   transform-origin: center;
-  animation: plantSeed 0.55s cubic-bezier(0.3, 0.7, 0.3, 1) both;
+  animation: plantSeed 0.8s ease-out both;
 }
 @keyframes plantSeed {
-  0% { opacity: 0; transform: translateY(-90px) scale(0.7); }
-  45% { opacity: 1; transform: translateY(0) scale(1); }
-  58% { transform: translateY(-3px) scale(1.06, 0.92); }
-  74% { opacity: 0; transform: translateY(0) scale(0.4); }
-  100% { opacity: 0; }
+  0% { opacity: 0; transform: scale(0.5); }
+  30% { opacity: 1; transform: scale(1); }
+  62% { opacity: 1; }
+  85% { opacity: 0.25; }
+  100% { opacity: 0.25; }
 }
 
-/* Beat 2 — the golden spark: a flash of light, rays, a ring of sparkles. */
-.plant-spark {
+/* Germination — a flash at the seed and a few sparks rising FROM the soil. */
+.plant-germ {
   transform-box: fill-box;
   transform-origin: center;
-  animation: plantSpark 0.95s ease-out 0.3s both;
+  animation: plantGerm 0.42s ease-out 0.28s both;
 }
-@keyframes plantSpark {
+@keyframes plantGerm {
   0% { opacity: 0; transform: scale(0.2); }
-  16% { opacity: 1; transform: scale(1.7); }
-  28% { opacity: 1; transform: scale(1); }
-  58% { opacity: 0.5; transform: scale(0.7); }
-  100% { opacity: 0; transform: scale(0.3); }
+  45% { opacity: 1; transform: scale(1.5); }
+  100% { opacity: 0; transform: scale(0.6); }
 }
-.plant-ray {
+.plant-gspark {
   transform-box: fill-box;
-  transform-origin: 100px 118px;
-  animation: plantRay 0.7s ease-out 0.32s both;
+  transform-origin: center;
+  animation: plantGSpark 0.45s ease-out 0.3s both;
 }
-@keyframes plantRay {
-  0% { opacity: 0; transform: scaleY(0.1); }
-  30% { opacity: 1; transform: scaleY(1); }
-  72% { opacity: 0; transform: scaleY(1.15); }
-  100% { opacity: 0; }
-}
-/* A ring of sparkles fired off by the spark. */
-.plant-burst {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  border-radius: 9999px;
-  background: radial-gradient(circle, #fff, #ffe08a 40%, transparent 72%);
-  opacity: 0;
-  animation: plantBurst 0.85s ease-out 0.34s both;
-}
-@keyframes plantBurst {
-  0% { opacity: 0; transform: translate(-50%, -50%) translate(0, 0) scale(0.4); }
-  26% { opacity: 1; transform: translate(-50%, -50%) translate(var(--bx, 0), var(--by, 0)) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -50%) translate(calc(var(--bx, 0) * 1.4), calc(var(--by, 0) * 1.4)) scale(0.3); }
+@keyframes plantGSpark {
+  0% { opacity: 0; transform: translateY(0) scale(0.3); }
+  40% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-14px) scale(1); }
 }
 
-/* Beat 3 — stem springs, two leaves unfurl, the golden bud pops. */
+/* The stem rises UP out of the soil. */
 .plant-stem {
-  transform-box: fill-box;
-  transform-origin: bottom center;
-  animation: plantStem 0.55s cubic-bezier(0.34, 1.4, 0.4, 1) 0.45s both;
+  transform-box: view-box;
+  transform-origin: 100px 152px; /* the soil line — grow up from here */
+  animation: plantStem 0.6s cubic-bezier(0.34, 1.4, 0.4, 1) 0.45s both;
 }
 @keyframes plantStem {
   0% { transform: scaleY(0); opacity: 0; }
-  30% { opacity: 1; }
+  20% { opacity: 1; }
   100% { transform: scaleY(1); opacity: 1; }
 }
 .plant-leaf {
@@ -568,11 +564,11 @@ html.light body {
 }
 .plant-leaf-l {
   transform-origin: right center;
-  animation: plantLeafL 0.5s cubic-bezier(0.34, 1.5, 0.5, 1) 0.62s both;
+  animation: plantLeafL 0.45s cubic-bezier(0.34, 1.5, 0.5, 1) 0.7s both;
 }
 .plant-leaf-r {
   transform-origin: left center;
-  animation: plantLeafR 0.5s cubic-bezier(0.34, 1.5, 0.5, 1) 0.72s both;
+  animation: plantLeafR 0.45s cubic-bezier(0.34, 1.5, 0.5, 1) 0.8s both;
 }
 @keyframes plantLeafL {
   0% { opacity: 0; transform: scale(0) rotate(8deg); }
@@ -584,33 +580,31 @@ html.light body {
   45% { opacity: 1; }
   100% { opacity: 1; transform: scale(1) rotate(0deg); }
 }
+/* The bud forms at the top of the stem. */
 .plant-bud {
-  transform-box: fill-box;
-  transform-origin: bottom center;
-  animation: plantBud 0.75s cubic-bezier(0.25, 1.4, 0.4, 1) 0.85s both;
+  transform-box: view-box;
+  transform-origin: 100px 113px; /* the bud's base, where it meets the stem */
+  animation: plantBud 0.5s cubic-bezier(0.25, 1.4, 0.4, 1) 1.15s both;
 }
 @keyframes plantBud {
   0% { opacity: 0; transform: scale(0); }
-  45% { opacity: 1; transform: scale(1.15); }
-  62% { transform: scale(1); }
-  82% { transform: scale(1.05) translateY(-2px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
+  55% { opacity: 1; transform: scale(1.14); }
+  72% { transform: scale(1); }
+  100% { opacity: 1; transform: scale(1); }
 }
-/* The golden glow pooled behind the bud — swells as it opens, then breathes. */
+/* The golden glow — opacity ONLY (no transform), fixed at the bud's centre, so
+   it can never drift off the bud. */
 .plant-bud-glow {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: plantBudGlow 1.05s ease-in-out 0.85s both;
+  opacity: 0;
+  animation: plantBudGlow 0.6s ease-out 1.4s both;
 }
 @keyframes plantBudGlow {
-  0% { opacity: 0; transform: scale(0.5); }
-  35% { opacity: 1; transform: scale(1.15); }
-  62% { opacity: 0.78; transform: scale(1); }
-  100% { opacity: 1; transform: scale(1.08); }
+  0% { opacity: 0; }
+  100% { opacity: 1; }
 }
 
-/* Ambient golden sparkles drifting upward — the constant shimmer that keeps
-   the moment alive, the way the bloom's petals do. */
+/* Ambient sparkles drifting upward — gold in dark mode; a deeper amber on white
+   so they still glint. */
 .plant-sparkle {
   position: absolute;
   border-radius: 9999px;
@@ -621,34 +615,14 @@ html.light body {
   animation-iteration-count: infinite;
   will-change: transform, opacity;
 }
+html.light .plant-sparkle {
+  background: radial-gradient(circle, #f2b12a, #d9922b 55%, transparent 76%);
+}
 @keyframes plantFloatUp {
-  0% { opacity: 0; transform: translateY(24px) scale(0.6); }
+  0% { opacity: 0; transform: translateY(22px) scale(0.6); }
   20% { opacity: var(--peak, 0.8); }
   80% { opacity: var(--peak, 0.8); }
-  100% { opacity: 0; transform: translateY(-92px) scale(1); }
-}
-
-/* Resting end-state (`hold`) — a grown bud with no entrance beats, for the seed
-   route's loader. Force each part to its final, shown form (the animated base
-   styles start hidden) and let only the glow keep its gentle breathe. */
-.plant-hold .plant-stem {
-  transform: scaleY(1);
-  opacity: 1;
-  animation: none;
-}
-.plant-hold .plant-leaf {
-  transform: none;
-  opacity: 1;
-  animation: none;
-}
-.plant-hold .plant-bud {
-  transform: none;
-  opacity: 1;
-  animation: none;
-}
-.plant-hold .plant-bud-glow {
-  opacity: 1;
-  animation: haloBreathe 3.2s ease-in-out infinite;
+  100% { opacity: 0; transform: translateY(-96px) scale(1); }
 }
 
 /* A single soft petal shape (device-independent — no emoji). The lopsided

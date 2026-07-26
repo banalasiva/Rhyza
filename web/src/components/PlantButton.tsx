@@ -100,8 +100,8 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
       if (!id) throw new Error("no id");
       setTitle("");
       setOpen(false);
-      // Let the sprout play out (min ~1.4s) before landing in the thread.
-      const wait = Math.max(0, 1900 - (Date.now() - startedAt));
+      // Let the sprout grow all the way to the glowing bud before landing.
+      const wait = Math.max(0, 2100 - (Date.now() - startedAt));
       setTimeout(() => router.push(`/seeds/${id}`), wait);
     } catch {
       setPlanting(false);

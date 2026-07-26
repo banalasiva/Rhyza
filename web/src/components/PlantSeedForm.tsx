@@ -43,7 +43,7 @@ export function PlantSeedForm({ gardenId }: { gardenId: string }) {
         visibility,
       });
       track("seed_planted", { visibility });
-      const wait = Math.max(0, 1900 - (Date.now() - startedAt));
+      const wait = Math.max(0, 2100 - (Date.now() - startedAt));
       setTimeout(() => router.push(`/seeds/${id}`), wait);
     } catch (err) {
       setPlanting(false);
