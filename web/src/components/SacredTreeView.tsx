@@ -1,9 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { Avatar } from "@/components/Avatar";
-import { BloomContent } from "@/components/BloomContent";
 
 type Bloom = {
   id: string;
@@ -25,10 +22,11 @@ const BRANCH = [
   { left: "50%", top: "48%" },
 ];
 
+// The Sacred Tree: bloomed decisions hanging on the branches. Tapping a bloom
+// opens its full page directly — there's no in-tree preview panel (it hard-coded
+// a dark background that turned dark-on-dark in light theme, and on mobile it ate
+// the whole width). The full bloom page renders every section, correctly themed.
 export function SacredTreeView({ blooms }: { blooms: Bloom[] }) {
-  const [selected, setSelected] = useState<string | null>(null);
-  const active = blooms.find((b) => b.id === selected) ?? null;
-
   return (
     <div className="relative flex min-h-[78vh] overflow-hidden rounded-2xl border border-[rgba(76,175,80,0.12)]">
       {/* Tree artwork */}
@@ -54,73 +52,38 @@ export function SacredTreeView({ blooms }: { blooms: Bloom[] }) {
         ) : (
           blooms.map((b, i) => {
             const pos = BRANCH[i % BRANCH.length];
-            const isSel = selected === b.id;
             return (
-              <button
+              <Link
                 key={b.id}
-                onClick={() => setSelected(isSel ? null : b.id)}
-                className="absolute z-[3] -translate-x-1/2 -translate-y-1/2 transition-transform"
-                style={{ left: pos.left, top: pos.top, transform: `translate(-50%,-50%) scale(${isSel ? 1.25 : 1})` }}
+                href={`/blooms/${b.id}`}
+                aria-label={`Open bloom: ${b.title}`}
+                className="absolute z-[3] -translate-x-1/2 -translate-y-1/2 transition-transform hover:scale-110 active:scale-95"
+                style={{ left: pos.left, top: pos.top }}
               >
                 <div className="relative">
                   <div
                     className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-                    style={{ width: isSel ? 80 : 56, height: isSel ? 80 : 56, background: "radial-gradient(circle,rgba(255,213,79,0.5) 0%,transparent 70%)" }}
+                    style={{ width: 56, height: 56, background: "radial-gradient(circle,rgba(255,213,79,0.5) 0%,transparent 70%)" }}
                   />
-                  <div className="relative" style={{ fontSize: isSel ? 32 : 26, filter: "drop-shadow(0 0 12px rgba(255,213,79,0.8))", lineHeight: 1 }}>
+                  <div className="relative" style={{ fontSize: 26, filter: "drop-shadow(0 0 12px rgba(255,213,79,0.8))", lineHeight: 1 }}>
                     🌸
                   </div>
                   <span className="absolute -right-3.5 -top-2.5 rounded-full bg-[rgba(255,179,0,0.95)] px-1.5 py-0.5 text-[11px] font-bold text-[#0A0500]">
                     v{b.version}
                   </span>
-                  {!isSel && (
-                    <span className="absolute -bottom-9 left-1/2 line-clamp-2 w-[150px] -translate-x-1/2 rounded-lg bg-black/60 px-2 py-1 text-center text-[11px] leading-tight text-white/85 backdrop-blur">
-                      {b.title}
-                    </span>
-                  )}
+                  <span className="absolute -bottom-9 left-1/2 line-clamp-2 w-[150px] -translate-x-1/2 rounded-lg bg-black/60 px-2 py-1 text-center text-[11px] leading-tight text-white/85 backdrop-blur">
+                    {b.title}
+                  </span>
                 </div>
-              </button>
+              </Link>
             );
           })
         )}
 
         <div className="absolute bottom-5 left-1/2 z-[3] -translate-x-1/2 text-center">
-          <p className="text-xs italic text-white/35">Tap a 🌸 to explore its knowledge lineage</p>
+          <p className="text-xs italic text-white/35">Tap a 🌸 to open its bloom</p>
         </div>
       </div>
-
-      {/* Lineage panel */}
-      {active && (
-        <div className="relative z-10 w-full max-w-[360px] shrink-0 overflow-y-auto border-l border-[rgba(76,175,80,0.2)] bg-[rgba(4,10,4,0.95)] p-5 backdrop-blur">
-          <div className="mb-3 flex items-start justify-between gap-2">
-            <div>
-              <p className="eyebrow mb-1 text-bloom">🌸 Bloomed · v{active.version}</p>
-              <h2 className="serif-lg">{active.title}</h2>
-            </div>
-            <button onClick={() => setSelected(null)} className="text-ink-soft hover:text-ink">✕</button>
-          </div>
-          <div className="mb-5 text-sm leading-relaxed text-ink-mid">
-            <BloomContent text={active.summary} />
-          </div>
-
-          <p className="eyebrow mb-2">Lineage — who grew this</p>
-          <div className="space-y-2">
-            {active.contributors.map((c, i) => (
-              <div key={i} className="flex items-center gap-2 rounded-xl bg-[rgba(255,255,255,0.04)] p-2">
-                <Avatar name={c.name} size={28} />
-                <div>
-                  <p className="text-sm text-ink">{c.name || "A contributor"}</p>
-                  <p className="text-xs text-ink-soft">{c.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <Link href={`/blooms/${active.id}`} className="btn-ghost mt-5 w-full">
-            Open full bloom →
-          </Link>
-        </div>
-      )}
     </div>
   );
 }
