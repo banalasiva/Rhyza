@@ -1731,36 +1731,27 @@ export function SeedRoom({
         ) : (
           <>
             <h1 className="serif-xl mb-1 break-words">{seedTitle}</h1>
-            {/* WhatsApp group-header pattern: the actual faces of who's in the
-                room (tap to open the members sheet), a small visibility chip,
-                and an always-visible "＋" so adding people is never buried. Faces
-                are far more legible and inviting than a "3 members" count. */}
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <AvatarRow
-                people={seed.people}
-                onClick={() => {
-                  setSeedMenu(true);
-                  setInviteOpen(false);
-                }}
-              />
-              <button
-                onClick={() => {
-                  setSeedMenu(true);
-                  setInviteOpen(false);
-                }}
-                aria-haspopup="dialog"
-                className="inline-flex items-center gap-1 text-xs text-ink-soft transition hover:text-ink"
-              >
-                <span>{visibility === "private" ? "🔒 Private" : "🌍 Public"}</span>
-                <span aria-hidden className="text-sm leading-none">⌄</span>
-              </button>
-              <button
-                onClick={() => setPeopleModal(true)}
-                className="ml-auto inline-flex items-center gap-1 rounded-full border border-[rgba(76,175,80,0.35)] bg-[rgba(76,175,80,0.08)] px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-[rgba(76,175,80,0.16)] active:scale-[0.98]"
-              >
-                ＋ Add people
-              </button>
-            </div>
+            {/* One calm, tappable line — faces + count + visibility — exactly like
+                a Slack channel or WhatsApp group header. Tap it to open the
+                details sheet (members, add people, notifications, settings)
+                instead of scattering those as loose buttons up here. */}
+            <button
+              onClick={() => {
+                setSeedMenu(true);
+                setInviteOpen(false);
+              }}
+              aria-haspopup="dialog"
+              className="mb-4 flex items-center gap-2 text-left transition hover:opacity-90 active:scale-[0.99]"
+            >
+              <AvatarRow people={seed.people} size={24} />
+              <span className="text-xs text-ink-soft">
+                {participants} {participants === 1 ? "member" : "members"} ·{" "}
+                {visibility === "private" ? "🔒 Private" : "🌍 Public"}
+              </span>
+              <span aria-hidden className="text-sm leading-none text-ink-soft">
+                ⌄
+              </span>
+            </button>
           </>
         )}
 
@@ -2739,19 +2730,40 @@ export function SeedRoom({
               </p>
             )}
 
+            {/* Members at a glance — faces + count, tap to see everyone. The
+                WhatsApp/Slack "who's here" card, plus a clear Add. */}
+            <div className="mb-3 flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setSeedMenu(false);
+                  setMembersOpen(true);
+                }}
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] p-3 text-left transition hover:border-accent"
+              >
+                <AvatarRow people={seed.people} size={30} />
+                <span className="min-w-0 flex-1 text-sm text-ink">
+                  {participants} {participants === 1 ? "member" : "members"}
+                </span>
+                <span className="shrink-0 text-xs text-accent">See all ›</span>
+              </button>
+              <button
+                onClick={() => {
+                  setSeedMenu(false);
+                  setPeopleModal(true);
+                }}
+                aria-label="Add people"
+                className="shrink-0 rounded-xl border border-[rgba(76,175,80,0.35)] bg-[rgba(76,175,80,0.08)] px-4 py-3 text-sm font-medium text-accent transition hover:bg-[rgba(76,175,80,0.16)] active:scale-[0.98]"
+              >
+                ＋ Add
+              </button>
+            </div>
+
             {/* People knocking to join this private seed — owner/stewards act here. */}
             {seed.canManage && visibility === "private" && <JoinRequests seedId={seed.id} />}
 
             {/* Actions — a calm list, no single dominant button. Invite reveals
                 its form inline so it doesn't steal the eye. */}
             <div className="grid grid-cols-2 gap-2 border-t border-[rgba(255,255,255,0.06)] pt-3 text-sm">
-              <button
-                onClick={() => setInviteOpen((v) => !v)}
-                aria-expanded={inviteOpen}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
-              >
-                ➕ Add members
-              </button>
               <button
                 onClick={() => {
                   setSeedMenu(false);
