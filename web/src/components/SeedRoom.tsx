@@ -2662,31 +2662,33 @@ export function SeedRoom({
               </p>
             )}
 
-            {/* Members at a glance — faces + count, tap to see everyone. The
-                WhatsApp/Slack "who's here" card, plus a clear Add. */}
-            <div className="mb-3 flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setSeedMenu(false);
-                  setMembersOpen(true);
-                }}
-                className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-[rgba(255,255,255,0.06)] bg-[rgba(255,255,255,0.02)] p-3 text-left transition hover:border-accent"
-              >
-                <AvatarRow people={seed.people} size={30} />
-                <span className="min-w-0 flex-1 text-sm text-ink">
-                  {participants} {participants === 1 ? "member" : "members"}
-                </span>
-                <span className="shrink-0 text-xs text-accent">See all ›</span>
-              </button>
+            {/* Slack-style action row — the high-frequency actions up top, neat,
+                icon over label. Managing members is low-frequency, so it lives as
+                a "Members N ›" row in the list below, not up here. */}
+            <div className="mb-3 grid grid-cols-2 gap-2">
               <button
                 onClick={() => {
                   setSeedMenu(false);
                   setPeopleModal(true);
                 }}
-                aria-label="Add people"
-                className="shrink-0 rounded-xl border border-[rgba(76,175,80,0.35)] bg-[rgba(76,175,80,0.08)] px-4 py-3 text-sm font-medium text-accent transition hover:bg-[rgba(76,175,80,0.16)] active:scale-[0.98]"
+                className="flex flex-col items-center gap-1.5 rounded-xl border border-[rgba(76,175,80,0.35)] bg-[rgba(76,175,80,0.06)] py-3 text-accent transition hover:bg-[rgba(76,175,80,0.14)] active:scale-[0.98]"
               >
-                ＋ Add
+                <span className="text-lg" aria-hidden>＋</span>
+                <span className="text-xs font-medium">Add people</span>
+              </button>
+              <button
+                onClick={() => {
+                  setSeedMenu(false);
+                  void shareOrCopy({
+                    path: `/seeds/${seed.id}`,
+                    title: seedTitle,
+                    text: `On ThinkThru: ${seedTitle}`,
+                  });
+                }}
+                className="flex flex-col items-center gap-1.5 rounded-xl border border-[rgba(255,255,255,0.12)] py-3 text-ink transition hover:border-accent hover:bg-[rgba(255,255,255,0.03)] active:scale-[0.98]"
+              >
+                <span className="text-lg" aria-hidden>📤</span>
+                <span className="text-xs font-medium">Share</span>
               </button>
             </div>
 
@@ -2731,6 +2733,21 @@ export function SeedRoom({
                 settings style), not a grid of uneven cards. Each row: icon on
                 the left, label, an optional value/toggle on the right. */}
             <div className="border-t border-[rgba(255,255,255,0.06)] pt-1 text-sm">
+              {/* Members — a low-frequency row; tap opens the full searchable
+                  list (the Slack "Members N ›" pattern). */}
+              <button
+                onClick={() => {
+                  setSeedMenu(false);
+                  setMembersOpen(true);
+                }}
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-ink transition hover:bg-[rgba(255,255,255,0.04)]"
+              >
+                <span className="w-5 shrink-0 text-center text-base" aria-hidden>👥</span>
+                <span className="flex-1">Members</span>
+                <span className="text-xs text-ink-soft">{participants}</span>
+                <span aria-hidden className="text-ink-soft">›</span>
+              </button>
+
               {/* Notifications — one row showing the current level, taps to expand. */}
               {seed.author?.id !== currentUserId && (
                 <>
@@ -2857,21 +2874,6 @@ export function SeedRoom({
                   <span className="flex-1">Edit question</span>
                 </button>
               )}
-
-              <button
-                onClick={() => {
-                  setSeedMenu(false);
-                  void shareOrCopy({
-                    path: `/seeds/${seed.id}`,
-                    title: seedTitle,
-                    text: `On ThinkThru: ${seedTitle}`,
-                  });
-                }}
-                className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-ink transition hover:bg-[rgba(255,255,255,0.04)]"
-              >
-                <span className="w-5 shrink-0 text-center text-base" aria-hidden>📤</span>
-                <span className="flex-1">Share</span>
-              </button>
 
               <button
                 onClick={() => {
