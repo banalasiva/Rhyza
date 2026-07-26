@@ -1740,28 +1740,6 @@ export function SeedRoom({
         ) : (
           <>
             <h1 className="serif-xl mb-1 break-words">{seedTitle}</h1>
-            {/* The full question / context, shown right here in the thread where
-                people discuss — not hidden in the details sheet. A short title
-                can't hold a real situation, so this is where it lives in full. */}
-            {seedContent && (
-              <p className="mb-3 whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink-mid">
-                {seedContent}
-              </p>
-            )}
-            {/* Managers with no context yet get a gentle way to add the full
-                question, so a one-line title isn't the whole story. */}
-            {!seedContent && seed.canManage && (
-              <button
-                onClick={() => {
-                  setSeedContentDraft("");
-                  setSeedTitleDraft(seedTitle);
-                  setEditingSeed(true);
-                }}
-                className="mb-3 text-left text-[13px] text-accent transition hover:underline"
-              >
-                ✎ Add the full question &amp; details
-              </button>
-            )}
             {/* One calm, tappable line — faces + count + visibility — exactly like
                 a Slack channel or WhatsApp group header. Tap it to open the
                 details sheet (members, add people, notifications, settings)
