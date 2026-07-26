@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import Link from "next/link";
 import { NavIcon } from "@/components/nav-items";
 import { CreateGardenForm } from "@/components/CreateGardenForm";
 import { WaitingForThem } from "@/components/WaitingForThem";
@@ -83,7 +82,11 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variant, pathname]);
 
-  async function quickPlant() {
+  // Plant what's already typed. With no gardenId it lands in your personal
+  // default garden (the quick path); with one, it lands in THAT garden — so
+  // "put it in a specific garden" carries the text over instead of making you
+  // retype it on the garden page.
+  async function plant(gardenId?: string) {
     const t = title.trim();
     if (t.length < 4) {
       setError("Just a few more words so people know what it's about.");
@@ -96,7 +99,8 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
     setError(null);
     const startedAt = Date.now();
     try {
-      const { id } = await apiPost<{ id: string }>("/api/seeds", { title: t });
+      const endpoint = gardenId ? `/api/gardens/${gardenId}/seeds` : "/api/seeds";
+      const { id } = await apiPost<{ id: string }>(endpoint, { title: t });
       if (!id) throw new Error("no id");
       setTitle("");
       setOpen(false);
@@ -170,7 +174,7 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
                 if (error) setError(null);
               }}
               onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") quickPlant();
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") plant();
               }}
               rows={3}
               placeholder="e.g. Where should we go for the December trip?"
@@ -178,7 +182,7 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
             />
             {error && <p className="mt-1.5 text-xs text-[#e57373]">{error}</p>}
             <button
-              onClick={quickPlant}
+              onClick={() => plant()}
               disabled={posting}
               className="btn-primary mt-3 w-full text-sm disabled:opacity-60"
             >
@@ -210,19 +214,22 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
                   )}
                   {gardens && gardens.length > 0 && (
                     <div className="space-y-1.5">
+                      {/* Tapping a garden plants what you already typed straight
+                          into it — no retyping on the garden page. */}
                       {gardens.map((g) => (
-                        <Link
+                        <button
                           key={g.id}
-                          href={`/gardens/${g.id}#plant-seed`}
-                          onClick={() => setOpen(false)}
-                          className="flex items-center gap-2 rounded-xl border border-[rgba(255,255,255,0.06)] bg-[rgba(7,13,7,0.35)] p-3 transition hover:border-accent"
+                          type="button"
+                          onClick={() => plant(g.id)}
+                          disabled={posting}
+                          className="flex w-full items-center gap-2 rounded-xl border border-[rgba(255,255,255,0.06)] bg-[rgba(7,13,7,0.35)] p-3 text-left transition hover:border-accent disabled:opacity-60"
                         >
                           <span className="text-lg" aria-hidden>
                             {g.emoji}
                           </span>
                           <span className="min-w-0 flex-1 truncate text-sm text-ink">{g.name}</span>
-                          <span className="shrink-0 text-xs text-accent">Open →</span>
-                        </Link>
+                          <span className="shrink-0 text-xs text-accent">Plant here →</span>
+                        </button>
                       ))}
                     </div>
                   )}
