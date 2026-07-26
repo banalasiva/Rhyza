@@ -2,7 +2,12 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getViewer } from "@/lib/session";
 import { db } from "@/lib/db";
-import { getSeedDetail, getSeedPreview, getPublicSeedForGuest } from "@/lib/services/seeds";
+import {
+  getSeedDetail,
+  getSeedPreview,
+  getPublicSeedForGuest,
+  getDeletedSeedNote,
+} from "@/lib/services/seeds";
 import { getReactionTypes } from "@/lib/registry";
 import { NavBar } from "@/components/NavBar";
 import { GuestTopBar } from "@/components/GuestTopBar";
@@ -41,14 +46,38 @@ export default async function SeedPage({ params }: { params: { id: string } }) {
   try {
     seed = await getSeedDetail(viewer.userId, params.id);
   } catch {
+    // A private seed they can still knock on → the locked "request to join" view.
     const preview = await getSeedPreview(viewer.userId, params.id);
-    if (!preview) notFound();
+    if (preview) {
+      return (
+        <div className="relative min-h-screen">
+          <div className="garden-bg" />
+          <NavBar name={viewer.name} />
+          <main id="main" className="relative z-10 mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+            <LockedSeed preview={preview} />
+          </main>
+        </div>
+      );
+    }
+    // A seed that was deleted (its row lingers, soft-deleted) → a warm note
+    // instead of a bare 404, so a link/notification to a removed seed lands
+    // gently. A truly-unknown id still falls through to notFound().
+    const gone = await getDeletedSeedNote(params.id);
+    if (!gone) notFound();
     return (
       <div className="relative min-h-screen">
         <div className="garden-bg" />
         <NavBar name={viewer.name} />
-        <main id="main" className="relative z-10 mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
-          <LockedSeed preview={preview} />
+        <main id="main" className="relative z-10 mx-auto max-w-md px-6 py-16 text-center">
+          <div className="mb-2 text-4xl">🥀</div>
+          <h1 className="serif-lg mb-2">This seed was removed</h1>
+          <p className="mb-5 text-sm text-ink-mid">
+            Whoever planted it chose to take it down. Its thread is gone, but every
+            other seed in your gardens is still growing.
+          </p>
+          <Link href="/" className="btn-primary">
+            Back to your gardens
+          </Link>
         </main>
       </div>
     );

@@ -493,6 +493,20 @@ export async function getSeedSync(userId: string, seedId: string, since?: string
   return { ...base, contributions: mapContribs(rows as ContribRow[], userId, keptIds) as ReturnType<typeof mapContribs> | null };
 }
 
+// A soft-deleted seed still has its row (deletedAt set) so its contributions and
+// bloom aren't orphaned. This tells a deleted seed apart from a never-existed id,
+// so a link to one shows a warm "this was removed" note instead of a bare 404.
+// Best-effort: any hiccup reads as "not a tombstone" so the page falls through
+// to its normal not-found handling. Returns just a back-link garden when known.
+export async function getDeletedSeedNote(
+  seedId: string,
+): Promise<{ deleted: true } | null> {
+  const seed = await db.seed
+    .findUnique({ where: { id: seedId }, select: { deletedAt: true } })
+    .catch(() => null);
+  return seed?.deletedAt ? { deleted: true } : null;
+}
+
 // A "locked" preview of a private seed for someone who doesn't have access yet —
 // just enough to know what they're knocking on (garden, question, size), never
 // the discussion. Returns null if the seed is truly gone. Powers the "request to
