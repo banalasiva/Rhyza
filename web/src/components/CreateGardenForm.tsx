@@ -13,7 +13,16 @@ const QUICK_STARTS: { emoji: string; name: string }[] = [
   { emoji: "💼", name: "My team" },
 ];
 
-export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
+export function CreateGardenForm({
+  firstRun = false,
+  seedTitle,
+}: {
+  firstRun?: boolean;
+  // A question already typed in the plant sheet — if present, we create the
+  // garden AND plant this question into it in one step, then drop into the
+  // thread, so nothing has to be retyped.
+  seedTitle?: string;
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🌱");
@@ -22,6 +31,9 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
   const [visibility, setVisibility] = useState<"public" | "private">("private");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const carryTitle = (seedTitle ?? "").trim();
+  const willPlant = carryTitle.length >= 4;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,6 +45,20 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
         emoji,
         visibility,
       });
+      // Carry the already-typed question straight into the new garden.
+      if (willPlant) {
+        try {
+          const { id: seedId } = await apiPost<{ id: string }>(`/api/gardens/${id}/seeds`, {
+            title: carryTitle,
+          });
+          if (seedId) {
+            router.push(`/seeds/${seedId}`);
+            return;
+          }
+        } catch {
+          /* fall back to the garden if planting hiccups */
+        }
+      }
       router.push(`/gardens/${id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -106,9 +132,14 @@ export function CreateGardenForm({ firstRun = false }: { firstRun?: boolean }) {
           🔒 Private
         </button>
       </div>
+      {willPlant && (
+        <p className="text-xs text-ink-soft">
+          🌱 We&apos;ll plant your question <span className="text-ink-mid">“{carryTitle.slice(0, 60)}{carryTitle.length > 60 ? "…" : ""}”</span> here.
+        </p>
+      )}
       {error && <p className="text-sm text-[#e57373]">{error}</p>}
       <button type="submit" className="btn-primary" disabled={busy || name.trim().length < 2}>
-        {busy ? "Planting…" : firstRun ? "Create my garden →" : "Create garden"}
+        {busy ? "Planting…" : willPlant ? "Create & plant here →" : firstRun ? "Create my garden →" : "Create garden"}
       </button>
     </form>
   );

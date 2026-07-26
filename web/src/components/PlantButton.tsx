@@ -236,7 +236,7 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
 
                   <div className="mt-4">
                     <p className="eyebrow mb-2">🌿 Or start a new garden</p>
-                    <CreateGardenForm />
+                    <CreateGardenForm seedTitle={title} />
                   </div>
                 </div>
               )}

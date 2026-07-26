@@ -36,7 +36,7 @@ export function HowItWorks({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="hiw-title"
-        className="card relative z-10 max-h-full w-full max-w-xl overflow-auto p-7 animate-[fadeUp_0.4s_ease-out]"
+        className="card relative z-10 max-h-full w-full max-w-xl overflow-auto p-7 pb-[calc(1.75rem+4.75rem+env(safe-area-inset-bottom))] animate-[fadeUp_0.4s_ease-out]"
       >
         {/* ── Welcome ── */}
         <div className="text-center">
