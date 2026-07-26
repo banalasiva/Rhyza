@@ -148,11 +148,16 @@ function publicWhere(orgId: string | null, cursor: Cursor) {
   };
 }
 function bloomsWhere(userId: string, orgId: string | null, cursor: Cursor) {
-  const visible: object[] = [{ seed: { listed: true, visibility: "public" } }];
+  // A bloom outlives its seed's soft-delete, so guard every seed relation on
+  // `deletedAt: null` — otherwise a deleted seed's bloom keeps riding the feed.
+  const visible: object[] = [{ seed: { deletedAt: null, listed: true, visibility: "public" } }];
   if (orgId) {
     visible.unshift({
       garden: { orgId },
-      seed: { OR: [{ visibility: "public" }, { createdById: userId }, { members: { some: { userId } } }] },
+      seed: {
+        deletedAt: null,
+        OR: [{ visibility: "public" }, { createdById: userId }, { members: { some: { userId } } }],
+      },
     });
   }
   return { AND: [{ OR: visible }, ...keysetOn("bloomedAt", cursor)] };

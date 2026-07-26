@@ -30,7 +30,10 @@ export async function getMyRoots(userId: string) {
     involvedSeeds,
   ] = await Promise.all([
     db.bloomContributor.findMany({
-      where: { userId },
+      // Skip blooms whose seed has since been soft-deleted — a bloom outlives
+      // its seed's deletion, so without this a deleted seed still shows up in
+      // "what you've grown".
+      where: { userId, bloom: { seed: { deletedAt: null } } },
       include: {
         bloom: {
           include: {
