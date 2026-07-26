@@ -8,7 +8,15 @@ import { useRouter } from "next/navigation";
 //    seed so the community can grow the next version. This is how people change
 //    their mind: nothing is erased, knowledge gains a v2.
 //  • Delete this bloom (subtle) — for a genuine mistake; removes it entirely.
-export function RevertBloom({ seedId, version }: { seedId: string; version: number }) {
+export function RevertBloom({
+  seedId,
+  version,
+  canDelete = false,
+}: {
+  seedId: string;
+  version: number;
+  canDelete?: boolean;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<null | "reopen" | "delete">(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,13 +72,15 @@ export function RevertBloom({ seedId, version }: { seedId: string; version: numb
         Changed your mind? Keep this version and grow the next one.
       </p>
       {error && <p className="mt-2 text-sm text-[#e57373]">{error}</p>}
-      <button
-        onClick={remove}
-        disabled={busy !== null}
-        className="mt-3 text-[11px] text-ink-soft underline hover:text-[#e57373]"
-      >
-        {busy === "delete" ? "Deleting…" : "Or delete this bloom (mistake)"}
-      </button>
+      {canDelete && (
+        <button
+          onClick={remove}
+          disabled={busy !== null}
+          className="mt-3 text-[11px] text-ink-soft underline hover:text-[#e57373]"
+        >
+          {busy === "delete" ? "Deleting…" : "Or delete this bloom (mistake)"}
+        </button>
+      )}
     </div>
   );
 }

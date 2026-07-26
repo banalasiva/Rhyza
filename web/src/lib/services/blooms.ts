@@ -352,7 +352,24 @@ export async function reopenBloom(userId: string, seedId: string) {
   if (seed.stage !== "bloomed" || !seed.bloomId) {
     throw new ApiError("CONFLICT", "This seed hasn't bloomed");
   }
-  await requireSeedManager(userId, seedId);
+  // Reopening is non-destructive — the published version is kept as history and
+  // the seed just goes active again to grow the next version. So ANY participant
+  // in the decision can do it, not only a steward: deciding it needs another look
+  // (e.g. "let's fold in the new plan and re-run the bloom") is a group call.
+  // Deleting a bloom (revertBloom) stays steward-only.
+  const [seedMember, gardenMember, garden] = await Promise.all([
+    db.seedMember.findUnique({ where: { seedId_userId: { seedId, userId } } }),
+    db.gardenMember.findUnique({ where: { gardenId_userId: { gardenId: seed.gardenId, userId } } }),
+    db.garden.findUnique({ where: { id: seed.gardenId }, select: { createdById: true } }),
+  ]);
+  const isParticipant =
+    seed.createdById === userId ||
+    !!seedMember ||
+    !!gardenMember ||
+    garden?.createdById === userId;
+  if (!isParticipant) {
+    throw new ApiError("FORBIDDEN", "Only people in this decision can reopen it.");
+  }
 
   const REOPEN_TO = "growing";
   await db.$transaction(async (tx) => {
@@ -436,6 +453,11 @@ export async function getBloomDetail(userId: string, bloomId: string) {
       ? seedMember?.role === "steward"
       : garden?.createdById === userId || gardenMember?.role === "steward");
   const canRevert = isCurrent && isManager;
+  // Anyone IN the decision can reopen it to evolve (non-destructive). Deleting
+  // (canRevert) stays steward-only.
+  const isParticipant =
+    seedRow.createdById === userId || !!seedMember || !!gardenMember || garden?.createdById === userId;
+  const canReopen = isCurrent && isParticipant;
 
   const [reflection, sharedReflections, links] = await Promise.all([
     getMyReflection(userId, bloom.id),
@@ -458,6 +480,7 @@ export async function getBloomDetail(userId: string, bloomId: string) {
     version: bloom.version,
     bloomedAt: bloom.bloomedAt.toISOString(),
     canRevert,
+    canReopen,
     garden: bloom.garden,
     seed: bloom.seed,
     contributors: bloom.contributors.map((c) => ({

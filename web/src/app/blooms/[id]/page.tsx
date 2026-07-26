@@ -285,7 +285,13 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
           </section>
         )}
 
-        {bloom.canRevert && <RevertBloom seedId={bloom.seed.id} version={bloom.version} />}
+        {bloom.canReopen && (
+          <RevertBloom
+            seedId={bloom.seed.id}
+            version={bloom.version}
+            canDelete={bloom.canRevert}
+          />
+        )}
       </main>
     </div>
   );

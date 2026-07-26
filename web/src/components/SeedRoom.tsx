@@ -1533,8 +1533,7 @@ export function SeedRoom({
                 >
                   {idx + 1}
                 </span>
-                <Icon name={t.icon} size={16} muted={!active} />
-                {t.label}
+                <span className="truncate">{t.label}</span>
                 {t.key === "decide" && stakeBoard && stakeBoard.pendingAdmissions.length > 0 && (
                   <span
                     className="h-1.5 w-1.5 rounded-full bg-accent"
@@ -2085,21 +2084,10 @@ export function SeedRoom({
             </button>
           </div>
         )}
-        {/* Move to Decide — a gentle after-the-thread nudge, kept ABOVE the
-            composer so the composer can pin to the bottom as the last element. */}
-        {!isBloomed && tab === "discuss" && (
-          <StepNudge
-            emoji="⚖️"
-            title="Talked it through?"
-            sub="When you're ready, decide it together — everyone gives their honest read and it adds up to one fair answer."
-            cta="Go to Decide →"
-            onClick={() => setTab("decide")}
-          />
-        )}
         {!isBloomed && !committedToBloom && (
           <div
             className={
-              "sticky bottom-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] z-30 mt-6 rounded-2xl border border-[rgba(76,175,80,0.25)] bg-[#0B120B] shadow-[0_-10px_30px_rgba(0,0,0,0.45)] md:bottom-4 " +
+              "mt-6 rounded-2xl border border-[rgba(76,175,80,0.25)] bg-[#0B120B] " +
               (composerExpanded ? "p-4 md:p-5" : "p-2")
             }
           >
@@ -2269,6 +2257,17 @@ export function SeedRoom({
             🌸 This decided together. The conversation stays here — read it any time,
             react to any message, or 🔖 Keep the ones you want to hold onto.
           </div>
+        )}
+        {/* The next step lives BELOW the composer — you talk, add your thought,
+            then move to Decide. */}
+        {!isBloomed && (
+          <StepNudge
+            emoji="⚖️"
+            title="Talked it through?"
+            sub="When you're ready, decide it together — everyone gives their honest read and it adds up to one fair answer."
+            cta="Go to Decide →"
+            onClick={() => setTab("decide")}
+          />
         )}
         </>
         )}
