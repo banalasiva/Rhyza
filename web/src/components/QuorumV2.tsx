@@ -223,9 +223,13 @@ export function QuorumV2({ seedId }: { seedId: string }) {
         )}
       </section>
 
-      {/* ── Step 3 · Open results ── (steward only). Deliberately a quiet outline
-          button, not a solid green slab — the loud action on this page is tapping
-          people to vote, and a steward-only control shouldn't out-shout it. */}
+      {/* Advanced steward controls — pin a hard number, lock/reopen. */}
+      {view.canManage && <AdminBar view={view} seedId={seedId} busy={busy} setBusy={setBusy} reload={load} setError={setError} />}
+
+      {/* ── Step 3 · Open results ── (steward only), at the very bottom — it's the
+          final "when you're ready" action, after everyone weighs in and any
+          steward pins. A quiet outline button, not a solid green slab, so it
+          never out-shouts the actual voting above it. */}
       {view.canManage && view.phase === "collecting" && (
         <section>
           <p className="eyebrow mb-1.5">Step 3 · When you're ready</p>
@@ -238,9 +242,6 @@ export function QuorumV2({ seedId }: { seedId: string }) {
           </button>
         </section>
       )}
-
-      {/* Advanced steward controls — pin a hard number, lock/reopen. */}
-      {view.canManage && <AdminBar view={view} seedId={seedId} busy={busy} setBusy={setBusy} reload={load} setError={setError} />}
     </div>
   );
 }
@@ -471,11 +472,11 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
       {error && <p className="px-4 pb-2 text-sm text-[#e57373]">{error}</p>}
 
       {/* progress + reassurance — you're NEVER forced through all six. Answer the
-          ones you have a feel for and send; the thorough can keep going. */}
+          ones you have a feel for; the thorough can keep going. */}
       <p className="px-4 pt-1 text-xs text-ink-soft">
         {doneCount === 0
           ? "Answer the ones you have a feel for — even one is enough."
-          : `${doneCount} of ${dims.length} answered · send now or keep going, your call`}
+          : `${doneCount} of ${dims.length} answered — keep going at your own pace.`}
       </p>
 
       {/* nav */}
@@ -488,16 +489,6 @@ function WeighIn({ view, seedId, reload }: { view: View; seedId: string; reload:
           {step === 0 ? "Later" : "← Back"}
         </button>
         <div className="flex items-center gap-2">
-          {/* Finish early — visible the moment you've answered anything. */}
-          {!isLast && doneCount >= 1 && (
-            <button
-              onClick={() => save(true)}
-              disabled={busy}
-              className="text-sm font-medium text-accent transition hover:opacity-80 disabled:opacity-50"
-            >
-              {busy ? "Sending…" : "✓ Send now"}
-            </button>
-          )}
           {isLast ? (
             <button
               onClick={() => save(true)}

@@ -300,8 +300,7 @@ export function AuthPanel({
       )}
 
       <p className="mt-4 text-center text-[11px] text-ink-soft">
-        No password — a one-tap link lands in your inbox. New here? Signing in creates your account.
-        You agree to the Code of Conduct.
+        By continuing, you agree to the Code of Conduct.
       </p>
     </div>
   );
