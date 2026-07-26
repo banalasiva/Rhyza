@@ -1,9 +1,24 @@
-import { SproutLoader } from "@/components/SproutLoader";
+import Image from "next/image";
 
-// The app-wide route loader — the resting golden sprout (same warm spotlight
-// ground as the bloom), replacing the old emblem "Loading…" screen. Renders for
-// any route without its own loader, and makes planting one continuous moment:
-// the germination overlay hands straight off to this while the thread loads.
+// Global route loader — a light, quick emblem while any page loads. Routine
+// navigation must feel instant, so this stays minimal; the full-screen sprout is
+// reserved for the planting moment (the PlantingSprout overlay), where a bigger
+// beat is earned, not for every tap.
 export default function Loading() {
-  return <SproutLoader />;
+  return (
+    <div className="relative flex min-h-screen items-center justify-center">
+      <div className="garden-bg" />
+      <div className="relative z-10 flex flex-col items-center gap-3">
+        <Image
+          src="/emblem.png"
+          alt="ThinkThru"
+          width={72}
+          height={72}
+          priority
+          className="h-[72px] w-[72px] animate-pulse"
+        />
+        <p className="text-sm text-ink-soft">Loading…</p>
+      </div>
+    </div>
+  );
 }
