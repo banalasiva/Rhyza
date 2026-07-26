@@ -1736,23 +1736,25 @@ export function SeedRoom({
                 </span>
               </button>
             </h1>
-            {/* The same tap target, restated as a calm people line — faces +
-                count + visibility, like a Slack/WhatsApp group header. */}
+            {/* The same tap target, restated as a calm people line — just the
+                faces and a lock/globe. The count and the word "Private" are
+                redundant: the avatars already show who's in, and the lock alone
+                reads as private (globe as public). "Details ⌄" on the question
+                above carries the affordance. */}
             <button
               onClick={() => {
                 setSeedMenu(true);
                 setInviteOpen(false);
               }}
               aria-haspopup="dialog"
+              aria-label={
+                visibility === "private" ? "Private — open details" : "Public — open details"
+              }
               className="mb-4 flex items-center gap-2 text-left transition hover:opacity-90 active:scale-[0.99]"
             >
               <AvatarRow people={seed.people} size={24} />
-              <span className="text-xs text-ink-soft">
-                {participants} {participants === 1 ? "member" : "members"} ·{" "}
-                {visibility === "private" ? "🔒 Private" : "🌍 Public"}
-              </span>
-              <span aria-hidden className="text-sm leading-none text-ink-soft">
-                ⌄
+              <span aria-hidden className="text-sm leading-none">
+                {visibility === "private" ? "🔒" : "🌍"}
               </span>
             </button>
           </>
