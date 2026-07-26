@@ -177,6 +177,7 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
                 if ((e.metaKey || e.ctrlKey) && e.key === "Enter") plant();
               }}
               rows={3}
+              maxLength={500}
               placeholder="e.g. Where should we go for the December trip?"
               className="w-full resize-none rounded-xl border border-[rgba(76,175,80,0.25)] bg-[rgba(7,13,7,0.5)] p-3 text-sm text-ink placeholder:text-ink-soft focus:border-accent focus:outline-none"
             />

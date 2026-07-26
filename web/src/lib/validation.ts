@@ -22,7 +22,7 @@ export const createGardenSchema = z.object({
 export const visibilityEnum = z.enum(["public", "private"]);
 
 export const createSeedSchema = z.object({
-  title: z.string().min(4, "Give your seed a clear question").max(200),
+  title: z.string().min(4, "Give your seed a clear question").max(500),
   content: z.string().max(5000).optional().default(""),
   visibility: visibilityEnum.optional().default("private"),
 });
@@ -36,7 +36,7 @@ export const setSeedVisibilitySchema = z.object({
 export const patchSeedSchema = z
   .object({
     visibility: visibilityEnum.optional(),
-    title: z.string().min(4, "Give your seed a clear question").max(200).optional(),
+    title: z.string().min(4, "Give your seed a clear question").max(500).optional(),
     content: z.string().max(5000).optional(),
   })
   .refine((d) => d.visibility !== undefined || d.title !== undefined || d.content !== undefined, {
@@ -90,7 +90,7 @@ export const stageVoteSchema = z.object({
 });
 
 export const createBloomSchema = z.object({
-  title: z.string().min(4).max(200),
+  title: z.string().min(4).max(500),
   summary: z.string().min(1).max(5000),
 });
 
@@ -99,7 +99,7 @@ export const editContributionSchema = z.object({
 });
 
 export const updateBloomSchema = z.object({
-  title: z.string().min(4).max(200).optional(),
+  title: z.string().min(4).max(500).optional(),
   summary: z.string().min(1).max(8000).optional(),
 });
 

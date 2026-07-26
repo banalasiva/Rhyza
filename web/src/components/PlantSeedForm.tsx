@@ -100,7 +100,7 @@ export function PlantSeedForm({ gardenId }: { gardenId: string }) {
         placeholder="Ask a question — e.g. “Where should we go this holiday?”"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        maxLength={200}
+        maxLength={500}
       />
       <div className="flex items-center gap-2">
         <VisChip

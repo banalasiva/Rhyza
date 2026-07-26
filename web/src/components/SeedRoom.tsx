@@ -1702,6 +1702,7 @@ export function SeedRoom({
               value={seedTitleDraft}
               onChange={(e) => setSeedTitleDraft(e.target.value)}
               placeholder="Your question"
+              maxLength={500}
               autoFocus
             />
             <textarea
