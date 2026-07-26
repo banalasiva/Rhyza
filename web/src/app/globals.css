@@ -474,9 +474,32 @@ html.light body {
 }
 
 /* ── Sprout: the planting moment ──────────────────────────────────────────
-   Deliberately GENTLER + SHORTER than the bloom celebration — planting is hope,
-   not triumph, so the sprout stays a quieter beat and the bloom keeps the peak.
-   A seed drops, a stem grows from the soil, two leaves unfurl, a dew-tip pips. */
+   A full-screen germination: a seed drops, a stem springs from the soil, leaves
+   unfurl, a dew-tip pips — over a constant, gentle shower of leaves + light, so
+   the moment feels as alive as the bloom. */
+
+/* A constant shower of soft green leaves falling past — the growth-world
+   equivalent of the bloom's petals. */
+.leaf-fall {
+  position: absolute;
+  top: -8%;
+  animation-name: leafFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+@keyframes leafFall {
+  0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.95; }
+  88% { opacity: 0.85; }
+  100% { transform: translate(var(--drift, 0px), 116vh) rotate(var(--spin, 380deg)); opacity: 0; }
+}
+/* A device-independent leaf shape (a lopsided teardrop), tinted green. */
+.leaf-shape {
+  display: inline-block;
+  border-radius: 0 100% 0 100%;
+  background: linear-gradient(135deg, #7ad684, rgba(84, 180, 91, 0.55));
+}
 .sprout-seed {
   transform-box: view-box;
   animation: sproutSeedDrop 0.32s cubic-bezier(0.3, 1.4, 0.5, 1) both;

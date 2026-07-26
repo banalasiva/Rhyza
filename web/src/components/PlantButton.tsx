@@ -101,7 +101,7 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
       setTitle("");
       setOpen(false);
       // Let the sprout play out (min ~1.4s) before landing in the thread.
-      const wait = Math.max(0, 1400 - (Date.now() - startedAt));
+      const wait = Math.max(0, 1900 - (Date.now() - startedAt));
       setTimeout(() => router.push(`/seeds/${id}`), wait);
     } catch {
       setPlanting(false);
