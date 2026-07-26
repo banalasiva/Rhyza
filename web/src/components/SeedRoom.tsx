@@ -1609,9 +1609,7 @@ export function SeedRoom({
                 <Requirement met={bloomedVotes >= bloomTarget} label={`${bloomedVotes} of ${bloomTarget} voted to bloom`} />
                 <Requirement met={dimsWithContribs >= 3} label={`${dimsWithContribs} of 3 dimensions explored`} />
                 <p className="mt-3 text-[11px] leading-relaxed text-ink-soft">
-                  A seed blooms when the group feels it&apos;s ready — everyone casts a vote here.
-                  When enough agree, Claude distils the discussion into a lasting decision in your
-                  Sacred Tree.
+                  When enough of you are ready, this becomes your final decision — saved forever.
                 </p>
 
                 {/* The action people were missing: on the Bloom tab you VOTE. Make
@@ -1622,19 +1620,14 @@ export function SeedRoom({
                     {bloomNeeded > 0 ? ` — waiting for ${bloomNeeded} more` : " — ready!"}
                   </p>
                 ) : (
-                  <>
-                    <p className="mt-4 mb-2 text-center text-xs text-ink-mid">
-                      Think it&apos;s decided? Cast your vote — it blooms when enough people agree.
-                    </p>
-                    <button
-                      onClick={() => vote("bloomed")}
-                      disabled={busy}
-                      className="w-full rounded-full px-3 py-2.5 text-sm font-medium text-bg transition"
-                      style={{ background: "linear-gradient(135deg,#FFB300,#FF8F00)" }}
-                    >
-                      🌸 I&apos;m ready — vote to bloom
-                    </button>
-                  </>
+                  <button
+                    onClick={() => vote("bloomed")}
+                    disabled={busy}
+                    className="mt-4 w-full rounded-full px-3 py-2.5 text-sm font-medium text-bg transition"
+                    style={{ background: "linear-gradient(135deg,#FFB300,#FF8F00)" }}
+                  >
+                    🌸 I&apos;m ready — vote to bloom
+                  </button>
                 )}
                 {seed.canBloom && (
                   <button
