@@ -200,18 +200,8 @@ export function BloomReflection({
       toggle: () => save({ lessonShared: !r.lessonShared }),
       body: (
         <>
-          <textarea
-            defaultValue={r.lesson ?? ""}
-            onBlur={(e) => {
-              if ((e.target.value.trim() || "") !== (r.lesson ?? "")) save({ lesson: e.target.value });
-            }}
-            placeholder="e.g. Talk to customers earlier · Don't optimize for price alone · Ask one more expert"
-            className="input min-h-[180px] w-full text-[15px] leading-relaxed"
-            maxLength={2000}
-            autoFocus
-          />
-          <p className="mb-2 mt-4 text-xs text-ink-soft">How hard was this to learn?</p>
-          <div className="flex flex-wrap gap-2">
+          <p className="mb-2 text-xs text-ink-soft">How hard was this to learn?</p>
+          <div className="mb-4 flex flex-wrap gap-2">
             {WEIGHTS.map((w) => (
               <button
                 key={w.key}
@@ -223,6 +213,16 @@ export function BloomReflection({
               </button>
             ))}
           </div>
+          <textarea
+            defaultValue={r.lesson ?? ""}
+            onBlur={(e) => {
+              if ((e.target.value.trim() || "") !== (r.lesson ?? "")) save({ lesson: e.target.value });
+            }}
+            placeholder="e.g. Talk to customers earlier · Don't optimize for price alone · Ask one more expert"
+            className="input min-h-[180px] w-full text-[15px] leading-relaxed"
+            maxLength={2000}
+            autoFocus
+          />
         </>
       ),
     },
