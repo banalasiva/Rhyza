@@ -169,8 +169,9 @@ export function ForwardPicker({
               </div>
             </div>
 
-            {/* Sticky action bar */}
-            <div className="border-t border-[rgba(255,255,255,0.08)] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+            {/* Sticky action bar — clears the fixed bottom nav so the button is
+                never hidden behind it. */}
+            <div className="border-t border-[rgba(255,255,255,0.08)] p-4 pb-[calc(1rem+4.75rem+env(safe-area-inset-bottom))]">
               <button
                 onClick={send}
                 disabled={selected.size === 0 || sending}

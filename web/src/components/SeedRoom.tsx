@@ -2972,7 +2972,7 @@ export function SeedRoom({
           <div
             role="dialog"
             aria-label="Bring your people in"
-            className="relative z-10 max-h-[88dvh] w-full max-w-md overflow-auto rounded-t-2xl border border-[rgba(76,175,80,0.25)] bg-[#0B120B] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-4"
+            className="relative z-10 max-h-[88dvh] w-full max-w-md overflow-auto rounded-t-2xl border border-[rgba(76,175,80,0.25)] bg-[#0B120B] p-4 pb-[calc(1rem+4.75rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-4"
           >
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-ink">👨‍👩‍👧 Bring your people in</h2>

@@ -82,7 +82,7 @@ export function AskPeople({ seedId }: { seedId: string }) {
           <div
             role="dialog"
             aria-label="Ask someone to weigh in"
-            className="relative z-10 max-h-[85vh] w-full max-w-md overflow-auto rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 shadow-2xl sm:rounded-2xl"
+            className="relative z-10 max-h-[85vh] w-full max-w-md overflow-auto rounded-t-2xl border border-[rgba(76,175,80,0.2)] bg-[#0B120B] p-4 pb-[calc(1rem+4.75rem+env(safe-area-inset-bottom))] shadow-2xl sm:rounded-2xl sm:pb-4"
           >
             <div className="mb-1 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-ink">🙋 Ask someone to weigh in</h2>
