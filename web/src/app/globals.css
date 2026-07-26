@@ -625,6 +625,18 @@ html.light .plant-sparkle {
   100% { opacity: 0; transform: translateY(-96px) scale(1); }
 }
 
+/* Lightweight route loader — a small bud gently breathing, so a page load reads
+   as "growing", not "stalled". No ring, no roots — just the bud. */
+.bud-loader {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: budBreathe 2.2s ease-in-out infinite;
+}
+@keyframes budBreathe {
+  0%, 100% { transform: scale(1); opacity: 0.88; }
+  50% { transform: scale(1.07); opacity: 1; }
+}
+
 /* A single soft petal shape (device-independent — no emoji). The lopsided
    border-radius gives a rounded petal/teardrop rather than a plain oval. */
 .petal-shape {
