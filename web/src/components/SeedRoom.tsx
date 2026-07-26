@@ -123,6 +123,7 @@ export function SeedRoom({
   const [seedTitle, setSeedTitle] = useState(seed.title);
   const [seedContent, setSeedContent] = useState(seed.content);
   const [seedMenu, setSeedMenu] = useState(false); // tap-the-question details sheet
+  const [notifOpen, setNotifOpen] = useState(false); // notifications row expanded in the sheet
   const [membersOpen, setMembersOpen] = useState(false);
   // The composer starts collapsed to a slim one-line bar so the pinned box never
   // covers the newest messages; tapping it expands the full editor.
@@ -2727,87 +2728,65 @@ export function SeedRoom({
               </div>
             )}
 
-            {/* Actions — a calm list, no single dominant button. Invite reveals
-                its form inline so it doesn't steal the eye. */}
-            <div className="grid grid-cols-2 gap-2 border-t border-[rgba(255,255,255,0.06)] pt-3 text-sm">
-              <button
-                onClick={() => {
-                  setSeedMenu(false);
-                  void shareOrCopy({
-                    path: `/seeds/${seed.id}`,
-                    title: seedTitle,
-                    text: `On ThinkThru: ${seedTitle}`,
-                  });
-                }}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
-              >
-                📤 Share
-              </button>
-              {seed.canManage && (
-                <button
-                  onClick={() => {
-                    setSeedMenu(false);
-                    setSeedTitleDraft(seedTitle);
-                    setSeedContentDraft(seedContent);
-                    setEditingSeed(true);
-                  }}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
-                >
-                  ✎ Edit question
-                </button>
+            {/* Actions — a single clean column of one-line rows (Slack/WhatsApp
+                settings style), not a grid of uneven cards. Each row: icon on
+                the left, label, an optional value/toggle on the right. */}
+            <div className="border-t border-[rgba(255,255,255,0.06)] pt-1 text-sm">
+              {/* Notifications — one row showing the current level, taps to expand. */}
+              {seed.author?.id !== currentUserId && (
+                <>
+                  <button
+                    onClick={() => setNotifOpen((v) => !v)}
+                    aria-expanded={notifOpen}
+                    className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-ink transition hover:bg-[rgba(255,255,255,0.04)]"
+                  >
+                    <span className="w-5 shrink-0 text-center text-base" aria-hidden>🔔</span>
+                    <span className="flex-1">Notifications</span>
+                    <span className="text-xs text-ink-soft">
+                      {!following ? "Off" : followLevel === "all" ? "Every reply" : "Highlights"}
+                    </span>
+                    <span aria-hidden className="text-ink-soft">{notifOpen ? "▴" : "▾"}</span>
+                  </button>
+                  {notifOpen && (
+                    <div className="mb-1 ml-10 mr-2">
+                      {(
+                        [
+                          { key: "all", label: "Every reply" },
+                          { key: "highlights", label: "Highlights only" },
+                          { key: "off", label: "Off" },
+                        ] as const
+                      ).map((opt) => {
+                        const active =
+                          opt.key === "off" ? !following : following && followLevel === opt.key;
+                        return (
+                          <button
+                            key={opt.key}
+                            onClick={() => setFollow(opt.key)}
+                            aria-pressed={active}
+                            className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition hover:bg-[rgba(255,255,255,0.04)] ${
+                              active ? "text-accent" : "text-ink-mid hover:text-ink"
+                            }`}
+                          >
+                            <span className="flex-1">{opt.label}</span>
+                            {active && <span aria-hidden>✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               )}
-              {seed.canManage && (
-                <button
-                  onClick={() => {
-                    setSeedMenu(false);
-                    toggleVisibility();
-                  }}
-                  disabled={visBusy}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink disabled:opacity-50"
-                >
-                  {visibility === "private" ? "🌍 Make public" : "🔒 Make private"}
-                </button>
-              )}
-              {seed.canManage && (
-                <button
-                  onClick={() => {
-                    setSeedMenu(false);
-                    toggleListed();
-                  }}
-                  className={`flex items-start gap-2 rounded-lg px-3 py-2 text-left transition hover:bg-[rgba(255,255,255,0.04)] ${
-                    listed ? "text-accent" : "text-ink-mid hover:text-ink"
-                  }`}
-                >
-                  <span aria-hidden className="mt-0.5">🌐</span>
-                  <span className="min-w-0">
-                    {listed ? (
-                      <>
-                        <span className="block text-sm font-medium">Shared with the world</span>
-                        <span className="block text-xs text-ink-soft">
-                          Anyone on ThinkThru can find and join this. Tap to make it private again.
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="block text-sm font-medium">Share with the world</span>
-                        <span className="block text-xs text-ink-soft">
-                          Let anyone on ThinkThru discover this and join in.
-                        </span>
-                      </>
-                    )}
-                  </span>
-                </button>
-              )}
-              {/* AI helpers on/off — owner/admin only. One clean switch that turns
-                  Claude & ChatGPT labelling, replies, the opener, mediation and
-                  summaries on or off, for a seed that wants to stay purely human. */}
+
+              {/* AI helpers — one row, toggle on the right. */}
               {seed.canManage && (
                 <button
                   onClick={toggleAi}
                   role="switch"
                   aria-checked={aiEnabled}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-left transition hover:bg-[rgba(255,255,255,0.04)]"
+                  className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-ink transition hover:bg-[rgba(255,255,255,0.04)]"
                 >
+                  <span className="w-5 shrink-0 text-center text-base" aria-hidden>✨</span>
+                  <span className="flex-1">AI helpers</span>
                   <span
                     aria-hidden
                     className={`relative h-5 w-9 shrink-0 rounded-full transition ${
@@ -2820,81 +2799,110 @@ export function SeedRoom({
                       }`}
                     />
                   </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-ink">
-                      {aiEnabled ? "AI helpers are on" : "AI helpers are off"}
-                    </span>
-                    <span className="block text-xs text-ink-soft">
-                      {aiEnabled
-                        ? "Claude & ChatGPT can label, reply, open, mediate and summarise."
-                        : "Purely human — no labels, replies, or @claude/@chatgpt."}
-                    </span>
+                </button>
+              )}
+
+              {/* Discoverable to the world — one row, toggle on the right. */}
+              {seed.canManage && (
+                <button
+                  onClick={toggleListed}
+                  role="switch"
+                  aria-checked={listed}
+                  className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-ink transition hover:bg-[rgba(255,255,255,0.04)]"
+                >
+                  <span className="w-5 shrink-0 text-center text-base" aria-hidden>🌐</span>
+                  <span className="flex-1">Discoverable to everyone</span>
+                  <span
+                    aria-hidden
+                    className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+                      listed ? "bg-accent" : "bg-[rgba(255,255,255,0.18)]"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${
+                        listed ? "left-[18px]" : "left-0.5"
+                      }`}
+                    />
                   </span>
                 </button>
               )}
-              {/* Follow level — for anyone who isn't the owner. Pick how loud:
-                  every reply, just the highlights, or off. */}
-              {seed.author?.id !== currentUserId && (
-                <div className="rounded-lg border border-[rgba(255,255,255,0.08)] p-1">
-                  <p className="px-2 pb-1 pt-1.5 text-[11px] uppercase tracking-wide text-ink-soft">
-                    Notify me about this seed
-                  </p>
-                  {(
-                    [
-                      { key: "all", icon: "🔔", label: "Every reply" },
-                      { key: "highlights", icon: "🌿", label: "Highlights only" },
-                      { key: "off", icon: "🔕", label: "Off" },
-                    ] as const
-                  ).map((opt) => {
-                    const active = opt.key === "off" ? !following : following && followLevel === opt.key;
-                    return (
-                      <button
-                        key={opt.key}
-                        onClick={() => setFollow(opt.key)}
-                        aria-pressed={active}
-                        className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition hover:bg-[rgba(255,255,255,0.04)] ${
-                          active ? "text-accent" : "text-ink-mid hover:text-ink"
-                        }`}
-                      >
-                        <span aria-hidden>{opt.icon}</span>
-                        <span className="flex-1">{opt.label}</span>
-                        {active && <span aria-hidden>✓</span>}
-                      </button>
-                    );
-                  })}
-                </div>
+
+              {/* Visibility — one action row. */}
+              {seed.canManage && (
+                <button
+                  onClick={() => {
+                    setSeedMenu(false);
+                    toggleVisibility();
+                  }}
+                  disabled={visBusy}
+                  className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-ink transition hover:bg-[rgba(255,255,255,0.04)] disabled:opacity-50"
+                >
+                  <span className="w-5 shrink-0 text-center text-base" aria-hidden>
+                    {visibility === "private" ? "🌍" : "🔒"}
+                  </span>
+                  <span className="flex-1">{visibility === "private" ? "Make public" : "Make private"}</span>
+                </button>
               )}
+
+              {seed.canManage && (
+                <button
+                  onClick={() => {
+                    setSeedMenu(false);
+                    setSeedTitleDraft(seedTitle);
+                    setSeedContentDraft(seedContent);
+                    setEditingSeed(true);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-ink transition hover:bg-[rgba(255,255,255,0.04)]"
+                >
+                  <span className="w-5 shrink-0 text-center text-base" aria-hidden>✎</span>
+                  <span className="flex-1">Edit question</span>
+                </button>
+              )}
+
               <button
                 onClick={() => {
                   setSeedMenu(false);
-                  setMembersOpen(true);
+                  void shareOrCopy({
+                    path: `/seeds/${seed.id}`,
+                    title: seedTitle,
+                    text: `On ThinkThru: ${seedTitle}`,
+                  });
                 }}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-ink transition hover:bg-[rgba(255,255,255,0.04)]"
               >
-                👥 Members
+                <span className="w-5 shrink-0 text-center text-base" aria-hidden>📤</span>
+                <span className="flex-1">Share</span>
               </button>
+
               <button
                 onClick={() => {
                   setSeedMenu(false);
                   setShowHelp(true);
                 }}
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-ink"
+                className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-ink transition hover:bg-[rgba(255,255,255,0.04)]"
               >
-                <Icon name="info" size={14} /> How it works
+                <span className="flex w-5 shrink-0 justify-center" aria-hidden>
+                  <Icon name="info" size={15} />
+                </span>
+                <span className="flex-1">How it works</span>
               </button>
-              {/* Report — for anyone who isn't the owner (public-square safety) */}
+
+              {/* Divider before the leave/report/delete group. */}
+              {seed.author?.id !== currentUserId && (
+                <div className="my-1 border-t border-[rgba(255,255,255,0.06)]" />
+              )}
               {seed.author?.id !== currentUserId && (
                 <button
                   onClick={() => {
                     setSeedMenu(false);
                     reportSeed();
                   }}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-soft transition hover:bg-[rgba(255,255,255,0.04)] hover:text-[#e57373]"
+                  className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-ink-soft transition hover:bg-[rgba(255,255,255,0.04)] hover:text-[#e57373]"
                 >
-                  🚩 Report
+                  <span className="w-5 shrink-0 text-center text-base" aria-hidden>🚩</span>
+                  <span className="flex-1">Report</span>
                 </button>
               )}
-              {/* Leave — for participants who aren't the owner */}
               {seed.author?.id !== currentUserId && (
                 <button
                   onClick={() => {
@@ -2902,22 +2910,29 @@ export function SeedRoom({
                     leaveSeed();
                   }}
                   disabled={busy}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-[#e57373]"
+                  className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-ink-mid transition hover:bg-[rgba(255,255,255,0.04)] hover:text-[#e57373]"
                 >
-                  🚪 Leave seed
+                  <span className="w-5 shrink-0 text-center text-base" aria-hidden>🚪</span>
+                  <span className="flex-1">Leave seed</span>
                 </button>
               )}
               {seed.canManage && (
-                <button
-                  onClick={() => {
-                    setSeedMenu(false);
-                    removeSeed();
-                  }}
-                  disabled={busy}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[#e57373] transition hover:bg-[rgba(229,115,115,0.08)]"
-                >
-                  <Icon name="delete" size={14} /> Delete seed
-                </button>
+                <>
+                  <div className="my-1 border-t border-[rgba(255,255,255,0.06)]" />
+                  <button
+                    onClick={() => {
+                      setSeedMenu(false);
+                      removeSeed();
+                    }}
+                    disabled={busy}
+                    className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-[#e57373] transition hover:bg-[rgba(229,115,115,0.08)]"
+                  >
+                    <span className="flex w-5 shrink-0 justify-center" aria-hidden>
+                      <Icon name="delete" size={15} />
+                    </span>
+                    <span className="flex-1">Delete seed</span>
+                  </button>
+                </>
               )}
             </div>
 
