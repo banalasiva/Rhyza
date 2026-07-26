@@ -45,7 +45,9 @@ export async function getMyRoots(userId: string) {
       orderBy: { addedAt: "desc" },
     }),
     db.contribution.findMany({
-      where: { authorId: userId, deletedAt: null },
+      // Exclude contributions to a deleted seed, so the counts, "seeds touched",
+      // and thinking fingerprint all drop it the moment the seed is deleted.
+      where: { authorId: userId, deletedAt: null, seed: { deletedAt: null } },
       select: { dimension: true, seedId: true },
     }),
     db.seed.findMany({

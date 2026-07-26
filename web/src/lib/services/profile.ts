@@ -399,7 +399,7 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
     dimensions,
     follow,
   ] = await Promise.all([
-    db.contribution.count({ where: { authorId: userId, deletedAt: null } }),
+    db.contribution.count({ where: { authorId: userId, deletedAt: null, seed: { deletedAt: null } } }),
     db.seed.count({ where: { createdById: userId, deletedAt: null } }),
     db.seed.count({ where: { createdById: userId, deletedAt: null, bloomId: { not: null } } }),
     db.userRecognition
