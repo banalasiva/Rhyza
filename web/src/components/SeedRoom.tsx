@@ -110,7 +110,6 @@ export function SeedRoom({
   const [distribution, setDistribution] = useState(seed.distribution);
   const [myVote, setMyVote] = useState<string | null>(seed.myVote);
   const [stage, setStage] = useState<string>(seed.stage);
-  const [aiMenu, setAiMenu] = useState(false); // compact "Ask AI" menu
   const [summarizing, setSummarizing] = useState<"claude" | "chatgpt" | null>(null);
   const [summary, setSummary] = useState<{ provider: "claude" | "chatgpt"; text: string } | null>(
     null,
@@ -858,7 +857,6 @@ export function SeedRoom({
   // Ask an AI to summarize the whole thread by dimension — replaces manual
   // dimension navigation. Read-only; shown in a dismissible panel.
   async function askSummary(provider: "claude" | "chatgpt") {
-    setAiMenu(false);
     setSummarizing(provider);
     setError(null);
     try {
@@ -1754,72 +1752,6 @@ export function SeedRoom({
             </button>
           </>
         )}
-
-        {/* Compact AI helpers — summarize the thread, or ask an AI to mediate.
-            Tucked into one small menu so it doesn't eat space on mobile. */}
-        <div className="relative mb-3 flex items-center justify-end gap-2">
-          {aiEnabled && (
-          <button
-            onClick={() => setAiMenu((v) => !v)}
-            aria-expanded={aiMenu}
-            aria-haspopup="menu"
-            className="btn-ghost shrink-0 px-3 py-1.5 text-xs"
-          >
-            ✨ Ask AI {aiMenu ? "▴" : "▾"}
-          </button>
-          )}
-          {aiEnabled && aiMenu && (
-            <>
-              <button
-                className="fixed inset-0 z-10 cursor-default"
-                aria-label="Close menu"
-                onClick={() => setAiMenu(false)}
-              />
-              <div
-                role="menu"
-                className="absolute right-0 top-full z-20 mt-1 w-60 rounded-xl border border-[rgba(76,175,80,0.22)] bg-[#0B120B] p-2 shadow-xl"
-              >
-                <p className="px-1 pb-1 text-[10px] uppercase tracking-wide text-ink-soft">
-                  📋 Summarize the discussion
-                </p>
-                <div className="mb-2 flex gap-1.5">
-                  {(["claude", "chatgpt"] as const).map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => askSummary(p)}
-                      disabled={summarizing !== null}
-                      className="flex-1 rounded-lg border border-[rgba(76,175,80,0.2)] px-2 py-1.5 text-[11px] text-ink-mid transition hover:text-ink disabled:opacity-50"
-                    >
-                      {summarizing === p ? "…" : p === "claude" ? "Claude" : "ChatGPT"}
-                    </button>
-                  ))}
-                </div>
-                {!isBloomed && (
-                  <>
-                    <p className="px-1 pb-1 text-[10px] uppercase tracking-wide text-ink-soft">
-                      🕊️ Mediate a disagreement
-                    </p>
-                    <div className="flex gap-1.5">
-                      {(["claude", "chatgpt"] as const).map((p) => (
-                        <button
-                          key={p}
-                          onClick={() => {
-                            setAiMenu(false);
-                            askMediate(p);
-                          }}
-                          disabled={mediating}
-                          className="flex-1 rounded-lg border border-[rgba(76,175,80,0.2)] px-2 py-1.5 text-[11px] text-ink-mid transition hover:text-ink disabled:opacity-50"
-                        >
-                          {mediatingWho === p ? "…" : p === "claude" ? "Claude" : "ChatGPT"}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </div>
 
         {/* On-demand AI summary — replaces manual dimension navigation. */}
         {summary && (
@@ -2760,6 +2692,40 @@ export function SeedRoom({
 
             {/* People knocking to join this private seed — owner/stewards act here. */}
             {seed.canManage && visibility === "private" && <JoinRequests seedId={seed.id} />}
+
+            {/* Ask AI about this thread — tucked in here rather than a header
+                button, since it's a now-and-then action. Claude by default. */}
+            {aiEnabled && (
+              <div className="mb-3 rounded-xl border border-[rgba(76,175,80,0.18)] p-2">
+                <p className="px-1 pb-1.5 pt-0.5 text-[11px] uppercase tracking-wide text-ink-soft">
+                  ✨ Ask AI about this
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    onClick={() => {
+                      setSeedMenu(false);
+                      askSummary("claude");
+                    }}
+                    disabled={summarizing !== null}
+                    className="flex-1 rounded-lg border border-[rgba(76,175,80,0.2)] px-2 py-2 text-xs text-ink-mid transition hover:text-ink disabled:opacity-50"
+                  >
+                    📋 Summarize the discussion
+                  </button>
+                  {!isBloomed && (
+                    <button
+                      onClick={() => {
+                        setSeedMenu(false);
+                        askMediate("claude");
+                      }}
+                      disabled={mediating}
+                      className="flex-1 rounded-lg border border-[rgba(76,175,80,0.2)] px-2 py-2 text-xs text-ink-mid transition hover:text-ink disabled:opacity-50"
+                    >
+                      🕊️ Mediate a disagreement
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Actions — a calm list, no single dominant button. Invite reveals
                 its form inline so it doesn't steal the eye. */}
