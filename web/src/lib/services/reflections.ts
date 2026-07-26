@@ -244,21 +244,43 @@ function tallyWeight(w: WeightCounts, key: string | null) {
   if (key && key in w) w[key as keyof WeightCounts]++;
 }
 
+// bloom_reflections has no FK to seeds (by design), so a seed's soft-delete
+// never cascades to the reflections drawn from it — they'd linger in every
+// lesson, stat, and judgement card. Given a set of seedIds, return the subset
+// whose seed still exists (deletedAt: null); callers drop the rest. Best-effort:
+// on any hiccup we keep everything rather than blank the page.
+async function liveSeedIds(seedIds: string[]): Promise<Set<string>> {
+  const unique = [...new Set(seedIds)];
+  if (unique.length === 0) return new Set();
+  const live = await db.seed
+    .findMany({ where: { id: { in: unique }, deletedAt: null }, select: { id: true } })
+    .catch(() => unique.map((id) => ({ id }))); // hiccup → treat all as live
+  return new Set(live.map((s) => s.id));
+}
+
 export async function getReflectionSummary(userId: string): Promise<ReflectionSummary> {
   // Resilient to lesson_weight not being migrated yet: try with it, else read
   // the always-present columns so the section never vanishes before a migration.
-  let rows: { outcome: string | null; sameAgain: string | null; lessonWeight: string | null }[];
+  let rows: {
+    seedId: string;
+    outcome: string | null;
+    sameAgain: string | null;
+    lessonWeight: string | null;
+  }[];
   try {
     rows = await db.bloomReflection.findMany({
       where: { userId },
-      select: { outcome: true, sameAgain: true, lessonWeight: true },
+      select: { seedId: true, outcome: true, sameAgain: true, lessonWeight: true },
     });
   } catch {
     const safe = await db.bloomReflection
-      .findMany({ where: { userId }, select: { outcome: true, sameAgain: true } })
-      .catch(() => [] as { outcome: string | null; sameAgain: string | null }[]);
+      .findMany({ where: { userId }, select: { seedId: true, outcome: true, sameAgain: true } })
+      .catch(() => [] as { seedId: string; outcome: string | null; sameAgain: string | null }[]);
     rows = safe.map((r) => ({ ...r, lessonWeight: null }));
   }
+  // Drop reflections whose seed was deleted, so stats/weights never count them.
+  const live = await liveSeedIds(rows.map((r) => r.seedId));
+  rows = rows.filter((r) => live.has(r.seedId));
 
   const outcome = { better: 0, expected: 0, worse: 0 };
   const sameAgain = { yes: 0, unsure: 0, no: 0 };
@@ -289,13 +311,13 @@ export type AreaSummary = ReflectionSummary & {
 };
 
 export async function getReflectionsByArea(userId: string): Promise<AreaSummary[]> {
-  const rows = await db.bloomReflection
+  let rows = await db.bloomReflection
     .findMany({
       where: {
         userId,
         OR: [{ outcome: { not: null } }, { sameAgain: { not: null } }, { lessonWeight: { not: null } }],
       },
-      select: { outcome: true, sameAgain: true, lessonWeight: true, bloomId: true },
+      select: { outcome: true, sameAgain: true, lessonWeight: true, bloomId: true, seedId: true },
     })
     .catch(
       () =>
@@ -304,8 +326,13 @@ export async function getReflectionsByArea(userId: string): Promise<AreaSummary[
           sameAgain: string | null;
           lessonWeight: string | null;
           bloomId: string;
+          seedId: string;
         }[],
     );
+  if (rows.length === 0) return [];
+  // Exclude reflections tied to a deleted seed before grouping by area.
+  const liveArea = await liveSeedIds(rows.map((r) => r.seedId));
+  rows = rows.filter((r) => liveArea.has(r.seedId));
   if (rows.length === 0) return [];
 
   const blooms = await db.bloom
@@ -423,13 +450,18 @@ export async function listMyReflections(userId: string): Promise<ReflectionListI
     })
     .catch(() => [] as Awaited<ReturnType<typeof db.bloomReflection.findMany>>);
   if (rows.length === 0) return [];
+  // Hide reflections whose seed was deleted (bloom_reflections has no FK to
+  // seeds, so the soft-delete doesn't reach them on its own).
+  const live = await liveSeedIds(rows.map((r) => r.seedId));
+  const visible = rows.filter((r) => live.has(r.seedId));
+  if (visible.length === 0) return [];
 
   const blooms = await db.bloom
-    .findMany({ where: { id: { in: rows.map((r) => r.bloomId) } }, select: { id: true, title: true } })
+    .findMany({ where: { id: { in: visible.map((r) => r.bloomId) } }, select: { id: true, title: true } })
     .catch(() => [] as { id: string; title: string }[]);
   const titleById = new Map(blooms.map((b) => [b.id, b.title]));
 
-  return rows.map((r) => ({
+  return visible.map((r) => ({
     bloomId: r.bloomId,
     seedId: r.seedId,
     title: titleById.get(r.bloomId) ?? "A decision",
@@ -451,7 +483,10 @@ export async function listMyLessons(userId: string): Promise<LessonItem[]> {
       take: 200,
     })
     .catch(() => [] as Awaited<ReturnType<typeof db.bloomReflection.findMany>>);
+  // Drop lessons whose seed was deleted (no FK cascades the soft-delete here).
+  const live = await liveSeedIds(rows.map((r) => r.seedId));
   return rows
+    .filter((r) => live.has(r.seedId))
     .filter((r) => (r.lesson ?? "").trim())
     .map((r) => ({
       bloomId: r.bloomId,
