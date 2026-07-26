@@ -41,6 +41,7 @@ import { ForwardPicker } from "@/components/ForwardPicker";
 import { SeedInvite } from "@/components/SeedInvite";
 import { RecognitionRow } from "@/components/RecognitionRow";
 import { MembersSheet } from "@/components/MembersSheet";
+import { DeadlineSheet } from "@/components/DeadlineSheet";
 import { AskPeople } from "@/components/AskPeople";
 import { JoinRequests } from "@/components/JoinRequests";
 
@@ -125,6 +126,15 @@ export function SeedRoom({
   const [seedMenu, setSeedMenu] = useState(false); // tap-the-question details sheet
   const [notifOpen, setNotifOpen] = useState(false); // notifications row expanded in the sheet
   const [membersOpen, setMembersOpen] = useState(false);
+  const [deadlineOpen, setDeadlineOpen] = useState(false);
+  // The live countdown in the thread (SeedRhythm) relays "Change" taps here.
+  useEffect(() => {
+    const open = () => {
+      if (seed.canManage) setDeadlineOpen(true);
+    };
+    window.addEventListener("tt:open-deadline", open);
+    return () => window.removeEventListener("tt:open-deadline", open);
+  }, [seed.canManage]);
   // The composer starts collapsed to a slim one-line bar so the pinned box never
   // covers the newest messages; tapping it expands the full editor.
   const [composerOpen, setComposerOpen] = useState(false);
@@ -2749,6 +2759,22 @@ export function SeedRoom({
                 <span aria-hidden className="text-ink-soft">›</span>
               </button>
 
+              {/* Deadline — setting/changing the timer lives here (the live
+                  countdown still shows in the thread). Steward-only. */}
+              {seed.canManage && (
+                <button
+                  onClick={() => {
+                    setSeedMenu(false);
+                    setDeadlineOpen(true);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left text-ink transition hover:bg-[rgba(255,255,255,0.04)]"
+                >
+                  <span className="w-5 shrink-0 text-center text-base" aria-hidden>⏰</span>
+                  <span className="flex-1">Deadline</span>
+                  <span aria-hidden className="text-ink-soft">›</span>
+                </button>
+              )}
+
               {/* Notifications — one row showing the current level, taps to expand. */}
               {seed.author?.id !== currentUserId && (
                 <>
@@ -2954,6 +2980,9 @@ export function SeedRoom({
       )}
 
       {membersOpen && <MembersSheet seedId={seed.id} onClose={() => setMembersOpen(false)} />}
+      {deadlineOpen && seed.canManage && (
+        <DeadlineSheet seedId={seed.id} onClose={() => setDeadlineOpen(false)} />
+      )}
       {forwardId && (
         <ForwardPicker
           contributionId={forwardId}

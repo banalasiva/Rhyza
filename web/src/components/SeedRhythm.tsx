@@ -4,11 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { apiGet, apiPost } from "@/lib/client";
 
 // A live "rhythm" a group can put on a seed so a decision doesn't drift on
-// forever — a real ticking countdown everyone can see and work to. Two phases:
-// discuss, then decide. Owner/admins can add time or freeze the current phase
-// ("we've talked enough" / "time's up, let's decide"). Or the deliberate
-// opposite, "🕊️ no deadline, converge peacefully." When a phase's clock runs
-// out, Claude also steps into the thread with a warm nudge toward the next step.
+// forever — a real ticking countdown everyone can see and work to. This shows
+// the LIVE clock in the thread (a working timer belongs in view); SETTING or
+// changing a deadline lives in the seed's details sheet (the DeadlineSheet),
+// opened via the "tt:open-deadline" event, so a fresh thread stays uncluttered.
+// When a phase's clock runs out, Claude steps in with a warm nudge to the next
+// step.
 
 type Deadline = {
   mode: "paced" | "peaceful";
@@ -40,11 +41,20 @@ function fmt(ms: number): string {
   return d > 0 ? `${d}d ${hms}` : hms;
 }
 
+// Open the deadline sheet (lives in the details area). Sibling components can't
+// call into each other directly, so the tap is relayed as a window event.
+const openDeadlineSheet = () => {
+  try {
+    window.dispatchEvent(new CustomEvent("tt:open-deadline"));
+  } catch {
+    /* no-op */
+  }
+};
+
 export function SeedRhythm({
   seedId,
   canManage,
   active = true,
-  young = false,
 }: {
   seedId: string;
   canManage: boolean;
@@ -54,15 +64,13 @@ export function SeedRhythm({
   const [dl, setDl] = useState<Deadline>(null);
   const [loaded, setLoaded] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
-  const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [discussDays, setDiscussDays] = useState(2);
-  const [decideDays, setDecideDays] = useState(1);
   const busyRef = useRef(false);
   busyRef.current = busy;
 
   // Load once, then keep in sync so another admin's extend/freeze reaches every
   // screen. Skip the refresh mid-action so an optimistic change isn't reverted.
+  // Also re-load immediately when the DeadlineSheet reports a change.
   useEffect(() => {
     let alive = true;
     const load = () =>
@@ -78,9 +86,12 @@ export function SeedRhythm({
     const t = setInterval(() => {
       if (!busyRef.current) load();
     }, 15000);
+    const onChanged = () => load();
+    window.addEventListener("tt:deadline-changed", onChanged);
     return () => {
       alive = false;
       clearInterval(t);
+      window.removeEventListener("tt:deadline-changed", onChanged);
     };
   }, [seedId]);
 
@@ -90,33 +101,29 @@ export function SeedRhythm({
     return () => clearInterval(t);
   }, []);
 
-  if (!active || !loaded) return null;
-  if (!dl && !canManage) return null;
-
-  async function post(body: unknown, optimistic?: Deadline) {
+  async function post(body: unknown) {
     setBusy(true);
-    if (optimistic !== undefined) setDl(optimistic);
     try {
       const res = await apiPost<Deadline>(`/api/seeds/${seedId}/deadline`, body);
       setDl(res);
-      setEditing(false);
     } catch {
-      // Re-sync to the real state on failure.
       apiGet<Deadline>(`/api/seeds/${seedId}/deadline`).then(setDl).catch(() => {});
     } finally {
       setBusy(false);
     }
   }
 
-  const setPaced = () => post({ mode: "paced", discussDays, decideDays });
-  const setPeaceful = () => post({ mode: "peaceful" }, { mode: "peaceful", discussBy: null, decideBy: null, setById: "", updatedAt: "" });
-  const remove = () => post({ mode: "clear" }, null);
   const extend = (minutes: number) => post({ action: "extend", minutes });
   const freeze = () => post({ action: "end" });
 
-  const phase: Phase = dl && dl.mode === "paced" ? phaseOf(dl, nowMs) : "over";
+  if (!active || !loaded) return null;
+  // No deadline set → nothing in the thread; setting one lives in the details
+  // sheet now (so a fresh seed's landing stays calm).
+  if (!dl) return null;
+
+  const phase: Phase = dl.mode === "paced" ? phaseOf(dl, nowMs) : "over";
   const target =
-    dl?.mode === "paced"
+    dl.mode === "paced"
       ? phase === "discuss"
         ? new Date(dl.discussBy!).getTime()
         : phase === "decide"
@@ -125,27 +132,20 @@ export function SeedRhythm({
       : null;
   const remaining = target != null ? target - nowMs : 0;
 
-  // On a brand-new seed, don't clutter the calm landing with a "set a deadline?"
-  // prompt — there's nothing to pace yet. It appears once the discussion is
-  // underway (or the moment a deadline is actually set).
-  if (young && !dl && !editing) return null;
-
   return (
     <div className="mt-3 rounded-xl border border-[rgba(76,175,80,0.18)] bg-[rgba(76,175,80,0.05)] px-3 py-2.5">
       {/* ── Peaceful ── */}
-      {dl?.mode === "peaceful" ? (
+      {dl.mode === "peaceful" ? (
         <div className="flex items-center gap-2 text-[13px]">
           <span aria-hidden className="text-sm">🕊️</span>
-          <span className="min-w-0 flex-1 text-ink-mid">
-            No deadline — we’ll take the time we need.
-          </span>
-          {canManage && !editing && (
-            <button onClick={() => setEditing(true)} className="shrink-0 rounded-full px-2.5 py-1 text-xs text-accent transition hover:bg-[rgba(76,175,80,0.12)]">
+          <span className="min-w-0 flex-1 text-ink-mid">No deadline — we’ll take the time we need.</span>
+          {canManage && (
+            <button onClick={openDeadlineSheet} className="shrink-0 rounded-full px-2.5 py-1 text-xs text-accent transition hover:bg-[rgba(76,175,80,0.12)]">
               Change
             </button>
           )}
         </div>
-      ) : dl?.mode === "paced" ? (
+      ) : (
         // ── Paced: the live countdown ──
         <div>
           <div className="flex items-center justify-between gap-2">
@@ -174,7 +174,7 @@ export function SeedRhythm({
             )}
           </div>
 
-          {canManage && !editing && (
+          {canManage && (
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               <span className="text-[11px] text-ink-soft">Add time:</span>
               <TimeChip label="+1h" onClick={() => extend(60)} disabled={busy} />
@@ -190,7 +190,7 @@ export function SeedRhythm({
                 </button>
               )}
               <button
-                onClick={() => setEditing(true)}
+                onClick={openDeadlineSheet}
                 disabled={busy}
                 className="ml-auto rounded-full px-2.5 py-1 text-xs text-accent transition hover:bg-[rgba(76,175,80,0.12)] disabled:opacity-50"
               >
@@ -198,66 +198,6 @@ export function SeedRhythm({
               </button>
             </div>
           )}
-        </div>
-      ) : (
-        // ── No deadline set yet (steward only; non-managers are filtered above) ──
-        <div className="flex items-center gap-2 text-[13px]">
-          <span aria-hidden className="text-sm">🕰️</span>
-          <span className="min-w-0 flex-1 text-ink-soft">
-            Want a deadline to finish talking and decide?
-          </span>
-          <button onClick={() => setEditing(true)} className="shrink-0 rounded-full px-2.5 py-1 text-xs text-accent transition hover:bg-[rgba(76,175,80,0.12)]">
-            Set a deadline
-          </button>
-        </div>
-      )}
-
-      {/* ── The editor (steward) ── */}
-      {editing && canManage && (
-        <div className="mt-3 space-y-3 border-t border-[rgba(255,255,255,0.06)] pt-3">
-          <p className="text-xs text-ink-soft">
-            Pick how long to talk it over, then how long to decide. The countdown starts right away,
-            and everyone gets a friendly reminder when time’s up.
-          </p>
-
-          <div className="rounded-lg border border-[rgba(255,255,255,0.06)] bg-[rgba(7,13,7,0.35)] p-3">
-            <p className="mb-2 text-xs font-semibold text-ink">⏱️ Set a deadline</p>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-ink-mid">
-              <NumBox value={discussDays} onChange={setDiscussDays} /> days to
-              <span className="text-ink">talk</span>
-              <span className="text-ink-soft">·</span>
-              <NumBox value={decideDays} onChange={setDecideDays} /> more to
-              <span className="text-ink">decide</span>
-            </div>
-            <button onClick={setPaced} disabled={busy} className="btn-primary mt-3 w-full py-1.5 text-sm">
-              {busy ? "Starting…" : "▶️ Start the timer"}
-            </button>
-          </div>
-
-          <button
-            onClick={setPeaceful}
-            disabled={busy}
-            className="flex w-full items-center gap-2 rounded-lg border border-[rgba(255,255,255,0.06)] bg-[rgba(7,13,7,0.35)] p-3 text-left transition hover:border-accent disabled:opacity-60"
-          >
-            <span aria-hidden className="text-base">🕊️</span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-xs font-semibold text-ink">No deadline</span>
-              <span className="block text-xs text-ink-soft">Take all the time we need.</span>
-            </span>
-          </button>
-
-          <div className="flex items-center justify-between">
-            {dl ? (
-              <button onClick={remove} disabled={busy} className="text-xs text-ink-soft underline-offset-2 hover:underline">
-                Remove deadline
-              </button>
-            ) : (
-              <span />
-            )}
-            <button onClick={() => setEditing(false)} className="text-xs text-ink-soft hover:text-ink">
-              Cancel
-            </button>
-          </div>
         </div>
       )}
     </div>
@@ -273,29 +213,5 @@ function TimeChip({ label, onClick, disabled }: { label: string; onClick: () => 
     >
       {label}
     </button>
-  );
-}
-
-function NumBox({ value, onChange }: { value: number; onChange: (n: number) => void }) {
-  return (
-    <span className="inline-flex items-center rounded-md border border-[rgba(76,175,80,0.3)] bg-[rgba(76,175,80,0.06)]">
-      <button
-        type="button"
-        aria-label="fewer"
-        onClick={() => onChange(Math.max(0, +(value - (value <= 1 ? 0.5 : 1)).toFixed(1)))}
-        className="px-2 py-1 text-ink-soft transition hover:text-ink"
-      >
-        −
-      </button>
-      <span className="min-w-[2.5ch] text-center text-sm font-semibold text-ink">{value}</span>
-      <button
-        type="button"
-        aria-label="more"
-        onClick={() => onChange(Math.min(30, +(value + 1).toFixed(1)))}
-        className="px-2 py-1 text-ink-soft transition hover:text-ink"
-      >
-        +
-      </button>
-    </span>
   );
 }
