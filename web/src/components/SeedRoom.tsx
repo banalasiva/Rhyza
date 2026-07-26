@@ -2992,6 +2992,7 @@ export function SeedRoom({
                 <SeedInvite
                   seedId={seed.id}
                   gardenName={seed.garden.name}
+                  seedTitle={seedTitle}
                   isPrivate={visibility === "private"}
                   inline
                 />
@@ -3040,6 +3041,7 @@ export function SeedRoom({
             <SeedInvite
               seedId={seed.id}
               gardenName={seed.garden.name}
+              seedTitle={seedTitle}
               isPrivate={visibility === "private"}
               inline
             />

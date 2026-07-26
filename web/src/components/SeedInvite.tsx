@@ -18,16 +18,19 @@ type Addable = { id: string; name: string; email: string; image: string | null }
 export function SeedInvite({
   seedId,
   gardenName,
+  seedTitle,
   isPrivate,
   inline = false,
 }: {
   seedId: string;
   gardenName: string;
+  seedTitle?: string; // the seed's question — carried into the warm invite as the hook
   isPrivate: boolean;
   inline?: boolean; // render the form directly (e.g. inside the details sheet)
 }) {
   const [open, setOpen] = useState(inline);
   const [email, setEmail] = useState("");
+  const [showEmail, setShowEmail] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ link: string; emailed: boolean } | null>(null);
@@ -60,6 +63,14 @@ export function SeedInvite({
       .then((r) => setPeople(r.people ?? []))
       .catch(() => {});
   }, []);
+
+  // The link is the amazing part — have it ready the moment the invite opens, so
+  // sharing is one tap and nobody has to type an email first. Reuses an existing
+  // pending link (idempotent server-side), so this never spawns duplicates.
+  useEffect(() => {
+    if (open && !result) void ensureLink();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Debounced search of people already on ThinkThru (in this seed's org).
   useEffect(() => {
@@ -146,14 +157,19 @@ export function SeedInvite({
     const link = (await ensureLink()) ?? result?.link;
     if (!link) return;
     const digits = toWhatsAppNumber(tel);
-    const msg = inviteMessage({ place: gardenName, link });
+    const msg = inviteMessage({ place: gardenName, topic: seedTitle, link });
     setSentTel((s) => new Set(s).add(tel));
     track("invite_shared", { via: "whatsapp", scope: "seed" });
     window.open(`https://wa.me/${digits}?text=${encodeURIComponent(msg)}`, "_blank");
   }
 
   function message() {
-    return inviteMessage({ place: gardenName, link: result!.link, email: email || undefined });
+    return inviteMessage({
+      place: gardenName,
+      topic: seedTitle,
+      link: result!.link,
+      email: email || undefined,
+    });
   }
 
   async function share() {
@@ -335,60 +351,85 @@ export function SeedInvite({
         {isPrivate ? " and this private discussion" : ""} and can open this seed.{" "}
         Sharing just the link won&apos;t give access — they need this invite.
       </p>
-      <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
-        <div className="flex flex-1 items-center gap-2">
-          <input
-            className="input flex-1"
-            type="email"
-            name="email"
-            autoComplete="email"
-            inputMode="email"
-            list="invite-network-seed"
-            placeholder="teammate@email.com (or leave blank for a link)"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          {people.length > 0 && (
-            <datalist id="invite-network-seed">
-              {people.map((p) => (
-                <option key={p.id} value={p.email}>
-                  {p.name}
-                </option>
-              ))}
-            </datalist>
-          )}
-        </div>
-        <button type="submit" className="btn-primary shrink-0" disabled={busy}>
-          {busy ? "Creating…" : email ? "Send" : "Create link"}
-        </button>
-      </form>
-      {error && <p className="mt-2 text-sm text-[#e57373]">{error}</p>}
-      {result && (
-        <div className="mt-3 rounded-xl border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.4)] p-3">
-          <p className="mb-2 text-xs text-ink-mid">
-            {result.emailed
-              ? "✉️ A warm invite is on its way to their inbox. Send it directly too:"
-              : "🔗 Invite ready — every option sends a warm message, not just a link:"}
-          </p>
-          <button
-            onClick={whatsapp}
-            className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] px-3 py-2.5 text-sm font-semibold text-[#04310f] transition active:scale-95"
-          >
-            <WhatsAppIcon />
-            Invite on WhatsApp
-          </button>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 truncate text-xs text-ink-soft">{result.link}</code>
-            {canShare && (
-              <button onClick={share} className="btn-primary shrink-0 px-3 py-1 text-xs">
-                Share
-              </button>
-            )}
-            <button onClick={copy} className="btn-ghost shrink-0 px-3 py-1 text-xs">
-              {copied ? "Copied!" : "Copy"}
+
+      {/* The link is ready the moment this opens — lead with sharing, no email
+          needed. The warm message carries the garden + the actual question, so
+          it lands as an irresistible "come think this through" rather than a
+          bare link. */}
+      {error && !result && <p className="mb-2 text-sm text-[#e57373]">{error}</p>}
+      <div className="rounded-xl border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.4)] p-3">
+        {result ? (
+          <>
+            <p className="mb-2 text-xs text-ink-mid">
+              {result.emailed
+                ? "✉️ A warm invite is on its way to their inbox. Send it directly too:"
+                : "🔗 Invite ready — every option sends a warm message, not just a link:"}
+            </p>
+            <button
+              onClick={whatsapp}
+              className="mb-2 flex w-full items-center justify-center gap-2 rounded-lg bg-[#25D366] px-3 py-2.5 text-sm font-semibold text-[#04310f] transition active:scale-95"
+            >
+              <WhatsAppIcon />
+              Invite on WhatsApp
             </button>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 truncate text-xs text-ink-soft">{result.link}</code>
+              {canShare && (
+                <button onClick={share} className="btn-primary shrink-0 px-3 py-1 text-xs">
+                  Share
+                </button>
+              )}
+              <button onClick={copy} className="btn-ghost shrink-0 px-3 py-1 text-xs">
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs text-ink-soft">
+            {linkBusy ? "Preparing your invite link…" : "Getting your invite link ready…"}
+          </p>
+        )}
+      </div>
+
+      {/* Optional: send to a specific email instead. Secondary — tucked away so
+          it never blocks the one-tap share path. */}
+      {!showEmail ? (
+        <button
+          type="button"
+          onClick={() => setShowEmail(true)}
+          className="mt-2 text-xs text-ink-soft underline-offset-2 transition hover:text-ink hover:underline"
+        >
+          ✉️ Prefer to email it to someone?
+        </button>
+      ) : (
+        <form onSubmit={submit} className="mt-2 flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-1 items-center gap-2">
+            <input
+              className="input flex-1"
+              type="email"
+              name="email"
+              autoComplete="email"
+              inputMode="email"
+              list="invite-network-seed"
+              placeholder="teammate@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoFocus
+            />
+            {people.length > 0 && (
+              <datalist id="invite-network-seed">
+                {people.map((p) => (
+                  <option key={p.id} value={p.email}>
+                    {p.name}
+                  </option>
+                ))}
+              </datalist>
+            )}
           </div>
-        </div>
+          <button type="submit" className="btn-primary shrink-0" disabled={busy || !email}>
+            {busy ? "Sending…" : "Send"}
+          </button>
+        </form>
       )}
     </>
   );
