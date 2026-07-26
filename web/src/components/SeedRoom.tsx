@@ -28,7 +28,6 @@ import { serializeMentions, deserializeMentions } from "@/lib/mentions";
 import { shareOrCopy } from "@/lib/share-client";
 import { CollapsibleText } from "@/components/CollapsibleText";
 import { Avatar } from "@/components/Avatar";
-import { AvatarRow } from "@/components/AvatarRow";
 import { Attachments, type Attachment } from "@/components/Attachments";
 import { type Board } from "@/components/StakeBoard";
 import { PollCard, PollCreator, type Poll } from "@/components/SeedPolls";
@@ -1715,45 +1714,28 @@ export function SeedRoom({
           </div>
         ) : (
           <>
-            {/* The question IS the button — tapping it opens the details sheet
-                (members, add people, notifications, settings, edit). People
-                instinctively tap the question, so it carries a visible "Details"
-                affordance instead of looking like static text. The button lives
-                inside the h1 so the page keeps a real heading. */}
-            <h1 className="serif-xl mb-1 break-words">
-              <button
-                onClick={() => {
-                  setSeedMenu(true);
-                  setInviteOpen(false);
-                }}
-                aria-haspopup="dialog"
-                aria-label="Open details and options for this decision"
-                className="group text-left align-baseline transition hover:opacity-90 active:opacity-80"
-              >
-                {seedTitle}{" "}
-                <span className="ml-1 inline-flex translate-y-[-2px] items-center gap-0.5 whitespace-nowrap rounded-full border border-[rgba(255,255,255,0.16)] px-2 py-0.5 align-middle text-[11px] font-medium text-ink-soft transition group-hover:border-accent group-hover:text-ink">
-                  Details ⌄
-                </span>
-              </button>
-            </h1>
-            {/* The same tap target, restated as a calm people line — just the
-                faces and a lock/globe. The count and the word "Private" are
-                redundant: the avatars already show who's in, and the lock alone
-                reads as private (globe as public). "Details ⌄" on the question
-                above carries the affordance. */}
+            {/* The question stands alone and prominent — the first thing you
+                read, never crowded. Details + who's in sit on their own line just
+                below (like a chat app's title with an info row under it), so the
+                question is never "lost". */}
+            <h1 className="serif-xl mb-2 break-words">{seedTitle}</h1>
+            {/* Details is a clear button, always directly under the question.
+                Who's in is plain text ("4 members · 🔒") rather than avatar
+                circles — neater — and the whole row opens the details sheet. */}
             <button
               onClick={() => {
                 setSeedMenu(true);
                 setInviteOpen(false);
               }}
               aria-haspopup="dialog"
-              aria-label={
-                visibility === "private" ? "Private — open details" : "Public — open details"
-              }
-              className="mb-4 flex items-center gap-2 text-left transition hover:opacity-90 active:scale-[0.99]"
+              aria-label="Open details and options for this decision"
+              className="group mb-4 flex items-center gap-2 text-left transition active:scale-[0.99]"
             >
-              <AvatarRow people={seed.people} size={24} />
-              <span aria-hidden className="text-sm leading-none">
+              <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(255,255,255,0.18)] px-2.5 py-1 text-xs font-medium text-ink-soft transition group-hover:border-accent group-hover:text-ink">
+                Details ⌄
+              </span>
+              <span className="text-xs text-ink-soft">
+                {participants} {participants === 1 ? "member" : "members"} ·{" "}
                 {visibility === "private" ? "🔒" : "🌍"}
               </span>
             </button>
