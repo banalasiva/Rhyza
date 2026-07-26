@@ -3,40 +3,39 @@
 import { useEffect, useMemo } from "react";
 import { playNatureSound } from "@/lib/sound";
 
-// The planting moment — a full-screen germination that plays WHILE the seed is
-// being created (it is the loader), then drops you into the thread. A seed
-// falls, a stem springs from the soil, leaves unfurl, a sparkle pops — all over
-// a constant, gentle shower of leaves and light, so it feels as alive as the
-// bloom. Growth-green, so it stays its own thing next to the bloom's gold.
+// The planting moment — a full-screen germination in three beats that plays
+// WHILE the seed is being created (it is the loader), then drops you into the
+// thread: a seed falls, a golden spark bursts (the seed becomes light), then a
+// two-leaf bud unfurls with a warm golden glow, all over a constant shimmer of
+// golden sparkles. Gold, so it belongs to the bloom's family of joy — but a
+// bud, a beginning, distinct from the bloom's full flower.
 export function PlantingSprout() {
-  // Falling leaves — the constant shower.
-  const leaves = useMemo(
+  // Ambient golden sparkles drifting up across the screen.
+  const sparkles = useMemo(
     () =>
-      Array.from({ length: 16 }).map((_, i) => ({
+      Array.from({ length: 20 }).map((_, i) => ({
         key: i,
-        left: Math.round(Math.random() * 100),
-        w: 9 + Math.round(Math.random() * 12),
-        delay: Math.random() * 2.6,
-        dur: 3.6 + Math.random() * 2.8,
-        drift: `${(Math.random() * 180 - 90).toFixed(0)}px`,
-        spin: `${Math.round(Math.random() * 500 - 250)}deg`,
-        rot: Math.round(Math.random() * 360),
+        size: 2 + Math.round(Math.random() * 5),
+        left: 12 + Math.round(Math.random() * 76),
+        top: 26 + Math.round(Math.random() * 56),
+        dur: 2.6 + Math.random() * 2.4,
+        delay: Math.random() * 2.2,
+        peak: (0.4 + Math.random() * 0.6).toFixed(2),
       })),
     [],
   );
 
-  // A few sparkles that pop around the sprout as it finishes.
-  const sparks = useMemo(
+  // A ring of sparkles fired off by the golden spark.
+  const burst = useMemo(
     () =>
-      Array.from({ length: 8 }).map((_, i) => {
-        const a = (i / 8) * Math.PI * 2 + 0.3;
-        const dist = 70 + Math.random() * 60;
+      Array.from({ length: 16 }).map((_, i) => {
+        const a = (i / 16) * Math.PI * 2;
+        const dist = 55 + Math.random() * 55;
         return {
           key: i,
-          size: 6 + Math.round(Math.random() * 8),
-          sx: `${Math.round(Math.cos(a) * dist)}px`,
-          sy: `${Math.round(Math.sin(a) * dist)}px`,
-          delay: 0.95 + Math.random() * 0.3,
+          bx: `${Math.round(Math.cos(a) * dist)}px`,
+          by: `${Math.round(Math.sin(a) * dist)}px`,
+          delay: 0.34 + Math.random() * 0.04,
         };
       }),
     [],
@@ -53,114 +52,133 @@ export function PlantingSprout() {
   return (
     <div
       className="fixed inset-0 z-[300] flex items-center justify-center overflow-hidden animate-[fadeUp_0.3s_ease-out]"
-      style={{ background: "radial-gradient(circle at 50% 52%, #0f2012 0%, #050b06 74%)" }}
+      style={{ background: "radial-gradient(120% 90% at 50% 56%, #14100a 0%, #0a0906 55%, #060505 100%)" }}
     >
-      {/* big soft glow */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[120vw] w-[120vw] max-h-[900px] max-w-[900px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+      {/* Breathing golden halo behind everything. */}
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[128vw] w-[128vw] max-h-[860px] max-w-[860px] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
           background:
-            "radial-gradient(circle, rgba(76,175,80,0.28), rgba(76,175,80,0.08) 46%, transparent 70%)",
+            "radial-gradient(circle, rgba(245,196,81,0.34), rgba(245,196,81,0.12) 44%, transparent 70%)",
           animation: "haloBreathe 3.6s ease-in-out infinite",
         }}
       />
 
-      {/* constant leaf shower */}
+      {/* Ambient golden sparkles. */}
       <div className="pointer-events-none absolute inset-0">
-        {leaves.map((l) => (
+        {sparkles.map((s) => (
           <span
-            key={l.key}
-            className="leaf-fall"
+            key={s.key}
+            className="plant-sparkle"
             style={
               {
-                left: `${l.left}%`,
-                animationDelay: `${l.delay}s`,
-                animationDuration: `${l.dur}s`,
-                ["--drift" as string]: l.drift,
-                ["--spin" as string]: l.spin,
+                width: s.size,
+                height: s.size,
+                left: `${s.left}%`,
+                top: `${s.top}%`,
+                animationDuration: `${s.dur}s`,
+                animationDelay: `${s.delay}s`,
+                ["--peak" as string]: s.peak,
               } as React.CSSProperties
             }
-          >
-            <span
-              className="leaf-shape"
-              style={{ width: l.w, height: Math.round(l.w * 1.35), transform: `rotate(${l.rot}deg)` }}
-            />
-          </span>
+          />
         ))}
       </div>
 
-      <div className="relative">
-        {/* The sprout — big enough to fill the screen. */}
+      <div className="relative flex items-center justify-center">
+        {/* seed → golden spark → two-leaf bud */}
         <svg
           viewBox="0 0 200 200"
-          className="h-[54vh] max-h-[520px] w-auto max-w-[92vw]"
+          className="h-auto w-[66vw] max-w-[360px]"
           role="img"
-          aria-label="Planting"
+          aria-label="Planting a seed"
         >
-          {/* soil */}
-          <ellipse cx="100" cy="150" rx="52" ry="14" fill="#231910" opacity="0.95" />
-          <ellipse cx="100" cy="147" rx="34" ry="8" fill="#2f2314" />
-          {/* seed dropping in */}
-          <ellipse className="sprout-seed" cx="100" cy="147" rx="6.5" ry="4.5" fill="#caa66e" />
+          <defs>
+            <radialGradient id="plantSparkG" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="35%" stopColor="#ffe08a" />
+              <stop offset="70%" stopColor="#f5c451" />
+              <stop offset="100%" stopColor="#f5c451" stopOpacity="0" />
+            </radialGradient>
+            <linearGradient id="plantStemG" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stopColor="#5cae63" />
+              <stop offset="100%" stopColor="#8fd88a" />
+            </linearGradient>
+            <radialGradient id="plantBudG" cx="50%" cy="35%" r="65%">
+              <stop offset="0%" stopColor="#fff2c8" />
+              <stop offset="50%" stopColor="#f5c451" />
+              <stop offset="100%" stopColor="#d99a2b" />
+            </radialGradient>
+            <radialGradient id="plantGlowG" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#ffe08a" stopOpacity="0.9" />
+              <stop offset="40%" stopColor="#f5c451" stopOpacity="0.5" />
+              <stop offset="100%" stopColor="#f5c451" stopOpacity="0" />
+            </radialGradient>
+          </defs>
+
+          {/* rays shooting out of the spark */}
+          <g stroke="url(#plantSparkG)" strokeWidth="2.5" strokeLinecap="round">
+            <line className="plant-ray" x1="100" y1="118" x2="100" y2="72" style={{ animationDelay: "0.32s" }} />
+            <line className="plant-ray" x1="100" y1="118" x2="140" y2="90" style={{ animationDelay: "0.34s" }} />
+            <line className="plant-ray" x1="100" y1="118" x2="150" y2="122" style={{ animationDelay: "0.36s" }} />
+            <line className="plant-ray" x1="100" y1="118" x2="132" y2="152" style={{ animationDelay: "0.38s" }} />
+            <line className="plant-ray" x1="100" y1="118" x2="68" y2="152" style={{ animationDelay: "0.38s" }} />
+            <line className="plant-ray" x1="100" y1="118" x2="50" y2="122" style={{ animationDelay: "0.36s" }} />
+            <line className="plant-ray" x1="100" y1="118" x2="60" y2="90" style={{ animationDelay: "0.34s" }} />
+          </g>
+
           {/* stem */}
           <path
-            className="sprout-stem"
-            d="M100 149 C 99 126 101 104 100 80"
-            stroke="#5fb765"
-            strokeWidth="5.5"
+            className="plant-stem"
+            d="M100 150 C 99 132 101 128 100 116"
+            stroke="url(#plantStemG)"
+            strokeWidth="4.5"
             fill="none"
             strokeLinecap="round"
           />
-          {/* lower leaf pair (unfurl first) */}
-          <g transform="translate(100 120) rotate(-24) scale(-1,1)">
+
+          {/* two leaves */}
+          <path
+            className="plant-leaf plant-leaf-l"
+            d="M100 128 C 82 122 66 128 60 140 C 74 148 92 142 100 128 Z"
+            fill="#6cce74"
+          />
+          <path
+            className="plant-leaf plant-leaf-r"
+            d="M100 128 C 118 122 134 128 140 140 C 126 148 108 142 100 128 Z"
+            fill="#8fd88a"
+          />
+
+          {/* golden glow pooled behind the bud */}
+          <circle className="plant-bud-glow" cx="100" cy="102" r="26" fill="url(#plantGlowG)" />
+
+          {/* the golden bud — small, with a bright tip */}
+          <g className="plant-bud">
             <path
-              className="sprout-leaf"
-              style={{ animationDelay: "0.42s" }}
-              d="M0 0 C 12 -13 34 -9 47 2 C 33 14 9 12 0 0 Z"
-              fill="#4fae57"
+              d="M100 113 C 93.5 113 91 104.5 93 98 C 94.8 92.8 100 90.5 100 90.5 C 100 90.5 105.2 92.8 107 98 C 109 104.5 106.5 113 100 113 Z"
+              fill="url(#plantBudG)"
             />
+            <circle cx="100" cy="99" r="3" fill="#fff6dc" />
           </g>
-          <g transform="translate(100 116) rotate(-24)">
-            <path
-              className="sprout-leaf"
-              style={{ animationDelay: "0.5s" }}
-              d="M0 0 C 12 -13 34 -9 47 2 C 33 14 9 12 0 0 Z"
-              fill="#63c86d"
-            />
-          </g>
-          {/* upper leaf pair */}
-          <g transform="translate(100 92) rotate(-32) scale(-1,1)">
-            <path
-              className="sprout-leaf"
-              style={{ animationDelay: "0.66s" }}
-              d="M0 0 C 13 -14 36 -10 50 2 C 35 15 10 13 0 0 Z"
-              fill="#54b45b"
-            />
-          </g>
-          <g transform="translate(100 86) rotate(-32)">
-            <path
-              className="sprout-leaf"
-              style={{ animationDelay: "0.76s" }}
-              d="M0 0 C 13 -14 36 -10 50 2 C 35 15 10 13 0 0 Z"
-              fill="#6cce74"
-            />
-          </g>
-          {/* dew tip */}
-          <circle className="sprout-tip" cx="100" cy="79" r="4.5" fill="#cbf4ce" />
+
+          {/* the seed */}
+          <ellipse className="plant-seed" cx="100" cy="120" rx="7" ry="9.5" fill="#e7b45a" />
+
+          {/* the spark core */}
+          <circle className="plant-spark" cx="100" cy="118" r="16" fill="url(#plantSparkG)" />
         </svg>
 
-        {/* sparkle pop around the sprout */}
-        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          {sparks.map((s) => (
+        {/* burst sparkles fired from the spark */}
+        <div className="pointer-events-none absolute left-1/2 top-1/2">
+          {burst.map((b) => (
             <span
-              key={s.key}
-              className="sprout-spark"
+              key={b.key}
+              className="plant-burst"
               style={
                 {
-                  width: s.size,
-                  height: s.size,
-                  animationDelay: `${s.delay}s`,
-                  ["--sx" as string]: s.sx,
-                  ["--sy" as string]: s.sy,
+                  animationDelay: `${b.delay}s`,
+                  ["--bx" as string]: b.bx,
+                  ["--by" as string]: b.by,
                 } as React.CSSProperties
               }
             />
