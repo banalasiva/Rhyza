@@ -1357,10 +1357,6 @@ export function SeedRoom({
     [realContribs],
   );
   const showFirstAiNote = realContribs.length <= 3;
-  // A brand-new seed (just you + Claude's opener). Keep its landing calm — no
-  // step-explainer line, no deadline prompt; let the question, Claude's first
-  // thought, one invite, and the composer breathe.
-  const young = realContribs.length <= 1;
 
   // The pinned composer shows as a slim one-line bar until there's a reason to
   // open the full editor (you tapped it, there's unsent text/attachments, or
@@ -1554,26 +1550,6 @@ export function SeedRoom({
             );
           })}
         </div>
-
-        {/* Plain-language "what this step is for". The tabs use the garden words
-            (Discuss · Decide · Bloom); this line says, in ordinary language, what
-            you actually DO here. Hidden on a brand-new seed so the landing stays
-            calm — it appears once the conversation is underway. */}
-        {!young && (
-        <p className="mb-4 -mt-1 flex items-center justify-center gap-1.5 px-1 text-center text-[11px] leading-relaxed text-ink-soft">
-          <span>
-            {tab === "discuss"
-              ? "💬 Talk it through — share every angle, and ask AI when you want another view."
-              : tab === "decide"
-                ? "⚖️ Weigh in on what matters most — everyone’s read shapes the call."
-                : "🌸 Close the conversation into one shared decision your group keeps."}
-          </span>
-          <InfoTip
-            label="Discuss → Decide → Bloom"
-            text="Every seed moves through three steps: Discuss (talk it through), Decide (everyone weighs in), and Bloom (it becomes a decision kept in your Sacred Tree). Tap the ? up top for the full walkthrough."
-          />
-        </p>
-        )}
 
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "decide" ? (
