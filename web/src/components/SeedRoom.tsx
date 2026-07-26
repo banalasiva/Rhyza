@@ -1715,11 +1715,29 @@ export function SeedRoom({
           </div>
         ) : (
           <>
-            <h1 className="serif-xl mb-1 break-words">{seedTitle}</h1>
-            {/* One calm, tappable line — faces + count + visibility — exactly like
-                a Slack channel or WhatsApp group header. Tap it to open the
-                details sheet (members, add people, notifications, settings)
-                instead of scattering those as loose buttons up here. */}
+            {/* The question IS the button — tapping it opens the details sheet
+                (members, add people, notifications, settings, edit). People
+                instinctively tap the question, so it carries a visible "Details"
+                affordance instead of looking like static text. The button lives
+                inside the h1 so the page keeps a real heading. */}
+            <h1 className="serif-xl mb-1 break-words">
+              <button
+                onClick={() => {
+                  setSeedMenu(true);
+                  setInviteOpen(false);
+                }}
+                aria-haspopup="dialog"
+                aria-label="Open details and options for this decision"
+                className="group text-left align-baseline transition hover:opacity-90 active:opacity-80"
+              >
+                {seedTitle}{" "}
+                <span className="ml-1 inline-flex translate-y-[-2px] items-center gap-0.5 whitespace-nowrap rounded-full border border-[rgba(255,255,255,0.16)] px-2 py-0.5 align-middle text-[11px] font-medium text-ink-soft transition group-hover:border-accent group-hover:text-ink">
+                  Details ⌄
+                </span>
+              </button>
+            </h1>
+            {/* The same tap target, restated as a calm people line — faces +
+                count + visibility, like a Slack/WhatsApp group header. */}
             <button
               onClick={() => {
                 setSeedMenu(true);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { NavIcon } from "@/components/nav-items";
 import { CreateGardenForm } from "@/components/CreateGardenForm";
@@ -30,6 +30,7 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
   const [planting, setPlanting] = useState(false); // the sprout is playing over everything
   const [error, setError] = useState<string | null>(null);
   const [showGardens, setShowGardens] = useState(false);
+  const boxRef = useRef<HTMLTextAreaElement>(null);
 
   async function load() {
     if (gardens) return;
@@ -89,7 +90,15 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
   async function plant(gardenId?: string) {
     const t = title.trim();
     if (t.length < 4) {
-      setError("Just a few more words so people know what it's about.");
+      setError(
+        t.length === 0
+          ? "Type your question first — a line about what you want to figure out."
+          : "Just a few more words so people know what it's about.",
+      );
+      // Pull focus back to the box so the error and the red outline are seen,
+      // even if the Start button was tapped from the bottom of the sheet.
+      boxRef.current?.focus();
+      boxRef.current?.scrollIntoView({ block: "center" });
       return;
     }
     // Start the sprout IMMEDIATELY — it plays over everything and doubles as the
@@ -165,8 +174,10 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
               </button>
             </div>
 
-            {/* The one box that matters — type it, start it. No garden to pick. */}
+            {/* The one box that matters — type it, start it. No garden to pick.
+                On an empty/short Start it turns red so the ask is unmissable. */}
             <textarea
+              ref={boxRef}
               autoFocus
               value={title}
               onChange={(e) => {
@@ -178,20 +189,20 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
               }}
               rows={3}
               maxLength={500}
+              aria-invalid={!!error}
               placeholder="e.g. Where should we go for the December trip?"
-              className="w-full resize-none rounded-xl border border-[rgba(76,175,80,0.25)] bg-[rgba(7,13,7,0.5)] p-3 text-sm text-ink placeholder:text-ink-soft focus:border-accent focus:outline-none"
+              className={`w-full resize-none rounded-xl border bg-[rgba(7,13,7,0.5)] p-3 text-sm text-ink placeholder:text-ink-soft focus:outline-none ${
+                error
+                  ? "border-[#e57373] focus:border-[#e57373]"
+                  : "border-[rgba(76,175,80,0.25)] focus:border-accent"
+              }`}
             />
-            {error && <p className="mt-1.5 text-xs text-[#e57373]">{error}</p>}
-            <button
-              onClick={() => plant()}
-              disabled={posting}
-              className="btn-primary mt-3 w-full text-sm disabled:opacity-60"
-            >
-              {posting ? "Starting…" : "Start →"}
-            </button>
-            <p className="mt-2 text-center text-[11px] text-ink-soft">
-              Private to you until you add people. Claude opens with a first thought.
-            </p>
+            {error && (
+              <p className="mt-2 flex items-center gap-1 text-xs font-medium text-[#e57373]">
+                <span aria-hidden>⚠️</span>
+                {error}
+              </p>
+            )}
 
             {/* Optional: file it into a specific garden instead. Tucked away so it
                 never blocks the quick path, for people who like to organise. */}
@@ -247,6 +258,22 @@ export function PlantButton({ variant }: { variant: "bottom" | "top" }) {
                 nothing when there are none). */}
             <div className="mt-4">
               <WaitingForThem />
+            </div>
+
+            {/* Start lives at the BOTTOM — after the box and the garden option —
+                so the natural first move is to type, not to tap Start on an empty
+                box. */}
+            <div className="mt-4 border-t border-[rgba(255,255,255,0.08)] pt-4">
+              <button
+                onClick={() => plant()}
+                disabled={posting}
+                className="btn-primary w-full text-sm disabled:opacity-60"
+              >
+                {posting ? "Starting…" : "Start →"}
+              </button>
+              <p className="mt-2 text-center text-[11px] text-ink-soft">
+                Private to you until you add people. Claude opens with a first thought.
+              </p>
             </div>
           </div>
         </div>
