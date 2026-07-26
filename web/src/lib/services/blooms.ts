@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { requireSeedAccess, requireSeedManager } from "@/lib/authz";
 import { getMyReflection, getSharedReflections } from "@/lib/services/reflections";
+import { getReckoning } from "@/lib/services/reckoning";
 import { synthesizeBloom, type ContribForAI } from "@/lib/ai";
 import { deliver } from "@/lib/services/notify";
 
@@ -459,10 +460,11 @@ export async function getBloomDetail(userId: string, bloomId: string) {
     seedRow.createdById === userId || !!seedMember || !!gardenMember || garden?.createdById === userId;
   const canReopen = isCurrent && isParticipant;
 
-  const [reflection, sharedReflections, links] = await Promise.all([
+  const [reflection, sharedReflections, links, reckoning] = await Promise.all([
     getMyReflection(userId, bloom.id),
     getSharedReflections(bloom.id, userId),
     getSeedLinks(bloom.seedId),
+    getReckoning(userId, bloom.id).catch(() => null),
   ]);
   // "Shared" inherits the seed's audience — private seed → members only, else
   // public. The UI uses this only to label the toggle honestly.
@@ -471,6 +473,7 @@ export async function getBloomDetail(userId: string, bloomId: string) {
   return {
     reflection,
     sharedReflections,
+    reckoning,
     links,
     seedPrivate,
     id: bloom.id,

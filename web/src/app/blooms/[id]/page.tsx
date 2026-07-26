@@ -6,6 +6,7 @@ import { NavBar } from "@/components/NavBar";
 import { GuestTopBar } from "@/components/GuestTopBar";
 import { BloomBody } from "@/components/BloomBody";
 import { BloomReflection } from "@/components/BloomReflection";
+import { BloomReckoning } from "@/components/BloomReckoning";
 import { CalibrateInvite } from "@/components/CalibrateInvite";
 import { getCalibrations } from "@/lib/services/calibration";
 import { RevertBloom } from "@/components/RevertBloom";
@@ -198,6 +199,11 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
             </div>
           </section>
         )}
+
+        {/* The day-21 reckoning — JUDGEMENT. Weeks on, the people who made the
+            call look back TOGETHER: did it turn out well? A collective verdict,
+            shared by design, that closes the loop the bloom opened. */}
+        {bloom.reckoning && <BloomReckoning bloomId={bloom.id} initial={bloom.reckoning} />}
 
         {/* Bloom 2.0 — the decision keeps growing until reality teaches us
             something. A private, revisitable reflection; each part can be shared. */}

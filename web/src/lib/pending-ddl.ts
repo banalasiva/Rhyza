@@ -852,4 +852,40 @@ export const PENDING_DDL: { label: string; sql: string }[] = [
       CONSTRAINT "garden_pins_pkey" PRIMARY KEY ("user_id", "garden_id")
     )`,
   },
+
+  // 20260726_reckoning — the day-21 reckoning (JUDGEMENT): weeks after a bloom,
+  // participants look back together and judge how it turned out. Two standalone
+  // tables (no FK to hot blooms/users), read/write best-effort so a missing
+  // table never breaks the bloom page.
+  {
+    label: "bloom_reckonings",
+    sql: `CREATE TABLE IF NOT EXISTS "bloom_reckonings" (
+      "bloom_id"   UUID NOT NULL,
+      "user_id"    UUID NOT NULL,
+      "seed_id"    UUID NOT NULL,
+      "verdict"    TEXT NOT NULL,
+      "note"       TEXT,
+      "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY ("bloom_id", "user_id")
+    )`,
+  },
+  {
+    label: "bloom_reckonings_bloom_id_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "bloom_reckonings_bloom_id_idx" ON "bloom_reckonings" ("bloom_id")`,
+  },
+  {
+    label: "bloom_reckoning_opens",
+    sql: `CREATE TABLE IF NOT EXISTS "bloom_reckoning_opens" (
+      "bloom_id"   UUID NOT NULL PRIMARY KEY,
+      "seed_id"    UUID NOT NULL,
+      "opened_at"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "opened_by"  UUID
+    )`,
+  },
+  // Helps the day-21 cron scan blooms by age cheaply.
+  {
+    label: "blooms_bloomed_at_idx",
+    sql: `CREATE INDEX IF NOT EXISTS "blooms_bloomed_at_idx" ON "blooms" ("bloomed_at")`,
+  },
 ];

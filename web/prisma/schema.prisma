@@ -932,6 +932,40 @@ model BloomCalibration {
   @@map("bloom_calibrations")
 }
 
+// The day-21 reckoning — the fourth virtue, JUDGEMENT. Weeks after a decision
+// blooms, the people who made it are nudged to look back TOGETHER and judge how
+// it actually turned out: 🍎 well · 🍂 mixed · 🌰 wish we'd chosen differently,
+// plus an optional one-line "what we learned". Unlike the private, personal
+// reflection, this verdict is shared to the group by design — a collective
+// reckoning that closes the loop. One row per (bloom, user). Standalone (no FK
+// to hot tables), read/write best-effort so a missing table never breaks a page.
+model BloomReckoning {
+  bloomId   String   @map("bloom_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  seedId    String   @map("seed_id") @db.Uuid
+  verdict   String // "well" | "mixed" | "regret"
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@id([bloomId, userId])
+  @@index([bloomId])
+  @@map("bloom_reckonings")
+}
+
+// The per-bloom "the reckoning has been opened" marker — presence means the
+// day-21 nudge has fired (or a participant opened it early). Kept as its own
+// tiny table rather than a column on the hot blooms table, so a not-yet-migrated
+// DB can never break a bloom read. The cron uses the PK to stay idempotent.
+model BloomReckoningOpen {
+  bloomId   String   @id @map("bloom_id") @db.Uuid
+  seedId    String   @map("seed_id") @db.Uuid
+  openedAt  DateTime @default(now()) @map("opened_at")
+  openedById String? @map("opened_by") @db.Uuid // null = opened by the day-21 cron
+
+  @@map("bloom_reckoning_opens")
+}
+
 // ─────────────────────────────────────────────────────────────
 // Notifications
 // ─────────────────────────────────────────────────────────────
