@@ -1,15 +1,26 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { playNatureSound } from "@/lib/sound";
 
 // The planting moment — a full-screen germination in three beats that plays
 // WHILE the seed is being created (it is the loader), then drops you into the
 // thread: a seed falls, a golden spark bursts (the seed becomes light), then a
 // two-leaf bud unfurls with a warm golden glow, all over a constant shimmer of
-// golden sparkles. Gold, so it belongs to the bloom's family of joy — but a
-// bud, a beginning, distinct from the bloom's full flower.
-export function PlantingSprout() {
+// golden sparkles.
+//
+// Rendered through a PORTAL to <body> so no transformed/positioned ancestor (it
+// lives inside the fixed bottom nav) can clip it — it always fills the viewport.
+// Theme-aware: a dark ground in dark mode, warm paper in light mode, so the gold
+// reads as light either way.
+//
+// `hold` renders the RESTING end-state (a grown bud, no entrance beats) — used
+// by the seed route's loader so the hand-off from this overlay into the page
+// load is seamless: one continuous sprout, never a separate "Loading…" screen.
+export function PlantingSprout({ hold = false }: { hold?: boolean }) {
+  const [mounted, setMounted] = useState(false);
+
   // Ambient golden sparkles drifting up across the screen.
   const sparkles = useMemo(
     () =>
@@ -42,27 +53,24 @@ export function PlantingSprout() {
   );
 
   useEffect(() => {
-    try {
-      playNatureSound("drop");
-    } catch {
-      /* best-effort */
+    setMounted(true);
+    if (!hold) {
+      try {
+        playNatureSound("drop");
+      } catch {
+        /* best-effort */
+      }
     }
-  }, []);
+  }, [hold]);
 
-  return (
-    <div
-      className="fixed inset-0 z-[300] flex items-center justify-center overflow-hidden animate-[fadeUp_0.3s_ease-out]"
-      style={{ background: "radial-gradient(120% 90% at 50% 56%, #14100a 0%, #0a0906 55%, #060505 100%)" }}
-    >
+  if (!mounted) return null;
+
+  const svgClass = hold ? "plant-hold" : "";
+
+  const scene = (
+    <div className="plant-stage fixed inset-0 z-[300] flex items-center justify-center overflow-hidden animate-[fadeUp_0.3s_ease-out]">
       {/* Breathing golden halo behind everything. */}
-      <div
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[128vw] w-[128vw] max-h-[860px] max-w-[860px] -translate-x-1/2 -translate-y-1/2 rounded-full"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(245,196,81,0.34), rgba(245,196,81,0.12) 44%, transparent 70%)",
-          animation: "haloBreathe 3.6s ease-in-out infinite",
-        }}
-      />
+      <div className="plant-halo pointer-events-none absolute left-1/2 top-1/2 h-[128vw] w-[128vw] max-h-[860px] max-w-[860px] -translate-x-1/2 -translate-y-1/2 rounded-full" />
 
       {/* Ambient golden sparkles. */}
       <div className="pointer-events-none absolute inset-0">
@@ -89,7 +97,7 @@ export function PlantingSprout() {
         {/* seed → golden spark → two-leaf bud */}
         <svg
           viewBox="0 0 200 200"
-          className="h-auto w-[66vw] max-w-[360px]"
+          className={`h-auto w-[66vw] max-w-[360px] ${svgClass}`}
           role="img"
           aria-label="Planting a seed"
         >
@@ -116,16 +124,18 @@ export function PlantingSprout() {
             </radialGradient>
           </defs>
 
-          {/* rays shooting out of the spark */}
-          <g stroke="url(#plantSparkG)" strokeWidth="2.5" strokeLinecap="round">
-            <line className="plant-ray" x1="100" y1="118" x2="100" y2="72" style={{ animationDelay: "0.32s" }} />
-            <line className="plant-ray" x1="100" y1="118" x2="140" y2="90" style={{ animationDelay: "0.34s" }} />
-            <line className="plant-ray" x1="100" y1="118" x2="150" y2="122" style={{ animationDelay: "0.36s" }} />
-            <line className="plant-ray" x1="100" y1="118" x2="132" y2="152" style={{ animationDelay: "0.38s" }} />
-            <line className="plant-ray" x1="100" y1="118" x2="68" y2="152" style={{ animationDelay: "0.38s" }} />
-            <line className="plant-ray" x1="100" y1="118" x2="50" y2="122" style={{ animationDelay: "0.36s" }} />
-            <line className="plant-ray" x1="100" y1="118" x2="60" y2="90" style={{ animationDelay: "0.34s" }} />
-          </g>
+          {/* rays shooting out of the spark (entrance only) */}
+          {!hold && (
+            <g stroke="url(#plantSparkG)" strokeWidth="2.5" strokeLinecap="round">
+              <line className="plant-ray" x1="100" y1="118" x2="100" y2="72" style={{ animationDelay: "0.32s" }} />
+              <line className="plant-ray" x1="100" y1="118" x2="140" y2="90" style={{ animationDelay: "0.34s" }} />
+              <line className="plant-ray" x1="100" y1="118" x2="150" y2="122" style={{ animationDelay: "0.36s" }} />
+              <line className="plant-ray" x1="100" y1="118" x2="132" y2="152" style={{ animationDelay: "0.38s" }} />
+              <line className="plant-ray" x1="100" y1="118" x2="68" y2="152" style={{ animationDelay: "0.38s" }} />
+              <line className="plant-ray" x1="100" y1="118" x2="50" y2="122" style={{ animationDelay: "0.36s" }} />
+              <line className="plant-ray" x1="100" y1="118" x2="60" y2="90" style={{ animationDelay: "0.34s" }} />
+            </g>
+          )}
 
           {/* stem */}
           <path
@@ -161,30 +171,36 @@ export function PlantingSprout() {
             <circle cx="100" cy="99" r="3" fill="#fff6dc" />
           </g>
 
-          {/* the seed */}
-          <ellipse className="plant-seed" cx="100" cy="120" rx="7" ry="9.5" fill="#e7b45a" />
-
-          {/* the spark core */}
-          <circle className="plant-spark" cx="100" cy="118" r="16" fill="url(#plantSparkG)" />
+          {/* the seed + spark core (entrance only) */}
+          {!hold && (
+            <>
+              <ellipse className="plant-seed" cx="100" cy="120" rx="7" ry="9.5" fill="#e7b45a" />
+              <circle className="plant-spark" cx="100" cy="118" r="16" fill="url(#plantSparkG)" />
+            </>
+          )}
         </svg>
 
-        {/* burst sparkles fired from the spark */}
-        <div className="pointer-events-none absolute left-1/2 top-1/2">
-          {burst.map((b) => (
-            <span
-              key={b.key}
-              className="plant-burst"
-              style={
-                {
-                  animationDelay: `${b.delay}s`,
-                  ["--bx" as string]: b.bx,
-                  ["--by" as string]: b.by,
-                } as React.CSSProperties
-              }
-            />
-          ))}
-        </div>
+        {/* burst sparkles fired from the spark (entrance only) */}
+        {!hold && (
+          <div className="pointer-events-none absolute left-1/2 top-1/2">
+            {burst.map((b) => (
+              <span
+                key={b.key}
+                className="plant-burst"
+                style={
+                  {
+                    animationDelay: `${b.delay}s`,
+                    ["--bx" as string]: b.bx,
+                    ["--by" as string]: b.by,
+                  } as React.CSSProperties
+                }
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
+
+  return createPortal(scene, document.body);
 }

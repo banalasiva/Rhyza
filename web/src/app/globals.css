@@ -481,6 +481,25 @@ html.light body {
    thing: a beginning (a bud) next to the bloom's full flower. Plays ONCE as
    the create-loader, then drops you into the thread. */
 
+/* The full-viewport ground the sprout sits on. Theme-aware: a dark ground in
+   dark mode so the gold reads as light; warm morning-paper in light mode so it
+   never looks like a stray black box. */
+.plant-stage {
+  background: radial-gradient(120% 90% at 50% 56%, #14100a 0%, #0a0906 55%, #060505 100%);
+}
+html.light .plant-stage {
+  background: radial-gradient(120% 90% at 50% 56%, #fff9ec 0%, #f7edd7 55%, #efe1c4 100%);
+}
+
+/* The breathing golden halo behind the sprout. */
+.plant-halo {
+  background: radial-gradient(circle, rgba(245, 196, 81, 0.34), rgba(245, 196, 81, 0.12) 44%, transparent 70%);
+  animation: haloBreathe 3.6s ease-in-out infinite;
+}
+html.light .plant-halo {
+  background: radial-gradient(circle, rgba(240, 176, 60, 0.4), rgba(240, 176, 60, 0.16) 44%, transparent 70%);
+}
+
 /* Beat 1 — the seed falls in and is consumed by the spark. */
 .plant-seed {
   transform-box: fill-box;
@@ -607,11 +626,39 @@ html.light body {
   animation-iteration-count: infinite;
   will-change: transform, opacity;
 }
+/* On warm paper a soft gold vanishes — give each sparkle a white-hot core over
+   a deeper amber so it still glints in light mode. */
+html.light .plant-sparkle {
+  background: radial-gradient(circle, #ffffff, #e0972b 55%, transparent 74%);
+}
 @keyframes plantFloatUp {
   0% { opacity: 0; transform: translateY(24px) scale(0.6); }
   20% { opacity: var(--peak, 0.8); }
   80% { opacity: var(--peak, 0.8); }
   100% { opacity: 0; transform: translateY(-92px) scale(1); }
+}
+
+/* Resting end-state (`hold`) — a grown bud with no entrance beats, for the seed
+   route's loader. Force each part to its final, shown form (the animated base
+   styles start hidden) and let only the glow keep its gentle breathe. */
+.plant-hold .plant-stem {
+  transform: scaleY(1);
+  opacity: 1;
+  animation: none;
+}
+.plant-hold .plant-leaf {
+  transform: none;
+  opacity: 1;
+  animation: none;
+}
+.plant-hold .plant-bud {
+  transform: none;
+  opacity: 1;
+  animation: none;
+}
+.plant-hold .plant-bud-glow {
+  opacity: 1;
+  animation: haloBreathe 3.2s ease-in-out infinite;
 }
 
 /* A single soft petal shape (device-independent — no emoji). The lopsided
