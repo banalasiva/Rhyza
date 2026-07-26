@@ -6,7 +6,7 @@ export default function Loading() {
     <div className="relative flex min-h-screen items-center justify-center">
       <div className="garden-bg" />
       <div className="relative z-10 flex flex-col items-center gap-3">
-        <svg className="bud-loader h-14 w-14" viewBox="0 0 100 100" role="img" aria-label="Loading">
+        <svg className="bud-loader h-24 w-24" viewBox="0 0 100 100" role="img" aria-label="Loading">
           <defs>
             <linearGradient id="budLoaderStem" x1="0" y1="1" x2="0" y2="0">
               <stop offset="0%" stopColor="#5cae63" />
