@@ -129,7 +129,7 @@ export function QuorumV2({ seedId }: { seedId: string }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* ── Step 1 · Purpose ── everyone sees what this is for; stewards pick. */}
       {view.phase === "collecting" && (
         <section>
@@ -176,14 +176,16 @@ export function QuorumV2({ seedId }: { seedId: string }) {
       {/* ── Step 2 · Your turn — weigh in (or the revealed result) ── */}
       <section>
         {view.phase === "collecting" && <p className="eyebrow mb-2">Step 2 · Your turn</p>}
-        <div className="mb-2">
-          <h2 className="serif-lg">
+        {/* One quiet lead line — the framing question + the instruction folded
+            together. It is deliberately NOT serif-lg: the only big serif heading
+            in this step is the actual question inside the card below, so there's
+            a single clear thing to read and answer. */}
+        <p className="mb-4 text-sm leading-relaxed text-ink-mid">
+          <span className="text-ink">
             {understand ? "Who helped everyone learn?" : "Who should have the biggest say?"}
-          </h2>
-          <p className="mt-1 text-sm leading-relaxed text-ink-mid">
-            Tap the people each question fits — including yourself.
-          </p>
-        </div>
+          </span>{" "}
+          Tap whoever each question below fits — including you.
+        </p>
 
         {/* Deciding is better together — the invite lives right here in Step 2,
             and it's loud when you're the only one so far (nothing to decide

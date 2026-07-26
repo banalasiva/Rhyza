@@ -1551,7 +1551,7 @@ export function SeedRoom({
 
         <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "decide" ? (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {/* Always show WHAT is being decided, so the vote connects to the
                 question people raised in Discuss. */}
             <div className="rounded-2xl border border-[rgba(76,175,80,0.25)] bg-[rgba(76,175,80,0.06)] p-4">
