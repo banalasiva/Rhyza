@@ -93,6 +93,21 @@ export function BloomBody({
     }
   }
 
+  function saveAsPdf() {
+    // On mobile this opens the system print sheet; the saved file lands in
+    // Downloads. window.print() is a no-op in a few standalone PWAs (notably
+    // iOS) — the message tells people how to do it from the browser instead.
+    setShareMsg("A print sheet should open — pick “Save as PDF”. It saves to your Downloads.");
+    setTimeout(() => {
+      try {
+        window.print();
+      } catch {
+        setShareMsg("Open this decision in your browser, then menu → Print → Save as PDF.");
+      }
+    }, 60);
+    setTimeout(() => setShareMsg(null), 6000);
+  }
+
   async function save() {
     const t = draftTitle.trim();
     const s = draftSummary.trim();
@@ -180,7 +195,7 @@ export function BloomBody({
             ↗ Share
           </button>
           <button
-            onClick={() => window.print()}
+            onClick={saveAsPdf}
             title="Save the full decision record as a PDF"
             className="btn-ghost px-4 py-1.5 text-xs"
           >
