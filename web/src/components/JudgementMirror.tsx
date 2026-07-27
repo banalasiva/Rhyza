@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { ReflectionSummary } from "@/lib/services/reflections";
 import { DistributionBar } from "@/components/DistributionBar";
 
@@ -5,13 +6,16 @@ import { DistributionBar } from "@/components/DistributionBar";
 // person's calls landed, and whether they'd stand by them. A mirror, never a
 // score. Lessons (and how hard-won they were) live in their OWN section, so this
 // stays purely about DECISIONS. Shared by the profile preview and the Judgement
-// page. Presentational + server-safe.
+// page. Presentational + server-safe. An optional `action` slot (e.g. the
+// share-track-record button) renders inside the card, under a divider.
 export function JudgementMirror({
   summary,
   insight,
+  action,
 }: {
   summary: ReflectionSummary;
   insight: string | null;
+  action?: ReactNode;
 }) {
   return (
     <div className="card space-y-5 p-5">
@@ -32,6 +36,7 @@ export function JudgementMirror({
           { n: summary.sameAgain.no, color: "#e57373", label: "No" },
         ]}
       />
+      {action && <div className="border-t border-[var(--border)] pt-4">{action}</div>}
     </div>
   );
 }
