@@ -11,11 +11,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI, { toFile } from "openai";
 import { STAGE_KEYS } from "@/lib/constants";
 
-// Claude model — Sonnet 4.6 is the cost-effective default for these
-// conversational, mediation, and classification tasks (~40% cheaper than Opus,
-// with a small quality gap on this kind of work). Overridable via env so
-// switching back to Opus is a config change, not a code edit.
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+// Claude model — Haiku 4.5 is the default to keep API spend low while the app
+// is pre-revenue ($1/$5 per 1M tokens, ~3× cheaper than Sonnet). It's ample for
+// these conversational, mediation, and bloom tasks. Overridable via env so
+// switching up to Sonnet/Opus is a config change, not a code edit.
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
 // A cheaper, faster model for the high-frequency, low-stakes internal tasks
 // (dimension classification on every message, topic tagging, quick
 // observations). ~5× cheaper than Sonnet with ample quality for these. The
