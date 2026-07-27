@@ -855,29 +855,47 @@ export async function renderReflectionCard(spec: ReflectionCardSpec): Promise<Bl
     top += 74;
   }
 
-  // Points — the hero content. Auto-fit so up to 5 traits fill the band cleanly.
-  const points = spec.points.map((p) => p.trim()).filter(Boolean).slice(0, 5);
+  // Points — the hero content. Fit to the band: shrink the font, and if long
+  // points still overflow at the floor, drop trailing traits so nothing ever
+  // crosses into the footer (better a few complete traits than an overlap).
+  const allPoints = spec.points.map((p) => p.trim()).filter(Boolean).slice(0, 5);
   const footerY = H - margin;
   const bandTop = top + 36;
-  const bandH = footerY - 70 - bandTop;
+  const bandH = footerY - 76 - bandTop; // clear gap kept above the footer
   const textX = margin + 46;
   const textW = maxW - 46;
 
-  let size = 50;
-  let sets: string[][] = [];
-  let lineH = 0;
-  let gap = 0;
-  let total = 0;
-  for (; size >= 32; size -= 2) {
-    ctx.font = `500 ${size}px Georgia, "Times New Roman", serif`;
-    lineH = Math.round(size * 1.3);
-    gap = Math.round(size * 0.72);
-    sets = points.map((p) => wrap(ctx, p, textW));
-    total = sets.reduce((s, ls) => s + ls.length * lineH, 0) + gap * Math.max(0, points.length - 1);
-    if (total <= bandH) break;
+  type Layout = { size: number; lineH: number; gap: number; sets: string[][]; total: number };
+  const fit = (pts: string[]): Layout | null => {
+    for (let s = 50; s >= 26; s -= 2) {
+      ctx.font = `500 ${s}px Georgia, "Times New Roman", serif`;
+      const lineH = Math.round(s * 1.3);
+      const gap = Math.round(s * 0.7);
+      const sets = pts.map((p) => wrap(ctx, p, textW));
+      const total = sets.reduce((n, ls) => n + ls.length * lineH, 0) + gap * Math.max(0, pts.length - 1);
+      if (total <= bandH) return { size: s, lineH, gap, sets, total };
+    }
+    return null;
+  };
+
+  let pts = allPoints;
+  let layout = fit(pts);
+  while (!layout && pts.length > 1) {
+    pts = pts.slice(0, pts.length - 1); // drop the last trait and retry
+    layout = fit(pts);
+  }
+  if (!layout) {
+    // A single trait too long even at the floor — render it truncated to fit.
+    const s = 26;
+    ctx.font = `500 ${s}px Georgia, "Times New Roman", serif`;
+    const lineH = Math.round(s * 1.3);
+    const maxLines = Math.max(1, Math.floor(bandH / lineH));
+    const lines = wrap(ctx, truncateCard(pts[0] ?? "", 240), textW).slice(0, maxLines);
+    layout = { size: s, lineH, gap: 0, sets: [lines], total: lines.length * lineH };
   }
 
-  let y = bandTop + Math.max(0, (bandH - total) / 2) + size;
+  const { size, lineH, gap, sets } = layout;
+  let y = bandTop + Math.max(0, (bandH - layout.total) / 2) + size;
   ctx.font = `500 ${size}px Georgia, "Times New Roman", serif`;
   for (const ls of sets) {
     // Accent dot aligned to the first line's cap height.
