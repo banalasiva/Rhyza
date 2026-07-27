@@ -682,6 +682,120 @@ export async function shareCalibrationCard(
   return shareBlob(blob, opts?.fileName ?? "thinkthru-calibration.png", opts?.shareText);
 }
 
+// ── The "How I Show Up" card ────────────────────────────────────────────────
+// Claude's honest mirror of what a person brings to a room — the bulleted
+// reflection from their profile, turned into a warm identity card. The POINTS
+// are the hero (they're the true story about this person); brand rides quietly.
+// A companion to the Fingerprint card: fingerprint = how they think, this = how
+// they show up.
+
+export type ReflectionCardSpec = {
+  heading: string; // "How Siva shows up" — the frame
+  points: string[]; // the mirror, one trait per line — the hero content
+  footer?: string;
+};
+
+export async function renderReflectionCard(spec: ReflectionCardSpec): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas not supported");
+
+  // Calm green identity gradient (a sibling of the fingerprint card).
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "#f3f9f0");
+  bg.addColorStop(1, "#e6f0ea");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const margin = 96;
+  const ink = "#20301f";
+  const inkSoft = "#5c6b58";
+  const accent = "#4c9a4e";
+  const maxW = W - margin * 2;
+
+  // Brand pill — quiet.
+  ctx.textBaseline = "middle";
+  ctx.font = "600 32px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  const brand = "🌱 ThinkThru";
+  const brandW = ctx.measureText(brand).width + 52;
+  ctx.fillStyle = "rgba(76,154,78,0.12)";
+  roundRect(ctx, margin, margin, brandW, 66, 33);
+  ctx.fill();
+  ctx.fillStyle = "#3f7d41";
+  ctx.fillText(brand, margin + 26, margin + 34);
+  ctx.textBaseline = "alphabetic";
+
+  // Eyebrow + heading.
+  let top = margin + 66 + 96;
+  ctx.font = "600 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  ctx.fillStyle = accent;
+  ctx.fillText("🪞 HOW I SHOW UP", margin, top);
+  top += 78;
+  ctx.font = "700 60px Georgia, \"Times New Roman\", serif";
+  ctx.fillStyle = ink;
+  for (const line of wrap(ctx, spec.heading, maxW).slice(0, 2)) {
+    ctx.fillText(line, margin, top);
+    top += 74;
+  }
+
+  // Points — the hero content. Auto-fit so up to 5 traits fill the band cleanly.
+  const points = spec.points.map((p) => p.trim()).filter(Boolean).slice(0, 5);
+  const footerY = H - margin;
+  const bandTop = top + 36;
+  const bandH = footerY - 70 - bandTop;
+  const textX = margin + 46;
+  const textW = maxW - 46;
+
+  let size = 50;
+  let sets: string[][] = [];
+  let lineH = 0;
+  let gap = 0;
+  let total = 0;
+  for (; size >= 32; size -= 2) {
+    ctx.font = `500 ${size}px Georgia, "Times New Roman", serif`;
+    lineH = Math.round(size * 1.3);
+    gap = Math.round(size * 0.72);
+    sets = points.map((p) => wrap(ctx, p, textW));
+    total = sets.reduce((s, ls) => s + ls.length * lineH, 0) + gap * Math.max(0, points.length - 1);
+    if (total <= bandH) break;
+  }
+
+  let y = bandTop + Math.max(0, (bandH - total) / 2) + size;
+  ctx.font = `500 ${size}px Georgia, "Times New Roman", serif`;
+  for (const ls of sets) {
+    // Accent dot aligned to the first line's cap height.
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(margin + 12, y - size * 0.32, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = ink;
+    for (const line of ls) {
+      ctx.fillText(line, textX, y);
+      y += lineH;
+    }
+    y += gap;
+  }
+
+  // Footer.
+  ctx.font = "500 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  ctx.fillStyle = inkSoft;
+  ctx.fillText(spec.footer ?? "thinkthru.app — where thinking leaves a trace", margin, footerY);
+
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to render"))), "image/png");
+  });
+}
+
+export async function shareReflectionCard(
+  spec: ReflectionCardSpec,
+  opts?: { fileName?: string; shareText?: string },
+): Promise<"shared" | "downloaded"> {
+  const blob = await renderReflectionCard(spec);
+  return shareBlob(blob, opts?.fileName ?? "thinkthru-how-i-show-up.png", opts?.shareText);
+}
+
 // Render, then share the image via the native sheet (WhatsApp, Instagram, etc.).
 // Falls back to a download if the browser can't share files. Returns how it went
 // so the UI can show the right confirmation.

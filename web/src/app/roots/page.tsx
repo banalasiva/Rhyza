@@ -20,6 +20,7 @@ import { ThinkingFingerprint } from "@/components/ThinkingFingerprint";
 import { ShareButton } from "@/components/ShareButton";
 import { ShareFingerprintButton } from "@/components/ShareFingerprintButton";
 import { ShareCalibrationButton } from "@/components/ShareCalibrationButton";
+import { ShareReflectionButton } from "@/components/ShareReflectionButton";
 import { STAGES } from "@/lib/constants";
 
 export default async function RootsPage() {
@@ -109,6 +110,7 @@ export default async function RootsPage() {
             </div>
             <div className="card p-4">
               <ReflectionEditor initial={roots.reflection} />
+              <ShareReflectionButton text={roots.reflection} name={viewer.name} />
             </div>
           </section>
         )}
@@ -131,8 +133,13 @@ export default async function RootsPage() {
                 See each →
               </Link>
             </div>
-            <JudgementMirror summary={judgement} insight={judgementInsight(judgement)} />
-            <ShareCalibrationButton summary={judgement} insight={judgementInsight(judgement)} />
+            <JudgementMirror
+              summary={judgement}
+              insight={judgementInsight(judgement)}
+              action={
+                <ShareCalibrationButton summary={judgement} insight={judgementInsight(judgement)} />
+              }
+            />
           </section>
         )}
 
