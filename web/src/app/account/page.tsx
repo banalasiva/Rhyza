@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { requireViewer } from "@/lib/session";
 import { signIn, signOut } from "@/auth";
 import { isGuestEmail } from "@/lib/guest";
@@ -112,7 +113,8 @@ export default async function AccountPage() {
             action={async () => {
               "use server";
               await deleteAccount(viewer.userId, "self");
-              await signOut({ redirectTo: "/login?deleted=1" });
+              await signOut({ redirect: false });
+              redirect("/login?deleted=1");
             }}
           />
         </section>

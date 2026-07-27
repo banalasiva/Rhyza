@@ -48,14 +48,17 @@ const STEPS3 = [
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams?: { error?: string; next?: string };
+  searchParams?: { error?: string; next?: string; signedout?: string; deleted?: string };
 }) {
   // Where to land after sign-in. Only same-site relative paths are honoured (no
   // open redirects), so a shared /calibrate link returns the person to it.
   const next =
     searchParams?.next && /^\/(?!\/)/.test(searchParams.next) ? searchParams.next : "/";
+  // Just signed out (or deleted)? Never bounce back into the app, even if the
+  // session read is momentarily stale — that stale bounce IS the sign-out loop.
+  const justSignedOut = searchParams?.signedout === "1" || searchParams?.deleted === "1";
   const session = await auth();
-  if (session?.user) redirect(next);
+  if (session?.user && !justSignedOut) redirect(next);
 
   const ssoEnabled = !!process.env.AUTH_SSO_ISSUER;
   const ssoName = process.env.AUTH_SSO_NAME || "SSO";

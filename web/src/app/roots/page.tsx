@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { signOut } from "@/auth";
 import { requireViewer } from "@/lib/session";
 import { getMyRoots } from "@/lib/services/roots";
@@ -406,7 +407,10 @@ export default async function RootsPage() {
           <form
             action={async () => {
               "use server";
-              await signOut({ redirectTo: "/login" });
+              // Clear the session, then redirect — see NavBar note (beta signOut
+              // can drop the cookie-clearing header on its own redirect).
+              await signOut({ redirect: false });
+              redirect("/login?signedout=1");
             }}
             className="mt-2"
           >
