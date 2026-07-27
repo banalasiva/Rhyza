@@ -77,6 +77,9 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   const guest = await isGuestUser(userId);
   const taggedAi = mentionsClaude(body.text) || mentionsChatGpt(body.text);
   if (guest && taggedAi) aiError = "guest_ai";
+  // AI is off for this seed but someone tagged it — tell the client so it can
+  // say "AI is turned off, turn it back on" instead of failing silently.
+  else if (taggedAi && !aiOn) aiError = "ai_disabled";
   const wantsClaude = aiOn && !guest && mentionsClaude(body.text);
   const wantsChatGpt = aiOn && !guest && mentionsChatGpt(body.text);
   // Tagging an AI triggers a paid completion — count it against the AI budget.
