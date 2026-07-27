@@ -88,6 +88,30 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
   return lines;
 }
 
+// Trim `text` to a single line no wider than `maxWidth`, adding an ellipsis.
+// Used so a long name/credit never overflows its pill or runs under the QR.
+function truncateToWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  if (ctx.measureText(text).width <= maxWidth) return text;
+  let t = text;
+  while (t.length > 1 && ctx.measureText(`${t}…`).width > maxWidth) t = t.slice(0, -1);
+  return `${t.trimEnd()}…`;
+}
+
+// Clamp wrapped `lines` to at most `maxLines`, ellipsizing the last kept line so
+// content can never spill past a reserved bottom limit. maxLines is floored to 1.
+function clampLines(
+  ctx: CanvasRenderingContext2D,
+  lines: string[],
+  maxLines: number,
+  maxWidth: number,
+): string[] {
+  const cap = Math.max(1, maxLines);
+  if (lines.length <= cap) return lines;
+  const kept = lines.slice(0, cap);
+  kept[cap - 1] = truncateToWidth(ctx, `${kept[cap - 1].trimEnd()} …`, maxWidth);
+  return kept;
+}
+
 // ── App visual identity: theme + golden emblem + garden depth ───────────────
 // The cards must feel unmistakably like ThinkThru: the SAME dark/light theme the
 // user is in, the golden sprouting emblem, and the radial-glow depth the app's
@@ -380,15 +404,16 @@ export async function renderBloomCard(spec: BloomCardSpec): Promise<Blob> {
   const qrSize = 196;
   const qrX = W - margin - qrSize;
   const qrY = H - margin - qrSize - 70; // room for a label beneath, clear of footer
-  const leftColW = (spec.url ? qrX - 40 : W - margin) - margin; // keep clear of the QR
+  const leftColW = (spec.url ? qrX - 28 : W - margin) - margin; // keep clear of the QR
 
-  // Credit chip — accent pill just above the footer.
-  const credit = spec.credit ? truncateCard(spec.credit, 60) : "";
+  // Credit chip — accent pill just above the footer. The label is truncated to
+  // the pill's max width (pixels, not chars) so it never runs under the QR.
+  const credit = spec.credit ? spec.credit.trim() : "";
   let bandTop = footerY;
   if (credit) {
-    ctx.font = "600 32px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-    const label = `🔖 ${credit}`;
-    const chipW = Math.min(ctx.measureText(label).width + 52, leftColW);
+    ctx.font = "600 30px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    const label = truncateToWidth(ctx, `🔖 ${credit}`, leftColW - 52);
+    const chipW = ctx.measureText(label).width + 52;
     const chipH = 72;
     const chipTop = footerY - 46 - chipH;
     ctx.fillStyle = t.chipBg;
@@ -407,13 +432,13 @@ export async function renderBloomCard(spec: BloomCardSpec): Promise<Blob> {
   if (spec.stat) {
     ctx.font = "500 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
     ctx.fillStyle = inkSoft;
-    ctx.fillText(truncateCard(spec.stat, 60), margin, midBottom);
+    ctx.fillText(truncateToWidth(ctx, spec.stat, maxW), margin, midBottom);
     midBottom -= 52;
   }
   if (spec.grownBy) {
     ctx.font = "600 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
     ctx.fillStyle = ink;
-    ctx.fillText(truncateCard(spec.grownBy, 64), margin, midBottom);
+    ctx.fillText(truncateToWidth(ctx, spec.grownBy, maxW), margin, midBottom);
     midBottom -= 44;
   }
 
@@ -431,6 +456,9 @@ export async function renderBloomCard(spec: BloomCardSpec): Promise<Blob> {
     lh = Math.round(size * 1.22);
     if (lines.length * lh <= heroAvail) break;
   }
+  // Safety clamp: if even the floor size overflows, drop excess lines (ellipsized)
+  // so the hero can never spill into the collective band below it.
+  lines = clampLines(ctx, lines, Math.floor(heroAvail / lh), maxW);
   ctx.save();
   if (!t.light) {
     ctx.shadowColor = "rgba(0,0,0,0.35)";
@@ -614,38 +642,47 @@ export async function renderFingerprintCard(spec: FingerprintCardSpec): Promise<
   ctx.font = "110px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
   ctx.fillText(spec.emoji, margin, y);
 
-  // Hero headline — the identity claim, the largest thing on the card.
-  y += 60;
+  // Bottom zone (bar + legend), pinned above the footer.
+  const footerY = H - margin;
+  const legendY = footerY - 130;
+  const barY = legendY - 84;
+
+  // Blurb measured first so the headline can reserve room for it and never
+  // collide with the signature bar, however long the name is.
+  ctx.font = "400 42px Georgia, \"Times New Roman\", serif";
+  const blurbLines = wrap(ctx, spec.blurb, maxW).slice(0, 3);
+  const blurbH = blurbLines.length * 56;
+
+  // Hero headline — the identity claim, the largest thing on the card. Fit it
+  // into the space above the blurb + bar, shrinking then clamping as needed.
+  const headlineTop = y + 60; // gap under the emoji
+  const headlineAvail = barY - 56 - blurbH - 28 - headlineTop;
   const insight = truncateCard(spec.headline, 90);
   let size = 92;
   let lines: string[] = [];
   let lh = 0;
-  for (; size >= 54; size -= 4) {
+  for (; size >= 46; size -= 4) {
     ctx.font = `700 ${size}px Georgia, "Times New Roman", serif`;
     lines = wrap(ctx, insight, maxW);
     lh = Math.round(size * 1.2);
-    if (lines.length <= 3) break;
+    if (lines.length * lh <= headlineAvail) break;
   }
+  lines = clampLines(ctx, lines, Math.floor(headlineAvail / lh), maxW);
   ctx.fillStyle = ink;
-  y += size;
+  let hy = headlineTop + size;
   for (const line of lines) {
-    ctx.fillText(line, margin, y);
-    y += lh;
+    ctx.fillText(line, margin, hy);
+    hy += lh;
   }
 
-  // Blurb — the one-line read.
-  y += 24;
+  // Blurb — the one-line read, under the headline.
   ctx.font = "400 42px Georgia, \"Times New Roman\", serif";
   ctx.fillStyle = inkSoft;
-  for (const line of wrap(ctx, spec.blurb, maxW).slice(0, 3)) {
-    ctx.fillText(line, margin, y);
-    y += 56;
+  let by = hy + 12;
+  for (const line of blurbLines) {
+    ctx.fillText(line, margin, by);
+    by += 56;
   }
-
-  // Signature bar + legend, pinned above the footer.
-  const footerY = H - margin;
-  const legendY = footerY - 130;
-  const barY = legendY - 84;
   signatureBar(
     ctx,
     margin,
@@ -748,28 +785,36 @@ export async function renderCalibrationCard(spec: CalibrationCardSpec): Promise<
   ctx.fillText(spec.bigNumber, margin, y);
   ctx.restore();
 
+  // Bottom zone limit — content must stop above the outcome bar (or the footer
+  // when there's no bar), so nothing ever overlaps them.
+  const footerY = H - margin;
+  const hasSegs = !!(spec.segs && spec.segs.length);
+  const barTop = footerY - 130 - 84;
+  const contentLimit = (hasSegs ? barTop : footerY) - 44;
+
   // Label under the number — a generous gap clears the 220px glyph's baseline.
+  // Clamped to 2 lines so it can't crowd out the insight.
   y += 88;
   ctx.font = "500 48px Georgia, \"Times New Roman\", serif";
   ctx.fillStyle = ink;
-  for (const line of wrap(ctx, spec.label, maxW).slice(0, 3)) {
+  for (const line of clampLines(ctx, wrap(ctx, spec.label, maxW), 2, maxW)) {
     ctx.fillText(line, margin, y);
     y += 62;
   }
 
-  // Insight read.
+  // Insight read — clamped (ellipsized) to whatever space is left above the bar.
   if (spec.insight) {
     y += 20;
     ctx.font = "400 38px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
     ctx.fillStyle = inkSoft;
-    for (const line of wrap(ctx, spec.insight, maxW).slice(0, 4)) {
-      ctx.fillText(line, margin, y);
-      y += 52;
+    const maxLines = Math.floor((contentLimit - y) / 52);
+    if (maxLines >= 1) {
+      for (const line of clampLines(ctx, wrap(ctx, spec.insight, maxW), maxLines, maxW)) {
+        ctx.fillText(line, margin, y);
+        y += 52;
+      }
     }
   }
-
-  // Outcome mix bar + legend, pinned above the footer.
-  const footerY = H - margin;
   if (spec.segs && spec.segs.length) {
     const legendY = footerY - 130;
     const barY = legendY - 84;
