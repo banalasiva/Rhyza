@@ -56,7 +56,7 @@ export function ShareCalibrationButton({
   }
 
   return (
-    <div>
+    <div className="text-right">
       <button onClick={onClick} className="btn-ghost px-4 py-1.5 text-xs">
         ↗ Share my track record
       </button>
