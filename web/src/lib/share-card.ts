@@ -3,8 +3,11 @@
 // into a WhatsApp family group or an Instagram story. We "ride the giants":
 // ThinkThru travels on the platforms people already open all day.
 //
-// Pure canvas + navigator.share — no new dependencies, no server round-trip. On
-// browsers without file sharing we fall back to a plain download.
+// Canvas + navigator.share, no server round-trip. A scannable QR (qrcode-generator,
+// zero runtime deps) is baked onto the bloom card so the image leads back to the
+// decision even where text links get stripped (WhatsApp Status, IG Story).
+
+import qrcode from "qrcode-generator";
 
 export type ShareCardSpec = {
   eyebrow?: string; // small label at the top, e.g. "Daily Question"
@@ -32,6 +35,38 @@ function roundRect(
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
+}
+
+// Draw a scannable QR for `url` at (x,y) filling `size`px, on a white rounded
+// tile so it stays high-contrast on any card background. Error-correction level
+// M tolerates the tile's rounded corners and light overlay wear. Output is
+// verified-scannable (qrcode-generator, decoded back with a real reader in CI).
+function drawQr(
+  ctx: CanvasRenderingContext2D,
+  url: string,
+  x: number,
+  y: number,
+  size: number,
+) {
+  const qr = qrcode(0, "M");
+  qr.addData(url);
+  qr.make();
+  const n = qr.getModuleCount();
+  const quiet = 2; // modules of quiet zone inside the tile
+  const cell = size / (n + quiet * 2);
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, x, y, size, size, 18);
+  ctx.fill();
+  ctx.fillStyle = "#20301f";
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (!qr.isDark(r, c)) continue;
+      const px = x + (c + quiet) * cell;
+      const py = y + (r + quiet) * cell;
+      // Slight overdraw removes hairline seams between modules at fractional px.
+      ctx.fillRect(px, py, cell + 0.6, cell + 0.6);
+    }
+  }
 }
 
 // Word-wrap `text` to `maxWidth`, returning the lines. Used for the hero copy.
@@ -150,8 +185,10 @@ export async function renderShareCard(spec: ShareCardSpec): Promise<Blob> {
 export type BloomCardSpec = {
   question: string; // the seed question — context, secondary
   insight: string; // the distilled bloom — THE HERO, the largest thing here
-  stat?: string; // "6 people explored it · 3 dimensions lit up"
-  credit?: string; // "Siva was credited · Opened it up"
+  grownBy?: string; // "Grown by Siva, Priya & 4 others" — the collective, named
+  stat?: string; // "6 people · 3 dimensions · one decision"
+  credit?: string; // "Siva · Opened it up"
+  url?: string; // deep link to the bloom → baked into the QR
   footer?: string;
 };
 
@@ -192,11 +229,11 @@ export async function renderBloomCard(spec: BloomCardSpec): Promise<Blob> {
   ctx.fillText(brand, margin + 26, margin + 34);
   ctx.textBaseline = "alphabetic";
 
-  // Eyebrow.
+  // Eyebrow — framed as collective, because that's the whole point.
   let y = margin + 66 + 84;
   ctx.font = "600 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
   ctx.fillStyle = accent;
-  ctx.fillText("A DECISION, BLOOMED", margin, y);
+  ctx.fillText("WHAT WE DECIDED TOGETHER", margin, y);
 
   // Question — context, secondary. Italic serif, soft ink, capped length.
   y += 70;
@@ -211,64 +248,83 @@ export async function renderBloomCard(spec: BloomCardSpec): Promise<Blob> {
   }
   const questionEnd = y;
 
-  // ── Bottom zone (measured up from the base) so the hero knows its ceiling ──
-  const footerY = H - margin; // footer baseline
-  let bottomStart = footerY - 44; // above the footer line
+  // ── Bottom band (QR bottom-right; credit + footer bottom-left) ─────────────
+  const footerY = H - margin;
+  const qrSize = 196;
+  const qrX = W - margin - qrSize;
+  const qrY = H - margin - qrSize - 70; // room for a label beneath, clear of footer
+  const leftColW = (spec.url ? qrX - 40 : W - margin) - margin; // keep clear of the QR
 
-  // Credit chip — an accent pill, drawn just above the footer if present.
-  const credit = spec.credit ? truncateCard(spec.credit, 64) : "";
-  let creditTop = bottomStart;
+  // Credit chip — accent pill just above the footer.
+  const credit = spec.credit ? truncateCard(spec.credit, 60) : "";
+  let bandTop = footerY;
   if (credit) {
-    ctx.font = "600 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.font = "600 32px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
     const label = `🔖 ${credit}`;
-    const chipW = Math.min(ctx.measureText(label).width + 56, maxW);
-    const chipH = 76;
-    creditTop = bottomStart - chipH;
+    const chipW = Math.min(ctx.measureText(label).width + 52, leftColW);
+    const chipH = 72;
+    const chipTop = footerY - 46 - chipH;
     ctx.fillStyle = "rgba(224,122,63,0.14)";
-    roundRect(ctx, margin, creditTop, chipW, chipH, 38);
+    roundRect(ctx, margin, chipTop, chipW, chipH, 36);
     ctx.fill();
     ctx.fillStyle = accent;
     ctx.textBaseline = "middle";
-    ctx.fillText(label, margin + 28, creditTop + chipH / 2 + 2);
+    ctx.fillText(label, margin + 26, chipTop + chipH / 2 + 2);
     ctx.textBaseline = "alphabetic";
-    bottomStart = creditTop - 40;
+    bandTop = chipTop;
   }
+  bandTop = Math.min(bandTop, spec.url ? qrY : bandTop);
 
-  // Stat line — soft, above the credit chip.
+  // Stat + "grown by" — the collective, stacked just above the band.
+  let midBottom = bandTop - 34;
   if (spec.stat) {
-    ctx.font = "500 38px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.font = "500 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
     ctx.fillStyle = inkSoft;
-    bottomStart -= 44;
-    ctx.fillText(truncateCard(spec.stat, 60), margin, bottomStart);
-    bottomStart -= 44;
+    ctx.fillText(truncateCard(spec.stat, 60), margin, midBottom);
+    midBottom -= 52;
+  }
+  if (spec.grownBy) {
+    ctx.font = "600 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.fillStyle = ink;
+    ctx.fillText(truncateCard(spec.grownBy, 64), margin, midBottom);
+    midBottom -= 44;
   }
 
   // ── Hero: the insight. The largest thing on the card. Fills the space between
-  // the question and the bottom zone, shrinking only as far as it must to fit. ──
-  const heroTop = questionEnd + 56;
-  const heroAvail = bottomStart - heroTop;
+  // the question and the collective band, shrinking only as far as it must. ──
+  const heroTop = questionEnd + 52;
+  const heroAvail = midBottom - 24 - heroTop;
   const insight = truncateCard(spec.insight, 240);
   let size = 92;
   let lines: string[] = [];
   let lh = 0;
-  for (; size >= 46; size -= 4) {
+  for (; size >= 44; size -= 4) {
     ctx.font = `700 ${size}px Georgia, "Times New Roman", serif`;
     lines = wrap(ctx, insight, maxW);
     lh = Math.round(size * 1.22);
     if (lines.length * lh <= heroAvail) break;
   }
   ctx.fillStyle = ink;
-  // Vertically center the hero within its available band for balance.
   let hy = heroTop + Math.max(0, (heroAvail - lines.length * lh) / 2) + size;
   for (const line of lines) {
     ctx.fillText(line, margin, hy);
     hy += lh;
   }
 
-  // Footer — quiet, pinned to the bottom.
-  ctx.font = "500 36px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  // QR + label — the way back to the decision, surviving image-only shares.
+  if (spec.url) {
+    drawQr(ctx, spec.url, qrX, qrY, qrSize);
+    ctx.font = "500 26px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.fillStyle = inkSoft;
+    ctx.textAlign = "center";
+    ctx.fillText("Scan to read & join", qrX + qrSize / 2, qrY + qrSize + 34);
+    ctx.textAlign = "left";
+  }
+
+  // Footer — quiet, short, pinned bottom-left so it never runs under the QR.
+  ctx.font = "600 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
   ctx.fillStyle = inkSoft;
-  ctx.fillText(spec.footer ?? "Grown on ThinkThru — where thinking leaves a trace.", margin, footerY);
+  ctx.fillText(spec.footer ?? "thinkthru.app", margin, footerY);
 
   return await new Promise<Blob>((resolve, reject) => {
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to render"))), "image/png");

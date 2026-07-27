@@ -169,6 +169,9 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
           dimensions={bloom.dimensions}
           credit={bloom.contributors.find((c) => c.userId === viewer.userId)?.role ?? null}
           sharerName={viewer.name}
+          contributors={bloom.contributors
+            .map((c) => c.name ?? "")
+            .filter((n) => n && n !== "Claude" && n !== "ChatGPT")}
         />
 
         {/* Links shared while deciding — the references (docs, quotes, videos)
