@@ -357,7 +357,7 @@ export function LandingDemo() {
             <div
               className="absolute inset-0"
               style={{
-                backgroundImage: "url('/sacred-tree-dark.png')",
+                backgroundImage: "url('/sacred-tree-dark.webp')",
                 backgroundSize: "contain",
                 backgroundPosition: "center",
                 backgroundRepeat: "no-repeat",

@@ -3,7 +3,7 @@ import { ApiError } from "@/lib/api";
 import { getThreadMemory, refreshThreadMemory } from "@/lib/services/thread-memory";
 import {
   ensureSeedParticipant,
-  requireSeedAccess,
+  requireSeedAccessLight,
   requireSeedManager,
   requireGardenSteward,
 } from "@/lib/authz";
@@ -411,7 +411,7 @@ export async function aiVoteOnSeed(
   if (seed.stage === "bloomed" && seed.bloomId) {
     throw new ApiError("CONFLICT", "This seed has already bloomed");
   }
-  await requireSeedAccess(invokerId, seedId);
+  await requireSeedAccessLight(invokerId, seedId);
 
   const data = await threadForSeed(seedId);
   if (!data) throw new ApiError("NOT_FOUND", "Seed not found");
@@ -467,7 +467,7 @@ export async function summarizeSeed(
   seedId: string,
   provider: "claude" | "chatgpt" = "claude",
 ): Promise<string | null> {
-  await requireSeedAccess(userId, seedId);
+  await requireSeedAccessLight(userId, seedId);
   const data = await threadForSeed(seedId);
   if (!data) throw new ApiError("NOT_FOUND", "Seed not found");
   return summarizeThread(provider, {
@@ -486,7 +486,7 @@ export async function mediateSeed(
   provider: "claude" | "chatgpt" = "claude",
   mode: "balanced" | "peace" | "guide" = "balanced",
 ) {
-  await requireSeedAccess(userId, seedId);
+  await requireSeedAccessLight(userId, seedId);
   const [seed, reactionTypes] = await Promise.all([
     db.seed.findUnique({
       where: { id: seedId },
@@ -715,7 +715,7 @@ export async function forwardContribution(
 // `since` (for cheap polling — everyone on a shared screen sees a new message
 // appear within a couple seconds without a websocket). Read access required.
 export async function listContributions(userId: string, seedId: string, since?: Date) {
-  await requireSeedAccess(userId, seedId);
+  await requireSeedAccessLight(userId, seedId);
   return db.contribution.findMany({
     where: {
       seedId,
@@ -941,7 +941,7 @@ export async function classifyContribution(userId: string, contributionId: strin
   if (!c || c.deletedAt) throw new ApiError("NOT_FOUND", "Contribution not found");
   // Only the author (or a steward) may re-tag a message's dimension — not any
   // reader who happens to have seed access.
-  if (c.authorId === userId) await requireSeedAccess(userId, c.seedId);
+  if (c.authorId === userId) await requireSeedAccessLight(userId, c.seedId);
   else await requireSeedManager(userId, c.seedId);
 
   // AI labelling can be switched off for the seed — then leave the dimension as
@@ -969,7 +969,7 @@ export async function retagContribution(
   const c = await db.contribution.findUnique({ where: { id: contributionId } });
   if (!c || c.deletedAt) throw new ApiError("NOT_FOUND", "Contribution not found");
   // Author or steward only — same rule as classify.
-  if (c.authorId === userId) await requireSeedAccess(userId, c.seedId);
+  if (c.authorId === userId) await requireSeedAccessLight(userId, c.seedId);
   else await requireSeedManager(userId, c.seedId);
   await db.contribution.update({ where: { id: contributionId }, data: { dimension } });
   return { dimension };
@@ -988,7 +988,7 @@ export async function toggleReaction(
   if (!contribution || contribution.deletedAt) {
     throw new ApiError("NOT_FOUND", "Contribution not found");
   }
-  await requireSeedAccess(userId, contribution.seedId);
+  await requireSeedAccessLight(userId, contribution.seedId);
 
   const reactionType = await db.reactionType.findUnique({
     where: { key: reactionKey },
@@ -1121,7 +1121,7 @@ export async function deleteContribution(userId: string, contributionId: string)
 
   if (c.authorId === userId) {
     // Authors can always remove their own message.
-    await requireSeedAccess(userId, c.seedId);
+    await requireSeedAccessLight(userId, c.seedId);
   } else {
     // Otherwise only a moderator (seed owner / garden owner or steward / app
     // owner) can — in public and private seeds alike.
@@ -1146,7 +1146,7 @@ export async function toggleEndorsement(userId: string, contributionId: string) 
   if (!contribution || contribution.deletedAt) {
     throw new ApiError("NOT_FOUND", "Contribution not found");
   }
-  await requireSeedAccess(userId, contribution.seedId);
+  await requireSeedAccessLight(userId, contribution.seedId);
 
   const existing = await db.contributionEndorsement.findUnique({
     where: { contributionId_endorserId: { contributionId, endorserId: userId } },
