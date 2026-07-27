@@ -1,20 +1,5 @@
-import Image from "next/image";
+import { BudLoader } from "@/components/BudLoader";
 
 export default function Loading() {
-  return (
-    <div className="relative flex min-h-screen items-center justify-center">
-      <div className="garden-bg" />
-      <div className="relative z-10 flex flex-col items-center gap-3 text-center">
-        <Image
-          src="/emblem.png"
-          alt="ThinkThru"
-          width={72}
-          height={72}
-          priority
-          className="h-[72px] w-[72px] animate-pulse"
-        />
-        <p className="text-sm text-ink-mid">Growing the Sacred Tree…</p>
-      </div>
-    </div>
-  );
+  return <BudLoader label="Growing the Sacred Tree…" />;
 }
