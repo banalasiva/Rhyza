@@ -95,8 +95,11 @@ export function PlantSeedForm({ gardenId }: { gardenId: string }) {
         )}
       </div>
 
-      <input
-        className="input"
+      {/* A textarea, not a single line — questions are often long, and you
+          should see the whole thing as you type it. */}
+      <textarea
+        className="input min-h-[88px] resize-none leading-relaxed"
+        rows={3}
         placeholder="Ask a question — e.g. “Where should we go this holiday?”"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
