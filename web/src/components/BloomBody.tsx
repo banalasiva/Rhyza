@@ -179,6 +179,13 @@ export function BloomBody({
           <button onClick={share} className="btn-ghost px-4 py-1.5 text-xs">
             ↗ Share
           </button>
+          <button
+            onClick={() => window.print()}
+            title="Save the full decision record as a PDF"
+            className="btn-ghost px-4 py-1.5 text-xs"
+          >
+            ⬇ PDF
+          </button>
           <button onClick={() => setEditing(true)} className="btn-ghost px-4 py-1.5 text-xs">
             ✎ Edit bloom
           </button>

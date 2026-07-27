@@ -460,7 +460,7 @@ export async function getBloomDetail(userId: string, bloomId: string) {
     seedRow.createdById === userId || !!seedMember || !!gardenMember || garden?.createdById === userId;
   const canReopen = isCurrent && isParticipant;
 
-  const [reflection, sharedReflections, links, reckoning, dimRows] = await Promise.all([
+  const [reflection, sharedReflections, links, reckoning, dimRows, recordRows] = await Promise.all([
     getMyReflection(userId, bloom.id),
     getSharedReflections(bloom.id, userId),
     getSeedLinks(bloom.seedId),
@@ -474,9 +474,32 @@ export async function getBloomDetail(userId: string, bloomId: string) {
         select: { dimension: true },
       })
       .catch(() => [] as { dimension: string }[]),
+    // Every substantive message on this seed — powers the "who surfaced what"
+    // decision record (grouped by author below). Chronological so each person's
+    // points read in the order they made them.
+    db.contribution
+      .findMany({
+        where: { seedId: bloom.seedId, deletedAt: null },
+        select: { authorId: true, dimension: true, content: true },
+        orderBy: { createdAt: "asc" },
+        take: 2000,
+      })
+      .catch(() => [] as { authorId: string; dimension: string; content: unknown }[]),
   ]);
   const DIMENSION_UNIVERSE = new Set(Object.keys(DIMENSION_ROLE));
   const dimensions = dimRows.filter((d) => DIMENSION_UNIVERSE.has(d.dimension)).length;
+
+  // Group each contributor's substantive points (their real words on this seed),
+  // capped so the record stays readable — the heart of "who surfaced what".
+  const pointsByAuthor = new Map<string, { dimension: string; text: string }[]>();
+  for (const r of recordRows) {
+    if (!DIMENSION_UNIVERSE.has(r.dimension)) continue; // skip system/join rows
+    const text = ((r.content as { text?: string } | null)?.text ?? "").trim();
+    if (text.length < 12) continue;
+    const arr = pointsByAuthor.get(r.authorId) ?? [];
+    if (arr.length < 4) arr.push({ dimension: r.dimension, text: text.slice(0, 320) });
+    pointsByAuthor.set(r.authorId, arr);
+  }
   // Distinct humans who grew this decision — the AI teammates are never "people".
   const AI_NAMES = new Set(["Claude", "ChatGPT"]);
   const people = bloom.contributors.filter((c) => !AI_NAMES.has((c.name ?? "").trim())).length;
@@ -507,6 +530,7 @@ export async function getBloomDetail(userId: string, bloomId: string) {
       name: c.name,
       role: c.role,
       contributionType: c.contributionType,
+      points: (c.userId ? pointsByAuthor.get(c.userId) : undefined) ?? [],
     })),
     versions: versions.map((v) => ({
       id: v.id,

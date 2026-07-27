@@ -832,23 +832,23 @@ html.light .plant-sparkle {
   }
 }
 
-/* Print / Save-as-PDF — keep the on-screen format (dark surface, green
-   headings, white body) instead of the browser's default white page. The
-   color-adjust hints force backgrounds + accent colors to actually render on
-   paper. App chrome (nav bars, the ambient garden backdrop, and anything
-   tagged .no-print like action buttons) is dropped so the page reads as a clean
-   document. */
+/* Print / Save-as-PDF — the bloom page becomes a clean, professional DECISION
+   RECORD: white page, dark text, green section headings, light-bordered
+   sections. A formal document you can attach to a ticket, a board pack, or
+   file for compliance. App chrome (nav, garden backdrop, anything .no-print
+   like action buttons) is dropped. */
 @media print {
   html,
   body {
-    background: #0b120b !important;
-    color: #e8f0e6 !important;
+    background: #ffffff !important;
+    color: #16210f !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
   * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    box-shadow: none !important;
   }
   header,
   nav,
@@ -857,16 +857,35 @@ html.light .plant-sparkle {
     display: none !important;
   }
   main {
-    max-width: 100% !important;
+    max-width: 720px !important;
+    margin: 0 auto !important;
     padding: 0 !important;
   }
-  /* Don't split a card across pages when it can be helped. */
+  /* Sections read as document blocks: white with a hairline border. */
   .card,
   article {
+    background: #ffffff !important;
+    border: 1px solid #d8ddd2 !important;
     break-inside: avoid;
   }
+  /* Force the theme's ink tokens to print-dark, keep headings green. */
+  .text-ink,
+  h1,
+  h2,
+  h3 {
+    color: #16210f !important;
+  }
+  .text-ink-mid {
+    color: #2f3a27 !important;
+  }
+  .text-ink-soft {
+    color: #5a6350 !important;
+  }
+  .eyebrow {
+    color: #2e7d32 !important;
+  }
   a {
-    color: inherit !important;
+    color: #2e7d32 !important;
     text-decoration: none !important;
   }
 }
