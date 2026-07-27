@@ -252,6 +252,9 @@ model Seed {
 
   @@index([gardenId, stage])
   @@index([listed, lastActivityAt])
+  // Creator-scoped reads (home, "mine" feed, profile, roots, gardens) filter by
+  // createdBy alone; the FK column isn't auto-indexed in Postgres.
+  @@index([createdById])
   @@map("seeds")
 }
 
@@ -677,6 +680,10 @@ model Contribution {
   // by seed and ORDERs BY createdAt. Without this the DB index-scans then sorts
   // the whole thread each time. Highest-value index in the schema.
   @@index([seedId, createdAt])
+  // Author-scoped reads — profile / roots / fingerprint / "how you show up" all
+  // filter this (the app's largest table) by authorId alone. FKs aren't
+  // auto-indexed in Postgres, so without this those pages seq-scan.
+  @@index([authorId])
   @@map("contributions")
 }
 

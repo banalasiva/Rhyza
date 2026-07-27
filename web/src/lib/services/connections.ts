@@ -40,6 +40,54 @@ export async function getConnectionStatus(
   }
 }
 
+// Batched getConnectionStatus: resolve the viewer's status with MANY people in
+// ONE query, instead of a round-trip per person (used by suggestion lists).
+export async function getConnectionStatuses(
+  viewerId: string,
+  otherIds: string[],
+): Promise<Map<string, ConnectionStatus>> {
+  const out = new Map<string, ConnectionStatus>();
+  const ids: string[] = [];
+  for (const id of otherIds) {
+    if (id === viewerId) out.set(id, "self");
+    else ids.push(id);
+  }
+  if (ids.length === 0) return out;
+  try {
+    const rows = (await db.connection.findMany({
+      where: {
+        OR: [
+          { requesterId: viewerId, addresseeId: { in: ids } },
+          { addresseeId: viewerId, requesterId: { in: ids } },
+        ],
+      },
+      select: { requesterId: true, addresseeId: true, status: true },
+    })) as { requesterId: string; addresseeId: string; status: string }[];
+    const byOther = new Map<string, { requesterId: string; status: string }[]>();
+    for (const r of rows) {
+      const other = r.requesterId === viewerId ? r.addresseeId : r.requesterId;
+      (byOther.get(other) ?? byOther.set(other, []).get(other)!).push({
+        requesterId: r.requesterId,
+        status: r.status,
+      });
+    }
+    for (const id of ids) {
+      const rs = byOther.get(id) ?? [];
+      if (rs.some((r) => r.status === "accepted")) out.set(id, "connected");
+      else {
+        const pending = rs.find((r) => r.status === "pending");
+        out.set(
+          id,
+          !pending ? "none" : pending.requesterId === viewerId ? "pending_outgoing" : "pending_incoming",
+        );
+      }
+    }
+  } catch {
+    for (const id of ids) out.set(id, "none"); // table not migrated yet
+  }
+  return out;
+}
+
 async function pingConnection(
   recipientId: string,
   actorId: string,

@@ -323,29 +323,33 @@ async function notifyInterested(
     if (!firstTopicByUser.has(row.userId)) firstTopicByUser.set(row.userId, row.topic);
   }
 
-  const rows = await Promise.all(
-    [...firstTopicByUser].map(([recipientId, topic]) =>
-      db.notification
-        .create({
-          data: {
-            recipientId,
-            actorId: authorId,
-            type: "explore",
-            title: `New ${topic} seed 🌱`,
-            body: seedTitle,
-            entityType: "seed",
-            entityId: seedId,
-          },
-          select: { id: true, recipientId: true },
-        })
-        .catch(() => null),
-    ),
-  );
-
-  const created = rows.filter(
-    (r: { id: string; recipientId: string } | null): r is { id: string; recipientId: string } =>
-      r !== null,
-  );
+  // One bulk insert instead of up to 2000 individual creates, then read back the
+  // ids we just wrote (scoped to this seed + actor) to stamp push delivery — the
+  // same pattern notifySeedAudience uses.
+  const recipients = [...firstTopicByUser];
+  const start = new Date();
+  await db.notification.createMany({
+    data: recipients.map(([recipientId, topic]) => ({
+      recipientId,
+      actorId: authorId,
+      type: "explore",
+      title: `New ${topic} seed 🌱`,
+      body: seedTitle,
+      entityType: "seed",
+      entityId: seedId,
+    })),
+  });
+  const created = (await db.notification.findMany({
+    where: {
+      type: "explore",
+      entityType: "seed",
+      entityId: seedId,
+      actorId: authorId,
+      recipientId: { in: recipients.map(([id]) => id) },
+      createdAt: { gte: start },
+    },
+    select: { id: true, recipientId: true },
+  })) as { id: string; recipientId: string }[];
   await deliver(
     created.map((r: { id: string; recipientId: string }) => ({
       notificationId: r.id,
