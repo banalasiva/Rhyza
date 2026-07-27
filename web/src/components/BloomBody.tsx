@@ -27,6 +27,7 @@ export function BloomBody({
   dimensions,
   credit,
   sharerName,
+  contributors,
 }: {
   id: string;
   initialTitle: string;
@@ -38,6 +39,7 @@ export function BloomBody({
   dimensions: number; // thinking dimensions that lit up
   credit: string | null; // the sharer's own credited role, if any
   sharerName: string; // the viewer's display name, for the credit line
+  contributors: string[]; // names of the humans who grew it (for "Grown by …")
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
@@ -51,26 +53,34 @@ export function BloomBody({
   const [shareMsg, setShareMsg] = useState<string | null>(null);
 
   async function share() {
-    // A bloom is a durable decision — worth showing off. The card leads with the
-    // INSIGHT (the hero), frames it with the question, and credits the sharer, so
-    // it tells a true story about this person that they'd be proud to post.
-    const insight = plain(summary.split(/\n+/).find((l) => l.trim()) ?? "") || title;
-    const parts = [
-      `${people} ${people === 1 ? "person" : "people"} explored it`,
-      dimensions > 0 ? `${dimensions} ${dimensions === 1 ? "dimension" : "dimensions"} lit up` : "",
-    ].filter(Boolean);
+    // A bloom is a durable decision, grown by a group — the card should feel like
+    // that. It leads with the INSIGHT (hero), frames it with the question, NAMES
+    // the people who grew it, and carries a QR + link back to the decision so a
+    // shared image is never a dead end.
+    const insight = distill(summary) || title;
+    const stat = [
+      `${people} ${people === 1 ? "person" : "people"}`,
+      dimensions > 0 ? `${dimensions} ${dimensions === 1 ? "dimension" : "dimensions"}` : "",
+      "one decision",
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const url =
+      typeof window !== "undefined" ? `${window.location.origin}/blooms/${id}` : `https://thinkthru.app/blooms/${id}`;
     try {
       const how = await shareBloomCard(
         {
           question: title, // bloom.title IS the seed question
           insight,
-          stat: parts.join(" · "),
+          grownBy: grownByLine(contributors),
+          stat,
           credit: credit ? `${sharerName} · ${credit}` : undefined,
-          footer: "Grown on ThinkThru — where thinking leaves a trace.",
+          url,
+          footer: "thinkthru.app",
         },
         {
           fileName: "thinkthru-bloom.png",
-          shareText: `${truncate(insight, 160)} — a decision we grew together on ThinkThru. https://thinkthru.app`,
+          shareText: `${truncate(insight, 150)} — a decision we grew together on ThinkThru. ${url}`,
         },
       );
       if (how === "downloaded") {
@@ -181,4 +191,33 @@ export function BloomBody({
 
 function truncate(s: string, max: number): string {
   return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
+}
+
+// Pull the crispest opening of the bloom for the card hero: the first sentence
+// or two of plain text (not just the raw first line, which can be a fragment),
+// capped so the hero stays punchy.
+function distill(summary: string): string {
+  const text = plain(summary).replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [text];
+  let out = "";
+  for (const s of sentences) {
+    const next = (out ? `${out} ` : "") + s.trim();
+    if (out && next.length > 200) break;
+    out = next;
+    if (out.length >= 120) break; // one strong sentence is usually enough
+  }
+  return truncate(out, 220);
+}
+
+// "Grown by Siva, Priya & 4 others" — names the collective without ever getting
+// long. Falls back gracefully when there are no named contributors.
+function grownByLine(names: string[]): string | undefined {
+  const clean = names.map((n) => (n || "").trim().split(/\s+/)[0]).filter(Boolean);
+  if (clean.length === 0) return undefined;
+  if (clean.length === 1) return `Grown by ${clean[0]}`;
+  if (clean.length === 2) return `Grown by ${clean[0]} & ${clean[1]}`;
+  const shown = clean.slice(0, 2);
+  const rest = clean.length - shown.length;
+  return `Grown by ${shown.join(", ")} & ${rest} ${rest === 1 ? "other" : "others"}`;
 }
