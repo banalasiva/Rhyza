@@ -266,15 +266,20 @@ export async function ensureUserTopics(userId: string, hasActivity: boolean): Pr
 
 // A person's own recent messages (most recent first), with the seed title and
 // dimension for context — the material Claude reads to mirror how they engage.
-async function personMessages(userId: string, cap = 120): Promise<PersonMessage[]> {
+async function personMessages(userId: string, cap = 200): Promise<PersonMessage[]> {
   // Pull a WIDE recent window, then select a representative slice spanning the
   // person's history — so the mirror reflects who they are across many
   // discussions, not just whatever they happened to do in the last few days.
+  // We cap what the model actually reads (~200) on purpose: a 3–5 point mirror
+  // gets SHARPER from a focused, representative sample than from dumping every
+  // message (which just averages into generic observations). As people get
+  // verbose, breadth-of-coverage — not raw volume — is what keeps it true, so
+  // we sample across a large pool rather than sending it all.
   const rows = await db.contribution.findMany({
     where: { authorId: userId, deletedAt: null },
     select: { dimension: true, content: true, seed: { select: { title: true } } },
     orderBy: { createdAt: "desc" },
-    take: cap * 3,
+    take: cap * 4,
   });
   const msgs = (rows as { dimension: string; content: unknown; seed: { title: string | null } | null }[])
     .map((r) => ({

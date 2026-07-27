@@ -751,7 +751,7 @@ export async function describeContributionStyle(
   name: string,
   messages: PersonMessage[],
 ): Promise<string> {
-  const clean = messages.filter((m) => m.text.trim().length > 0).slice(0, 120);
+  const clean = messages.filter((m) => m.text.trim().length > 0).slice(0, 200);
   if (!aiConfigured() || clean.length < 3) return "";
   const first = (name || "This person").trim().split(/\s+/)[0];
   try {
