@@ -14,6 +14,7 @@ import { countOpenReports } from "@/lib/services/reports";
 import { countOpenFeedback } from "@/lib/services/feedback";
 import { recentAuthFailures } from "@/lib/services/auth-events";
 import { getActivationMetrics } from "@/lib/services/activation";
+import { getPushReach } from "@/lib/services/push-reach";
 
 // AI-tag usage meter (best-effort — the table may not be migrated yet).
 async function aiTagStats() {
@@ -113,6 +114,7 @@ export default async function AdminPage() {
   }
 
   const activation = await getActivationMetrics();
+  const pushReach = await getPushReach();
   const ai = await aiTagStats();
   const members = await adminMembers();
   const openReports = await countOpenReports().catch(() => 0);
@@ -200,6 +202,37 @@ export default async function AdminPage() {
             <p className="text-xs text-ink-soft">
               No seeds yet — plant a few (and get a second person in) to see activation.
             </p>
+          )}
+        </div>
+
+        {/* Push reach — can the notification pipeline actually reach anyone? Every
+            trigger delivers NOTHING to a user who never subscribed a device or
+            turned push off. If this % is low, the leak is opt-in, not triggers. */}
+        <div className="card mb-4 p-4">
+          <p className="eyebrow mb-3">🔔 Push reach</p>
+          {pushReach.ok && pushReach.users > 0 ? (
+            <>
+              <div className="mb-3 text-center">
+                <div className="serif-xl text-ink">
+                  {pctOf(pushReach.reachable, pushReach.users)}%
+                </div>
+                <div className="text-[11px] text-ink-soft">
+                  of {pushReach.users} users can be reached on push right now
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <Stat n={pushReach.subscribed} label="subscribed" />
+                <Stat n={pushReach.turnedOff} label="turned off" />
+                <Stat n={pushReach.devices} label="devices" />
+              </div>
+              <p className="mt-3 text-center text-xs text-ink-soft">
+                {pushReach.reachable === 0
+                  ? "Nobody can get a push yet — opt-in is the leak, not triggers."
+                  : `${pushReach.reachable} reachable · ${pushReach.subscribed - pushReach.reachable} subscribed but opted out`}
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-ink-soft">No users yet.</p>
           )}
         </div>
 
