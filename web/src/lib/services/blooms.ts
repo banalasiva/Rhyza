@@ -460,12 +460,26 @@ export async function getBloomDetail(userId: string, bloomId: string) {
     seedRow.createdById === userId || !!seedMember || !!gardenMember || garden?.createdById === userId;
   const canReopen = isCurrent && isParticipant;
 
-  const [reflection, sharedReflections, links, reckoning] = await Promise.all([
+  const [reflection, sharedReflections, links, reckoning, dimRows] = await Promise.all([
     getMyReflection(userId, bloom.id),
     getSharedReflections(bloom.id, userId),
     getSeedLinks(bloom.seedId),
     getReckoning(userId, bloom.id).catch(() => null),
+    // Distinct thinking dimensions that were actually explored on this seed —
+    // powers the "N dimensions lit up" line on the shareable Bloom Card.
+    db.contribution
+      .findMany({
+        where: { seedId: bloom.seedId, deletedAt: null },
+        distinct: ["dimension"],
+        select: { dimension: true },
+      })
+      .catch(() => [] as { dimension: string }[]),
   ]);
+  const DIMENSION_UNIVERSE = new Set(Object.keys(DIMENSION_ROLE));
+  const dimensions = dimRows.filter((d) => DIMENSION_UNIVERSE.has(d.dimension)).length;
+  // Distinct humans who grew this decision — the AI teammates are never "people".
+  const AI_NAMES = new Set(["Claude", "ChatGPT"]);
+  const people = bloom.contributors.filter((c) => !AI_NAMES.has((c.name ?? "").trim())).length;
   // "Shared" inherits the seed's audience — private seed → members only, else
   // public. The UI uses this only to label the toggle honestly.
   const seedPrivate = seedRow.visibility === "private";
@@ -486,7 +500,10 @@ export async function getBloomDetail(userId: string, bloomId: string) {
     canReopen,
     garden: bloom.garden,
     seed: bloom.seed,
+    people,
+    dimensions,
     contributors: bloom.contributors.map((c) => ({
+      userId: c.userId,
       name: c.name,
       role: c.role,
       contributionType: c.contributionType,
