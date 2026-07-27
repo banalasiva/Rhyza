@@ -37,8 +37,8 @@ export function ProfileRefreshButton() {
     <button
       onClick={run}
       disabled={busy}
-      aria-label="Refresh “How you show up” and “Mostly involved in” from your recent activity"
-      title="Refresh from my recent activity — updates “How you show up” & “Mostly involved in”"
+      aria-label="Regenerate “How you show up” and “Mostly involved in” from your writing — tap again for a fresh take"
+      title="Regenerate from your writing across ThinkThru — tap again any time for a fresh take"
       className={`shrink-0 rounded-full p-1 text-base leading-none transition hover:text-accent disabled:opacity-60 ${
         done ? "text-accent" : "text-ink-soft"
       }`}
