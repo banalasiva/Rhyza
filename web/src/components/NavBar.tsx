@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import { auth, signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { NavSidebar } from "@/components/NavSidebar";
@@ -45,7 +46,12 @@ export async function NavBar({ name }: { name?: string }) {
           <NavSidebar
             signOut={async () => {
               "use server";
-              await signOut({ redirectTo: "/login" });
+              // Clear the session first (redirect:false), THEN redirect. In
+              // next-auth beta, signOut({redirectTo}) can drop the cookie-clearing
+              // Set-Cookie on its redirect response, leaving you still logged in
+              // and bouncing /login → /. Splitting the two avoids that.
+              await signOut({ redirect: false });
+              redirect("/login?signedout=1");
             }}
           />
           <Link
