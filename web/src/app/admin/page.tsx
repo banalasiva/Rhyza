@@ -8,6 +8,7 @@ import { BackfillTopicsButton } from "@/components/BackfillTopicsButton";
 import { AdminDeleteUser } from "@/components/AdminDeleteUser";
 import { GoodMorningButton } from "@/components/GoodMorningButton";
 import { RekindleButton } from "@/components/RekindleButton";
+import { AiHealthButton } from "@/components/AiHealthButton";
 import { ResynthesizeBloomsButton } from "@/components/ResynthesizeBloomsButton";
 import { countOpenReports } from "@/lib/services/reports";
 import { countOpenFeedback } from "@/lib/services/feedback";
@@ -328,6 +329,7 @@ export default async function AdminPage() {
         </div>
 
         <AdminPanel />
+        <AiHealthButton />
         <GoodMorningButton />
         <RekindleButton />
         <ResynthesizeBloomsButton />

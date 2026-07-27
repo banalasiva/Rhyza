@@ -941,6 +941,72 @@ function getOpenAI(): OpenAI {
   return openaiClient;
 }
 
+// Pull a short, non-secret reason out of a provider error (code/type/status +
+// a trimmed message). Same shape used by the contributions route.
+function providerReason(err: unknown): string {
+  const e = err as {
+    code?: string;
+    type?: string;
+    status?: number;
+    message?: string;
+    error?: { message?: string };
+  };
+  const label = e?.code || e?.type || (e?.status ? `HTTP ${e.status}` : "");
+  const msg = (e?.error?.message || e?.message || "").replace(/\s+/g, " ").trim().slice(0, 300);
+  return [label, msg].filter(Boolean).join(": ") || "unknown error";
+}
+
+export type AiProviderHealth = {
+  configured: boolean;
+  model: string;
+  ok: boolean;
+  detail: string;
+};
+
+// Live health check: makes a tiny real completion against each provider and
+// reports the raw reason on failure (model_not_found, authentication_error,
+// "credit balance too low", rate_limit, etc.). Admin-only — it spends a token or
+// two. This is how we tell "the key/model/billing is broken" from "a transient
+// blip", instead of guessing from a generic "couldn't reply".
+export async function aiHealthCheck(): Promise<{
+  claude: AiProviderHealth;
+  chatgpt: AiProviderHealth;
+}> {
+  const claude: AiProviderHealth = { configured: aiConfigured(), model: MODEL, ok: false, detail: "" };
+  if (!claude.configured) claude.detail = "ANTHROPIC_API_KEY is not set";
+  else {
+    try {
+      await getClient().messages.create({
+        model: MODEL,
+        max_tokens: 8,
+        messages: [{ role: "user", content: "ping" }],
+      });
+      claude.ok = true;
+      claude.detail = "ok";
+    } catch (err) {
+      claude.detail = providerReason(err);
+    }
+  }
+
+  const chatgpt: AiProviderHealth = { configured: openaiConfigured(), model: OPENAI_MODEL, ok: false, detail: "" };
+  if (!chatgpt.configured) chatgpt.detail = "OPENAI_API_KEY is not set";
+  else {
+    try {
+      await getOpenAI().chat.completions.create({
+        model: OPENAI_MODEL,
+        max_tokens: 8,
+        messages: [{ role: "user", content: "ping" }],
+      });
+      chatgpt.ok = true;
+      chatgpt.detail = "ok";
+    } catch (err) {
+      chatgpt.detail = providerReason(err);
+    }
+  }
+
+  return { claude, chatgpt };
+}
+
 // Image model. dall-e-3 is the default because it works on any OpenAI account
 // with no extra setup; gpt-image-1 (what the ChatGPT app uses — better quality)
 // needs organisation verification, so switch to it via env once verified.
