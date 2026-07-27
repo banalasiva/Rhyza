@@ -11,15 +11,15 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI, { toFile } from "openai";
 import { STAGE_KEYS } from "@/lib/constants";
 
-// Claude model — Haiku 4.5 is the default to keep API spend low while the app
-// is pre-revenue ($1/$5 per 1M tokens, ~3× cheaper than Sonnet). It's ample for
-// these conversational, mediation, and bloom tasks. Overridable via env so
-// switching up to Sonnet/Opus is a config change, not a code edit.
-const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
-// A cheaper, faster model for the high-frequency, low-stakes internal tasks
-// (dimension classification on every message, topic tagging, quick
-// observations). ~5× cheaper than Sonnet with ample quality for these. The
-// user-facing reasoning (replies, mediation, blooms) stays on MODEL.
+// Claude model — Sonnet for the user-facing reasoning (replies, mediation,
+// blooms). Haiku was cheaper but the reply quality/latency wasn't worth the
+// bad experience, so this is back on Sonnet. Overridable via env so the exact
+// model is a config change, not a code edit.
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
+// A cheaper, faster model for the high-frequency, low-stakes INTERNAL tasks
+// that never surface to users (dimension classification on every message,
+// topic tagging, quick observations). Haiku is ample here and keeps these
+// invisible calls cheap; the user-facing reasoning stays on MODEL (Sonnet).
 const MODEL_FAST = process.env.ANTHROPIC_MODEL_FAST || "claude-haiku-4-5";
 // ChatGPT model — overridable via env so the exact OpenAI model is a config
 // choice, not a hardcode that can drift out of date.
@@ -73,6 +73,36 @@ async function complete(
   const msg = await stream.finalMessage();
   return textFromMessage(msg);
 }
+
+// Thrown when a model call blows past our own deadline — distinct from an API
+// error so callers can tell "too slow" apart from "the request failed".
+class TimeoutError extends Error {}
+
+// Race a promise against a wall-clock deadline. On timeout we reject with a
+// TimeoutError; the underlying request keeps running but the caller stops
+// waiting on it. Used to bound the reply path so a slow round degrades to a
+// fast fallback INSTEAD of the serverless function being killed mid-reply
+// (which is what shows the "couldn't reply" banner). Tunable via env.
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new TimeoutError(`timed out after ${ms}ms`)), ms);
+    p.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      },
+    );
+  });
+}
+
+// How long the searching reply path may run before we fall back to a fast,
+// no-search reply. Kept comfortably under a typical serverless cap so the
+// person always gets a real answer rather than a dead function.
+const REPLY_DEADLINE_MS = Number(process.env.AI_REPLY_TIMEOUT_MS) || 45_000;
 
 // A web source the AI actually cited — the durable, checkable material that
 // makes a reply trustworthy enough to carry into a bloom.
@@ -378,7 +408,7 @@ export async function claudeReply(input: {
   // search is available so questions about the current, real world (today's
   // prices, what's open nearby, recent events) get a real answer instead of "I
   // can't access that" — the model decides when to search.
-  const { text, sources } = await completeSearched(
+  const system =
     "You are Claude, a thoughtful participant in a ThinkThru learning conversation — a " +
       "collaborative knowledge garden where members explore a topic together. Someone " +
       "tagged you with @claude. Answer their question or add genuinely useful, specific " +
@@ -403,9 +433,24 @@ export async function claudeReply(input: {
       "don't render here). You can't generate images yourself, but @chatgpt can — so if someone " +
       "wants a picture, drawing, or diagram, warmly point them to tag @chatgpt with what they'd " +
       "like; never claim images are impossible here. Write warmly and directly; output only your " +
-      "reply — no greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.",
-    userMessage(prompt, collectImages(input.contributions)),
-  );
+      "reply — no greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.";
+  const userMsg = userMessage(prompt, collectImages(input.contributions));
+
+  // The web-search round is the one part with unbounded latency. If it runs
+  // long enough to risk the serverless function being killed, bail and answer
+  // WITHOUT search — a real, fast reply beats the "couldn't reply" banner. A
+  // genuine API error still throws so the route can surface the real reason.
+  let text: string;
+  let sources: Source[] = [];
+  try {
+    const r = await withTimeout(completeSearched(system, userMsg), REPLY_DEADLINE_MS);
+    text = r.text;
+    sources = r.sources;
+  } catch (err) {
+    if (!(err instanceof TimeoutError)) throw err;
+    console.warn("claudeReply: search path exceeded deadline, answering without web search");
+    text = await complete(system, userMsg, 600);
+  }
   if (!text) return null;
   return text + sourcesFooter(sources);
 }
