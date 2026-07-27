@@ -10,6 +10,7 @@ import { BloomReckoning } from "@/components/BloomReckoning";
 import { CalibrateInvite } from "@/components/CalibrateInvite";
 import { getCalibrations } from "@/lib/services/calibration";
 import { RevertBloom } from "@/components/RevertBloom";
+import { InlineText } from "@/components/InlineText";
 import { DIMENSIONS } from "@/lib/constants";
 
 const OUTCOME_LABEL: Record<string, { label: string; color: string }> = {
@@ -294,7 +295,9 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
                           >
                             {dim?.emoji ?? "•"}
                           </span>
-                          <span>{p.text}</span>
+                          <span>
+                            <InlineText text={p.text} />
+                          </span>
                         </li>
                       );
                     })}
