@@ -192,17 +192,17 @@ export function BloomBody({
         <ReadAloud text={`${title}. ${plain(summary)}`} />
         <div className="flex items-center gap-2">
           <button onClick={share} className="btn-ghost px-4 py-1.5 text-xs">
-            ↗ Share
+            Share
           </button>
           <button
             onClick={saveAsPdf}
             title="Save the full decision record as a PDF"
             className="btn-ghost px-4 py-1.5 text-xs"
           >
-            ⬇ PDF
+            PDF
           </button>
           <button onClick={() => setEditing(true)} className="btn-ghost px-4 py-1.5 text-xs">
-            ✎ Edit bloom
+            Edit
           </button>
         </div>
       </div>

@@ -41,10 +41,10 @@ export function ReadAloud({
       className={
         compact
           ? "inline-flex min-h-[24px] items-center gap-1 transition hover:text-ink"
-          : "inline-flex min-h-[28px] items-center gap-1.5 rounded-full border border-[rgba(76,175,80,0.25)] px-3 py-1 text-xs text-ink-mid transition hover:text-ink"
+          : "btn-ghost px-4 py-1.5 text-xs"
       }
     >
-      <span aria-hidden>{speaking ? "⏹" : "🔊"}</span>
+      {compact && <span aria-hidden>{speaking ? "⏹" : "🔊"}</span>}
       {speaking ? "Stop" : "Read aloud"}
     </button>
   );
