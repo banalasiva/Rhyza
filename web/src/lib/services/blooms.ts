@@ -494,7 +494,12 @@ export async function getBloomDetail(userId: string, bloomId: string) {
   const pointsByAuthor = new Map<string, { dimension: string; text: string }[]>();
   for (const r of recordRows) {
     if (!DIMENSION_UNIVERSE.has(r.dimension)) continue; // skip system/join rows
-    const text = ((r.content as { text?: string } | null)?.text ?? "").trim();
+    // Turn serialized mentions "@[Name](uuid)" into a clean "@Name" BEFORE
+    // truncating, so no raw UUID markup ever leaks into the record (or a cut
+    // lands mid-token). Matches how the thread renders mentions.
+    const text = ((r.content as { text?: string } | null)?.text ?? "")
+      .replace(/@\[([^\]]+)\]\([0-9a-fA-F-]{36}\)/g, "@$1")
+      .trim();
     if (text.length < 12) continue;
     const arr = pointsByAuthor.get(r.authorId) ?? [];
     if (arr.length < 4) arr.push({ dimension: r.dimension, text: text.slice(0, 320) });
