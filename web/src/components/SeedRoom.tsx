@@ -24,7 +24,7 @@ import { PlantSvg } from "@/components/PlantSvg";
 import { HowItWorks } from "@/components/HowItWorks";
 import { RichEditor } from "@/components/RichEditor";
 import { InlineText } from "@/components/InlineText";
-import { serializeMentions, deserializeMentions } from "@/lib/mentions";
+import { serializeMentions, deserializeMentions, mentionsClaude, mentionsChatGpt } from "@/lib/mentions";
 import { shareOrCopy } from "@/lib/share-client";
 import { CollapsibleText } from "@/components/CollapsibleText";
 import { Avatar } from "@/components/Avatar";
@@ -709,8 +709,8 @@ export function SeedRoom({
     setError(null);
     setAiNotice(null);
     postingRef.current += 1; // pause the live poll until this post settles
-    const tagsClaude = /(^|[^a-zA-Z0-9])@claude\b/i.test(text);
-    const tagsChatGpt = /(^|[^a-zA-Z0-9])@(chatgpt|openai|gpt)\b/i.test(text);
+    const tagsClaude = mentionsClaude(text);
+    const tagsChatGpt = mentionsChatGpt(text);
     const tagsAI = tagsClaude || tagsChatGpt;
 
     // Print the person's own message immediately, before the AI is asked, so

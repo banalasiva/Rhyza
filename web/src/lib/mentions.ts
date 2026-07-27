@@ -57,3 +57,15 @@ export function serializeMentions(text: string, people: { id: string; name: stri
 export function deserializeMentions(text: string): string {
   return text.replace(mentionRegex(), (_full, name) => `@${name}`);
 }
+
+// Does this text tag Claude / ChatGPT? Whole-word, case-insensitive. The `\[?`
+// matches BOTH the raw "@claude" and the serialized "@[Claude](id)" form the
+// editor inserts once the AI is a known participant — without it, tapping the
+// AI in the @-menu produced a tag that went undetected. Dependency-free so both
+// the server (ai.ts) and the client (SeedRoom) share ONE implementation.
+export function mentionsClaude(text: string): boolean {
+  return /(^|[^a-zA-Z0-9])@\[?claude\b/i.test(text);
+}
+export function mentionsChatGpt(text: string): boolean {
+  return /(^|[^a-zA-Z0-9])@\[?(chatgpt|openai|gpt)\b/i.test(text);
+}

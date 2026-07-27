@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { deriveFingerprint, type DimSlice } from "@/lib/fingerprint";
-import { shareFingerprintCard } from "@/lib/share-card";
 
 // One-tap "share my thinking fingerprint" — turns the dimension mix into the
 // LinkedIn-friendly identity card. Nothing renders if there's no fingerprint yet.
@@ -20,6 +19,7 @@ export function ShareFingerprintButton({ dims, name }: { dims: DimSlice[]; name:
 
   async function onClick() {
     try {
+      const { shareFingerprintCard } = await import("@/lib/share-card");
       const how = await shareFingerprintCard(
         {
           headline,

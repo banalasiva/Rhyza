@@ -858,10 +858,7 @@ async function notifySeedActivity(
 // "@Name", collapses whitespace, and caps the length. Used so notifications
 // carry a taste of what was said instead of a bare title.
 function previewSnippet(text: string, max = 120): string {
-  const clean = text
-    .replace(/@\[([^\]]+)\]\([0-9a-fA-F-]{36}\)/g, "@$1")
-    .replace(/\s+/g, " ")
-    .trim();
+  const clean = deserializeMentions(text).replace(/\s+/g, " ").trim();
   return clean.length > max ? `${clean.slice(0, max).trimEnd()}…` : clean;
 }
 
