@@ -2060,23 +2060,25 @@ export function SeedRoom({
           </div>
         )}
         {!isBloomed && !committedToBloom && (
-          <div
-            className={
-              "mt-6 rounded-2xl border border-[rgba(76,175,80,0.25)] bg-[#0B120B] " +
-              (composerExpanded ? "p-4 md:p-5" : "p-2")
-            }
-          >
+          <div className={"card mt-6 " + (composerExpanded ? "p-4 md:p-5" : "p-2.5")}>
             {!composerExpanded ? (
-              // Collapsed: a slim, non-blocking bar. Tapping it opens the full
-              // editor (and pops the keyboard via RichEditor autoFocus).
+              // Collapsed: a prominent "write here" bar — big enough that people
+              // notice it and type, instead of skimming past to the seed status.
+              // Tapping it opens the full editor (and pops the keyboard).
+              // Theme-adaptive surface so it reads right in light theme too.
               <button
                 type="button"
                 onClick={() => setComposerOpen(true)}
-                className="flex w-full items-center gap-2 rounded-xl border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.5)] px-3 py-2.5 text-left text-sm text-ink-soft transition hover:border-accent"
+                className="flex w-full items-center gap-3 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 py-4 text-left transition hover:border-accent"
               >
-                <span aria-hidden>💬</span>
-                <span className="flex-1 truncate">Add your thought…</span>
-                <span aria-hidden className="text-accent">✎</span>
+                <span aria-hidden className="text-lg">💬</span>
+                <span className="flex-1 truncate text-[15px] text-ink-mid">Add your thought…</span>
+                <span
+                  aria-hidden
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[rgba(76,175,80,0.14)] px-3 py-1.5 text-xs font-medium text-accent"
+                >
+                  ✎ Write
+                </span>
               </button>
             ) : (
             <>
