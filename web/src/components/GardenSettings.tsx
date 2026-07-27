@@ -67,12 +67,42 @@ export function GardenSettings({
   return (
     <div className="card w-full p-4">
       <p className="eyebrow mb-3">Garden settings</p>
-      <div className="mb-2 flex gap-2">
-        <input className="input w-16 text-center" value={emoji} onChange={(e) => setEmoji(e.target.value)} maxLength={4} />
-        <input className="input flex-1" value={name} onChange={(e) => setName(e.target.value)} maxLength={80} />
+
+      {/* Labelled fields with room to read — the name on one clear line, and a
+          description box tall enough to see the whole thing while editing. */}
+      <label className="mb-1 block text-[11px] uppercase tracking-wide text-ink-soft">Name</label>
+      <div className="mb-3 flex gap-2">
+        <input
+          className="input w-14 shrink-0 text-center"
+          value={emoji}
+          onChange={(e) => setEmoji(e.target.value)}
+          maxLength={4}
+          aria-label="Garden emoji"
+        />
+        <input
+          className="input min-w-0 flex-1"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={80}
+          placeholder="Garden name"
+        />
       </div>
-      <textarea className="input mb-2 min-h-[60px]" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} placeholder="Description" />
-      <div className="mb-2 flex items-center gap-2">
+
+      <label className="mb-1 block text-[11px] uppercase tracking-wide text-ink-soft">
+        About this garden
+      </label>
+      <textarea
+        className="input mb-3 min-h-[110px] leading-relaxed"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        maxLength={500}
+        placeholder="What's this garden for?"
+      />
+
+      <label className="mb-1 block text-[11px] uppercase tracking-wide text-ink-soft">
+        Who can see it
+      </label>
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => setVisibility("public")}
@@ -89,10 +119,10 @@ export function GardenSettings({
         >
           🔒 Private
         </button>
-        <span className="text-[11px] text-ink-soft">
-          {visibility === "private" ? "Only members can see this garden" : "Everyone in the org can see it"}
-        </span>
       </div>
+      <p className="mb-3 mt-1.5 text-[11px] text-ink-soft">
+        {visibility === "private" ? "Only members can see this garden" : "Everyone in the org can see it"}
+      </p>
       {error && <p className="mb-2 text-sm text-[#e57373]">{error}</p>}
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
