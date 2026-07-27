@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import type { ReflectionSummary } from "@/lib/services/reflections";
-import { shareCalibrationCard } from "@/lib/share-card";
 
 // Opt-in "share my track record" — the "looking back" mirror is private by
 // default; this lets a person CHOOSE to turn their own calls into a card. Honest
@@ -28,6 +27,7 @@ export function ShareCalibrationButton({
 
   async function onClick() {
     try {
+      const { shareCalibrationCard } = await import("@/lib/share-card");
       const how = await shareCalibrationCard(
         {
           bigNumber: `${right} / ${total}`,

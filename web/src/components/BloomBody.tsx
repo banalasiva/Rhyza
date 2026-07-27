@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ReadAloud } from "@/components/ReadAloud";
 import { BloomContent } from "@/components/BloomContent";
-import { shareBloomCard } from "@/lib/share-card";
 
 // Strip the tiny markdown (bold markers, leading bullets) for plain contexts
 // like read-aloud and the share card headline.
@@ -68,6 +67,8 @@ export function BloomBody({
     const url =
       typeof window !== "undefined" ? `${window.location.origin}/blooms/${id}` : `https://thinkthru.app/blooms/${id}`;
     try {
+      // Lazy-load the canvas/QR share module only when someone actually shares.
+      const { shareBloomCard } = await import("@/lib/share-card");
       const how = await shareBloomCard(
         {
           question: title, // bloom.title IS the seed question

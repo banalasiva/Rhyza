@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { shareReflectionCard } from "@/lib/share-card";
 
 // One-tap "share how I show up" — turns Claude's mirror (the bulleted reflection)
 // into a warm identity card. Renders nothing until there's a reflection to share.
@@ -15,6 +14,7 @@ export function ShareReflectionButton({ text, name }: { text: string; name: stri
 
   async function onClick() {
     try {
+      const { shareReflectionCard } = await import("@/lib/share-card");
       const how = await shareReflectionCard(
         {
           heading,

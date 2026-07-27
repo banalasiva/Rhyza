@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { apiGet, apiPost } from "@/lib/client";
-import { shareCard } from "@/lib/share-card";
 import type { DailyQuestionState } from "@/lib/services/daily-question";
 
 // The daily question — ThinkThru's tiny everyday ritual. Read today's prompt,
@@ -89,6 +88,7 @@ export function DailyQuestion() {
       return `${opt} — ${pct}%${mine}`;
     });
     try {
+      const { shareCard } = await import("@/lib/share-card");
       const how = await shareCard(
         {
           eyebrow: "Daily Question",

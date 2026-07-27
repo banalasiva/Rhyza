@@ -3,8 +3,7 @@
 import { useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 import { PasskeySignIn } from "@/components/PasskeySignIn";
-import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from "firebase/auth";
-import { getFirebaseAuth } from "@/lib/firebase-client";
+import type { RecaptchaVerifier, ConfirmationResult } from "firebase/auth";
 import { InAppBrowserNotice } from "@/components/InAppBrowserNotice";
 
 // Country codes offered in the phone sign-in dropdown. Kept to the regions the
@@ -60,15 +59,6 @@ export function AuthPanel({
   const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
   const confirmationRef = useRef<ConfirmationResult | null>(null);
 
-  function recaptcha(): RecaptchaVerifier {
-    if (!recaptchaRef.current) {
-      recaptchaRef.current = new RecaptchaVerifier(getFirebaseAuth(), "recaptcha-container", {
-        size: "invisible",
-      });
-    }
-    return recaptchaRef.current;
-  }
-
   // Combine the picked country code with the local digits (dropping a local
   // trunk "0"), so users type only their number, not the country code.
   const fullNumber = () => dialCode + phone.replace(/\D/g, "").replace(/^0+/, "");
@@ -83,7 +73,17 @@ export function AuthPanel({
     setPhoneBusy(true);
     setPhoneError(null);
     try {
-      confirmationRef.current = await signInWithPhoneNumber(getFirebaseAuth(), e164, recaptcha());
+      // Load the Firebase SDK ONLY when someone actually starts phone sign-in —
+      // keeps the (hundreds-of-KB) SDK out of the login bundle for everyone else.
+      const [{ RecaptchaVerifier, signInWithPhoneNumber }, { getFirebaseAuth }] = await Promise.all([
+        import("firebase/auth"),
+        import("@/lib/firebase-client"),
+      ]);
+      const auth = getFirebaseAuth();
+      if (!recaptchaRef.current) {
+        recaptchaRef.current = new RecaptchaVerifier(auth, "recaptcha-container", { size: "invisible" });
+      }
+      confirmationRef.current = await signInWithPhoneNumber(auth, e164, recaptchaRef.current);
       setPhoneStep("code");
     } catch (err) {
       const c = (err as { code?: string })?.code ?? "";

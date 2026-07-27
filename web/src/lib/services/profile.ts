@@ -67,12 +67,21 @@ export async function setSectionVisibility(
 // A person's "thinking fingerprint" input: how their contributions spread across
 // the five dimensions, ranked, only those with real activity.
 export async function getThinkingDimensions(userId: string): Promise<DimSlice[]> {
-  const contribs = await db.contribution
-    .findMany({ where: { authorId: userId, deletedAt: null }, select: { dimension: true }, take: 5000 })
-    .catch(() => [] as { dimension: string }[]);
+  // Count per dimension in the DB (≤ a handful of rows) instead of loading up to
+  // 5000 contribution rows into memory just to tally them.
+  const grouped = await db.contribution
+    .groupBy({
+      by: ["dimension"],
+      where: { authorId: userId, deletedAt: null },
+      _count: { dimension: true },
+    })
+    .catch(() => [] as { dimension: string; _count: { dimension: number } }[]);
   const counts: Record<string, number> = {};
-  for (const c of contribs as { dimension: string }[]) counts[c.dimension] = (counts[c.dimension] ?? 0) + 1;
-  const total = contribs.length;
+  let total = 0;
+  for (const g of grouped as { dimension: string; _count: { dimension: number } }[]) {
+    counts[g.dimension] = g._count.dimension;
+    total += g._count.dimension;
+  }
   return DIMENSIONS.map((d) => ({
     key: d.key,
     label: d.label,

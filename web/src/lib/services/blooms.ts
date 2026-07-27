@@ -5,6 +5,7 @@ import { getMyReflection, getSharedReflections } from "@/lib/services/reflection
 import { getReckoning } from "@/lib/services/reckoning";
 import { synthesizeBloom, summarizeContributors, type ContribForAI } from "@/lib/ai";
 import { deliver } from "@/lib/services/notify";
+import { deserializeMentions } from "@/lib/mentions";
 
 const DIMENSION_ROLE: Record<string, { type: string; role: string }> = {
   foundations: { type: "explainer", role: "Laid the foundations" },
@@ -13,12 +14,6 @@ const DIMENSION_ROLE: Record<string, { type: string; role: string }> = {
   debate: { type: "debater", role: "Pressure-tested the idea" },
   bloom: { type: "community", role: "Helped it bloom" },
 };
-
-// Strip serialized mentions "@[Name](uuid)" → "@Name" so raw markup never
-// reaches the AI or the record.
-function cleanMentions(s: string): string {
-  return s.replace(/@\[([^\]]+)\]\([0-9a-fA-F-]{36}\)/g, "@$1");
-}
 
 // Distill each contributor's messages on a seed into ONE clean credited line for
 // the decision record ("who surfaced what"), stored on the bloom so it's a
@@ -32,7 +27,7 @@ async function buildContributorLines(
 ): Promise<ContributionLine[]> {
   const textsBy = new Map<string, string[]>();
   for (const c of contributions) {
-    const t = cleanMentions(((c.content as { text?: string } | null)?.text ?? "").trim());
+    const t = deserializeMentions(((c.content as { text?: string } | null)?.text ?? "").trim());
     if (t.length < 12) continue;
     const arr = textsBy.get(c.authorId) ?? [];
     arr.push(t);
@@ -559,9 +554,7 @@ export async function getBloomDetail(userId: string, bloomId: string) {
     // Turn serialized mentions "@[Name](uuid)" into a clean "@Name" BEFORE
     // truncating, so no raw UUID markup ever leaks into the record (or a cut
     // lands mid-token). Matches how the thread renders mentions.
-    const text = ((r.content as { text?: string } | null)?.text ?? "")
-      .replace(/@\[([^\]]+)\]\([0-9a-fA-F-]{36}\)/g, "@$1")
-      .trim();
+    const text = deserializeMentions(((r.content as { text?: string } | null)?.text ?? "").trim());
     if (text.length < 12) continue;
     const arr = pointsByAuthor.get(r.authorId) ?? [];
     if (arr.length < 4) arr.push({ dimension: r.dimension, text: text.slice(0, 320) });

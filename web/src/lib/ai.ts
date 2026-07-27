@@ -960,14 +960,10 @@ export async function pickRekindleNudge(input: {
   }
 }
 
-// Does this text tag Claude? Matches "@claude" as a whole word, case-insensitive.
-export function mentionsClaude(text: string): boolean {
-  // Match both the raw "@claude" and the serialized "@[Claude](id)" form the
-  // client sends once Claude is a known participant (the \[? allows the bracket).
-  // Without it, tapping Claude in the @-menu inserts "@Claude" → "@[Claude](id)"
-  // and the tag went undetected, so Claude never replied.
-  return /(^|[^a-zA-Z0-9])@\[?claude\b/i.test(text);
-}
+// AI-tag detection lives in @/lib/mentions (dependency-free) so the server and
+// the client (SeedRoom) share ONE implementation. Re-exported here for the
+// existing server call sites (contributions route/service).
+export { mentionsClaude, mentionsChatGpt } from "@/lib/mentions";
 
 // ─────────────────────────────────────────────────────────────
 // ChatGPT (OpenAI) — a second AI participant alongside Claude. Gated behind
@@ -1244,12 +1240,6 @@ export async function editImage(imageUrl: string, prompt: string): Promise<Buffe
     console.error("[ai] image edit failed", err);
     return null;
   }
-}
-
-// Does this text tag ChatGPT? Matches @chatgpt / @openai / @gpt.
-export function mentionsChatGpt(text: string): boolean {
-  // Also match the serialized "@[ChatGPT](id)" form (see mentionsClaude).
-  return /(^|[^a-zA-Z0-9])@\[?(chatgpt|openai|gpt)\b/i.test(text);
 }
 
 // Build an OpenAI user message, attaching images as vision parts when present.
