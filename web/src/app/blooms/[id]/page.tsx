@@ -281,7 +281,11 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
                   <span className="text-sm font-medium text-ink">{c.name || "A contributor"}</span>
                   <span className="shrink-0 text-[11px] text-ink-soft">{c.role}</span>
                 </div>
-                {c.points.length > 0 ? (
+                {c.line ? (
+                  // The AI-distilled one-liner — reads as clean as the summary.
+                  <p className="text-sm leading-relaxed text-ink-mid">{c.line}</p>
+                ) : c.points.length > 0 ? (
+                  // Fallback for older blooms: their actual words, dimension-tagged.
                   <ul className="space-y-1.5">
                     {c.points.map((p, j) => {
                       const dim = DIMENSIONS.find((d) => d.key === p.dimension);
