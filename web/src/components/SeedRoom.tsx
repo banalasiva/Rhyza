@@ -91,6 +91,23 @@ function attachmentType(mime: string): Attachment["type"] {
   return "file";
 }
 
+// Turn a raw AI-failure code/reason into a plain-language message with a next
+// step, so a non-reply is never a dead end. `canManage` tailors the "turn AI
+// back on" advice to whether the viewer can actually flip the switch.
+function aiFailureMessage(code: string | null | undefined, canManage: boolean): string {
+  const raw = (code ?? "").toString();
+  if (raw === "ai_disabled")
+    return canManage
+      ? "AI is turned off for this seed, so Claude and ChatGPT can't reply. Open the ⚙ Details sheet and switch “AI teammates” back on, then tag @claude again."
+      : "AI is turned off for this seed, so Claude and ChatGPT can't reply. Ask the seed's owner to switch AI teammates back on, then tag @claude again.";
+  if (raw === "not_configured")
+    return "The AI you tagged isn't set up yet — its API key is missing. Once it's added, tag @claude or @chatgpt again.";
+  if (/rate.?limit|quota|429|too large|overload|capacity|insufficient/i.test(raw))
+    return "The AI is over its limit right now. Wait a minute, then tag @claude or @chatgpt again — a shorter message is more likely to go through.";
+  // Generic / transient failure — the message is saved; just retry.
+  return "Claude/ChatGPT couldn't reply just now — your message is saved. Tag @claude or @chatgpt again to retry; if it keeps failing, try a shorter message.";
+}
+
 export function SeedRoom({
   seed,
   reactions,
@@ -314,6 +331,11 @@ export function SeedRoom({
   const [visBusy, setVisBusy] = useState(false);
   const [listed, setListed] = useState<boolean>(seed.listed ?? false);
   const [aiEnabled, setAiEnabled] = useState<boolean>(seed.aiEnabled ?? true);
+  // When Claude/ChatGPT can't reply, this holds a plain-language reason + a next
+  // step, shown in an always-visible banner (the general `error` renders inside
+  // the composer, which collapses right after you post — so an AI failure would
+  // otherwise vanish unseen).
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
   const [following, setFollowing] = useState<boolean>(seed.following ?? false);
   const [followLevel, setFollowLevelState] = useState<string>(seed.followLevel ?? "all");
   const [bloomConfirm, setBloomConfirm] = useState(false); // confirm modal open
@@ -685,6 +707,7 @@ export function SeedRoom({
     sendingRef.current = true;
     setBusy(true);
     setError(null);
+    setAiNotice(null);
     postingRef.current += 1; // pause the live poll until this post settles
     const tagsClaude = /(^|[^a-zA-Z0-9])@claude\b/i.test(text);
     const tagsChatGpt = /(^|[^a-zA-Z0-9])@(chatgpt|openai|gpt)\b/i.test(text);
@@ -750,18 +773,18 @@ export function SeedRoom({
           }
         return next;
       });
-      if (replies.length) playNatureSound("chime"); // Claude/ChatGPT replied
+      if (replies.length) {
+        playNatureSound("chime"); // Claude/ChatGPT replied
+        setAiNotice(null);
+      }
       if (tagsAI && replies.length === 0) {
         if (c.aiError === "guest_ai") {
           // A guest tagged an AI — their message is saved; pop the sign-up
           // invite immediately (feels intentional, not like an error).
           setGuestSignup(true);
         } else {
-          setError(
-            c.aiError === "not_configured"
-              ? "The AI you tagged isn't configured — add its API key (ANTHROPIC_API_KEY or OPENAI_API_KEY) in Vercel and redeploy."
-              : `The AI couldn't reply: ${c.aiError ?? "unknown error"}`,
-          );
+          // A clear reason + a next step, in an always-visible banner.
+          setAiNotice(aiFailureMessage(c.aiError, seed.canManage));
         }
       }
       // Let Claude label the dimension in the background; the badge fills in.
@@ -2056,6 +2079,22 @@ export function SeedRoom({
               disabled={busy}
             >
               ↩ Keep contributing
+            </button>
+          </div>
+        )}
+        {/* AI-couldn't-reply banner — always visible (unlike the composer's own
+            error, which collapses out of view right after you post). Carries the
+            reason and the next step. */}
+        {aiNotice && (
+          <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-[rgba(229,115,115,0.4)] bg-[rgba(229,115,115,0.08)] p-3">
+            <span aria-hidden className="mt-0.5 text-base leading-none">🤖</span>
+            <p className="min-w-0 flex-1 text-xs leading-relaxed text-ink-mid">{aiNotice}</p>
+            <button
+              onClick={() => setAiNotice(null)}
+              aria-label="Dismiss"
+              className="shrink-0 text-ink-soft transition hover:text-ink"
+            >
+              ✕
             </button>
           </div>
         )}
