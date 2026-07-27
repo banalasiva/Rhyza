@@ -98,6 +98,10 @@ export default async function LoginPage({
           id="start"
           className="flex min-h-[100svh] scroll-mt-6 flex-col items-center justify-center py-10"
         >
+          {/* The logo is a gold-on-dark brand asset, so on a light background the
+              golden parts (wordmark, ring, tagline) nearly disappear. A soft dark
+              drop-shadow gives every element a defining edge so the gold reads in
+              light theme — and it's invisible on the dark theme's own backdrop. */}
           <Image
             src="/logo-source.png"
             alt="ThinkThru"
@@ -105,6 +109,7 @@ export default async function LoginPage({
             height={200}
             priority
             className="mx-auto mb-4 h-auto w-28 sm:w-32"
+            style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.55)) drop-shadow(0 3px 10px rgba(0,0,0,0.3))" }}
           />
           <h1 className="serif-lg mb-6 text-2xl">Sign in to ThinkThru</h1>
 
