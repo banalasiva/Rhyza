@@ -10,6 +10,7 @@ import { BloomReckoning } from "@/components/BloomReckoning";
 import { CalibrateInvite } from "@/components/CalibrateInvite";
 import { getCalibrations } from "@/lib/services/calibration";
 import { RevertBloom } from "@/components/RevertBloom";
+import { DIMENSIONS } from "@/lib/constants";
 
 const OUTCOME_LABEL: Record<string, { label: string; color: string }> = {
   better: { label: "Better than expected", color: "#66BB6A" },
@@ -264,16 +265,46 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
           )}
         </section>
 
+        {/* How this was decided — the decision record. Who surfaced what, in
+            their own words, so the reasoning behind the call is visible (and
+            exportable as a PDF). The heart of a shareable decision. */}
         <section className="mt-8">
-          <p className="eyebrow mb-3">Lineage — who grew this</p>
-          <ul className="space-y-2">
+          <p className="eyebrow mb-1">🧭 How this was decided</p>
+          <p className="mb-3 text-xs text-ink-soft">
+            Who surfaced what, in their own words — the reasoning behind the decision.
+          </p>
+          <div className="space-y-3">
             {bloom.contributors.map((c, i) => (
-              <li key={i} className="card flex items-center justify-between p-3">
-                <span className="text-sm text-ink">{c.name || "A contributor"}</span>
-                <span className="text-xs text-ink-soft">{c.role}</span>
-              </li>
+              <div key={i} className="card p-4">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-ink">{c.name || "A contributor"}</span>
+                  <span className="shrink-0 text-[11px] text-ink-soft">{c.role}</span>
+                </div>
+                {c.points.length > 0 ? (
+                  <ul className="space-y-1.5">
+                    {c.points.map((p, j) => {
+                      const dim = DIMENSIONS.find((d) => d.key === p.dimension);
+                      return (
+                        <li key={j} className="flex gap-2 text-sm leading-relaxed text-ink-mid">
+                          <span
+                            aria-hidden
+                            className="mt-[3px] shrink-0 text-xs"
+                            style={{ color: dim?.color }}
+                            title={dim?.label}
+                          >
+                            {dim?.emoji ?? "•"}
+                          </span>
+                          <span>{p.text}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-ink-soft">Helped shape the decision.</p>
+                )}
+              </div>
             ))}
-          </ul>
+          </div>
         </section>
 
         {bloom.versions.length > 1 && (
