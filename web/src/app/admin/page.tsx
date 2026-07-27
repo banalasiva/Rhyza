@@ -12,6 +12,7 @@ import { ResynthesizeBloomsButton } from "@/components/ResynthesizeBloomsButton"
 import { countOpenReports } from "@/lib/services/reports";
 import { countOpenFeedback } from "@/lib/services/feedback";
 import { recentAuthFailures } from "@/lib/services/auth-events";
+import { getActivationMetrics } from "@/lib/services/activation";
 
 // AI-tag usage meter (best-effort — the table may not be migrated yet).
 async function aiTagStats() {
@@ -110,6 +111,7 @@ export default async function AdminPage() {
     notFound();
   }
 
+  const activation = await getActivationMetrics();
   const ai = await aiTagStats();
   const members = await adminMembers();
   const openReports = await countOpenReports().catch(() => 0);
@@ -126,6 +128,79 @@ export default async function AdminPage() {
           ← Your gardens
         </Link>
         <h1 className="serif-xl mb-6">🛠 Admin</h1>
+
+        {/* Multiplayer activation — THE number for a multiplayer decision app:
+            does a planted seed pull in a second real person? Everything else is
+            downstream of this. */}
+        <div className="card mb-4 p-4">
+          <p className="eyebrow mb-3">📈 Multiplayer activation</p>
+          {activation.ok && activation.total > 0 ? (
+            <>
+              <div className="mb-3 text-center">
+                <div className="serif-xl text-ink">
+                  {pctOf(activation.multiplayer, activation.total)}%
+                </div>
+                <div className="text-[11px] text-ink-soft">
+                  of {activation.total} seeds pulled in a 2nd person
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <Stat n={activation.multiplayer} label="multiplayer" />
+                <Stat n={activation.multiplayer48h} label="within 48h" />
+                <Stat n={activation.total - activation.multiplayer} label="still solo" />
+              </div>
+              <p className="mt-3 text-center text-xs text-ink-soft">
+                {activation.medianHoursToSecond != null
+                  ? `Median ${fmtDur(activation.medianHoursToSecond)} to the 2nd person`
+                  : "No second person has shown up yet."}
+              </p>
+
+              {/* Invite + ask funnels — the levers that feed activation. */}
+              <div className="mt-3 grid grid-cols-2 gap-3 border-t border-[rgba(255,255,255,0.06)] pt-3 text-center">
+                <div>
+                  <div className="serif-lg text-ink">
+                    {activation.invitesSent ? `${pctOf(activation.invitesAccepted, activation.invitesSent)}%` : "—"}
+                  </div>
+                  <div className="text-[11px] text-ink-soft">
+                    invites accepted ({activation.invitesAccepted}/{activation.invitesSent})
+                  </div>
+                </div>
+                <div>
+                  <div className="serif-lg text-ink">
+                    {activation.asksSent ? `${pctOf(activation.asksAnswered, activation.asksSent)}%` : "—"}
+                  </div>
+                  <div className="text-[11px] text-ink-soft">
+                    asks answered ({activation.asksAnswered}/{activation.asksSent})
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent seeds — eyeball which are activating and how fast. */}
+              <div className="mt-3 border-t border-[rgba(255,255,255,0.06)] pt-3">
+                <p className="mb-1.5 text-[10px] uppercase tracking-wide text-ink-soft">Recent seeds</p>
+                <div className="space-y-1.5">
+                  {activation.recent.map((r) => (
+                    <div key={r.id} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span aria-hidden>{r.activated ? "🟢" : "⚪"}</span>
+                        <Link href={`/seeds/${r.id}`} className="truncate text-ink transition hover:text-accent">
+                          {r.title}
+                        </Link>
+                      </span>
+                      <span className="shrink-0 whitespace-nowrap text-xs text-ink-mid">
+                        {r.humans}👤 · {fmtDur(r.ageHours)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-ink-soft">
+              No seeds yet — plant a few (and get a second person in) to see activation.
+            </p>
+          )}
+        </div>
 
         {/* Sign-in failures — a sev2. Highlighted red when any landed in the last
             24h so a broken sign-in surfaces here, not just via a phone call. */}
@@ -307,6 +382,17 @@ export default async function AdminPage() {
       </main>
     </div>
   );
+}
+
+function pctOf(n: number, d: number): number {
+  return d > 0 ? Math.round((n / d) * 100) : 0;
+}
+
+// Compact human duration: minutes under an hour, hours under two days, else days.
+function fmtDur(hours: number): string {
+  if (hours < 1) return `${Math.max(1, Math.round(hours * 60))}m`;
+  if (hours < 48) return `${Math.round(hours)}h`;
+  return `${Math.round(hours / 24)}d`;
 }
 
 function Stat({ n, label }: { n: number; label: string }) {
