@@ -2323,8 +2323,16 @@ export function SeedRoom({
                     style={{ borderColor: mine ? "rgba(76,175,80,0.4)" : "rgba(255,255,255,0.06)" }}
                   >
                     <div className="mb-1 flex items-center justify-between text-xs">
-                      <span style={{ color: mine ? "#66BB6A" : "#C8C4BC" }}>{s.emoji} {s.label}</span>
-                      <span className="text-ink-soft">{pct}%</span>
+                      {/* Selected stage is green; the rest use the theme's
+                          adaptive mid-ink so they stay readable in light theme
+                          (a hard-coded light grey was near-invisible on white). */}
+                      <span
+                        className={mine ? "font-medium" : "text-ink-mid"}
+                        style={mine ? { color: "#66BB6A" } : undefined}
+                      >
+                        {s.emoji} {s.label}
+                      </span>
+                      <span className="text-ink-mid">{pct}%</span>
                     </div>
                     <div className="h-1.5 overflow-hidden rounded-full bg-[rgba(255,255,255,0.05)]">
                       <div className="h-full rounded-full" style={{ width: `${pct}%`, background: s.key === "bloomed" ? "linear-gradient(to right,#FFD54F,#FF8F00)" : "#4CAF50", transition: "width 0.6s" }} />
