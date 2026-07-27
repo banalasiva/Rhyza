@@ -58,7 +58,7 @@ export function GardenSettings({
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="btn-ghost px-3 py-1.5 text-xs">
+      <button onClick={() => setOpen(true)} className="btn-ghost">
         ⚙ Manage
       </button>
     );
