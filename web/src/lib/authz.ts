@@ -78,15 +78,19 @@ async function loadSeedRow(seedId: string) {
   }
 }
 
-export async function requireSeedAccess(userId: string, seedId: string) {
-  const seed = await loadSeedRow(seedId);
+// The access decision, given only the columns it needs. Shared by the full and
+// the light variants so the gate logic lives in ONE place.
+//   PUBLIC seeds are open to any signed-in user who has the link (whether or not
+//   they're "listed" in Explore — listed only adds discoverability). Seed ids are
+//   unguessable UUIDs, so this is link-based access like a shared doc. Only
+//   PRIVATE seeds are gated — they need garden access AND an explicit seat.
+async function assertSeedAccess(
+  userId: string,
+  seedId: string,
+  seed: { gardenId: string; createdById: string; visibility: string; deletedAt: Date | null } | null,
+) {
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
-  // PUBLIC seeds are open to any signed-in user who has the link (whether or not
-  // they're "listed" in Explore — listed only adds discoverability). Seed ids are
-  // unguessable UUIDs, so this is link-based access like a shared doc, not a
-  // public directory. Only PRIVATE seeds are gated — they need garden access AND
-  // an explicit seat, otherwise the visitor gets the request-to-join screen.
-  if (seed.visibility === "public") return seed;
+  if (seed.visibility === "public") return;
   await requireGardenAccess(userId, seed.gardenId);
   if (seed.createdById !== userId) {
     const member = await db.seedMember.findUnique({
@@ -94,7 +98,32 @@ export async function requireSeedAccess(userId: string, seedId: string) {
     });
     if (!member) throw new ApiError("NOT_FOUND", "Seed not found");
   }
-  return seed;
+}
+
+export async function requireSeedAccess(userId: string, seedId: string) {
+  const seed = await loadSeedRow(seedId);
+  await assertSeedAccess(userId, seedId, seed);
+  return seed!;
+}
+
+// Just the columns the access gate needs — never pulls the (potentially large)
+// seed `content`/`title`. Resilient to the `listed` column not being migrated.
+async function loadSeedAccessRow(seedId: string) {
+  const base = { id: true, gardenId: true, createdById: true, visibility: true, deletedAt: true } as const;
+  try {
+    return await db.seed.findUnique({ where: { id: seedId }, select: { ...base, listed: true } });
+  } catch {
+    const s = await db.seed.findUnique({ where: { id: seedId }, select: base });
+    return s ? { ...s, listed: false } : null;
+  }
+}
+
+// requireSeedAccess for HOT paths that only need the gate (e.g. the 4s
+// contributions poll) — same decision, but without over-fetching the seed body.
+export async function requireSeedAccessLight(userId: string, seedId: string) {
+  const seed = await loadSeedAccessRow(seedId);
+  await assertSeedAccess(userId, seedId, seed);
+  return seed!;
 }
 
 // Ensure the user can participate in the seed. For a normal seed this auto-joins
