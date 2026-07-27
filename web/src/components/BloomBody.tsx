@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ReadAloud } from "@/components/ReadAloud";
 import { BloomContent } from "@/components/BloomContent";
-import { shareCard } from "@/lib/share-card";
+import { shareBloomCard } from "@/lib/share-card";
 
 // Strip the tiny markdown (bold markers, leading bullets) for plain contexts
 // like read-aloud and the share card headline.
@@ -22,11 +22,22 @@ export function BloomBody({
   initialTitle,
   initialSummary,
   aiSynthesized,
+  question,
+  people,
+  dimensions,
+  credit,
+  sharerName,
 }: {
   id: string;
   initialTitle: string;
   initialSummary: string;
   aiSynthesized: boolean;
+  // Bloom Card inputs — the narrative share artifact.
+  question: string; // the seed question (context on the card)
+  people: number; // distinct humans who grew this decision
+  dimensions: number; // thinking dimensions that lit up
+  credit: string | null; // the sharer's own credited role, if any
+  sharerName: string; // the viewer's display name, for the credit line
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(initialTitle);
@@ -40,22 +51,26 @@ export function BloomBody({
   const [shareMsg, setShareMsg] = useState<string | null>(null);
 
   async function share() {
-    // A bloom is a durable decision — worth showing off. Turn it into a card
-    // that carries the decision (and a taste of the reasoning) out to wherever
-    // people already talk.
-    const firstLine = plain(summary.split(/\n+/).find((l) => l.trim()) ?? "");
+    // A bloom is a durable decision — worth showing off. The card leads with the
+    // INSIGHT (the hero), frames it with the question, and credits the sharer, so
+    // it tells a true story about this person that they'd be proud to post.
+    const insight = plain(summary.split(/\n+/).find((l) => l.trim()) ?? "") || title;
+    const parts = [
+      `${people} ${people === 1 ? "person" : "people"} explored it`,
+      dimensions > 0 ? `${dimensions} ${dimensions === 1 ? "dimension" : "dimensions"} lit up` : "",
+    ].filter(Boolean);
     try {
-      const how = await shareCard(
+      const how = await shareBloomCard(
         {
-          eyebrow: "A decision, thought through",
-          title,
-          lines: firstLine && firstLine !== title ? [truncate(firstLine, 140)] : undefined,
-          footer: "Grown together on ThinkThru · thinkthru.app",
-          accent: "bloom",
+          question: title, // bloom.title IS the seed question
+          insight,
+          stat: parts.join(" · "),
+          credit: credit ? `${sharerName} · ${credit}` : undefined,
+          footer: "Grown on ThinkThru — where thinking leaves a trace.",
         },
         {
           fileName: "thinkthru-bloom.png",
-          shareText: `${title} — a decision we thought through together on ThinkThru. https://thinkthru.app`,
+          shareText: `${truncate(insight, 160)} — a decision we grew together on ThinkThru. https://thinkthru.app`,
         },
       );
       if (how === "downloaded") {

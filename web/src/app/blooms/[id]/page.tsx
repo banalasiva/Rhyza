@@ -164,6 +164,11 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
           initialTitle={bloom.title}
           initialSummary={bloom.summary}
           aiSynthesized={bloom.aiSynthesized}
+          question={bloom.seed.title}
+          people={bloom.people}
+          dimensions={bloom.dimensions}
+          credit={bloom.contributors.find((c) => c.userId === viewer.userId)?.role ?? null}
+          sharerName={viewer.name}
         />
 
         {/* Links shared while deciding — the references (docs, quotes, videos)
