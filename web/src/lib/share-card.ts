@@ -47,6 +47,7 @@ function drawQr(
   x: number,
   y: number,
   size: number,
+  tile = "#ffffff",
 ) {
   const qr = qrcode(0, "M");
   qr.addData(url);
@@ -54,7 +55,7 @@ function drawQr(
   const n = qr.getModuleCount();
   const quiet = 2; // modules of quiet zone inside the tile
   const cell = size / (n + quiet * 2);
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = tile;
   roundRect(ctx, x, y, size, size, 18);
   ctx.fill();
   ctx.fillStyle = "#20301f";
@@ -85,6 +86,145 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
   }
   if (line) lines.push(line);
   return lines;
+}
+
+// ── App visual identity: theme + golden emblem + garden depth ───────────────
+// The cards must feel unmistakably like ThinkThru: the SAME dark/light theme the
+// user is in, the golden sprouting emblem, and the radial-glow depth the app's
+// blooms and sacred tree carry. These helpers paint that shared chrome.
+
+type CardTheme = {
+  light: boolean;
+  bg: string;
+  bgMid: string;
+  ink: string;
+  inkMid: string;
+  inkSoft: string;
+  accent: string;
+  gold: string;
+  greenGlow: string;
+  goldGlow: string;
+  emblemGlow: string;
+  vignette: string;
+  track: string; // signature/outcome bar track
+  chipBg: string; // gold-tinted pill background
+  qrTile: string; // QR tile background (kept high-contrast)
+};
+
+const DARK_THEME: CardTheme = {
+  light: false,
+  bg: "#070d07",
+  bgMid: "#0d160d",
+  ink: "#e8e4dc",
+  inkMid: "#a0a890",
+  inkSoft: "#8b937f",
+  accent: "#66bb6a",
+  gold: "#ffb300",
+  greenGlow: "rgba(76,175,80,0.16)",
+  goldGlow: "rgba(255,179,0,0.13)",
+  emblemGlow: "rgba(255,200,90,0.32)",
+  vignette: "rgba(0,0,0,0.42)",
+  track: "rgba(255,255,255,0.09)",
+  chipBg: "rgba(255,179,0,0.15)",
+  qrTile: "#f4f7ee",
+};
+const LIGHT_THEME: CardTheme = {
+  light: true,
+  bg: "#f5f6f0",
+  bgMid: "#e8ece1",
+  ink: "#141a11",
+  inkMid: "#333a29",
+  inkSoft: "#4d5640",
+  accent: "#2e7d32",
+  gold: "#b26a00",
+  greenGlow: "rgba(46,125,50,0.10)",
+  goldGlow: "rgba(178,106,0,0.08)",
+  emblemGlow: "rgba(255,200,90,0.30)",
+  vignette: "rgba(20,26,17,0.06)",
+  track: "rgba(20,26,17,0.08)",
+  chipBg: "rgba(178,106,0,0.12)",
+  qrTile: "#ffffff",
+};
+
+function readTheme(): CardTheme {
+  try {
+    if (typeof document !== "undefined" && document.documentElement.classList.contains("light")) {
+      return LIGHT_THEME;
+    }
+  } catch {
+    /* non-DOM context */
+  }
+  return DARK_THEME;
+}
+
+// The golden sprouting emblem — the app's mark. Loaded once and cached.
+let emblemPromise: Promise<HTMLImageElement | null> | null = null;
+function loadEmblem(): Promise<HTMLImageElement | null> {
+  if (!emblemPromise) {
+    emblemPromise = new Promise((resolve) => {
+      try {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = "/emblem.png";
+      } catch {
+        resolve(null);
+      }
+    });
+  }
+  return emblemPromise;
+}
+
+// Hex (#rgb / #rrggbb) → rgba() string, for tinted glows behind coloured marks.
+function hexToRgba(hex: string, alpha: number): string {
+  let h = hex.replace("#", "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  const n = parseInt(h, 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// A radial glow painted across the whole canvas (transparent past `r`).
+function glow(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, color: string) {
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+  g.addColorStop(0, color);
+  g.addColorStop(1, "transparent");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// The app's garden background: base gradient + a green glow up top and a gold
+// glow low-right (like garden-bg), then a soft vignette for depth.
+function paintBackground(ctx: CanvasRenderingContext2D, t: CardTheme) {
+  const base = ctx.createLinearGradient(0, 0, 0, H);
+  base.addColorStop(0, t.bg);
+  base.addColorStop(1, t.bgMid);
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, W, H);
+  glow(ctx, W * 0.5, -H * 0.06, W * 1.15, t.greenGlow);
+  glow(ctx, W * 0.85, H * 1.02, W * 0.95, t.goldGlow);
+  const v = ctx.createRadialGradient(W / 2, H * 0.46, H * 0.34, W / 2, H * 0.5, H * 0.75);
+  v.addColorStop(0, "transparent");
+  v.addColorStop(1, t.vignette);
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// Brand mark: the golden emblem over a soft glow (depth), with the wordmark.
+// Returns the y at the emblem's baseline so callers can flow beneath it.
+function paintBrand(ctx: CanvasRenderingContext2D, t: CardTheme, emblem: HTMLImageElement | null) {
+  const margin = 96;
+  const size = 92;
+  glow(ctx, margin + size / 2, margin + size / 2, size * 1.15, t.emblemGlow);
+  if (emblem) ctx.drawImage(emblem, margin, margin, size, size);
+  ctx.textBaseline = "middle";
+  ctx.font = "700 46px Georgia, \"Times New Roman\", serif";
+  ctx.fillStyle = t.ink;
+  ctx.fillText("ThinkThru", margin + size + 22, margin + size / 2 + 3);
+  ctx.textBaseline = "alphabetic";
+  return margin + size;
 }
 
 // Render the card to a canvas and return it as a PNG blob.
@@ -204,33 +344,20 @@ export async function renderBloomCard(spec: BloomCardSpec): Promise<Blob> {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas not supported");
 
-  // Warm bloom gradient.
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, "#fff7f2");
-  bg.addColorStop(1, "#ffe8d6");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
+  // App chrome — the user's theme, the golden emblem, garden-glow depth.
+  const t = readTheme();
+  const emblem = await loadEmblem();
+  paintBackground(ctx, t);
+  const brandBottom = paintBrand(ctx, t, emblem);
 
   const margin = 96;
-  const accent = "#e07a3f";
-  const ink = "#20301f";
-  const inkSoft = "#5c6b58";
+  const accent = t.gold; // the bloom is golden
+  const ink = t.ink;
+  const inkSoft = t.inkSoft;
   const maxW = W - margin * 2;
 
-  // Brand mark — a small, quiet pill. Deliberately NOT the hero.
-  ctx.textBaseline = "middle";
-  ctx.font = "600 32px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-  const brand = "🌱 ThinkThru";
-  const brandW = ctx.measureText(brand).width + 52;
-  ctx.fillStyle = "rgba(224,122,63,0.12)";
-  roundRect(ctx, margin, margin, brandW, 66, 33);
-  ctx.fill();
-  ctx.fillStyle = accent;
-  ctx.fillText(brand, margin + 26, margin + 34);
-  ctx.textBaseline = "alphabetic";
-
   // Eyebrow — framed as collective, because that's the whole point.
-  let y = margin + 66 + 84;
+  let y = brandBottom + 82;
   ctx.font = "600 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
   ctx.fillStyle = accent;
   ctx.fillText("WHAT WE DECIDED TOGETHER", margin, y);
@@ -264,7 +391,7 @@ export async function renderBloomCard(spec: BloomCardSpec): Promise<Blob> {
     const chipW = Math.min(ctx.measureText(label).width + 52, leftColW);
     const chipH = 72;
     const chipTop = footerY - 46 - chipH;
-    ctx.fillStyle = "rgba(224,122,63,0.14)";
+    ctx.fillStyle = t.chipBg;
     roundRect(ctx, margin, chipTop, chipW, chipH, 36);
     ctx.fill();
     ctx.fillStyle = accent;
@@ -304,16 +431,32 @@ export async function renderBloomCard(spec: BloomCardSpec): Promise<Blob> {
     lh = Math.round(size * 1.22);
     if (lines.length * lh <= heroAvail) break;
   }
+  ctx.save();
+  if (!t.light) {
+    ctx.shadowColor = "rgba(0,0,0,0.35)";
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 3;
+  }
   ctx.fillStyle = ink;
   let hy = heroTop + Math.max(0, (heroAvail - lines.length * lh) / 2) + size;
   for (const line of lines) {
     ctx.fillText(line, margin, hy);
     hy += lh;
   }
+  ctx.restore();
 
   // QR + label — the way back to the decision, surviving image-only shares.
   if (spec.url) {
-    drawQr(ctx, spec.url, qrX, qrY, qrSize);
+    // Soft drop shadow under the tile for depth, then the (non-shadowed) QR.
+    ctx.save();
+    ctx.shadowColor = t.light ? "rgba(20,26,17,0.18)" : "rgba(0,0,0,0.5)";
+    ctx.shadowBlur = 28;
+    ctx.shadowOffsetY = 10;
+    ctx.fillStyle = t.qrTile;
+    roundRect(ctx, qrX, qrY, qrSize, qrSize, 18);
+    ctx.fill();
+    ctx.restore();
+    drawQr(ctx, spec.url, qrX, qrY, qrSize, t.qrTile);
     ctx.font = "500 26px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
     ctx.fillStyle = inkSoft;
     ctx.textAlign = "center";
@@ -407,11 +550,12 @@ function signatureBar(
   w: number,
   h: number,
   segs: { pct: number; color: string }[],
+  track = "rgba(0,0,0,0.06)",
 ) {
   ctx.save();
   roundRect(ctx, x, y, w, h, h / 2);
   ctx.clip();
-  ctx.fillStyle = "rgba(0,0,0,0.06)";
+  ctx.fillStyle = track;
   ctx.fillRect(x, y, w, h);
   let cx = x;
   for (const s of segs) {
@@ -446,39 +590,27 @@ export async function renderFingerprintCard(spec: FingerprintCardSpec): Promise<
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas not supported");
 
-  // Cool, calm identity gradient (distinct from the warm bloom card).
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, "#f3f9f0");
-  bg.addColorStop(1, "#e6f0ea");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
+  // App chrome — the user's theme, the golden emblem, garden-glow depth.
+  const t = readTheme();
+  const emblem = await loadEmblem();
+  paintBackground(ctx, t);
+  const brandBottom = paintBrand(ctx, t, emblem);
 
   const margin = 96;
-  const ink = "#20301f";
-  const inkSoft = "#5c6b58";
+  const ink = t.ink;
+  const inkSoft = t.inkSoft;
   const maxW = W - margin * 2;
-  const accent = spec.color || "#4c9a4e";
-
-  // Brand pill — quiet.
-  ctx.textBaseline = "middle";
-  ctx.font = "600 32px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-  const brand = "🌱 ThinkThru";
-  const brandW = ctx.measureText(brand).width + 52;
-  ctx.fillStyle = "rgba(76,154,78,0.12)";
-  roundRect(ctx, margin, margin, brandW, 66, 33);
-  ctx.fill();
-  ctx.fillStyle = "#3f7d41";
-  ctx.fillText(brand, margin + 26, margin + 34);
-  ctx.textBaseline = "alphabetic";
+  const accent = spec.color || t.accent;
 
   // Eyebrow.
-  let y = margin + 66 + 96;
+  let y = brandBottom + 96;
   ctx.font = "600 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-  ctx.fillStyle = accent;
+  ctx.fillStyle = t.accent;
   ctx.fillText("MY THINKING FINGERPRINT", margin, y);
 
-  // Big archetype emoji.
+  // Big archetype emoji, over a soft glow in its own colour for depth.
   y += 128;
+  glow(ctx, margin + 46, y - 38, 150, `${hexToRgba(accent, t.light ? 0.16 : 0.22)}`);
   ctx.font = "110px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
   ctx.fillText(spec.emoji, margin, y);
 
@@ -521,6 +653,7 @@ export async function renderFingerprintCard(spec: FingerprintCardSpec): Promise<
     maxW,
     30,
     spec.slices.map((s) => ({ pct: s.pct, color: s.color })),
+    t.track,
   );
   // Legend — a wrapped row of coloured dots + labels + %.
   ctx.font = "500 30px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
@@ -584,41 +717,36 @@ export async function renderCalibrationCard(spec: CalibrationCardSpec): Promise<
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas not supported");
 
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, "#f6f4ff");
-  bg.addColorStop(1, "#e9e4fb");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
+  // App chrome — the user's theme, the golden emblem, garden-glow depth.
+  const t = readTheme();
+  const emblem = await loadEmblem();
+  paintBackground(ctx, t);
+  const brandBottom = paintBrand(ctx, t, emblem);
 
   const margin = 96;
-  const ink = "#221f33";
-  const inkSoft = "#5a5570";
-  const accent = "#7c5cff";
+  const ink = t.ink;
+  const inkSoft = t.inkSoft;
   const maxW = W - margin * 2;
 
-  // Brand pill — quiet.
-  ctx.textBaseline = "middle";
-  ctx.font = "600 32px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-  const brand = "🌱 ThinkThru";
-  const brandW = ctx.measureText(brand).width + 52;
-  ctx.fillStyle = "rgba(124,92,255,0.12)";
-  roundRect(ctx, margin, margin, brandW, 66, 33);
-  ctx.fill();
-  ctx.fillStyle = accent;
-  ctx.fillText(brand, margin + 26, margin + 34);
-  ctx.textBaseline = "alphabetic";
-
   // Eyebrow.
-  let y = margin + 66 + 110;
+  let y = brandBottom + 110;
   ctx.font = "600 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-  ctx.fillStyle = accent;
+  ctx.fillStyle = t.accent;
   ctx.fillText("MY JUDGEMENT, LOOKING BACK", margin, y);
 
-  // The big number — the hero.
+  // The big number — the hero, in gold with a soft glow for depth.
   y += 250;
+  glow(ctx, margin + 160, y - 76, 320, t.goldGlow);
+  ctx.save();
+  if (!t.light) {
+    ctx.shadowColor = "rgba(0,0,0,0.35)";
+    ctx.shadowBlur = 16;
+    ctx.shadowOffsetY = 4;
+  }
   ctx.font = "700 220px Georgia, \"Times New Roman\", serif";
-  ctx.fillStyle = ink;
+  ctx.fillStyle = t.gold;
   ctx.fillText(spec.bigNumber, margin, y);
+  ctx.restore();
 
   // Label under the number — a generous gap clears the 220px glyph's baseline.
   y += 88;
@@ -645,7 +773,7 @@ export async function renderCalibrationCard(spec: CalibrationCardSpec): Promise<
   if (spec.segs && spec.segs.length) {
     const legendY = footerY - 130;
     const barY = legendY - 84;
-    signatureBar(ctx, margin, barY, maxW, 30, spec.segs);
+    signatureBar(ctx, margin, barY, maxW, 30, spec.segs, t.track);
     ctx.font = "500 30px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
     let lx = margin;
     const ly = legendY;
@@ -702,33 +830,20 @@ export async function renderReflectionCard(spec: ReflectionCardSpec): Promise<Bl
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas not supported");
 
-  // Calm green identity gradient (a sibling of the fingerprint card).
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, "#f3f9f0");
-  bg.addColorStop(1, "#e6f0ea");
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
+  // App chrome — the user's theme, the golden emblem, garden-glow depth.
+  const t = readTheme();
+  const emblem = await loadEmblem();
+  paintBackground(ctx, t);
+  const brandBottom = paintBrand(ctx, t, emblem);
 
   const margin = 96;
-  const ink = "#20301f";
-  const inkSoft = "#5c6b58";
-  const accent = "#4c9a4e";
+  const ink = t.ink;
+  const inkSoft = t.inkSoft;
+  const accent = t.accent;
   const maxW = W - margin * 2;
 
-  // Brand pill — quiet.
-  ctx.textBaseline = "middle";
-  ctx.font = "600 32px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-  const brand = "🌱 ThinkThru";
-  const brandW = ctx.measureText(brand).width + 52;
-  ctx.fillStyle = "rgba(76,154,78,0.12)";
-  roundRect(ctx, margin, margin, brandW, 66, 33);
-  ctx.fill();
-  ctx.fillStyle = "#3f7d41";
-  ctx.fillText(brand, margin + 26, margin + 34);
-  ctx.textBaseline = "alphabetic";
-
   // Eyebrow + heading.
-  let top = margin + 66 + 96;
+  let top = brandBottom + 96;
   ctx.font = "600 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
   ctx.fillStyle = accent;
   ctx.fillText("🪞 HOW I SHOW UP", margin, top);
