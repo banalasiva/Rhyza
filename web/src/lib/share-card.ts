@@ -310,6 +310,322 @@ export async function shareBloomCard(
   return "downloaded";
 }
 
+// Shared plumbing: turn a rendered blob into a native share (or a download
+// fallback), so every card kind shares identically.
+async function shareBlob(
+  blob: Blob,
+  fileName: string,
+  shareText?: string,
+): Promise<"shared" | "downloaded"> {
+  const file = new File([blob], fileName, { type: "image/png" });
+  const nav = navigator as Navigator & {
+    canShare?: (data?: ShareData) => boolean;
+    share?: (data: ShareData) => Promise<void>;
+  };
+  if (nav.share && nav.canShare && nav.canShare({ files: [file] })) {
+    try {
+      await nav.share({ files: [file], text: shareText });
+      return "shared";
+    } catch (err) {
+      if ((err as Error)?.name === "AbortError") return "shared";
+      /* fall through to download */
+    }
+  }
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 4000);
+  return "downloaded";
+}
+
+// A canvas primitive shared by the fingerprint + calibration cards: a horizontal
+// rounded bar split into proportional coloured segments (the "signature" / the
+// outcome mix). `segs` are {pct,color}; pcts should sum to ~100.
+function signatureBar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  segs: { pct: number; color: string }[],
+) {
+  ctx.save();
+  roundRect(ctx, x, y, w, h, h / 2);
+  ctx.clip();
+  ctx.fillStyle = "rgba(0,0,0,0.06)";
+  ctx.fillRect(x, y, w, h);
+  let cx = x;
+  for (const s of segs) {
+    const segW = (w * s.pct) / 100;
+    ctx.fillStyle = s.color;
+    ctx.fillRect(cx, y, segW + 1, h); // +1 avoids hairline gaps between segments
+    cx += segW;
+  }
+  ctx.restore();
+}
+
+// ── The Thinking Fingerprint Card ───────────────────────────────────────────
+// The LinkedIn card: professional identity, not a specific conversation. "Siva
+// thinks in Applications." The archetype is the hero; the colour signature is
+// the thing that's uniquely theirs. Same design rule — identity is the largest
+// thing, brand rides quietly.
+
+export type FingerprintCardSpec = {
+  headline: string; // "Siva thinks in Application" — THE HERO
+  archetype: string; // "Application thinker"
+  emoji: string;
+  color: string; // the primary dimension's colour
+  blurb: string; // one-line read of the archetype
+  slices: { label: string; emoji: string; color: string; pct: number }[];
+  footer?: string;
+};
+
+export async function renderFingerprintCard(spec: FingerprintCardSpec): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas not supported");
+
+  // Cool, calm identity gradient (distinct from the warm bloom card).
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "#f3f9f0");
+  bg.addColorStop(1, "#e6f0ea");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const margin = 96;
+  const ink = "#20301f";
+  const inkSoft = "#5c6b58";
+  const maxW = W - margin * 2;
+  const accent = spec.color || "#4c9a4e";
+
+  // Brand pill — quiet.
+  ctx.textBaseline = "middle";
+  ctx.font = "600 32px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  const brand = "🌱 ThinkThru";
+  const brandW = ctx.measureText(brand).width + 52;
+  ctx.fillStyle = "rgba(76,154,78,0.12)";
+  roundRect(ctx, margin, margin, brandW, 66, 33);
+  ctx.fill();
+  ctx.fillStyle = "#3f7d41";
+  ctx.fillText(brand, margin + 26, margin + 34);
+  ctx.textBaseline = "alphabetic";
+
+  // Eyebrow.
+  let y = margin + 66 + 96;
+  ctx.font = "600 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  ctx.fillStyle = accent;
+  ctx.fillText("MY THINKING FINGERPRINT", margin, y);
+
+  // Big archetype emoji.
+  y += 128;
+  ctx.font = "110px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  ctx.fillText(spec.emoji, margin, y);
+
+  // Hero headline — the identity claim, the largest thing on the card.
+  y += 60;
+  const insight = truncateCard(spec.headline, 90);
+  let size = 92;
+  let lines: string[] = [];
+  let lh = 0;
+  for (; size >= 54; size -= 4) {
+    ctx.font = `700 ${size}px Georgia, "Times New Roman", serif`;
+    lines = wrap(ctx, insight, maxW);
+    lh = Math.round(size * 1.2);
+    if (lines.length <= 3) break;
+  }
+  ctx.fillStyle = ink;
+  y += size;
+  for (const line of lines) {
+    ctx.fillText(line, margin, y);
+    y += lh;
+  }
+
+  // Blurb — the one-line read.
+  y += 24;
+  ctx.font = "400 42px Georgia, \"Times New Roman\", serif";
+  ctx.fillStyle = inkSoft;
+  for (const line of wrap(ctx, spec.blurb, maxW).slice(0, 3)) {
+    ctx.fillText(line, margin, y);
+    y += 56;
+  }
+
+  // Signature bar + legend, pinned above the footer.
+  const footerY = H - margin;
+  const legendY = footerY - 130;
+  const barY = legendY - 84;
+  signatureBar(
+    ctx,
+    margin,
+    barY,
+    maxW,
+    30,
+    spec.slices.map((s) => ({ pct: s.pct, color: s.color })),
+  );
+  // Legend — a wrapped row of coloured dots + labels + %.
+  ctx.font = "500 30px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  let lx = margin;
+  let ly = legendY;
+  for (const s of spec.slices) {
+    const label = `${s.label} ${s.pct}%`;
+    const dotW = 34;
+    const textW = ctx.measureText(label).width;
+    const chunk = dotW + textW + 34;
+    if (lx + chunk > margin + maxW) {
+      lx = margin;
+      ly += 46;
+    }
+    ctx.fillStyle = s.color;
+    ctx.beginPath();
+    ctx.arc(lx + 10, ly - 10, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = inkSoft;
+    ctx.fillText(label, lx + dotW, ly);
+    lx += chunk;
+  }
+
+  // Footer.
+  ctx.font = "500 36px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  ctx.fillStyle = inkSoft;
+  ctx.fillText(spec.footer ?? "Grown on ThinkThru — where thinking leaves a trace.", margin, footerY);
+
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to render"))), "image/png");
+  });
+}
+
+export async function shareFingerprintCard(
+  spec: FingerprintCardSpec,
+  opts?: { fileName?: string; shareText?: string },
+): Promise<"shared" | "downloaded"> {
+  const blob = await renderFingerprintCard(spec);
+  return shareBlob(blob, opts?.fileName ?? "thinkthru-fingerprint.png", opts?.shareText);
+}
+
+// ── The Calibration Card ────────────────────────────────────────────────────
+// The most powerful of the three BECAUSE it's earned over real decisions and is
+// verifiable in a way no badge is. Opt-in only: the "looking back" mirror is
+// private by default; a person chooses to turn their own track record into a
+// card. Honest framing — a self-reviewed track record, never a claim of
+// externally-graded accuracy. The number is the hero.
+
+export type CalibrationCardSpec = {
+  bigNumber: string; // "8 / 11" — THE HERO
+  label: string; // "landed as well as I hoped — or better"
+  insight?: string; // the judgement read
+  segs?: { pct: number; color: string; label: string }[]; // outcome mix, optional
+  footer?: string;
+};
+
+export async function renderCalibrationCard(spec: CalibrationCardSpec): Promise<Blob> {
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas not supported");
+
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "#f6f4ff");
+  bg.addColorStop(1, "#e9e4fb");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  const margin = 96;
+  const ink = "#221f33";
+  const inkSoft = "#5a5570";
+  const accent = "#7c5cff";
+  const maxW = W - margin * 2;
+
+  // Brand pill — quiet.
+  ctx.textBaseline = "middle";
+  ctx.font = "600 32px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  const brand = "🌱 ThinkThru";
+  const brandW = ctx.measureText(brand).width + 52;
+  ctx.fillStyle = "rgba(124,92,255,0.12)";
+  roundRect(ctx, margin, margin, brandW, 66, 33);
+  ctx.fill();
+  ctx.fillStyle = accent;
+  ctx.fillText(brand, margin + 26, margin + 34);
+  ctx.textBaseline = "alphabetic";
+
+  // Eyebrow.
+  let y = margin + 66 + 110;
+  ctx.font = "600 34px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  ctx.fillStyle = accent;
+  ctx.fillText("MY JUDGEMENT, LOOKING BACK", margin, y);
+
+  // The big number — the hero.
+  y += 250;
+  ctx.font = "700 220px Georgia, \"Times New Roman\", serif";
+  ctx.fillStyle = ink;
+  ctx.fillText(spec.bigNumber, margin, y);
+
+  // Label under the number — a generous gap clears the 220px glyph's baseline.
+  y += 88;
+  ctx.font = "500 48px Georgia, \"Times New Roman\", serif";
+  ctx.fillStyle = ink;
+  for (const line of wrap(ctx, spec.label, maxW).slice(0, 3)) {
+    ctx.fillText(line, margin, y);
+    y += 62;
+  }
+
+  // Insight read.
+  if (spec.insight) {
+    y += 20;
+    ctx.font = "400 38px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.fillStyle = inkSoft;
+    for (const line of wrap(ctx, spec.insight, maxW).slice(0, 4)) {
+      ctx.fillText(line, margin, y);
+      y += 52;
+    }
+  }
+
+  // Outcome mix bar + legend, pinned above the footer.
+  const footerY = H - margin;
+  if (spec.segs && spec.segs.length) {
+    const legendY = footerY - 130;
+    const barY = legendY - 84;
+    signatureBar(ctx, margin, barY, maxW, 30, spec.segs);
+    ctx.font = "500 30px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    let lx = margin;
+    const ly = legendY;
+    for (const s of spec.segs) {
+      if (s.pct <= 0) continue;
+      const label = `${s.label} ${Math.round(s.pct)}%`;
+      const dotW = 34;
+      const chunk = dotW + ctx.measureText(label).width + 34;
+      ctx.fillStyle = s.color;
+      ctx.beginPath();
+      ctx.arc(lx + 10, ly - 10, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = inkSoft;
+      ctx.fillText(label, lx + dotW, ly);
+      lx += chunk;
+    }
+  }
+
+  // Footer.
+  ctx.font = "500 36px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+  ctx.fillStyle = inkSoft;
+  ctx.fillText(spec.footer ?? "A self-reviewed track record · ThinkThru", margin, footerY);
+
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Failed to render"))), "image/png");
+  });
+}
+
+export async function shareCalibrationCard(
+  spec: CalibrationCardSpec,
+  opts?: { fileName?: string; shareText?: string },
+): Promise<"shared" | "downloaded"> {
+  const blob = await renderCalibrationCard(spec);
+  return shareBlob(blob, opts?.fileName ?? "thinkthru-calibration.png", opts?.shareText);
+}
+
 // Render, then share the image via the native sheet (WhatsApp, Instagram, etc.).
 // Falls back to a download if the browser can't share files. Returns how it went
 // so the UI can show the right confirmation.

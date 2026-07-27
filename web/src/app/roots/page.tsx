@@ -18,6 +18,8 @@ import { ReflectionEditor } from "@/components/ReflectionEditor";
 import { SectionPrivacyToggle } from "@/components/SectionPrivacyToggle";
 import { ThinkingFingerprint } from "@/components/ThinkingFingerprint";
 import { ShareButton } from "@/components/ShareButton";
+import { ShareFingerprintButton } from "@/components/ShareFingerprintButton";
+import { ShareCalibrationButton } from "@/components/ShareCalibrationButton";
 import { STAGES } from "@/lib/constants";
 
 export default async function RootsPage() {
@@ -122,7 +124,7 @@ export default async function RootsPage() {
                 <p className="text-[11px] text-ink-soft">
                   Across {judgement.reflected}{" "}
                   {judgement.reflected === 1 ? "decision" : "decisions"} you&apos;ve looked back on.
-                  Just for you — no score, never shared.
+                  Just for you — private, unless you choose to share it.
                 </p>
               </div>
               <Link href="/judgement" className="btn-ghost shrink-0 px-3 py-1.5 text-xs">
@@ -130,6 +132,7 @@ export default async function RootsPage() {
               </Link>
             </div>
             <JudgementMirror summary={judgement} insight={judgementInsight(judgement)} />
+            <ShareCalibrationButton summary={judgement} insight={judgementInsight(judgement)} />
           </section>
         )}
 
@@ -225,6 +228,7 @@ export default async function RootsPage() {
             </div>
             <div className="card p-4">
               <ThinkingFingerprint dims={roots.dimensions} self />
+              <ShareFingerprintButton dims={roots.dimensions} name={viewer.name || "I"} />
             </div>
           </section>
         )}
