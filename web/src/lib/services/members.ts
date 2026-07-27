@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { ApiError } from "@/lib/api";
 import { requireSeedAccess, requireSeedManager } from "@/lib/authz";
 import { deliver } from "@/lib/services/notify";
-import { connectedUserIds, getConnectionStatus, type ConnectionStatus } from "@/lib/services/connections";
+import { connectedUserIds, getConnectionStatuses, type ConnectionStatus } from "@/lib/services/connections";
 import { displayName } from "@/lib/display-name";
 import { announceJoin } from "@/lib/services/seed-notify";
 
@@ -269,14 +269,14 @@ export async function suggestedConnections(userId: string, limit = 12): Promise<
     .filter((p) => !connected.has(p.id) && !hidden.has(p.id))
     .slice(0, limit);
   if (notYet.length === 0) return [];
-  const withStatus = await Promise.all(
-    notYet.map(async (p) => ({
-      id: p.id,
-      name: p.name,
-      image: p.image,
-      status: await getConnectionStatus(userId, p.id),
-    })),
-  );
+  // One batched query for everyone's status instead of a round-trip per person.
+  const statuses = await getConnectionStatuses(userId, notYet.map((p) => p.id));
+  const withStatus = notYet.map((p) => ({
+    id: p.id,
+    name: p.name,
+    image: p.image,
+    status: statuses.get(p.id) ?? ("none" as ConnectionStatus),
+  }));
   return withStatus.filter(
     (p): p is SuggestedPerson => p.status !== "connected" && p.status !== "self",
   );
