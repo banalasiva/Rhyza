@@ -266,20 +266,31 @@ export async function ensureUserTopics(userId: string, hasActivity: boolean): Pr
 
 // A person's own recent messages (most recent first), with the seed title and
 // dimension for context — the material Claude reads to mirror how they engage.
-async function personMessages(userId: string, cap = 60): Promise<PersonMessage[]> {
+async function personMessages(userId: string, cap = 120): Promise<PersonMessage[]> {
+  // Pull a WIDE recent window, then select a representative slice spanning the
+  // person's history — so the mirror reflects who they are across many
+  // discussions, not just whatever they happened to do in the last few days.
   const rows = await db.contribution.findMany({
     where: { authorId: userId, deletedAt: null },
     select: { dimension: true, content: true, seed: { select: { title: true } } },
     orderBy: { createdAt: "desc" },
-    take: cap,
+    take: cap * 3,
   });
-  return (rows as { dimension: string; content: unknown; seed: { title: string | null } | null }[])
+  const msgs = (rows as { dimension: string; content: unknown; seed: { title: string | null } | null }[])
     .map((r) => ({
       seedTitle: r.seed?.title ?? "a discussion",
       dimension: r.dimension,
       text: ((r.content as { text?: string } | null)?.text ?? "").trim(),
     }))
-    .filter((m) => m.text.length > 0);
+    // Skip trivial acks ("👍", "yes") so the sample is substantive.
+    .filter((m) => m.text.length >= 12);
+  if (msgs.length <= cap) return msgs;
+  // Even-stride sample across the recency-ordered pool: covers the full span
+  // instead of over-weighting the newest activity.
+  const step = msgs.length / cap;
+  const picked: PersonMessage[] = [];
+  for (let i = 0; i < cap; i++) picked.push(msgs[Math.floor(i * step)]);
+  return picked;
 }
 
 // Read the person's stored reflection ("" if none / table not migrated yet).
