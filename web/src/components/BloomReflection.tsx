@@ -306,21 +306,24 @@ export function BloomReflection({
             <button
               onClick={() => setStep((n) => Math.max(0, n - 1))}
               disabled={step === 0}
-              className="btn-ghost px-4 py-2 text-sm disabled:opacity-30"
+              className="btn-ghost whitespace-nowrap px-4 py-2 text-sm disabled:opacity-30"
             >
               ← Back
             </button>
-            <span className="text-xs text-ink-soft">
+            <span className="whitespace-nowrap text-center text-xs text-ink-soft">
               {step + 1} of {steps.length} · no rush
             </span>
             {step < steps.length - 1 ? (
-              <button onClick={() => setStep((n) => n + 1)} className="btn-primary px-5 text-sm">
+              <button
+                onClick={() => setStep((n) => n + 1)}
+                className="btn-primary whitespace-nowrap px-5 text-sm"
+              >
                 Next →
               </button>
             ) : (
               <button
                 onClick={finish}
-                className="rounded-full px-5 py-2 text-sm font-medium text-bg transition active:scale-95"
+                className="whitespace-nowrap rounded-full px-5 py-2 text-sm font-medium text-bg transition active:scale-95"
                 style={{ background: "linear-gradient(135deg,#FFD54F,#FF8F00)" }}
               >
                 Keep it 🌱
