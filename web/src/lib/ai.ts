@@ -1121,6 +1121,31 @@ export function wantsImage(text: string): boolean {
   return false;
 }
 
+// Did the person EXPLICITLY ask for words, not a picture? This is a hard
+// override that wins over wantsImage()/wantsImageEdit() — because once an image
+// is sitting in the thread, soft verbs ("make", "give me", "render") keep
+// re-triggering the image path, and a picture generated after someone typed
+// "just text" burns their tokens and reads as the model ignoring them. Fires on:
+//   • a negation near any image word ("don't render images", "no picture",
+//     "not an image", "without diagrams", "stop drawing");
+//   • an explicit text request ("just text", "in words", "type text only",
+//     "answer in prose");
+//   • "I don't mean images / a picture".
+export function wantsTextOnly(text: string): boolean {
+  const t = text.toLowerCase();
+  const IMG = "image|images|picture|pictures|photo|photos|drawing|drawings|draw|render|rendering|visual|visuals|graphic|graphics|diagram|diagrams|poster|posters|illustration|illustrations|art|artwork|sketch";
+  // negation closely bound to an image-word ("do no render images", "don't draw",
+  // "without visuals", "no picture"). Window kept tight (≤12 chars) so an
+  // unrelated negation like "not sure, can you draw a diagram" doesn't misfire.
+  if (new RegExp(`\\b(no|not|don'?t|do\\s+not|does\\s+not|stop|quit|avoid|skip|without|never|no\\s+more|instead\\s+of)\\b[^.?!\\n]{0,12}\\b(${IMG})\\b`).test(t)) return true;
+  // "I don't mean images", "not an image", "isn't a picture"
+  if (new RegExp(`\\b(mean|meant|want|need|asking\\s+for|after|looking\\s+for|is|isn'?t|its?\\s+not)\\b[^.?!\\n]{0,16}\\b(${IMG})\\b`).test(t) && /\b(don'?t|do\s+not|not|no|isn'?t|never)\b/.test(t)) return true;
+  // explicit "just/only text/words/prose", "in words", "type text", "text only"
+  if (/\b(just|only|simply|please)?\s*(type|write|reply|answer|respond|give\s+me|say|keep\s+it)?\s*(in\s+)?(text|words|writing|prose)\b/.test(t) && /\b(just|only|simply|in|type|text[-\s]?only|words[-\s]?only)\b/.test(t)) return true;
+  if (/\b(text[-\s]?only|words[-\s]?only|no[-\s]?image)\b/.test(t)) return true;
+  return false;
+}
+
 // Is this just a QUESTION about whether the AI can make images — with no concrete
 // subject given yet ("can you create images if I give you the proper prompt?")?
 // wantsImage() fires on these too, but there's nothing real to draw, so we should

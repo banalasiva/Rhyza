@@ -19,6 +19,7 @@ import {
   summarizeThread,
   mentionsClaude,
   wantsImage,
+  wantsTextOnly,
   asksImageCapabilityOnly,
   wantsImageEdit,
   generateImage,
@@ -264,7 +265,12 @@ export async function respondAsChatGpt(
   // image is present means modify it, not draw a fresh one).
   const threadImages = data.thread.flatMap((c) => c.images ?? []);
   const sourceImage = threadImages[threadImages.length - 1];
-  if (sourceImage && wantsImageEdit(mentionText)) {
+  // Hard override: if the person explicitly asked for words ("just text", "don't
+  // render images", "I don't mean images"), NEVER take an image path — go
+  // straight to a text reply. Without this, an image already in the thread keeps
+  // re-triggering the edit/generate path on soft verbs and burns their tokens.
+  const textOnly = wantsTextOnly(mentionText);
+  if (!textOnly && sourceImage && wantsImageEdit(mentionText)) {
     const edited = await respondWithImageEdit(
       seedId,
       dimension,
@@ -277,7 +283,7 @@ export async function respondAsChatGpt(
     // Edit was intended but failed — fall through to a TEXT reply, NOT a
     // from-scratch generation. Inventing a random new image when the person
     // asked to edit their own photo is worse than a plain explanation.
-  } else if (wantsImage(mentionText) && !asksImageCapabilityOnly(mentionText)) {
+  } else if (!textOnly && wantsImage(mentionText) && !asksImageCapabilityOnly(mentionText)) {
     // "@chatgpt draw me a …" → generate a fresh picture. A bare capability
     // question ("can you make images if I give a prompt?") has no real subject
     // yet — skip generation and let the text reply warmly say "yes, tell me
@@ -338,7 +344,8 @@ export async function respondAsClaude(
 
   // Claude has no image model — so when asked to draw, politely hand off to
   // ChatGPT rather than burning a completion trying (or pretending it can).
-  if (wantsImage(mentionText)) {
+  // Skip the handoff if the person explicitly wants words, not a picture.
+  if (wantsImage(mentionText) && !wantsTextOnly(mentionText)) {
     const claudeBot = await getOrCreateClaudeUser();
     const msg =
       "I can't make images myself — but @chatgpt can! Tag @chatgpt with what you'd like drawn and it'll create it for you.";
