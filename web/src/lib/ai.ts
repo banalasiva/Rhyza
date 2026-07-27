@@ -272,6 +272,49 @@ export async function synthesizeBloom(input: {
   }
 }
 
+// For the decision record: distill EACH participant's contribution into ONE
+// clean, credited sentence ("Priya surfaced the salary-precedent risk"), so the
+// "who surfaced what" reads as polished as the bloom summary — not raw chat.
+// Returns one line per participant, aligned to the input order ([] on failure).
+export async function summarizeContributors(input: {
+  title: string;
+  participants: { name: string; texts: string[] }[];
+}): Promise<string[]> {
+  if (!aiConfigured() || input.participants.length === 0) return [];
+  try {
+    const body = input.participants
+      .map((p, i) => {
+        const msgs = p.texts
+          .filter((t) => t.trim())
+          .slice(0, 8)
+          .map((t) => `  - ${t.trim().slice(0, 300)}`)
+          .join("\n");
+        return `#${i} ${p.name}:\n${msgs}`;
+      })
+      .join("\n\n");
+    const system =
+      "You read a group decision thread and, for EACH participant, write ONE short third-person " +
+      "sentence naming what THEY specifically surfaced or contributed — the risk they raised, the " +
+      "angle they added, the evidence they brought, the call they pushed for. Ground it strictly in " +
+      "their own messages; do NOT invent, do NOT flatter, do NOT merely restate the final decision. " +
+      "Refer to each person by the name given. 8–18 words each.\n" +
+      "Respond with ONLY a JSON array of strings — one per participant, in the SAME order and count " +
+      "as the input (#0, #1, …). No other text.";
+    const prompt = `DECISION: ${input.title}\n\nPARTICIPANTS AND WHAT THEY WROTE:\n${body}`;
+    const out = await complete(system, prompt, 600, MODEL_FAST);
+    const m = out.match(/\[[\s\S]*\]/);
+    if (!m) return [];
+    const arr = JSON.parse(m[0]) as unknown;
+    if (!Array.isArray(arr)) return [];
+    const lines = arr.map((x) => (typeof x === "string" ? x.trim() : "")).slice(0, input.participants.length);
+    while (lines.length < input.participants.length) lines.push("");
+    return lines;
+  } catch (err) {
+    console.error("summarizeContributors failed", err);
+    return [];
+  }
+}
+
 // Claude's reply when a member tags @claude. Returns null if AI isn't configured
 // or the call fails (the mention just goes unanswered in that case).
 // Claude opens a freshly-planted seed — the first response to the group's

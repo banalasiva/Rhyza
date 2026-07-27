@@ -3,7 +3,7 @@ import { ApiError } from "@/lib/api";
 import { requireSeedAccess, requireSeedManager } from "@/lib/authz";
 import { getMyReflection, getSharedReflections } from "@/lib/services/reflections";
 import { getReckoning } from "@/lib/services/reckoning";
-import { synthesizeBloom, type ContribForAI } from "@/lib/ai";
+import { synthesizeBloom, summarizeContributors, type ContribForAI } from "@/lib/ai";
 import { deliver } from "@/lib/services/notify";
 
 const DIMENSION_ROLE: Record<string, { type: string; role: string }> = {
@@ -13,6 +13,43 @@ const DIMENSION_ROLE: Record<string, { type: string; role: string }> = {
   debate: { type: "debater", role: "Pressure-tested the idea" },
   bloom: { type: "community", role: "Helped it bloom" },
 };
+
+// Strip serialized mentions "@[Name](uuid)" → "@Name" so raw markup never
+// reaches the AI or the record.
+function cleanMentions(s: string): string {
+  return s.replace(/@\[([^\]]+)\]\([0-9a-fA-F-]{36}\)/g, "@$1");
+}
+
+// Distill each contributor's messages on a seed into ONE clean credited line for
+// the decision record ("who surfaced what"), stored on the bloom so it's a
+// one-time cost. Returns [{userId, line}] (only people who actually wrote), or
+// [] if AI is off / fails — callers fall back to raw excerpts.
+export type ContributionLine = { userId: string; line: string };
+async function buildContributorLines(
+  title: string,
+  contributors: { userId: string; name: string | null }[],
+  contributions: { authorId: string; content: unknown }[],
+): Promise<ContributionLine[]> {
+  const textsBy = new Map<string, string[]>();
+  for (const c of contributions) {
+    const t = cleanMentions(((c.content as { text?: string } | null)?.text ?? "").trim());
+    if (t.length < 12) continue;
+    const arr = textsBy.get(c.authorId) ?? [];
+    arr.push(t);
+    textsBy.set(c.authorId, arr);
+  }
+  const parts = contributors
+    .map((c) => ({ userId: c.userId, name: c.name || "A member", texts: textsBy.get(c.userId) ?? [] }))
+    .filter((p) => p.texts.length > 0);
+  if (parts.length === 0) return [];
+  const lines = await summarizeContributors({
+    title,
+    participants: parts.map((p) => ({ name: p.name, texts: p.texts })),
+  });
+  return parts
+    .map((p, i) => ({ userId: p.userId, line: (lines[i] ?? "").trim() }))
+    .filter((x) => x.line.length > 0);
+}
 
 // Build a non-AI v1 summary. AI synthesis (docs/ARCHITECTURE.md) is phase 2;
 // until then the bloom summary is assembled deterministically from the thread —
@@ -116,11 +153,20 @@ export async function createBloom(
     author: c.author.name || "A member",
     text: (c.content as { text?: string } | null)?.text ?? "",
   }));
-  const aiSummary = await synthesizeBloom({
-    title: seed.title,
-    content: seed.content,
-    contributions: threadForAI,
-  });
+  // Synthesize the bloom AND distill each contributor's line in parallel — both
+  // are Claude calls, so run them together to keep bloom-time latency down.
+  const [aiSummary, contributionLines] = await Promise.all([
+    synthesizeBloom({
+      title: seed.title,
+      content: seed.content,
+      contributions: threadForAI,
+    }),
+    buildContributorLines(
+      seed.title,
+      contributorsData.map((c) => ({ userId: c.userId, name: c.name })),
+      seed.contributions.map((c) => ({ authorId: c.authorId, content: c.content })),
+    ).catch(() => [] as ContributionLine[]),
+  ]);
   const aiSynthesized = aiSummary !== null;
   const summary =
     aiSummary ??
@@ -135,7 +181,7 @@ export async function createBloom(
         version,
         title: seed.title,
         summary,
-        content: { blocks: [{ type: "paragraph", text: summary }] },
+        content: { blocks: [{ type: "paragraph", text: summary }], contributions: contributionLines },
         aiSynthesized,
         createdById: triggeredById,
         contributors: { create: contributorsData },
@@ -224,34 +270,50 @@ export async function resynthesizeAllBlooms(opts?: {
       continue;
     }
     try {
-      const seed = await db.seed.findUnique({
-        where: { id: b.seedId },
-        select: {
-          title: true,
-          content: true,
-          contributions: {
-            where: { deletedAt: null },
-            orderBy: { createdAt: "asc" },
-            select: { dimension: true, content: true, author: { select: { name: true } } },
+      const [seed, contributors] = await Promise.all([
+        db.seed.findUnique({
+          where: { id: b.seedId },
+          select: {
+            title: true,
+            content: true,
+            contributions: {
+              where: { deletedAt: null },
+              orderBy: { createdAt: "asc" },
+              select: { authorId: true, dimension: true, content: true, author: { select: { name: true } } },
+            },
           },
-        },
-      });
+        }),
+        db.bloomContributor.findMany({ where: { bloomId: b.id }, select: { userId: true, name: true } }),
+      ]);
       if (!seed) {
         failed++;
         continue;
       }
-      const thread: ContribForAI[] = (
-        seed.contributions as { dimension: string; content: unknown; author: { name: string | null } }[]
-      ).map((c) => ({
+      const contribs = seed.contributions as {
+        authorId: string;
+        dimension: string;
+        content: unknown;
+        author: { name: string | null };
+      }[];
+      const thread: ContribForAI[] = contribs.map((c) => ({
         dimension: c.dimension,
         author: c.author.name || "A member",
         text: (c.content as { text?: string } | null)?.text ?? "",
       }));
-      const fresh = await synthesizeBloom({
-        title: seed.title,
-        content: typeof seed.content === "string" ? seed.content : "",
-        contributions: thread,
-      });
+      // Regenerate the summary AND the per-contributor lines — so re-synthesis
+      // backfills the decision record on older blooms too.
+      const [fresh, lines] = await Promise.all([
+        synthesizeBloom({
+          title: seed.title,
+          content: typeof seed.content === "string" ? seed.content : "",
+          contributions: thread,
+        }),
+        buildContributorLines(
+          seed.title,
+          contributors.filter((c) => c.userId).map((c) => ({ userId: c.userId as string, name: c.name })),
+          contribs.map((c) => ({ authorId: c.authorId, content: c.content })),
+        ).catch(() => [] as ContributionLine[]),
+      ]);
       if (!fresh) {
         failed++;
         continue;
@@ -260,7 +322,7 @@ export async function resynthesizeAllBlooms(opts?: {
         where: { id: b.id },
         data: {
           summary: fresh,
-          content: { blocks: [{ type: "paragraph", text: fresh }] },
+          content: { blocks: [{ type: "paragraph", text: fresh }], contributions: lines },
           aiSynthesized: true,
         },
       });
@@ -505,6 +567,15 @@ export async function getBloomDetail(userId: string, bloomId: string) {
     if (arr.length < 4) arr.push({ dimension: r.dimension, text: text.slice(0, 320) });
     pointsByAuthor.set(r.authorId, arr);
   }
+  // The AI-distilled "who surfaced what" line per contributor, stored on the
+  // bloom at bloom time (falls back to raw points below when absent).
+  const lineByUser = new Map<string, string>();
+  const stored = (bloom.content as { contributions?: unknown } | null)?.contributions;
+  if (Array.isArray(stored)) {
+    for (const c of stored as { userId?: string; line?: string }[]) {
+      if (c?.userId && typeof c.line === "string" && c.line.trim()) lineByUser.set(c.userId, c.line.trim());
+    }
+  }
   // Distinct humans who grew this decision — the AI teammates are never "people".
   const AI_NAMES = new Set(["Claude", "ChatGPT"]);
   const people = bloom.contributors.filter((c) => !AI_NAMES.has((c.name ?? "").trim())).length;
@@ -535,6 +606,9 @@ export async function getBloomDetail(userId: string, bloomId: string) {
       name: c.name,
       role: c.role,
       contributionType: c.contributionType,
+      // The distilled one-liner (preferred); raw points remain as a fallback
+      // for blooms created before distillation existed.
+      line: (c.userId ? lineByUser.get(c.userId) : undefined) ?? null,
       points: (c.userId ? pointsByAuthor.get(c.userId) : undefined) ?? [],
     })),
     versions: versions.map((v) => ({
