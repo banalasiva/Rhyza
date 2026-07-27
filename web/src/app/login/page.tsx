@@ -98,20 +98,19 @@ export default async function LoginPage({
           id="start"
           className="flex min-h-[100svh] scroll-mt-6 flex-col items-center justify-center py-10"
         >
-          {/* The logo is a gold-on-dark brand asset, so on a light background the
-              golden parts (wordmark, ring, tagline) nearly disappear. A soft dark
-              drop-shadow gives every element a defining edge so the gold reads in
-              light theme — and it's invisible on the dark theme's own backdrop. */}
+          {/* The full gold-wordmark lockup camouflages on light backgrounds, so
+              we show just the plant emblem — an icon that reads in both themes,
+              like the nav — and let the theme-aware heading carry the name. */}
           <Image
-            src="/logo-source.png"
+            src="/emblem.png"
             alt="ThinkThru"
-            width={200}
-            height={200}
+            width={512}
+            height={512}
             priority
-            className="mx-auto mb-4 h-auto w-28 sm:w-32"
-            style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.55)) drop-shadow(0 3px 10px rgba(0,0,0,0.3))" }}
+            className="mx-auto mb-3 h-auto w-20 sm:w-24"
           />
-          <h1 className="serif-lg mb-6 text-2xl">Sign in to ThinkThru</h1>
+          <h1 className="serif-lg mb-1 text-2xl">Sign in to ThinkThru</h1>
+          <p className="mb-6 text-sm text-ink-soft">Think together. Grow together.</p>
 
           <div className="w-full rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[rgba(7,13,7,0.6)] p-6 text-left backdrop-blur">
             {errorCode && (
