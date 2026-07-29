@@ -606,6 +606,41 @@ export async function addContribution(
   await ensureSeedParticipant(userId, seedId);
 
   const attachments = input.attachments ?? [];
+
+  // Idempotency guard: a fast double-tap/double-Enter, or a resend after a slow
+  // request appeared to time out on the client (while the server actually saved
+  // it), would otherwise create a SECOND identical row — the "message shows
+  // twice" bug. If this same author just posted the identical text+attachments
+  // in this seed, return that existing row (flagged `deduped`) instead of
+  // inserting again. The caller returns the same id, so the client swaps its
+  // optimistic copy onto the original and never renders two — and no second AI
+  // reply fires. Window is short so a deliberate repeat of a short line still works.
+  {
+    const DEDUP_WINDOW_MS = 15_000;
+    const recent = await db.contribution.findFirst({
+      where: {
+        seedId,
+        authorId: userId,
+        deletedAt: null,
+        parentId: input.parentId ?? null,
+        createdAt: { gte: new Date(Date.now() - DEDUP_WINDOW_MS) },
+      },
+      orderBy: { createdAt: "desc" },
+      include: { author: { select: { id: true, name: true, image: true } } },
+    });
+    if (recent) {
+      const rc = recent.content as { text?: string; attachments?: Attachment[] };
+      const sameText = (rc.text ?? "") === input.text;
+      // Compare the actual files, not just the count — otherwise two DIFFERENT
+      // photos posted back-to-back with no caption would falsely collapse.
+      const urls = (a: Attachment[]) => a.map((x) => x.url).join("|");
+      const sameAttachments = urls(rc.attachments ?? []) === urls(attachments);
+      if (sameText && sameAttachments) {
+        return Object.assign(recent, { deduped: true as const });
+      }
+    }
+  }
+
   const contribution = await db.contribution.create({
     data: {
       seedId,
