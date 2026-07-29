@@ -62,6 +62,14 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   const body = createContributionSchema.parse(await req.json());
   const c = await addContribution(userId, ctx.params.id, body);
 
+  // A duplicate submit (double-tap, or a resend after an apparent timeout) was
+  // folded onto the original row — return it as-is with no AI reply. Firing a
+  // second completion here would post a duplicate AI answer under the same
+  // message and needlessly spend the budget.
+  if ((c as { deduped?: boolean }).deduped) {
+    return ok({ ...toDTO(c), aiReplies: [], aiError: null });
+  }
+
   // @claude and/or @chatgpt can both be tagged in one message — each replies.
   const aiReplies: ReturnType<typeof toDTO>[] = [];
   // "not_configured" = no key; otherwise a clean, generic message (we never

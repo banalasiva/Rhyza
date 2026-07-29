@@ -514,6 +514,13 @@ export function SeedRoom({
   // the reply took a few seconds. This ref flips synchronously, so a second
   // invocation is dropped before it can create a duplicate.
   const sendingRef = useRef(false);
+  // Signature of the last submitted message. `sendingRef` is released the moment
+  // the optimistic copy is shown (so the composer frees instantly), which leaves
+  // a gap where a second Enter — carrying the SAME still-captured draft in its
+  // event closure — could fire a duplicate. This ref is checked synchronously and
+  // drops an identical submit within a short window, before any duplicate temp or
+  // network call. (The server also de-dupes as the real backstop.)
+  const lastSubmitRef = useRef<{ sig: string; at: number }>({ sig: "", at: 0 });
   const markPending = useCallback((id: string) => {
     pendingRef.current.set(id, Date.now());
   }, []);
@@ -703,6 +710,12 @@ export function SeedRoom({
   async function contribute() {
     const text = draft.trim();
     if (text.length === 0 && draftAttachments.length === 0) return;
+    // Drop an identical submit fired within a few seconds (double-Enter with a
+    // stale draft closure, or a jittery double-tap) before it can duplicate.
+    const sig = `${text}|${draftAttachments.map((a) => a.url).join(",")}`;
+    const nowTs = Date.now();
+    if (lastSubmitRef.current.sig === sig && nowTs - lastSubmitRef.current.at < 4000) return;
+    lastSubmitRef.current = { sig, at: nowTs };
     if (sendingRef.current) return; // already sending — ignore the double-tap
     sendingRef.current = true;
     setBusy(true);
@@ -717,7 +730,7 @@ export function SeedRoom({
     // the order reads naturally: your message first, the AI's answer after. We
     // reuse the viewer's name/avatar from any message they've already posted;
     // the server's canonical record replaces this the moment it returns.
-    const tempId = `temp-${Date.now()}`;
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const mine = contributions.find((c) => c.author.id === currentUserId)?.author;
     const sentAttachments = draftAttachments;
     const optimistic = hydrate({
