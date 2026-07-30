@@ -45,6 +45,19 @@ async function loadRows(userId: string) {
   }
 }
 
+// POST /api/notifications — mark all of the viewer's notifications read (clears
+// the bell badge). Called from the Notifications page AFTER it paints, so the
+// list can render instantly (showing which were unread) without a blocking
+// write gating the server render.
+export const POST = handle(async () => {
+  const userId = await requireUserId();
+  await db.notification.updateMany({
+    where: { recipientId: userId, readAt: null },
+    data: { readAt: new Date() },
+  });
+  return ok({ ok: true });
+});
+
 // GET /api/notifications — recent notifications, unread first.
 export const GET = handle(async () => {
   const userId = await requireUserId();

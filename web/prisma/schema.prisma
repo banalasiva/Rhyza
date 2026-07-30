@@ -767,6 +767,10 @@ model BloomContributor {
   bloom Bloom @relation(fields: [bloomId], references: [id], onDelete: Cascade)
 
   @@unique([bloomId, userId])
+  // The "You" tab (getMyRoots) and public profiles filter by userId, newest
+  // first — the @@unique above leads with bloomId so it can't serve that, which
+  // meant a seq-scan on every load. This index does.
+  @@index([userId, addedAt])
   @@map("bloom_contributors")
 }
 

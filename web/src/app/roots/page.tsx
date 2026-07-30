@@ -25,13 +25,16 @@ import { STAGES } from "@/lib/constants";
 
 export default async function RootsPage() {
   const viewer = await requireViewer();
-  const roots = await getMyRoots(viewer.userId);
+  // These three are independent (all keyed only on the viewer) — run them in
+  // parallel instead of three back-to-back round-trips, so the "You" tab paints
+  // in one DB wave, not three. Lessons/judgement stay best-effort (a missing
+  // table never breaks the profile).
+  const [roots, lessons, judgement] = await Promise.all([
+    getMyRoots(viewer.userId),
+    listMyLessons(viewer.userId).catch(() => []),
+    getReflectionSummary(viewer.userId).catch(() => null),
+  ]);
   const { stats } = roots;
-  // Wisdom compounds: every lesson you've drawn from a bloomed decision, in one
-  // place. Best-effort so a missing table never breaks the profile.
-  const lessons = await listMyLessons(viewer.userId).catch(() => []);
-  // A private mirror (not a score) of how the user's calls tend to land.
-  const judgement = await getReflectionSummary(viewer.userId).catch(() => null);
   const w = judgement?.weight;
   const weightTotal = w ? w.very_tough + w.tough + w.medium + w.easy + w.very_easy : 0;
 

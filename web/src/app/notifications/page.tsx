@@ -5,6 +5,7 @@ import { NavBar } from "@/components/NavBar";
 import { NotificationSettings } from "@/components/NotificationSettings";
 import { NotificationList } from "@/components/NotificationList";
 import { NotificationFix } from "@/components/NotificationFix";
+import { MarkNotificationsRead } from "@/components/MarkNotificationsRead";
 import { listMyDrafts } from "@/lib/services/drafts";
 
 function href(
@@ -72,15 +73,14 @@ export default async function NotificationsPage() {
     }),
     listMyDrafts(viewer.userId),
   ]);
-  // Mark everything read on view so the bell badge clears.
-  await db.notification.updateMany({
-    where: { recipientId: viewer.userId, readAt: null },
-    data: { readAt: new Date() },
-  });
+  // Mark everything read AFTER paint (client effect) so the bell badge clears
+  // without a blocking write gating this page's render. The list above already
+  // carries each item's unread state, so this visit still shows the highlight.
 
   return (
     <div className="relative min-h-screen">
       <div className="garden-bg" />
+      <MarkNotificationsRead />
       <NavBar name={viewer.name} />
       <main id="main" className="relative z-10 mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
         <Link href="/" className="btn-ghost mb-5 inline-flex px-3 py-1.5 text-xs">
