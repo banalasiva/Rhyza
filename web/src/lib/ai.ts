@@ -28,9 +28,11 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
 // Bound every ChatGPT reply's output. OpenAI reserves max_tokens against your
 // per-minute token limit (TPM) up front — an UNBOUNDED reply reserves the
 // model's full output window and can trip rate_limit_exceeded (429) by itself on
-// lower usage tiers, even with credits to spare. A tight cap keeps replies under
-// the ceiling (and faster). Replies are conversational, not essays.
-const OPENAI_REPLY_MAX_TOKENS = 1200;
+// lower usage tiers, even with credits to spare. But 1200 was too tight: a
+// genuinely thorough reply (the kind we ASK for) ran past it and got cut off
+// mid-sentence. 3000 fits a long, complete answer while still bounding TPM.
+// Override via OPENAI_REPLY_MAX_TOKENS if a tier needs it lower/higher.
+const OPENAI_REPLY_MAX_TOKENS = Number(process.env.OPENAI_REPLY_MAX_TOKENS) || 3000;
 
 let client: Anthropic | null = null;
 let openaiClient: OpenAI | null = null;
@@ -449,7 +451,9 @@ export async function claudeReply(input: {
   } catch (err) {
     if (!(err instanceof TimeoutError)) throw err;
     console.warn("claudeReply: search path exceeded deadline, answering without web search");
-    text = await complete(system, userMsg, 600);
+    // Match the searched path's room so the fallback reply isn't itself cut off
+    // mid-sentence (600 was far too tight for a thorough answer).
+    text = await complete(system, userMsg, 3000);
   }
   if (!text) return null;
   return text + sourcesFooter(sources);
