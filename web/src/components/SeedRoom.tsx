@@ -170,6 +170,9 @@ export function SeedRoom({
     (seed.draft?.attachments ?? []) as Attachment[],
   );
   const [uploading, setUploading] = useState(false);
+  // Overall upload progress (0–100) across all files in flight — shown while a
+  // big video uploads so it's visibly working, not frozen. null = indeterminate.
+  const [uploadPct, setUploadPct] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // ── Draft persistence — a typed-but-unsent message survives refresh, backpress,
   // a mid-type deploy, or going offline. localStorage is the instant offline-first
@@ -678,20 +681,39 @@ export function SeedRoom({
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     setUploading(true);
+    setUploadPct(0);
     setError(null);
+    // Track bytes per file so we can show one overall % across everything in
+    // flight (a big video is what people watch here).
+    const list = Array.from(files);
+    const loaded = new Array(list.length).fill(0);
+    const totals = list.map((f) => f.size || 1);
+    const grandTotal = totals.reduce((a, b) => a + b, 0);
+    const bump = () => {
+      const done = loaded.reduce((a, b) => a + b, 0);
+      setUploadPct(Math.min(99, Math.round((done / grandTotal) * 100)));
+    };
     try {
       // Compress each image on-device (WhatsApp-style), then upload them ALL in
       // parallel — so N photos take about as long as the single slowest one,
       // not the sum. Each attachment appears the moment its own upload lands.
       await Promise.all(
-        Array.from(files).map(async (file) => {
+        list.map(async (file, idx) => {
           const toSend = await compressImage(file); // no-op for video/pdf
+          const isVideo = toSend.type.startsWith("video/");
+          totals[idx] = toSend.size || totals[idx];
           const blob = await upload(toSend.name, toSend, {
             access: "public",
             handleUploadUrl: "/api/upload",
-            // Chunk large files (videos) so a big upload is reliable and
-            // resumable rather than one giant PUT that can time out on mobile.
-            multipart: toSend.size > 20 * 1024 * 1024,
+            // ALWAYS chunk videos (and any large file): multipart is resumable
+            // and retries each part, so the FULL video lands even on a flaky
+            // mobile connection — a single giant PUT would stall partway and
+            // fail, which is why only short clips used to make it through.
+            multipart: isVideo || toSend.size > 8 * 1024 * 1024,
+            onUploadProgress: (e: { loaded: number; total: number }) => {
+              loaded[idx] = e.loaded;
+              bump();
+            },
           });
           setDraftAttachments((prev) => [
             ...prev,
@@ -699,10 +721,18 @@ export function SeedRoom({
           ]);
         }),
       );
+      setUploadPct(100);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      // Surface a clearer hint for the common "huge video, weak connection" case.
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      setError(
+        /abort|network|timeout|failed to fetch/i.test(msg)
+          ? "Upload interrupted — check your connection and try again. Large videos upload fully now, but need a steady connection."
+          : msg,
+      );
     } finally {
       setUploading(false);
+      setUploadPct(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
@@ -2227,7 +2257,11 @@ export function SeedRoom({
                 {uploading && (
                   <div className="flex items-center gap-2 rounded-lg border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.5)] px-2 py-1 text-xs text-ink-mid">
                     <span className="h-3 w-3 animate-spin rounded-full border border-accent border-t-transparent" />
-                    <span>Compressing &amp; uploading…</span>
+                    <span>
+                      {uploadPct != null && uploadPct > 0
+                        ? `Uploading… ${uploadPct}%`
+                        : "Preparing upload…"}
+                    </span>
                   </div>
                 )}
                 {draftAttachments.map((a, i) => (
