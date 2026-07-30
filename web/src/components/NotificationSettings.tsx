@@ -208,7 +208,7 @@ export function NotificationSettings({ initial }: { initial: Prefs }) {
   }
 
   // Push today's actual quote to this person's devices, on demand — the daily
-  // "Good morning 🌱" push, felt right now. Enables this device first if needed.
+  // thought push, felt right now. Enables this device first if needed.
   async function sendQuote() {
     setQuoting(true);
     setTestMsg(null);

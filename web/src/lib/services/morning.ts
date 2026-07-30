@@ -24,11 +24,11 @@ export function summarise(types: string[]): string {
   return `${n} new things in your gardens 🌿`;
 }
 
-// The daily "Good morning 🌱" push. Unlike the content-driven evening nudge,
-// this goes to EVERYONE who wants push — but it's never an empty ping: people
-// with unseen activity get the news, everyone else gets the quote of the day.
-// A smile always, sometimes with a reason to tap through. Respects pushNotify
-// and only reaches devices that actually subscribed (sendPushToUser no-ops
+// The daily "thought for today" push. Unlike the content-driven evening nudge,
+// this goes to EVERYONE who wants push — the quote of the day, with a soft
+// "N waiting" hint for anyone who also has unseen activity. Title is
+// time-neutral (global audience — no "good morning"). Respects pushNotify and
+// only reaches devices that actually subscribed (sendPushToUser no-ops
 // otherwise). Shared by the morning cron slot and the manual admin trigger.
 export async function sendGoodMorning(): Promise<{ sent: number; recipients: number }> {
   if (!pushConfigured()) return { sent: 0, recipients: 0 };
@@ -79,13 +79,15 @@ export async function sendGoodMorning(): Promise<{ sent: number; recipients: num
   // Send with bounded concurrency instead of one-at-a-time: far faster per run,
   // without opening thousands of simultaneous push requests.
   const CONCURRENCY = Number(process.env.PUSH_FANOUT_CONCURRENCY || 24);
-  // The good-morning quote as the body; the author (when set) signs it. If the
-  // person has unseen activity we add a soft "N waiting" to the title as a gentle
-  // reason to tap through — the evening slot surfaces the actual activity.
+  // The daily quote as the body; the author (when set) signs it. The title is
+  // TIME-NEUTRAL on purpose — the audience is global, so "Good morning" would be
+  // wrong for the half of them where it's midday or midnight. If the person has
+  // unseen activity we add a soft "N waiting" as a gentle reason to tap through;
+  // the evening slot surfaces the actual activity.
   const quoteBody = quote.author ? `${quote.text}\n— ${quote.author}` : quote.text;
   const outcomes = await mapLimit(people, CONCURRENCY, async (p: { id: string }) => {
     const g = groups.get(p.id);
-    const title = g ? `Good morning 🌱 · ${g.ids.length} waiting` : "Good morning 🌱";
+    const title = g ? `🌱 A thought for today · ${g.ids.length} waiting` : "🌱 A thought for today";
     return sendPushToUser(p.id, {
       title,
       body: quoteBody,

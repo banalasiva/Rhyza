@@ -7,9 +7,9 @@ import { resolveMessageOfTheDay } from "@/lib/services/daily";
 export const dynamic = "force-dynamic";
 
 // POST /api/push/quote — push TODAY's quote to the caller's own devices, on
-// demand. Lets a person feel the daily "Good morning 🌱" push right now (and
-// confirm it works) instead of waiting for the morning cron. Self-targeted and
-// rate-limited.
+// demand. Lets a person feel the daily thought push right now (and confirm it
+// works) instead of waiting for the morning cron. Self-targeted and
+// rate-limited. Title is time-neutral (global audience).
 export const POST = handle(async () => {
   const userId = await requireUserId();
   await enforceRateLimit(`pushquote:${userId}`, 5, 60);
@@ -21,7 +21,7 @@ export const POST = handle(async () => {
   const msg = await resolveMessageOfTheDay();
   const body = msg.author ? `“${msg.text}” — ${msg.author}` : msg.text;
 
-  const r = await sendPushDetailed(userId, { title: "Good morning 🌱", body, url: "/" });
+  const r = await sendPushDetailed(userId, { title: "🌱 A thought for today", body, url: "/" });
 
   if (r.devices === 0) {
     throw new ApiError(
