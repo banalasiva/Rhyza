@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { appUrl } from "@/lib/email";
 import { pushConfigured, sendPushToUser } from "@/lib/push";
-import { questionOfTheDay } from "@/lib/daily-questions";
+import { resolveMessageOfTheDay } from "@/lib/services/daily";
 import { mapLimit } from "@/lib/concurrency";
 
 const LOOKBACK_MS = 24 * 60 * 60 * 1000;
@@ -33,11 +33,12 @@ export function summarise(types: string[]): string {
 export async function sendGoodMorning(): Promise<{ sent: number; recipients: number }> {
   if (!pushConfigured()) return { sent: 0, recipients: 0 };
 
-  // The one daily broadcast is the QUESTION OF THE DAY — a light, tap-to-answer
-  // hook, not a mass "good morning quote". The quote still greets anyone who
-  // opens Home (the MorningQuote card); it's no longer pushed to everyone.
+  // The daily broadcast is the "Good morning 🌱" QUOTE — the same owner-curated
+  // message that greets people on Home, sent as a gentle push. (It used to push
+  // the "Question of the day · tap to answer" prompt instead; that read as a
+  // demand rather than a hello, so the push is the quote again.)
   const homeUrl = appUrl();
-  const question = questionOfTheDay().text;
+  const quote = await resolveMessageOfTheDay();
   const cutoff = new Date(Date.now() - LOOKBACK_MS);
 
   // Unseen (unread), not-yet-nudged activity, grouped by recipient.
@@ -78,20 +79,17 @@ export async function sendGoodMorning(): Promise<{ sent: number; recipients: num
   // Send with bounded concurrency instead of one-at-a-time: far faster per run,
   // without opening thousands of simultaneous push requests.
   const CONCURRENCY = Number(process.env.PUSH_FANOUT_CONCURRENCY || 24);
+  // The good-morning quote as the body; the author (when set) signs it. If the
+  // person has unseen activity we add a soft "N waiting" to the title as a gentle
+  // reason to tap through — the evening slot surfaces the actual activity.
+  const quoteBody = quote.author ? `${quote.text}\n— ${quote.author}` : quote.text;
   const outcomes = await mapLimit(people, CONCURRENCY, async (p: { id: string }) => {
     const g = groups.get(p.id);
-    // The daily question is the hook that pulls people in — so it LEADS the push
-    // for EVERYONE, every morning, with the touching quote right below it.
-    // (Previously anyone with unseen activity — e.g. the owner — got the quote
-    // only and never the question, which is why it didn't arrive as a
-    // notification.) If there's unseen activity we just hint the count in the
-    // title; the evening slot surfaces the actual activity.
-    const title = g ? `💭 Question of the day · ${g.ids.length} waiting` : "💭 Question of the day";
-    const body = `${question}\nTap to answer & see how everyone votes.`;
+    const title = g ? `Good morning 🌱 · ${g.ids.length} waiting` : "Good morning 🌱";
     return sendPushToUser(p.id, {
       title,
-      body,
-      url: homeUrl, // land on Home, where the question card is
+      body: quoteBody,
+      url: homeUrl, // land on Home, where the quote & question cards live
       tag: "nudge", // collapses with any previous nudge on the device
     }).catch(() => 0);
   });

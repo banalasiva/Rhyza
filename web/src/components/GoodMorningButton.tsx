@@ -30,8 +30,8 @@ export function GoodMorningButton() {
     <div className="card mt-4 p-4">
       <p className="mb-1 text-sm text-ink">🌅 Send good-morning now</p>
       <p className="mb-3 text-xs text-ink-soft">
-        Pushes today&apos;s quote + question to everyone who has notifications on. Use it if the 9:30
-        cron missed. Only reaches devices that are currently subscribed.
+        Pushes today&apos;s good-morning quote to everyone who has notifications on. Use it if the
+        9:30 cron missed. Only reaches devices that are currently subscribed.
       </p>
       <button onClick={run} disabled={busy} className="btn-primary text-xs disabled:opacity-50">
         {busy ? "Sending…" : "Send to everyone"}
