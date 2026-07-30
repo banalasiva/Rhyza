@@ -33,10 +33,10 @@ export function summarise(types: string[]): string {
 export async function sendGoodMorning(): Promise<{ sent: number; recipients: number }> {
   if (!pushConfigured()) return { sent: 0, recipients: 0 };
 
-  // The daily broadcast is the "Good morning 🌱" QUOTE — the same owner-curated
-  // message that greets people on Home, sent as a gentle push. (It used to push
-  // the "Question of the day · tap to answer" prompt instead; that read as a
-  // demand rather than a hello, so the push is the quote again.)
+  // The daily broadcast is the QUOTE OF THE DAY — the same owner-curated message
+  // that greets people on Home, sent as a gentle push under a time-neutral title.
+  // (It used to push the "Question of the day · tap to answer" prompt instead;
+  // that read as a demand rather than a thought, so the push is the quote again.)
   const homeUrl = appUrl();
   const quote = await resolveMessageOfTheDay();
   const cutoff = new Date(Date.now() - LOOKBACK_MS);
