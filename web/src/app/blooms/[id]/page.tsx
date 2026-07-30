@@ -159,6 +159,14 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
           <p className="eyebrow mb-2" style={{ color: "#FFB300" }}>
             Bloomed knowledge · v{bloom.version}
           </p>
+          {/* A way back into the discussion this decision grew out of — people
+              land on a bloom and want to re-read the conversation that led here. */}
+          <Link
+            href={`/seeds/${bloom.seed.id}`}
+            className="no-print inline-flex items-center gap-1 text-xs text-ink-soft underline-offset-2 transition hover:text-accent hover:underline"
+          >
+            💬 See the conversation that led here →
+          </Link>
         </div>
 
         <BloomBody
@@ -312,6 +320,12 @@ export default async function BloomPage({ params }: { params: { id: string } }) 
               </div>
             ))}
           </div>
+          <Link
+            href={`/seeds/${bloom.seed.id}`}
+            className="no-print mt-3 inline-flex items-center gap-1 text-xs text-accent underline-offset-2 transition hover:underline"
+          >
+            💬 Read the full conversation →
+          </Link>
         </section>
 
         {bloom.versions.length > 1 && (
