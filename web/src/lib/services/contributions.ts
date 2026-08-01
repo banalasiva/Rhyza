@@ -9,7 +9,10 @@ import {
 } from "@/lib/authz";
 import {
   claudeReply,
+  claudeReplyStream,
   chatgptReply,
+  chatgptReplyStream,
+  sourcesFooter,
   classifyDimension,
   mediate,
   mediatePeace,
@@ -395,6 +398,102 @@ export async function respondAsClaude(
     { id: seed.id, title: seed.title, createdById: seed.createdById },
     contribution.id,
     `Claude replied: ${reply.slice(0, 120)}`,
+    [],
+  );
+  return contribution;
+}
+
+// ── Streaming AI replies ──────────────────────────────────────────────────
+// Same result as respondAsClaude/respondAsChatGpt (a persisted contribution),
+// but the reply is streamed to `onDelta` token-by-token as it's generated, so
+// the client can type it out live. Image/handoff cases (which can't stream)
+// fall back to the existing non-streaming responders and just return the
+// finished contribution. Returns the created contribution, or null.
+
+export async function streamClaudeReply(
+  seedId: string,
+  dimension: string,
+  mentionText: string,
+  parentId: string,
+  invokerId: string | undefined,
+  onDelta: (chunk: string) => void,
+) {
+  const data = await threadForSeed(seedId);
+  if (!data) return null;
+  const { seed, thread } = data;
+
+  // "Draw me…" → the image handoff can't stream; delegate to the normal path.
+  if (wantsImage(mentionText) && !wantsTextOnly(mentionText)) {
+    return respondAsClaude(seedId, dimension, mentionText, parentId, invokerId);
+  }
+
+  const memory = await getThreadMemory(seedId).catch(() => "");
+  const streamed = await claudeReplyStream(
+    { title: seed.title, content: seed.content, dimension, mention: mentionText, contributions: thread, memory },
+    onDelta,
+  );
+  if (!streamed) return null;
+  const reply = streamed.text + sourcesFooter(streamed.sources);
+  void refreshThreadMemory(seedId, seed.title);
+
+  const claude = await getOrCreateClaudeUser();
+  const contribution = await db.contribution.create({
+    data: { seedId, authorId: claude.id, dimension, parentId, content: { text: reply } },
+    include: { author: { select: { id: true, name: true, image: true } } },
+  });
+  await notifySeedActivity(
+    claude.id,
+    { id: seed.id, title: seed.title, createdById: seed.createdById },
+    contribution.id,
+    `Claude replied: ${reply.slice(0, 120)}`,
+    [],
+  );
+  return contribution;
+}
+
+export async function streamChatGptReply(
+  seedId: string,
+  dimension: string,
+  mentionText: string,
+  parentId: string,
+  invokerId: string | undefined,
+  onDelta: (chunk: string) => void,
+) {
+  const data = await threadForSeed(seedId);
+  if (!data) return null;
+  const { seed, thread } = data;
+
+  // Image generate/edit can't stream — delegate to the normal responder, which
+  // owns that routing (and the text fallback if generation fails).
+  const threadImages = thread.flatMap((c) => c.images ?? []);
+  const sourceImage = threadImages[threadImages.length - 1];
+  const textOnly = wantsTextOnly(mentionText);
+  const wantsAnImage =
+    (!textOnly && sourceImage && wantsImageEdit(mentionText)) ||
+    (!textOnly && wantsImage(mentionText) && !asksImageCapabilityOnly(mentionText));
+  if (wantsAnImage) {
+    return respondAsChatGpt(seedId, dimension, mentionText, parentId, invokerId);
+  }
+
+  const memory = await getThreadMemory(seedId).catch(() => "");
+  const streamed = await chatgptReplyStream(
+    { title: seed.title, content: seed.content, dimension, mention: mentionText, contributions: thread, memory },
+    onDelta,
+  );
+  if (!streamed) return null;
+  const reply = streamed.text + sourcesFooter(streamed.sources);
+  void refreshThreadMemory(seedId, seed.title);
+
+  const bot = await getOrCreateChatGptUser();
+  const contribution = await db.contribution.create({
+    data: { seedId, authorId: bot.id, dimension, parentId, content: { text: reply } },
+    include: { author: { select: { id: true, name: true, image: true } } },
+  });
+  await notifySeedActivity(
+    bot.id,
+    { id: seed.id, title: seed.title, createdById: seed.createdById },
+    contribution.id,
+    `ChatGPT replied: ${reply.slice(0, 120)}`,
     [],
   );
   return contribution;

@@ -75,6 +75,10 @@ export const createContributionSchema = z
     text: z.string().max(5000).optional().default(""),
     parentId: z.string().uuid().optional(),
     attachments: z.array(attachmentSchema).max(10).optional().default([]),
+    // When true, the client will stream any @claude/@chatgpt reply itself (via
+    // /ai-reply), so the server skips generating it inline and just returns which
+    // providers to stream.
+    streamAi: z.boolean().optional(),
   })
   .refine((d) => d.text.trim().length > 0 || d.attachments.length > 0, {
     message: "Add a message or an attachment",

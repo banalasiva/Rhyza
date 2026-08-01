@@ -384,17 +384,21 @@ export async function seedOpener(input: {
   }
 }
 
-export async function claudeReply(input: {
+export type ClaudeReplyInput = {
   title: string;
   content: string;
   dimension: string;
   mention: string;
   contributions: ContribForAI[];
   memory?: string;
-}): Promise<string | null> {
-  if (!aiConfigured()) return null;
+};
+
+// The @claude reply prompt + system, shared by the blocking and streaming paths
+// so they never drift. (Extracted so streaming and non-streaming produce the
+// exact same reply, just delivered differently.)
+function buildClaudeReplyPrompt(input: ClaudeReplyInput): string {
   const dim = DIMENSION_LABEL[input.dimension] ?? input.dimension;
-  const prompt = [
+  return [
     `SEED: ${input.title}`,
     input.content.trim() ? `\nFRAMING:\n${input.content.trim()}` : "",
     memoryBlock(input.memory),
@@ -404,6 +408,64 @@ export async function claudeReply(input: {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+const CLAUDE_REPLY_SYSTEM =
+  "You are Claude, a thoughtful participant in a ThinkThru learning conversation — a " +
+  "collaborative knowledge garden where members explore a topic together. Someone " +
+  "tagged you with @claude. Answer their question or add genuinely useful, specific " +
+  "insight grounded in the discussion so far (including any images shown). Don't just " +
+  "repeat what's been said. SEARCH THE WEB FIRST for anything factual. Before answering " +
+  "anything that involves a specific named person, organisation, place, product, event, " +
+  "abbreviation or ACRONYM — or any current, local, or factual claim — use your web_search " +
+  "tool and base your answer on what you actually find. If you are not fully certain what a " +
+  "term, name or acronym refers to (for example 'CJP'), you MUST search — NEVER guess or " +
+  "invent a meaning. When you search, answer with concrete specifics — real names, " +
+  "neighbourhoods, prices, clickable links. Only skip searching for pure opinion or reasoning " +
+  "that involves no outside facts. Never mention searching, the tool, or any limits in your " +
+  "reply; if a search genuinely finds nothing, say plainly you couldn't find it rather than " +
+  "guessing. " +
+  "Match your depth to what the question needs — go genuinely thorough when it aids " +
+  "understanding (worked examples, step-by-step reasoning, analogies, trade-offs), and stay " +
+  "brief when the question is small. HONOUR the person's hints: if they ask you to expand, go " +
+  "further and richer; if they ask to compress, simplify, or 'ELI5', tighten it right down. " +
+  "Structure it so it reads cleanly as plain text — open a point with a **bold label**, use " +
+  "short numbered steps, and blank lines between ideas (avoid tables and code-diagrams, they " +
+  "don't render here). You can't generate images yourself, but @chatgpt can — so if someone " +
+  "wants a picture, drawing, or diagram, warmly point them to tag @chatgpt with what they'd " +
+  "like; never claim images are impossible here. Write warmly and directly; output only your " +
+  "reply — no greeting like 'Sure!', no sign-off, and don't refer to yourself in the third person.";
+
+// Stream @claude's reply token-by-token: onDelta fires for each text chunk as
+// it's generated (web search runs server-side mid-stream, so there's a brief
+// pause then the answer types out). Returns the full text + cited sources.
+// THROWS on API error so the route can surface the real reason.
+export async function claudeReplyStream(
+  input: ClaudeReplyInput,
+  onDelta: (chunk: string) => void,
+): Promise<{ text: string; sources: Source[] } | null> {
+  if (!aiConfigured()) return null;
+  const prompt = buildClaudeReplyPrompt(input);
+  const userMsg = userMessage(prompt, collectImages(input.contributions));
+  const stream = getClient().messages.stream({
+    model: MODEL,
+    max_tokens: 4096,
+    system: CLAUDE_REPLY_SYSTEM,
+    messages: [{ role: "user", content: userMsg }],
+    tools: [WEB_SEARCH_TOOL],
+  });
+  stream.on("text", (chunk) => {
+    if (chunk) onDelta(chunk);
+  });
+  const msg = await stream.finalMessage();
+  const text = textFromMessage(msg);
+  if (!text) return null;
+  return { text, sources: citedSources(msg) };
+}
+
+export async function claudeReply(input: ClaudeReplyInput): Promise<string | null> {
+  if (!aiConfigured()) return null;
+  const prompt = buildClaudeReplyPrompt(input);
 
   // Throws on API error so the route can show the real reason. Images in the
   // thread are attached as vision blocks so Claude can actually see them. Web
@@ -1376,26 +1438,21 @@ function openaiCitedSources(resp: OpenAI.Responses.Response, cap = 6): Source[] 
   return out;
 }
 
-// ChatGPT's reply when a member tags @chatgpt. Returns null if AI isn't
-// configured or the reply is empty; THROWS on API error so the route can show
-// the real reason (mirrors claudeReply). Uses the Responses API with web search
-// so @chatgpt can answer current/real-world questions the way the consumer app
-// can, and surfaces the sources it used.
-export async function chatgptReply(input: {
+export type ChatgptReplyInput = {
   title: string;
   content: string;
   dimension: string;
   mention: string;
   contributions: ContribForAI[];
   memory?: string;
-}): Promise<string | null> {
-  if (!openaiConfigured()) return null;
+};
+
+// The @chatgpt reply prompt + images, shared by the blocking and streaming
+// paths so they never drift.
+function buildChatgptReplyParts(input: ChatgptReplyInput): { prompt: string; images: string[] } {
   const dim = DIMENSION_LABEL[input.dimension] ?? input.dimension;
   // Bound the request so a long thread + images can't exceed the per-request /
-  // per-minute token limit (OpenAI reports that as rate_limit_exceeded /
-  // "request too large", which is the actual cause of the @chatgpt failures on
-  // lower usage tiers). The older thread is carried as a compressed memory
-  // (input.memory) instead of raw messages, so context isn't lost.
+  // per-minute token limit. The older thread is carried as a compressed memory.
   const recent = input.contributions.slice(-40);
   const prompt = [
     `SEED: ${input.title}`,
@@ -1407,39 +1464,81 @@ export async function chatgptReply(input: {
   ]
     .filter(Boolean)
     .join("\n");
-
-  const system =
-    "You are ChatGPT, a thoughtful participant in a ThinkThru learning conversation — a " +
-    "collaborative knowledge garden where members explore a topic together. Someone tagged " +
-    "you with @chatgpt. Answer their question or add genuinely useful, specific insight " +
-    "grounded in the discussion so far (including any images shown). Don't just repeat what's " +
-    "been said. SEARCH THE WEB FIRST for anything factual. Before answering anything that " +
-    "involves a specific named person, organisation, place, product, event, abbreviation or " +
-    "ACRONYM — or any current, local, or factual claim — use your web search tool and base your " +
-    "answer on what you actually find. If you are not fully certain what a term, name or acronym " +
-    "refers to (for example 'CJP'), you MUST search — NEVER guess or invent a meaning. When you " +
-    "search, answer with concrete specifics — real names, neighbourhoods, prices, clickable links. " +
-    "Only skip searching for pure opinion or reasoning that involves no outside facts. Never " +
-    "mention searching, the tool, or any limits in your reply; if a search genuinely finds " +
-    "nothing, say plainly you couldn't find it rather than guessing. " +
-    "Match your depth to what the question needs — go genuinely thorough when it aids understanding " +
-    "(worked examples, step-by-step reasoning, analogies, trade-offs), and stay brief when the " +
-    "question is small. HONOUR the person's hints: if they ask you to expand, go further and richer; " +
-    "if they ask to compress, simplify, or 'ELI5', tighten it right down. Structure it so it reads " +
-    "cleanly as plain text — open a point with a **bold label**, use short numbered steps, and blank " +
-    "lines between ideas (avoid tables and code-diagrams, they don't render here). " +
-    // The truth about image generation + editing, so it never denies a capability it has:
-    "IMPORTANT — you CAN both generate AND edit images here: when someone gives you something concrete " +
-    "to draw, illustrate, paint, or diagram, the app creates the picture and posts it automatically; " +
-    "and when someone shares a photo and asks you to modify it (add/remove/change something in it), the " +
-    "app edits that photo and posts the result. So NEVER say you can't create, render, or modify " +
-    "images or photos. If someone asks whether you can make or edit images, answer yes, warmly, and " +
-    "invite them to tell you exactly what they'd like; when a visual would genuinely help, offer it. " +
-    "Write warmly and directly; output only your reply — no greeting like 'Sure!', no sign-off, and " +
-    "don't refer to yourself in the third person.";
-  // Cap images tightly for ChatGPT — vision tokens dominate a request's size,
-  // and the low-detail path below shrinks each one ~10x.
+  // Cap images tightly for ChatGPT — vision tokens dominate a request's size.
   const images = collectImages(recent, 3);
+  return { prompt, images };
+}
+
+const CHATGPT_REPLY_SYSTEM =
+  "You are ChatGPT, a thoughtful participant in a ThinkThru learning conversation — a " +
+  "collaborative knowledge garden where members explore a topic together. Someone tagged " +
+  "you with @chatgpt. Answer their question or add genuinely useful, specific insight " +
+  "grounded in the discussion so far (including any images shown). Don't just repeat what's " +
+  "been said. SEARCH THE WEB FIRST for anything factual. Before answering anything that " +
+  "involves a specific named person, organisation, place, product, event, abbreviation or " +
+  "ACRONYM — or any current, local, or factual claim — use your web search tool and base your " +
+  "answer on what you actually find. If you are not fully certain what a term, name or acronym " +
+  "refers to (for example 'CJP'), you MUST search — NEVER guess or invent a meaning. When you " +
+  "search, answer with concrete specifics — real names, neighbourhoods, prices, clickable links. " +
+  "Only skip searching for pure opinion or reasoning that involves no outside facts. Never " +
+  "mention searching, the tool, or any limits in your reply; if a search genuinely finds " +
+  "nothing, say plainly you couldn't find it rather than guessing. " +
+  "Match your depth to what the question needs — go genuinely thorough when it aids understanding " +
+  "(worked examples, step-by-step reasoning, analogies, trade-offs), and stay brief when the " +
+  "question is small. HONOUR the person's hints: if they ask you to expand, go further and richer; " +
+  "if they ask to compress, simplify, or 'ELI5', tighten it right down. Structure it so it reads " +
+  "cleanly as plain text — open a point with a **bold label**, use short numbered steps, and blank " +
+  "lines between ideas (avoid tables and code-diagrams, they don't render here). " +
+  "IMPORTANT — you CAN both generate AND edit images here: when someone gives you something concrete " +
+  "to draw, illustrate, paint, or diagram, the app creates the picture and posts it automatically; " +
+  "and when someone shares a photo and asks you to modify it (add/remove/change something in it), the " +
+  "app edits that photo and posts the result. So NEVER say you can't create, render, or modify " +
+  "images or photos. If someone asks whether you can make or edit images, answer yes, warmly, and " +
+  "invite them to tell you exactly what they'd like; when a visual would genuinely help, offer it. " +
+  "Write warmly and directly; output only your reply — no greeting like 'Sure!', no sign-off, and " +
+  "don't refer to yourself in the third person.";
+
+// Stream @chatgpt's reply token-by-token via the Responses API (web search on).
+// onDelta fires for each text chunk. Returns the full text + cited sources, or
+// null if empty/not configured. THROWS on API error.
+export async function chatgptReplyStream(
+  input: ChatgptReplyInput,
+  onDelta: (chunk: string) => void,
+): Promise<{ text: string; sources: Source[] } | null> {
+  if (!openaiConfigured()) return null;
+  const { prompt, images } = buildChatgptReplyParts(input);
+  const stream = await getOpenAI().responses.create({
+    model: OPENAI_MODEL,
+    instructions: CHATGPT_REPLY_SYSTEM,
+    input: openaiResponseInput(prompt, images),
+    tools: [{ type: "web_search" }],
+    max_output_tokens: OPENAI_REPLY_MAX_TOKENS,
+    stream: true,
+  });
+  let text = "";
+  let final: OpenAI.Responses.Response | null = null;
+  for await (const event of stream) {
+    if (event.type === "response.output_text.delta") {
+      text += event.delta;
+      if (event.delta) onDelta(event.delta);
+    } else if (event.type === "response.completed") {
+      final = event.response;
+    }
+  }
+  text = text.trim();
+  if (!text) return null;
+  return { text, sources: final ? openaiCitedSources(final) : [] };
+}
+
+// ChatGPT's reply when a member tags @chatgpt. Returns null if AI isn't
+// configured or the reply is empty; THROWS on API error so the route can show
+// the real reason (mirrors claudeReply). Uses the Responses API with web search
+// so @chatgpt can answer current/real-world questions the way the consumer app
+// can, and surfaces the sources it used.
+export async function chatgptReply(input: ChatgptReplyInput): Promise<string | null> {
+  if (!openaiConfigured()) return null;
+  const { prompt, images } = buildChatgptReplyParts(input);
+  const system = CHATGPT_REPLY_SYSTEM;
 
   // Web search is ON by default now — answering acronyms/entities/current facts
   // from memory is exactly what produced the "CJP → cockroach janta party"

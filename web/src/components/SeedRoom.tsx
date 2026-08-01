@@ -62,6 +62,9 @@ type ContributionResponse = {
   createdAt: string;
   aiReplies?: Omit<ContributionResponse, "aiReplies" | "aiError">[];
   aiError?: string | null;
+  // When the server defers AI to the streaming endpoint, it tells us which
+  // providers to stream instead of returning their replies inline.
+  aiPending?: { claude: boolean; chatgpt: boolean };
 };
 
 // Turn a bare API contribution into a full client-side Contribution (with the
@@ -327,6 +330,11 @@ export function SeedRoom({
   const [glowing, setGlowing] = useState<Set<string>>(new Set());
   const [thinking, setThinking] = useState(false);
   const [thinkingWho, setThinkingWho] = useState("Claude");
+  // AI replies currently streaming in (typed out live). Each shows a bubble that
+  // reads "{who} is thinking…" until its first token, then the text as it grows.
+  const [streamingReplies, setStreamingReplies] = useState<
+    { key: string; who: string; text: string }[]
+  >([]);
   const [mediating, setMediating] = useState(false);
   const [mediatingWho, setMediatingWho] = useState<"claude" | "chatgpt" | null>(null);
   const [aiVoting, setAiVoting] = useState<"claude" | "chatgpt" | null>(null);
@@ -787,21 +795,20 @@ export function SeedRoom({
     setBusy(false);
     sendingRef.current = false;
 
+    const serialized = serializeMentions(text, seed.people);
     try {
-      // If an AI is tagged, show a "thinking" placeholder while it replies.
-      if (tagsAI) {
-        setThinkingWho(tagsClaude && tagsChatGpt ? "Claude and ChatGPT" : tagsChatGpt ? "ChatGPT" : "Claude");
-        setThinking(true);
-      }
       // No dimension sent — people just write; Claude labels it after posting.
-      // Convert "@Name" back into the stored @[Name](id) token here, at the edge.
+      // streamAi:true → the server saves the message and tells us which AIs to
+      // stream, instead of blocking to generate the reply inline.
       const c = await apiPost<ContributionResponse>(`/api/seeds/${seed.id}/contributions`, {
-        text: serializeMentions(text, seed.people),
+        text: serialized,
         attachments: sentAttachments,
+        streamAi: true,
       });
       const replies = c.aiReplies ?? [];
-      // Swap the optimistic copy for the server's record, then append AI replies
-      // — de-duping in case a live poll already slipped the server's copy in.
+      // Swap the optimistic copy for the server's record, then append any inline
+      // AI replies (defensive — normally none when streaming) — de-duping in case
+      // a live poll already slipped the server's copy in.
       setContributions((prev) => {
         const next = prev.filter((x) => x.id !== tempId);
         const ids = new Set(next.map((x) => x.id));
@@ -816,19 +823,22 @@ export function SeedRoom({
           }
         return next;
       });
-      if (replies.length) {
-        playNatureSound("chime"); // Claude/ChatGPT replied
+      // Stream each tagged AI's reply live (types out in its own bubble).
+      const pending = c.aiPending;
+      if (pending && (pending.claude || pending.chatgpt)) {
         setAiNotice(null);
-      }
-      if (tagsAI && replies.length === 0) {
+        if (pending.claude) void streamAiReply("claude", c.id, serialized);
+        if (pending.chatgpt) void streamAiReply("chatgpt", c.id, serialized);
+      } else if (tagsAI && replies.length === 0) {
+        // No provider to stream (guest, or AI off) — surface the reason.
         if (c.aiError === "guest_ai") {
-          // A guest tagged an AI — their message is saved; pop the sign-up
-          // invite immediately (feels intentional, not like an error).
           setGuestSignup(true);
         } else {
-          // A clear reason + a next step, in an always-visible banner.
           setAiNotice(aiFailureMessage(c.aiError, seed.canManage));
         }
+      } else if (replies.length) {
+        playNatureSound("chime");
+        setAiNotice(null);
       }
       // Let Claude label the dimension in the background; the badge fills in.
       // Skipped when the owner has turned AI off for this seed.
@@ -844,6 +854,90 @@ export function SeedRoom({
       // here we just clear the AI "thinking" state and resume the live poll.
       setThinking(false);
       postingRef.current = Math.max(0, postingRef.current - 1);
+    }
+  }
+
+  // Open an SSE stream for one AI's reply and type it out live in its own bubble.
+  // On `done` we swap the bubble for the real persisted contribution; on an error
+  // or guest/disabled JSON response we surface the reason. Best-effort — a failed
+  // stream never breaks the thread (the message is already saved).
+  async function streamAiReply(
+    provider: "claude" | "chatgpt",
+    parentId: string,
+    mentionText: string,
+  ) {
+    const who = provider === "claude" ? "Claude" : "ChatGPT";
+    const key = `stream-${provider}-${parentId}`;
+    setStreamingReplies((prev) => [...prev, { key, who, text: "" }]);
+    const clear = () => setStreamingReplies((prev) => prev.filter((s) => s.key !== key));
+    try {
+      const res = await fetch(`/api/seeds/${seed.id}/ai-reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider, parentId, mentionText, dimension: "understanding" }),
+      });
+      const ctype = res.headers.get("content-type") || "";
+      // A JSON body means a pre-stream gate fired (guest / AI off / rate limit).
+      if (!res.ok || ctype.includes("application/json") || !res.body) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        clear();
+        if (data.error === "guest_ai") setGuestSignup(true);
+        else setAiNotice(aiFailureMessage(data.error ?? null, seed.canManage));
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let done: ContributionResponse | null = null;
+      let errored: string | null = null;
+      for (;;) {
+        const { value, done: streamDone } = await reader.read();
+        if (streamDone) break;
+        buf += decoder.decode(value, { stream: true });
+        let sep;
+        // SSE events are separated by a blank line.
+        while ((sep = buf.indexOf("\n\n")) !== -1) {
+          const block = buf.slice(0, sep);
+          buf = buf.slice(sep + 2);
+          let ev = "message";
+          let payload = "";
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event:")) ev = line.slice(6).trim();
+            else if (line.startsWith("data:")) payload += line.slice(5).trim();
+          }
+          if (!payload) continue;
+          let parsed: { text?: string; contribution?: ContributionResponse; message?: string };
+          try {
+            parsed = JSON.parse(payload);
+          } catch {
+            continue;
+          }
+          if (ev === "delta" && parsed.text) {
+            setStreamingReplies((prev) =>
+              prev.map((s) => (s.key === key ? { ...s, text: s.text + parsed.text } : s)),
+            );
+          } else if (ev === "done") {
+            done = parsed.contribution ?? null;
+          } else if (ev === "error") {
+            errored = parsed.message ?? "couldn't reply";
+          }
+        }
+      }
+      clear();
+      if (done) {
+        setContributions((prev) =>
+          prev.some((x) => x.id === done!.id) ? prev : [...prev, hydrate(done!)],
+        );
+        playNatureSound("chime");
+        setAiNotice(null);
+      } else if (errored) {
+        setAiNotice(aiFailureMessage(errored, seed.canManage));
+      }
+    } catch (err) {
+      clear();
+      setAiNotice(
+        aiFailureMessage(err instanceof Error ? err.message : null, seed.canManage),
+      );
     }
   }
 
@@ -2032,6 +2126,26 @@ export function SeedRoom({
               {thinkingWho} {thinkingWho.includes("and") ? "are" : "is"} thinking…
             </div>
           )}
+          {/* AI replies typing out live. Empty until the first token (during
+              which the model may be searching) → shows a "thinking…" line; then
+              the text streams in with a blinking caret. */}
+          {streamingReplies.map((s) => (
+            <div key={s.key} className="card p-4">
+              <div className="mb-1.5 flex items-center gap-2 text-xs">
+                <span aria-hidden>✦</span>
+                <span className="font-medium text-ink">{s.who}</span>
+                {s.text === "" && <span className="claude-thinking-dot" />}
+              </div>
+              {s.text === "" ? (
+                <p className="text-sm text-ink-soft">{s.who} is thinking…</p>
+              ) : (
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-mid">
+                  {s.text}
+                  <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse bg-accent align-middle" />
+                </p>
+              )}
+            </div>
+          ))}
           {/* Scroll anchor: arrivals without a deep-link land on the latest
               message. The bottom scroll-margin keeps the newest message clear of
               the sticky composer that pins to the bottom of the viewport. */}
