@@ -41,6 +41,7 @@ import { deliver } from "@/lib/services/notify";
 import { bumpFollowOnContribute } from "@/lib/services/explore";
 import { notifyFollowersJoinedDiscussion } from "@/lib/services/follows";
 import { markAsksAnswered } from "@/lib/services/asks";
+import { notifySeedChanged } from "@/lib/realtime";
 import { maybeSenseRoom, resolveMediatorNudge } from "@/lib/services/mediator";
 import { getReactionTypes } from "@/lib/registry";
 import { isSignalReaction } from "@/lib/reactions";
@@ -915,6 +916,10 @@ async function notifySeedActivity(
   snippet: string,
   mentionedIds: string[],
 ) {
+  // Instant push: tell every open copy of this seed to sync now. This is the
+  // shared chokepoint for new messages (human + every AI reply), so one call
+  // here covers them all. No-op unless Pusher is configured.
+  notifySeedChanged(seed.id);
   try {
     const [participants, follows, members] = await Promise.all([
       db.contribution.findMany({

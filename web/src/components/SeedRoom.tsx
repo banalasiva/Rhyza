@@ -24,6 +24,7 @@ import { PlantSvg } from "@/components/PlantSvg";
 import { HowItWorks } from "@/components/HowItWorks";
 import { RichEditor } from "@/components/RichEditor";
 import { InlineText } from "@/components/InlineText";
+import { subscribeSeed, realtimeClientConfigured } from "@/lib/realtime-client";
 import { serializeMentions, deserializeMentions, mentionsClaude, mentionsChatGpt } from "@/lib/mentions";
 import { shareOrCopy } from "@/lib/share-client";
 import { CollapsibleText } from "@/components/CollapsibleText";
@@ -555,10 +556,10 @@ export function SeedRoom({
   const markPending = useCallback((id: string) => {
     pendingRef.current.set(id, Date.now());
   }, []);
-  useEffect(() => {
-    const t = setInterval(async () => {
-      // Don't poll a backgrounded tab — mobile PWAs sit hidden for long stretches,
-      // and this is the heaviest poll. Resumes the moment the tab is visible again.
+  // The single sync routine — pull the latest snapshot and reconcile it. Called
+  // by the fallback poll and, when Pusher is on, the instant push handler.
+  const syncNow = useCallback(async () => {
+      // Skip a backgrounded tab — mobile PWAs sit hidden for long stretches.
       if (typeof document !== "undefined" && document.hidden) return;
       try {
         // Send our last fingerprint so the server can skip the heavy thread fetch
@@ -642,10 +643,34 @@ export function SeedRoom({
       } catch {
         /* transient — keep polling */
       }
-    }, 4000);
-    return () => clearInterval(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seed.id]);
+
+  // Fallback poll — 4s normally, backed off to 10s when Pusher push is on (push
+  // delivers new messages instantly; the poll is just a self-heal backstop).
+  useEffect(() => {
+    const t = setInterval(syncNow, realtimeClientConfigured() ? 10000 : 4000);
+    return () => clearInterval(t);
+  }, [syncNow]);
+
+  // Instant push: sync the moment anyone changes the thread. Pings are debounced
+  // so a burst coalesces into one fetch. No-op (poll only) when Pusher is off.
+  useEffect(() => {
+    if (!realtimeClientConfigured()) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onPing = () => {
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = null;
+        void syncNow();
+      }, 150);
+    };
+    const unsub = subscribeSeed(seed.id, onPing);
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsub();
+    };
+  }, [seed.id, syncNow]);
 
   const isBloomed = stage === "bloomed";
   const stageIdx = stageIndex(stage);
