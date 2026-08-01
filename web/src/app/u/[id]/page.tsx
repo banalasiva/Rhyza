@@ -8,6 +8,7 @@ import { ProfileTopicsEditor } from "@/components/ProfileTopicsEditor";
 import { ReflectionEditor, ReflectionPoints } from "@/components/ReflectionEditor";
 import { SectionPrivacyToggle } from "@/components/SectionPrivacyToggle";
 import { ThinkingFingerprint } from "@/components/ThinkingFingerprint";
+import { Calibration } from "@/components/Calibration";
 import { ShareButton } from "@/components/ShareButton";
 import { FollowUserButton } from "@/components/FollowUserButton";
 import { FollowCounts } from "@/components/FollowCounts";
@@ -109,6 +110,20 @@ export default async function ProfilePage({ params }: { params: { id: string } }
                 {isMe && <SectionPrivacyToggle section="fingerprint" initialPublic={profile.visibility.fingerprint} />}
               </div>
               <ThinkingFingerprint dims={profile.dimensions} self={isMe} />
+            </div>
+          )}
+
+          {/* Calibration — the JUDGEMENT signal. How the decisions this person
+              led actually turned out, judged by the room (not self-declared).
+              Shown to others only once it's meaningful; the owner always sees it
+              (a "still forming" nudge until enough decisions have landed). */}
+          {profile.calibration && (isMe || profile.calibration.hasEnough) && (
+            <div className="mt-4 rounded-xl border border-[rgba(255,255,255,0.06)] p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-[11px] uppercase tracking-wide text-ink-soft">⚖️ Calibration</p>
+                {isMe && <SectionPrivacyToggle section="calibration" initialPublic={profile.visibility.calibration} />}
+              </div>
+              <Calibration data={profile.calibration} self={isMe} />
             </div>
           )}
 
