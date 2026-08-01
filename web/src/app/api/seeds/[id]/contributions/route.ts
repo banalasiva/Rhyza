@@ -90,6 +90,22 @@ export const POST = handle(async (req, ctx: { params: { id: string } }) => {
   else if (taggedAi && !aiOn) aiError = "ai_disabled";
   const wantsClaude = aiOn && !guest && mentionsClaude(body.text);
   const wantsChatGpt = aiOn && !guest && mentionsChatGpt(body.text);
+
+  // Streaming client: don't generate the reply inline — return which providers
+  // it should stream via /ai-reply (which does its own rate-limit + metering).
+  // The human message is already saved; the reply types out live on the client.
+  if (body.streamAi && (wantsClaude || wantsChatGpt)) {
+    return ok(
+      {
+        ...toDTO(c),
+        aiReplies: [],
+        aiError,
+        aiPending: { claude: wantsClaude, chatgpt: wantsChatGpt },
+      },
+      201,
+    );
+  }
+
   // Tagging an AI triggers a paid completion — count it against the AI budget.
   if (wantsClaude || wantsChatGpt) await enforceAiRateLimit(userId);
   // Silent usage meter (for stats now, a free monthly quota later). Must never
