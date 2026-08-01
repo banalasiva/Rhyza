@@ -94,6 +94,24 @@ function attachmentType(mime: string): Attachment["type"] {
   return "file";
 }
 
+// Two messages are the same if every rendered field matches. Both come from the
+// same sync serializer, so a stable-key-order JSON compare is exact — used to
+// reuse the existing object (stable identity) when a poll brings back a message
+// that didn't actually change.
+function sameContribution(a: Contribution, b: Contribution): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+// The reconciled thread equals what's on screen when it's the same length and
+// every slot is the SAME object reference (unchanged messages reuse their prior
+// object above). Lets the poll return the existing array so React skips the
+// whole-thread re-render on a quiet resync.
+function sameThreadList(a: Contribution[], b: Contribution[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 // Turn a raw AI-failure code/reason into a plain-language message with a next
 // step, so a non-reply is never a dead end. `canManage` tailors the "turn AI
 // back on" advice to whether the viewer can actually flip the switch.
@@ -601,13 +619,24 @@ export function SeedRoom({
           const merged: Contribution[] = [];
           for (const s of incoming) {
             if (removedRef.current.has(s.id)) continue; // viewer just deleted it
-            // Keep the local copy for anything the viewer just acted on, so a
-            // mid-flight reaction/edit isn't briefly reverted by the poll.
             const local = prevById.get(s.id);
-            merged.push(local && pendingRef.current.has(s.id) ? local : s);
+            // Reuse the EXISTING object (stable identity) when the viewer just
+            // acted on it, OR when nothing about it changed — so a message that
+            // didn't change never re-renders. Only genuinely new/changed messages
+            // get a fresh object. This is what stops the whole thread from
+            // re-rendering (the "page keeps refreshing" churn).
+            if (local && (pendingRef.current.has(s.id) || sameContribution(local, s))) {
+              merged.push(local);
+            } else {
+              merged.push(s);
+            }
           }
           const next = [...merged, ...temps];
           next.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+          // If the reconciled thread is identical to what's on screen (the every
+          // ~24s "full resync" is the common case), return the SAME array so React
+          // skips re-rendering entirely — no periodic flash, no scroll nudge.
+          if (sameThreadList(prev, next)) return prev;
           return next;
         });
       } catch {
