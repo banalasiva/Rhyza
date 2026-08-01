@@ -2163,10 +2163,14 @@ export function SeedRoom({
               {s.text === "" ? (
                 <p className="text-sm text-ink-soft">{s.who} is thinking…</p>
               ) : (
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-mid">
-                  {s.text}
+                // Render live text with the SAME color (text-ink) and markdown
+                // renderer (InlineText) the finalized message uses, so when the
+                // stream swaps to the real contribution nothing shifts — no
+                // grey→white flip, no formatting reflow. Just the caret vanishes.
+                <div className="text-sm leading-relaxed text-ink">
+                  <InlineText text={s.text} />
                   <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse bg-accent align-middle" />
-                </p>
+                </div>
               )}
             </div>
           ))}
