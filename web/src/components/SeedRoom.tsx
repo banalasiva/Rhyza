@@ -173,6 +173,8 @@ export function SeedRoom({
     (seed.draft?.attachments ?? []) as Attachment[],
   );
   const [uploading, setUploading] = useState(false);
+  // Highlights the composer while a file is dragged over it (drag-and-drop add).
+  const [dragging, setDragging] = useState(false);
   // Overall upload progress (0–100) across all files in flight — shown while a
   // big video uploads so it's visibly working, not frozen. null = indeterminate.
   const [uploadPct, setUploadPct] = useState<number | null>(null);
@@ -742,6 +744,28 @@ export function SeedRoom({
       setUploading(false);
       setUploadPct(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  // Every way media can arrive — the button, drag-and-drop, or paste — funnels
+  // through here: guard on uploads being on, open the composer, then upload.
+  function addFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    if (!uploadsEnabled) {
+      setError("Attachments aren't enabled yet — connect a Vercel Blob store, then redeploy.");
+      return;
+    }
+    setComposerOpen(true);
+    void handleFiles(files);
+  }
+
+  // Paste a screenshot or image straight into the composer. Only acts when the
+  // clipboard actually carries image/video files, so pasting text still works.
+  function onComposerPaste(e: React.ClipboardEvent) {
+    const files = e.clipboardData?.files;
+    if (files && files.length && Array.from(files).some((f) => /^(image|video)\//.test(f.type))) {
+      e.preventDefault();
+      addFiles(files);
     }
   }
 
@@ -2256,7 +2280,30 @@ export function SeedRoom({
           </div>
         )}
         {!isBloomed && !committedToBloom && (
-          <div className={"card mt-6 " + (composerExpanded ? "p-4 md:p-5" : "p-2.5")}>
+          <div
+            className={
+              "card mt-6 transition " +
+              (composerExpanded ? "p-4 md:p-5" : "p-2.5") +
+              (dragging ? " ring-2 ring-accent" : "")
+            }
+            onPaste={onComposerPaste}
+            onDragOver={(e) => {
+              if (e.dataTransfer?.types?.includes("Files")) {
+                e.preventDefault();
+                setDragging(true);
+              }
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget === e.target) setDragging(false);
+            }}
+            onDrop={(e) => {
+              if (e.dataTransfer?.files?.length) {
+                e.preventDefault();
+                setDragging(false);
+                addFiles(e.dataTransfer.files);
+              }
+            }}
+          >
             {!composerExpanded ? (
               // Collapsed: a prominent "write here" bar — big enough that people
               // notice it and type, instead of skimming past to the seed status.
@@ -2268,7 +2315,9 @@ export function SeedRoom({
                 className="flex w-full items-center gap-3 rounded-xl border border-[var(--border-strong)] bg-[var(--bg-surface)] px-4 py-4 text-left transition hover:border-accent"
               >
                 <span aria-hidden className="text-lg">💬</span>
-                <span className="flex-1 truncate text-[15px] text-ink-mid">Add your thought…</span>
+                <span className="flex-1 truncate text-[15px] text-ink-mid">
+                  {dragging ? "Drop your photo or video to add it…" : "Add a thought, photo, or video…"}
+                </span>
                 <span
                   aria-hidden
                   className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[rgba(76,175,80,0.14)] px-3 py-1.5 text-xs font-medium text-accent"
@@ -2346,6 +2395,7 @@ export function SeedRoom({
                   {/* Keep the pin ALWAYS visible so it never looks like it
                       vanished mid-upload; a small pulsing dot signals progress. */}
                   <Icon name="attach" size={15} />
+                  <span className="ml-1 hidden text-xs sm:inline">Photo / video</span>
                   {uploading && (
                     <span className="absolute -right-1 -top-1 h-2 w-2 animate-ping rounded-full bg-accent" />
                   )}
@@ -2381,14 +2431,41 @@ export function SeedRoom({
                 {draftAttachments.map((a, i) => (
                   <div
                     key={i}
-                    className="flex items-center gap-2 rounded-lg border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.5)] px-2 py-1 text-xs text-ink-mid"
+                    className="group relative h-20 w-20 overflow-hidden rounded-lg border border-[rgba(76,175,80,0.2)] bg-[rgba(7,13,7,0.5)]"
                   >
-                    <span>{a.type === "image" ? "🖼️" : a.type === "video" ? "🎬" : "📎"}</span>
-                    <span className="max-w-[140px] truncate">{a.name || "file"}</span>
+                    {/* Show what you're actually posting — a real thumbnail, not a
+                        filename — so adding a photo/video feels like adding a
+                        photo/video. */}
+                    {a.type === "image" ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={a.url} alt={a.name || "image"} className="h-full w-full object-cover" />
+                    ) : a.type === "video" ? (
+                      <>
+                        <video
+                          src={a.url}
+                          className="h-full w-full object-cover"
+                          muted
+                          playsInline
+                          preload="metadata"
+                        />
+                        <span
+                          className="pointer-events-none absolute inset-0 flex items-center justify-center text-lg text-white/90"
+                          aria-hidden
+                        >
+                          ▶
+                        </span>
+                      </>
+                    ) : (
+                      <div className="flex h-full w-full flex-col items-center justify-center gap-1 p-1 text-center">
+                        <span className="text-lg" aria-hidden>📎</span>
+                        <span className="w-full truncate text-[10px] text-ink-soft">{a.name || "file"}</span>
+                      </div>
+                    )}
                     <button
                       onClick={() => setDraftAttachments((prev) => prev.filter((_, j) => j !== i))}
-                      className="text-ink-soft hover:text-[#e57373]"
+                      className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs text-white opacity-100 transition md:opacity-0 md:group-hover:opacity-100"
                       title="Remove"
+                      aria-label="Remove attachment"
                     >
                       ✕
                     </button>
