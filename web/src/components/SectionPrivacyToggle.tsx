@@ -10,7 +10,7 @@ export function SectionPrivacyToggle({
   section,
   initialPublic,
 }: {
-  section: "reflection" | "topics" | "seeds" | "aiTags" | "fingerprint";
+  section: "reflection" | "topics" | "seeds" | "aiTags" | "fingerprint" | "calibration";
   initialPublic: boolean;
 }) {
   const [isPublic, setIsPublic] = useState(initialPublic);

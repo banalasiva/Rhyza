@@ -4,6 +4,7 @@ import { displayName } from "@/lib/display-name";
 import type { DimSlice } from "@/lib/fingerprint";
 import { getFollowContext } from "@/lib/services/follows";
 import { getUserRecognitionSummary } from "@/lib/services/recognition";
+import { getJudgementProfile, type JudgementProfile } from "@/lib/services/judgement";
 import {
   inferPersonTopics,
   describeContributionStyle,
@@ -19,7 +20,14 @@ const MAX_TOPICS = 20;
 // The profile sections a person can make public or private, and the default for
 // each. "How you show up" can surface sensitive read, so it's PRIVATE first;
 // the rest are public by default.
-export const PROFILE_SECTIONS = ["reflection", "topics", "seeds", "aiTags", "fingerprint"] as const;
+export const PROFILE_SECTIONS = [
+  "reflection",
+  "topics",
+  "seeds",
+  "aiTags",
+  "fingerprint",
+  "calibration",
+] as const;
 export type ProfileSection = (typeof PROFILE_SECTIONS)[number];
 
 const SECTION_PUBLIC_DEFAULT: Record<ProfileSection, boolean> = {
@@ -28,6 +36,7 @@ const SECTION_PUBLIC_DEFAULT: Record<ProfileSection, boolean> = {
   seeds: true,
   aiTags: true,
   fingerprint: true,
+  calibration: true, // aggregate + low-n-guarded, so safe to show; still toggleable
 };
 
 export type SectionVisibility = Record<ProfileSection, boolean>;
@@ -422,6 +431,7 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
     visibility,
     involvedSeeds,
     dimensions,
+    calibration,
     follow,
   ] = await Promise.all([
     db.contribution.count({ where: { authorId: userId, deletedAt: null, seed: { deletedAt: null } } }),
@@ -435,6 +445,7 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
     getSectionVisibility(userId),
     getInvolvedPublicSeeds(userId).catch(() => [] as InvolvedSeed[]),
     getThinkingDimensions(userId).catch(() => [] as DimSlice[]),
+    getJudgementProfile(userId).catch(() => null as JudgementProfile | null),
     getFollowContext(userId, viewerId).catch(() => ({
       followers: 0,
       following: 0,
@@ -483,6 +494,10 @@ export async function getPublicProfile(userId: string, viewerId?: string) {
     topics: canSee("topics") ? topics : [],
     involvedSeeds: canSee("seeds") ? involvedSeeds : [],
     dimensions: canSee("fingerprint") ? dimensions : [],
+    // Only surface calibration once it's meaningful (past the cold-start floor).
+    // Hidden entirely for non-owners who can't see it, and for anyone with no
+    // reckoned decisions yet — the owner still sees the "still forming" nudge.
+    calibration: canSee("calibration") ? calibration : null,
     recognitions: [...byLabel.values()].sort((a, b) => b.count - a.count),
     virtues,
     needsEnrich,
