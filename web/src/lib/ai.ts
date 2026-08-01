@@ -115,9 +115,11 @@ export type Source = { url: string; title: string };
 const WEB_SEARCH_TOOL: Anthropic.WebSearchTool20260209 = {
   type: "web_search_20260209",
   name: "web_search",
-  // Enough searches to actually answer a real research-y question well, without
-  // letting a thread steer it into dozens. Pure-discussion replies don't search.
-  max_uses: 5,
+  // Capped at ONE search per reply: search stays on for every factual question,
+  // but multi-round searching was the main reason replies felt slow (each round
+  // is seconds of "thinking…" before a word appears). One search answers the
+  // vast majority; override with WEB_SEARCH_MAX_USES if a deployment wants more.
+  max_uses: Number(process.env.WEB_SEARCH_MAX_USES) || 1,
 };
 
 // Collect the unique web pages Claude cited, in first-seen order, capped.
