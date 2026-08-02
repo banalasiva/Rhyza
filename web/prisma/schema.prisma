@@ -351,6 +351,22 @@ model SeedAddNotice {
   @@map("seed_add_notices")
 }
 
+// A person removed from a seed by its owner/admin. Its own table (not a role on
+// the hot seed_members table) so the core seed reads never touch it, and access
+// checks fail OPEN if it's un-migrated. A block denies access even on a public
+// seed (whose access otherwise comes from the garden) and hides the person from
+// the roster. Cleared when they're re-added.
+model SeedBlock {
+  seedId      String   @map("seed_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  blockedById String?  @map("blocked_by") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@id([seedId, userId])
+  @@index([seedId])
+  @@map("seed_blocks")
+}
+
 // An unsent message draft — what a person typed in a seed but hasn't sent yet.
 // The client keeps a local copy (localStorage, offline-first) for instant
 // autofill; this server row is the durable, cross-device + notifications copy,

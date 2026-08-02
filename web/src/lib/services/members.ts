@@ -50,7 +50,7 @@ async function canManageSeed(userId: string, seed: SeedRow): Promise<boolean> {
 export async function listSeedPeople(userId: string, seedId: string) {
   const seed = (await requireSeedAccess(userId, seedId)) as SeedRow;
 
-  const [creator, members, contribs, canManage] = await Promise.all([
+  const [creator, members, contribs, canManage, blockedRows] = await Promise.all([
     db.user.findUnique({
       where: { id: seed.createdById },
       select: { id: true, name: true, image: true, email: true },
@@ -65,7 +65,13 @@ export async function listSeedPeople(userId: string, seedId: string) {
       distinct: ["authorId"],
     }),
     canManageSeed(userId, seed),
+    db.seedBlock
+      .findMany({ where: { seedId }, select: { userId: true } })
+      .catch(() => [] as { userId: string }[]),
   ]);
+  // People removed from this seed never appear in the roster, even though their
+  // past posts (which would otherwise list them as a "contributor") remain.
+  const blocked = new Set(blockedRows.map((b) => b.userId));
 
   const byId = new Map<string, SeedPerson>();
   const add = (
@@ -74,6 +80,7 @@ export async function listSeedPeople(userId: string, seedId: string) {
   ) => {
     if (!u) return;
     if (AI_NAMES.has(u.name ?? "")) return; // skip Claude / ChatGPT
+    if (blocked.has(u.id)) return; // removed from this seed
     const prev = byId.get(u.id);
     if (prev && ROLE_RANK[prev.role] >= ROLE_RANK[role]) return; // keep highest role
     byId.set(u.id, {
@@ -142,6 +149,17 @@ export async function removeSeedMember(actorId: string, seedId: string, targetId
     throw new ApiError("BAD_REQUEST", "Use “Leave seed” to remove yourself.");
   }
   await db.seedMember.deleteMany({ where: { seedId, userId: targetId } });
+  // Record a block so they're gone for good — even on a public seed (where access
+  // otherwise comes from the garden) and even though their past posts remain in
+  // the thread. Best-effort: if the table isn't migrated yet, removal still at
+  // least strips their role.
+  await db.seedBlock
+    .upsert({
+      where: { seedId_userId: { seedId, userId: targetId } },
+      update: { blockedById: actorId },
+      create: { seedId, userId: targetId, blockedById: actorId },
+    })
+    .catch(() => {});
   return { ok: true };
 }
 
@@ -444,6 +462,9 @@ export async function addExistingMember(actorId: string, seedId: string, targetI
   } catch (err) {
     console.error("addExistingMember notify failed", err);
   }
+
+  // Re-adding someone lifts any prior removal block, so they regain access.
+  await db.seedBlock.deleteMany({ where: { seedId, userId: targetId } }).catch(() => {});
 
   // Show "they joined" in the thread and count them as a member right away.
   await announceJoin(seedId, targetId);

@@ -70,22 +70,17 @@ export function MembersSheet({ seedId, onClose }: { seedId: string; onClose: () 
 
         {roster && !roster.isPrivate && roster.canManage && (
           <p className="mb-3 text-[11px] text-ink-soft">
-            This is a public seed — anyone in the garden can take part, so people
-            can&apos;t be removed (their access comes from the garden). You can
-            still manage admins here. Make the seed private in its settings if you
-            want to control exactly who&apos;s in.
+            This is a public seed — anyone in the garden can take part. Removing
+            someone blocks them from this seed even so (their past posts stay).
           </p>
         )}
 
         <ul className="space-y-1">
           {roster?.people.map((p) => {
             const manageable = roster.canManage && p.role !== "owner" && !p.isYou;
-            // "Remove" only truly removes on a PRIVATE seed (it revokes access).
-            // On a public seed access comes from the garden, so removing a
-            // membership row does nothing visible (a contributor reappears via
-            // their posts) — so we don't offer a button that can't work. Roles
-            // are still managed with Make admin / Remove admin below.
-            const canRemove = manageable && roster.isPrivate;
+            // Remove now works on every seed: it blocks the person from this seed
+            // (denies access + hides them from the roster), even on a public seed.
+            const canRemove = manageable;
             return (
               <li key={p.id} className="flex items-center gap-2 rounded-lg px-1 py-1.5">
                 <Avatar name={p.name} image={p.image} size={30} />
