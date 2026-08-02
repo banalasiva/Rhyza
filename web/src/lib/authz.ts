@@ -90,6 +90,16 @@ async function assertSeedAccess(
   seed: { gardenId: string; createdById: string; visibility: string; deletedAt: Date | null } | null,
 ) {
   if (!seed || seed.deletedAt) throw new ApiError("NOT_FOUND", "Seed not found");
+  // Someone removed from this seed is denied — even on a public seed, whose
+  // access otherwise comes from the garden. The owner can never be blocked, so
+  // skip the lookup for them. Best-effort: if the table isn't migrated yet, the
+  // check fails OPEN (never locks a real member out over a missing table).
+  if (seed.createdById !== userId) {
+    const blocked = await db.seedBlock
+      .findUnique({ where: { seedId_userId: { seedId, userId } }, select: { userId: true } })
+      .catch(() => null);
+    if (blocked) throw new ApiError("NOT_FOUND", "Seed not found");
+  }
   if (seed.visibility === "public") return;
   await requireGardenAccess(userId, seed.gardenId);
   if (seed.createdById !== userId) {
