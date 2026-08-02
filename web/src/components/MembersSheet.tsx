@@ -70,14 +70,22 @@ export function MembersSheet({ seedId, onClose }: { seedId: string; onClose: () 
 
         {roster && !roster.isPrivate && roster.canManage && (
           <p className="mb-3 text-[11px] text-ink-soft">
-            This is a public seed — anyone in the garden can join, so removing only
-            affects roles, not access.
+            This is a public seed — anyone in the garden can take part, so people
+            can&apos;t be removed (their access comes from the garden). You can
+            still manage admins here. Make the seed private in its settings if you
+            want to control exactly who&apos;s in.
           </p>
         )}
 
         <ul className="space-y-1">
           {roster?.people.map((p) => {
             const manageable = roster.canManage && p.role !== "owner" && !p.isYou;
+            // "Remove" only truly removes on a PRIVATE seed (it revokes access).
+            // On a public seed access comes from the garden, so removing a
+            // membership row does nothing visible (a contributor reappears via
+            // their posts) — so we don't offer a button that can't work. Roles
+            // are still managed with Make admin / Remove admin below.
+            const canRemove = manageable && roster.isPrivate;
             return (
               <li key={p.id} className="flex items-center gap-2 rounded-lg px-1 py-1.5">
                 <Avatar name={p.name} image={p.image} size={30} />
@@ -106,14 +114,16 @@ export function MembersSheet({ seedId, onClose }: { seedId: string; onClose: () 
                         Make admin
                       </button>
                     )}
-                    <button
-                      onClick={() => act(p.id, "remove")}
-                      disabled={busyId === p.id}
-                      aria-label={`Remove ${p.name}`}
-                      className="rounded-md border border-[rgba(255,255,255,0.1)] px-2 py-1 text-[11px] text-ink-soft transition hover:text-[#e57373] disabled:opacity-50"
-                    >
-                      Remove
-                    </button>
+                    {canRemove && (
+                      <button
+                        onClick={() => act(p.id, "remove")}
+                        disabled={busyId === p.id}
+                        aria-label={`Remove ${p.name}`}
+                        className="rounded-md border border-[rgba(255,255,255,0.1)] px-2 py-1 text-[11px] text-ink-soft transition hover:text-[#e57373] disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    )}
                   </div>
                 )}
               </li>
