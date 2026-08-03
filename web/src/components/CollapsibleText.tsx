@@ -14,12 +14,17 @@ export function CollapsibleText({
   text,
   charLimit = CHAR_LIMIT,
   lineLimit = LINE_LIMIT,
+  defaultExpanded = false,
 }: {
   text: string;
   charLimit?: number;
   lineLimit?: number;
+  // Start open (no "Show more") — used for a message that just arrived/streamed
+  // in, so it never collapses under someone who's mid-read. Older messages keep
+  // the default collapsed behaviour so the thread stays scannable.
+  defaultExpanded?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
 
   const lines = text.split("\n");
   const isLong = text.length > charLimit || lines.length > lineLimit;

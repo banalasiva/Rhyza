@@ -356,6 +356,14 @@ export function SeedRoom({
   const [streamingReplies, setStreamingReplies] = useState<
     { key: string; who: string; text: string }[]
   >([]);
+  // Messages that arrived THIS session (streamed AI replies + your own posts).
+  // They render expanded so a message never collapses to "Show more" under
+  // someone who's mid-read; older messages still collapse to stay scannable.
+  const [freshIds, setFreshIds] = useState<Set<string>>(new Set());
+  const markFresh = useCallback(
+    (id: string) => setFreshIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id))),
+    [],
+  );
   const [mediating, setMediating] = useState(false);
   const [mediatingWho, setMediatingWho] = useState<"claude" | "chatgpt" | null>(null);
   const [aiVoting, setAiVoting] = useState<"claude" | "chatgpt" | null>(null);
@@ -901,6 +909,7 @@ export function SeedRoom({
           }
         return next;
       });
+      markFresh(c.id); // your own new message — keep it expanded, don't collapse
       // Stream each tagged AI's reply live (types out in its own bubble).
       const pending = c.aiPending;
       if (pending && (pending.claude || pending.chatgpt)) {
@@ -1003,6 +1012,7 @@ export function SeedRoom({
       }
       clear();
       if (done) {
+        markFresh(done.id); // just streamed in — keep it expanded, don't collapse
         setContributions((prev) =>
           prev.some((x) => x.id === done!.id) ? prev : [...prev, hydrate(done!)],
         );
@@ -2122,7 +2132,7 @@ export function SeedRoom({
                     )}
                     {c.text && (
                       <div className="mb-3 text-sm leading-relaxed text-ink">
-                        <CollapsibleText text={c.text} />
+                        <CollapsibleText text={c.text} defaultExpanded={freshIds.has(c.id)} />
                       </div>
                     )}
                     <Attachments items={c.attachments ?? []} />
