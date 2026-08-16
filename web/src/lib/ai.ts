@@ -115,11 +115,12 @@ export type Source = { url: string; title: string };
 const WEB_SEARCH_TOOL: Anthropic.WebSearchTool20260209 = {
   type: "web_search_20260209",
   name: "web_search",
-  // Capped at ONE search per reply: search stays on for every factual question,
-  // but multi-round searching was the main reason replies felt slow (each round
-  // is seconds of "thinking…" before a word appears). One search answers the
-  // vast majority; override with WEB_SEARCH_MAX_USES if a deployment wants more.
-  max_uses: Number(process.env.WEB_SEARCH_MAX_USES) || 1,
+  // Up to 3 searches per reply — a middle ground. ONE was too tight: a research
+  // question (e.g. "find me a sandal like X") needs a couple of searches, and
+  // when the model hit the 1-search cap mid-task it gave up with "I couldn't pull
+  // live search results". Three covers real research while staying faster than
+  // the old 5. Override with WEB_SEARCH_MAX_USES per deployment.
+  max_uses: Number(process.env.WEB_SEARCH_MAX_USES) || 3,
 };
 
 // Collect the unique web pages Claude cited, in first-seen order, capped.
@@ -460,9 +461,25 @@ export async function claudeReplyStream(
     if (chunk) onDelta(chunk);
   });
   const msg = await stream.finalMessage();
+  logWebSearchErrors("claudeReplyStream", msg);
   const text = textFromMessage(msg);
   if (!text) return null;
   return { text, sources: citedSources(msg) };
+}
+
+// When the web_search tool errors (usage/rate limit, query too long, transient
+// "unavailable"), the model can't search and often says so in its reply. Surface
+// the real error_code in logs so "why did it say it couldn't search?" is
+// answerable. Best-effort; never affects the reply.
+function logWebSearchErrors(where: string, msg: { content: unknown }) {
+  const blocks = (msg.content as Array<{ type?: string; content?: unknown }>) ?? [];
+  for (const b of blocks) {
+    if (b?.type !== "web_search_tool_result") continue;
+    const rc = b.content as { type?: string; error_code?: string } | undefined;
+    if (rc && typeof rc === "object" && "error_code" in rc && rc.error_code) {
+      console.warn(`${where}: web_search failed — ${rc.error_code}`);
+    }
+  }
 }
 
 export async function claudeReply(input: ClaudeReplyInput): Promise<string | null> {
