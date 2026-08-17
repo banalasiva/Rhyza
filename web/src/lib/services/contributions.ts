@@ -1,4 +1,6 @@
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
+import { createHash } from "crypto";
 import { ApiError } from "@/lib/api";
 import { getThreadMemory, refreshThreadMemory } from "@/lib/services/thread-memory";
 import {
@@ -879,6 +881,15 @@ export async function listContributions(userId: string, seedId: string, since?: 
 // group's question, so asking a good question is rewarded instantly and the
 // thread starts with momentum. Best-effort and idempotent (only acts while the
 // thread is still empty), so it never blocks or double-posts.
+// A stable UUID for a seed's opener, derived from the seed id. Because it's
+// deterministic, two racing kickstarts produce the SAME id, so the second
+// contribution insert collides on the primary key and is rejected — guaranteeing
+// exactly one opener without a lock or an extra table.
+function openerContributionId(seedId: string): string {
+  const h = createHash("sha256").update(`opener:${seedId}`).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`;
+}
+
 export async function kickstartSeed(seedId: string) {
   try {
     const seed = await db.seed.findUnique({
@@ -892,9 +903,24 @@ export async function kickstartSeed(seedId: string) {
     const text = await seedOpener({ title: seed.title, content: seed.content ?? "" });
     if (!text) return;
     const claude = await getOrCreateClaudeUser();
-    const contribution = await db.contribution.create({
-      data: { seedId, authorId: claude.id, dimension: "understanding", content: { text } },
-    });
+    // Deterministic id → a concurrent kickstart's insert collides here and stops,
+    // so the seed can never get two openers even if both callers race past the
+    // "thread empty?" check above.
+    let contribution;
+    try {
+      contribution = await db.contribution.create({
+        data: {
+          id: openerContributionId(seedId),
+          seedId,
+          authorId: claude.id,
+          dimension: "understanding",
+          content: { text },
+        },
+      });
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return;
+      throw e;
+    }
     await db.seed.update({ where: { id: seedId }, data: { lastActivityAt: new Date() } }).catch(() => {});
     await notifySeedActivity(
       claude.id,
