@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { SeedDetail } from "@/lib/services/seeds";
@@ -37,12 +38,26 @@ import { Icon, type IconName } from "@/components/Icon";
 import { ReadAloud } from "@/components/ReadAloud";
 import { MicButton } from "@/components/MicButton";
 import { MessageActions } from "@/components/MessageActions";
-import { ForwardPicker } from "@/components/ForwardPicker";
-import { SeedInvite } from "@/components/SeedInvite";
 import { RecognitionRow } from "@/components/RecognitionRow";
-import { MembersSheet } from "@/components/MembersSheet";
-import { DeadlineSheet } from "@/components/DeadlineSheet";
 import { JoinRequests } from "@/components/JoinRequests";
+// These only render on interaction (behind a state flag), so lazy-load them —
+// they're code-split out of the seed page's initial bundle and fetched on first
+// use, which trims the JS the page must parse/hydrate on open.
+const ForwardPicker = dynamic(
+  () => import("@/components/ForwardPicker").then((m) => m.ForwardPicker),
+  { ssr: false },
+);
+const SeedInvite = dynamic(() => import("@/components/SeedInvite").then((m) => m.SeedInvite), {
+  ssr: false,
+});
+const MembersSheet = dynamic(
+  () => import("@/components/MembersSheet").then((m) => m.MembersSheet),
+  { ssr: false },
+);
+const DeadlineSheet = dynamic(
+  () => import("@/components/DeadlineSheet").then((m) => m.DeadlineSheet),
+  { ssr: false },
+);
 
 const SEED_TABS = [
   { key: "discuss", label: "Discuss", icon: "discussion" },
