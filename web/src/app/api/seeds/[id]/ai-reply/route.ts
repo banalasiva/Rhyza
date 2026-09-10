@@ -105,6 +105,11 @@ export async function POST(req: Request, ctx: { params: { id: string } }): Promi
           send("done", { contribution: toDTO(contribution) });
         }
       } catch (err) {
+        // Log the RAW provider error (status + code) so the Vercel logs show the
+        // real reason a reply failed — e.g. 401 authentication_error (bad/disabled
+        // key), 429 insufficient_quota / rate_limit_exceeded (billing/usage), or
+        // 529 overloaded (transient) — instead of only the generic banner.
+        console.error(`ai-reply failed [${provider}]`, err);
         const msg = err instanceof Error ? err.message.slice(0, 200) : "reply failed";
         send("error", { message: msg });
       } finally {
