@@ -12,6 +12,10 @@ export const VIRTUES: Virtue[] = [
   { key: "judgement", emoji: "🎯", label: "Judgement", blurb: "Called it well" },
   { key: "taste", emoji: "🎨", label: "Taste", blurb: "Knew what was worth doing" },
   { key: "empathy", emoji: "🫶", label: "Empathy", blurb: "Understood the people, bridged the gap" },
+  // Awarded by the person who was CHALLENGED — the un-gameable core of conflict
+  // stewardship: only someone whose point you engaged can say you took it
+  // seriously. AI can spotlight the moment, but only they can certify it.
+  { key: "tension_holder", emoji: "🪢", label: "Held the tension", blurb: "Took the other side seriously before answering" },
 ];
 
 const BY_KEY = new Map(VIRTUES.map((v) => [v.key, v]));

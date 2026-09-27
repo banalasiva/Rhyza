@@ -7,6 +7,7 @@ import { notifyFollowersNewSeed, notifyGardenNewSeed } from "@/lib/services/foll
 import { getJoinStatus } from "@/lib/services/joinreq";
 import { getMediatorNudge } from "@/lib/services/mediator";
 import { getDraft } from "@/lib/services/drafts";
+import { getPendingStewardship } from "@/lib/services/stewardship";
 import { getKeptIdsForSeed } from "@/lib/services/kept";
 import { seedAiEnabled } from "@/lib/services/ai-settings";
 import { displayName } from "@/lib/display-name";
@@ -281,7 +282,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
 
   // One parallel batch: authorization + all the data, instead of 5 sequential
   // round-trips (this dominates latency when the DB is far away).
-  const [orgMember, member, seedMember, distribution, myVote, contributions, peopleRows, follow, addNotice, draft] =
+  const [orgMember, member, seedMember, distribution, myVote, contributions, peopleRows, follow, addNotice, draft, pendingStewardship] =
     await Promise.all([
       db.orgMember.findUnique({
         where: { orgId_userId: { orgId: seed.garden.orgId, userId } },
@@ -312,6 +313,10 @@ export async function getSeedDetail(userId: string, seedId: string) {
       // Best-effort: the viewer's unsent draft, for editor autofill (server copy;
       // the client's localStorage is the offline-first source that wins if newer).
       getDraft(userId, seedId),
+      // Path C: pending stewardship spotlights the viewer is asked to certify.
+      getPendingStewardship(seedId, userId).catch(
+        () => [] as Awaited<ReturnType<typeof getPendingStewardship>>,
+      ),
     ]);
   // Fetched newest-first (windowed); flip to ascending for display + all the
   // order-independent reads below.
@@ -417,6 +422,7 @@ export async function getSeedDetail(userId: string, seedId: string) {
     myVote: myVote?.stage ?? null,
     addedNotice,
     draft,
+    pendingStewardship,
     contributions: contribs,
   };
 }

@@ -379,6 +379,21 @@ export function SeedRoom({
     (id: string) => setFreshIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id))),
     [],
   );
+  // Path C: stewardship spotlights the viewer has already answered this session,
+  // so the certify card disappears the moment they tap.
+  const [stewardActed, setStewardActed] = useState<Set<string>>(new Set());
+  const pendingSteward = (seed.pendingStewardship ?? []).filter(
+    (s) => !stewardActed.has(s.spotlightId),
+  );
+  async function certifySteward(spotlightId: string, confirmed: boolean) {
+    setStewardActed((prev) => new Set(prev).add(spotlightId)); // optimistic — hide the card
+    try {
+      await apiPost(`/api/stewardship/${spotlightId}/certify`, { confirmed });
+      if (confirmed) playNatureSound("chirp");
+    } catch {
+      /* best-effort; the card stays gone either way */
+    }
+  }
   const [mediating, setMediating] = useState(false);
   const [mediatingWho, setMediatingWho] = useState<"claude" | "chatgpt" | null>(null);
   const [aiVoting, setAiVoting] = useState<"claude" | "chatgpt" | null>(null);
@@ -2151,6 +2166,36 @@ export function SeedRoom({
                       </div>
                     )}
                     <Attachments items={c.attachments ?? []} />
+                    {/* Path C certify prompt — shown only to the person who was
+                        challenged, on the reply that (per Claude's spotlight) took
+                        their point seriously. Only THEY can turn it into a credit. */}
+                    {(() => {
+                      const spot = pendingSteward.find((s) => s.contributionId === c.id);
+                      if (!spot) return null;
+                      return (
+                        <div className="mt-2 rounded-xl border border-[rgba(76,175,80,0.25)] bg-[rgba(76,175,80,0.05)] p-3 text-sm">
+                          <p className="text-ink-mid">
+                            <span aria-hidden>🪢</span> Claude noticed{" "}
+                            <span className="text-ink">{spot.replierName}</span> took your point
+                            seriously here. Did they?
+                          </p>
+                          <div className="mt-2 flex gap-2">
+                            <button
+                              onClick={() => certifySteward(spot.spotlightId, true)}
+                              className="rounded-md border border-[rgba(76,175,80,0.4)] px-3 py-1 text-xs text-accent transition hover:bg-[rgba(76,175,80,0.1)]"
+                            >
+                              Yes, they heard me out
+                            </button>
+                            <button
+                              onClick={() => certifySteward(spot.spotlightId, false)}
+                              className="rounded-md border border-[var(--border)] px-3 py-1 text-xs text-ink-soft transition hover:text-ink"
+                            >
+                              Not really
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
                 {/* Gentle in-thread reveal on the first AI reply — reassures a

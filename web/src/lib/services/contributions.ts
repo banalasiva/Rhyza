@@ -44,6 +44,7 @@ import { bumpFollowOnContribute } from "@/lib/services/explore";
 import { notifyFollowersJoinedDiscussion } from "@/lib/services/follows";
 import { markAsksAnswered } from "@/lib/services/asks";
 import { notifySeedChanged } from "@/lib/realtime";
+import { spotlightStewardship } from "@/lib/services/stewardship";
 import { maybeSenseRoom, resolveMediatorNudge } from "@/lib/services/mediator";
 import { getReactionTypes } from "@/lib/registry";
 import { isSignalReaction } from "@/lib/reactions";
@@ -773,6 +774,18 @@ export async function addContribution(
   // The wise presence takes a quiet, throttled read of the room after a human
   // message — and offers to step in if it's getting rough or drifting.
   void maybeSenseRoom(seedId);
+
+  // Path C spotlight: if this reply engaged a specific prior point, quietly check
+  // whether it took that point seriously — and if so, prompt the challenged
+  // person to certify it (conflict-stewardship credit). Fire-and-forget.
+  if (input.parentId) {
+    void spotlightStewardship({
+      seedId,
+      contributionId: contribution.id,
+      replierId: userId,
+      parentId: input.parentId,
+    });
+  }
 
   // The "someone you follow joined this discussion" hook — only the FIRST time
   // this person contributes to a world-visible seed, so it never becomes
