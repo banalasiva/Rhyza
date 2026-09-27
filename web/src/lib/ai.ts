@@ -714,6 +714,39 @@ export async function classifyDimension(input: {
   }
 }
 
+// Path C spotlight detector for CONFLICT STEWARDSHIP. Given a point someone made
+// and a reply to it, decide whether the reply genuinely took that point seriously
+// — restated/steelmanned/engaged its strongest form — before responding, rather
+// than ignoring it, dismissing it, strawmanning it, or just agreeing. Kept
+// deliberately STRICT and cheap (fast model, tiny output): a false positive
+// wastes the challenged person's certify tap and dilutes the signal, so when in
+// doubt it answers NO. This only SPOTLIGHTS a candidate; a human still certifies.
+export async function classifyStewardship(input: {
+  point: string;
+  reply: string;
+}): Promise<boolean> {
+  if (!aiConfigured()) return false;
+  // Too short to be a substantive engagement — skip the call entirely.
+  if (input.point.trim().length < 40 || input.reply.trim().length < 80) return false;
+  try {
+    const out = await complete(
+      "You judge ONE thing about a reply in a discussion: did it genuinely take the other " +
+        "person's point SERIOUSLY before responding — restating it, steelmanning it, or engaging " +
+        "its strongest form — while holding the disagreement open? Be STRICT. Answer YES only when " +
+        "the reply visibly engages the substance of the point first. Answer NO for simple " +
+        "agreement, dismissal, strawmanning, tangents, or an ordinary reply that doesn't clearly " +
+        "grapple with the point. When in doubt, answer NO. Reply with ONLY one word: YES or NO.",
+      `THE POINT:\n"${input.point.slice(0, 1200)}"\n\nTHE REPLY:\n"${input.reply.slice(0, 1200)}"`,
+      5,
+      MODEL_FAST,
+    );
+    return /\byes\b/i.test(out);
+  } catch (err) {
+    console.error("classifyStewardship failed", err);
+    return false;
+  }
+}
+
 // One grounded observation about a person's thinking in an "Understand together"
 // thread — Claude as a *spotter* of real human contribution, not an explainer.
 export type LearningMoment = {

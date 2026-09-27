@@ -367,6 +367,26 @@ model SeedBlock {
   @@map("seed_blocks")
 }
 
+// Path C: AI spotlights a candidate moment, a human certifies it. When someone
+// replies to another person's point in a way that genuinely engages/steelmans
+// it, the classifier records a spotlight targeted at the person who was
+// challenged — the only one who can honestly say "yes, they took me seriously".
+// On confirm it becomes a peer recognition (tension_holder); the AI never awards
+// it. Its own table, best-effort — a missing table just means no spotlights.
+model StewardshipSpotlight {
+  id             String   @id @default(uuid()) @db.Uuid
+  seedId         String   @map("seed_id") @db.Uuid
+  contributionId String   @map("contribution_id") @db.Uuid // the tension-holding reply
+  replierId      String   @map("replier_id") @db.Uuid // its author (earns the credit)
+  targetId       String   @map("target_id") @db.Uuid // the challenged person (certifies)
+  status         String   @default("pending") // pending | confirmed | declined
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([contributionId, targetId])
+  @@index([seedId, targetId, status])
+  @@map("stewardship_spotlights")
+}
+
 // An unsent message draft — what a person typed in a seed but hasn't sent yet.
 // The client keeps a local copy (localStorage, offline-first) for instant
 // autofill; this server row is the durable, cross-device + notifications copy,
