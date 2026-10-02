@@ -110,6 +110,15 @@ function attachmentType(mime: string): Attachment["type"] {
   return "file";
 }
 
+// Live-sync cadence. Without push (Pusher) the room polls every 1.5s — the delta
+// fingerprint keeps an unchanged poll tiny — and with push on it backs off to a
+// 10s self-heal. The "force a full resync" safety net is tied to WALL-CLOCK time
+// (~24s), not a poll count, so a faster poll doesn't make full fetches 3x more
+// frequent.
+const POLL_MS_NO_PUSH = 1500;
+const POLL_MS_WITH_PUSH = 10000;
+const FULL_RESYNC_MS = 24000;
+
 // Two messages are the same if every rendered field matches. Both come from the
 // same sync serializer, so a stable-key-order JSON compare is exact — used to
 // reuse the existing object (stable identity) when a poll brings back a message
@@ -604,7 +613,8 @@ export function SeedRoom({
         // when nothing changed. Every 6th poll (~24s) we force a full refresh
         // (omit `since`) so any missed delta self-heals within seconds.
         syncPollCountRef.current += 1;
-        const forceFull = syncPollCountRef.current % 6 === 0;
+        const pollMs = realtimeClientConfigured() ? POLL_MS_WITH_PUSH : POLL_MS_NO_PUSH;
+        const forceFull = syncPollCountRef.current % Math.max(1, Math.round(FULL_RESYNC_MS / pollMs)) === 0;
         const sinceQ =
           !forceFull && syncVersionRef.current
             ? `?since=${encodeURIComponent(syncVersionRef.current)}`
@@ -687,7 +697,7 @@ export function SeedRoom({
   // Fallback poll — 4s normally, backed off to 10s when Pusher push is on (push
   // delivers new messages instantly; the poll is just a self-heal backstop).
   useEffect(() => {
-    const t = setInterval(syncNow, realtimeClientConfigured() ? 10000 : 4000);
+    const t = setInterval(syncNow, realtimeClientConfigured() ? POLL_MS_WITH_PUSH : POLL_MS_NO_PUSH);
     return () => clearInterval(t);
   }, [syncNow]);
 
