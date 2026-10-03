@@ -678,6 +678,50 @@ html.light .plant-sparkle {
   }
 }
 
+/* ── Bloom celebration: a night scene in the dark theme, daylight in the light ──
+   The overlay is full-bleed and opaque, so it owns its own palette rather than
+   inheriting the page's. --ground-* tint the plant's earth mound (PlantSvg
+   ground="mound"). Text uses the normal theme inks, which already contrast with
+   the matching backdrop in each theme. */
+.bloom-overlay {
+  background: radial-gradient(circle at 50% 44%, #241300 0%, #0a0600 68%);
+  --ground-top: #6b4423;
+  --ground-mid: #2c1a0c;
+}
+.bloom-overlay .bloom-eyebrow {
+  color: var(--bloom);
+}
+html.light .bloom-overlay {
+  background: radial-gradient(circle at 50% 44%, #fffef7 0%, #fff2cc 60%, #ffe4a3 100%);
+  --ground-top: #7a4a22;
+  --ground-mid: #a8703a;
+}
+html.light .bloom-overlay .bloom-eyebrow {
+  color: #8a4f00;
+}
+/* The call-to-action breathes with a glow + tiny scale — NOT animate-pulse,
+   which fades the whole button to 50% opacity (white text on translucent green:
+   washed out in the dark theme, near-unreadable on the light backdrop). */
+.bloom-cta {
+  animation: bloomCta 2.4s ease-in-out infinite;
+}
+@keyframes bloomCta {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.45);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+  }
+}
+/* The shimmer title is pale gold, which vanishes on a light backdrop — use deep
+   golds there instead. (background-clip:text is inherited from .bloom-shimmer.) */
+html.light .bloom-overlay .bloom-shimmer {
+  background-image: linear-gradient(90deg, #7a4300, #c27400, #5c3300, #7a4300);
+}
+
 .reaction-label {
   position: fixed;
   z-index: 251;
