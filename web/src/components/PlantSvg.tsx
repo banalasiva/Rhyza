@@ -1,10 +1,29 @@
 "use client";
 
+import { useId } from "react";
+
 // The growing plant, ported from the prototype. `stage` is 0–4
 // (seed → germinating → sprouting → growing → bloomed). It animates between
 // stages via CSS transitions on the SVG.
 
-export function PlantSvg({ stage }: { stage: number }) {
+export function PlantSvg({
+  stage,
+  ground = "box",
+}: {
+  stage: number;
+  // "box" is the original hard-edged soil block (sits on a card). "mound" is a
+  // soft earth mound that fades out at the sides and bottom — for scenes where
+  // the plant floats on a full-bleed backdrop (the bloom celebration), where a
+  // rectangle would read as a slab. Its tones come from the --ground-top CSS
+  // variable, so each theme can set its own.
+  ground?: "box" | "mound";
+}) {
+  // Per-instance ids for the mound defs. Several plants can be on the page at
+  // once (the seed-room card AND the celebration overlay); a shared id would
+  // resolve to the FIRST one, whose CSS variables come from a different theme
+  // scope — so the overlay's mound would pick up the wrong colours.
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const moundGr = `moundGr${uid}`;
   const soilY = 178;
   const stemTop =
     [soilY - 2, soilY - 28, soilY - 70, soilY - 108, soilY - 138][stage] ?? soilY - 2;
@@ -37,6 +56,15 @@ export function PlantSvg({ stage }: { stage: number }) {
           <stop offset="55%" stopColor="#FFB300" />
           <stop offset="100%" stopColor="#FB8C00" />
         </linearGradient>
+        {ground === "mound" && (
+          <>
+            <radialGradient id={moundGr} cx="50%" cy="50%" r="50%">
+              <stop offset="0%" style={{ stopColor: "var(--ground-top, #5a3a1e)" }} stopOpacity="0.95" />
+              <stop offset="55%" style={{ stopColor: "var(--ground-mid, #3a2412)" }} stopOpacity="0.55" />
+              <stop offset="100%" style={{ stopColor: "var(--ground-mid, #3a2412)" }} stopOpacity="0" />
+            </radialGradient>
+          </>
+        )}
         <filter id="softGlow">
           <feGaussianBlur stdDeviation="4" result="b" />
           <feMerge>
@@ -46,10 +74,18 @@ export function PlantSvg({ stage }: { stage: number }) {
         </filter>
       </defs>
 
-      {/* Soil */}
-      <rect x={0} y={soilY} width={300} height={125} fill="url(#soilGr)" className="plant-soil" />
-      <line x1={55} y1={soilY + 14} x2={100} y2={soilY + 11} stroke="#3D2A16" strokeWidth={1} opacity={0.5} />
-      <line x1={185} y1={soilY + 18} x2={235} y2={soilY + 14} stroke="#3D2A16" strokeWidth={1} opacity={0.4} />
+      {/* Ground */}
+      {ground === "mound" ? (
+        // Fades out on every side (no hard top edge) so the plant reads as
+        // rising from soft earth rather than standing on a slab.
+        <ellipse cx={150} cy={soilY + 16} rx={128} ry={46} fill={`url(#${moundGr})`} />
+      ) : (
+        <>
+          <rect x={0} y={soilY} width={300} height={125} fill="url(#soilGr)" className="plant-soil" />
+          <line x1={55} y1={soilY + 14} x2={100} y2={soilY + 11} stroke="#3D2A16" strokeWidth={1} opacity={0.5} />
+          <line x1={185} y1={soilY + 18} x2={235} y2={soilY + 14} stroke="#3D2A16" strokeWidth={1} opacity={0.4} />
+        </>
+      )}
 
       {/* Seed glow halo */}
       <ellipse
